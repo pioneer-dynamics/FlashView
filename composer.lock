@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "0e8d4623d3534ada136b1ae18bacb8c1",
+    "content-hash": "8610bca6fede120ec279ba93deadbb44",
     "packages": [
         {
             "name": "bacon/bacon-qr-code",
@@ -2343,6 +2343,54 @@
                 }
             ],
             "time": "2024-09-21T08:32:55+00:00"
+        },
+        {
+            "name": "mathewparet/inertia-config-share",
+            "version": "v1.0.7",
+            "source": {
+                "type": "git",
+                "url": "https://bitbucket.org/mathewparet/inertia-config-share.git",
+                "reference": "6d64b937a5d0186666d04b14b17a2f0d821bc8e1"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://bitbucket.org/mathewparet/inertia-config-share/get/6d64b937a5d0186666d04b14b17a2f0d821bc8e1.zip",
+                "reference": "6d64b937a5d0186666d04b14b17a2f0d821bc8e1",
+                "shasum": ""
+            },
+            "require": {
+                "illuminate/support": "*",
+                "inertiajs/inertia-laravel": "^1.0"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "mathewparet\\InertiaConfigAndFlashShare\\ShareConfigAndFlashProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "mathewparet\\InertiaConfigAndFlashShare\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Mathew Paret",
+                    "email": "mathewparet@gmail.com"
+                }
+            ],
+            "description": "Share certain configurations from Laravel to Inertia",
+            "homepage": "https://bitbucket.org/mathewparet/inertia-config-share",
+            "support": {
+                "source": "https://bitbucket.org/mathewparet/inertia-config-share/src/6d64b937a5d0186666d04b14b17a2f0d821bc8e1/?at=v1.0.7"
+            },
+            "time": "2024-05-06T12:14:07+00:00"
         },
         {
             "name": "mobiledetect/mobiledetectlib",

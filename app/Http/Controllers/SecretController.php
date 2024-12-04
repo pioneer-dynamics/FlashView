@@ -42,10 +42,10 @@ class SecretController extends Controller implements HasMiddleware
     {
         $secret = Secret::create([
             'message' => $request->message,
-            'expires_at' => $request->expires_at,
+            'expires_at' => $expires_at = now()->addMinutes((int)$request->expires_in),
         ]);
 
-        $url = URL::temporarySignedRoute('secret.show', $secret->expires_at, ['secret' => $secret->hash_id]);
+        $url = URL::temporarySignedRoute('secret.show', $expires_at, ['secret' => $secret->hash_id]);
 
         return back()->with('flash', [
             'secret' => [

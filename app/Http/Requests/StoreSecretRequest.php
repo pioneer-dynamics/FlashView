@@ -22,7 +22,15 @@ class StoreSecretRequest extends FormRequest
     public function rules(): array
     {
         return [
-            //
+            'message' => 'required|string|min:1',
+            'expires_in' => 'required|numeric|in:' . implode(',', array_map(fn($item) => $item['value'], config('secrets.expiry_options'))),
+        ];
+    }
+
+    public function attributes()
+    {
+        return [
+            'expires_in' => 'expiry',
         ];
     }
 }
