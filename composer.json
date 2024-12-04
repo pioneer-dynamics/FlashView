@@ -15,7 +15,9 @@
         "laravel/jetstream": "^5.3",
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^2.9",
-        "tightenco/ziggy": "^2.0"
+        "mathewparet/inertia-config-share": "^1.0",
+        "tightenco/ziggy": "^2.0",
+        "vinkla/hashids": "^12.0"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",
