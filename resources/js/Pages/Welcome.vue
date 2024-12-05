@@ -67,10 +67,10 @@ const props = defineProps({
                     </nav>
                 </header>
 
-                <main class="mt-6">
-                    <div class="grid gap-6 lg:grid-cols-1 lg:gap-8 px-40">
+                <main class="mt-6 grid-cols-1 gap-6">
+                    <!-- <div class="grid gap-6 lg:grid-cols-1 lg:gap-8 px-40"> -->
                         <Secret :secret="secret" :decrypt-url="decryptUrl"/>
-                    </div>
+                    <!-- </div> -->
                 </main>
 
                 <footer class="py-16 text-center text-sm text-black dark:text-white/70">

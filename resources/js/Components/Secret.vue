@@ -181,7 +181,7 @@
             </PrimaryButton>
         </template>
     </FlatFormSection>
-    <FlatActionSection v-if="!$page.props.jetstream.flash?.secret?.url">
+    <FlatActionSection v-if="!$page.props.jetstream.flash?.secret?.url" class="pt-4">
         <h2 class="text-4xl font-extrabold dark:text-white">F.A.Q.</h2>
 
         <Faq :question="'How safe is sharing a secret with ' + $page.props.config.app.name + ' ?'">
