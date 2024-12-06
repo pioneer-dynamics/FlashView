@@ -215,5 +215,17 @@
                 <li>Literally anything...</li>
             </ul>
         </Faq>
+        <Faq question="How do you avoid harrasment and other illegal use of the system?">
+            We log the IP address and the time at which a link is generated and retrieved. This log is kept for {{$page.props.config.secrets.prune_after}} days after which they are permanently deleted as well. If a legal authority produces a court order to request details about a message, we will provide them with the IP address from which and the time at which the link was genrated as long as it has not yet been pruned by the system.
+        </Faq>
+        <Faq question="Is there a limit to the message size?">
+            For now, yes. Messages are limited to 160 characters. This is to avoid possible illegal use of the system - like harrasment, or to promote terrorism. We will soon implement an option to create a user account with us (free) which will allow you to send larger messages. This will help deter illegal use of the system and provide means for enforcement and legal entities to track illegal use.
+        </Faq>
+        <Faq question="Isn't that a privacy concern?">
+            Even with user accounts that allow you to send larger messages we will not be able to decrypt a message. So the content of the message is still secure. We will only share the metadata (IP address and time it was created, and the IP address and time it was retrieved) with legal authorities and only if they request it with a proper court order that relates to an investigation that is related to illegal use like harrasment or terrorism. In all other cases no metadata will be shared.
+        </Faq>
+        <Faq question="How are the metadata stored?">
+            The IP Addresses is stored encrypted use AES-256-CBC algorithm with an "application key". This key is not stored in the database and is only stored on our application server. Hence a hack into our database will not reveal the metadata. The time at which a message was created or retrieved is not stored encrypted.
+        </Faq>
     </FlatActionSection>
 </template>

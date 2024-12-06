@@ -7,7 +7,7 @@ use App\Models\Scopes\ActiveScope;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 
-class PurgeExpiredSecrets implements ShouldQueue
+class PurgeMetadataForExpiredMessages implements ShouldQueue
 {
     use Queueable;
 
@@ -24,6 +24,6 @@ class PurgeExpiredSecrets implements ShouldQueue
      */
     public function handle(): void
     {
-        Secret::withoutGlobalScope(ActiveScope::class)->expired()->delete();
+        Secret::withoutGlobalScope(ActiveScope::class)->readyToPrune()->delete();
     }
 }
