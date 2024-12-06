@@ -216,7 +216,7 @@
             </ul>
         </Faq>
         <Faq question="How do you avoid harrasment and other illegal use of the system?">
-            We log the IP address and the time at which a link is generated and retrieved. This log is kept for {{$page.props.config.secrets.prune_after}} days after which they are permanently deleted as well. If a legal authority produces a court order to request details about a message, we will provide them with the IP address from which and the time at which the link was genrated as long as it has not yet been pruned by the system.
+            We log the IP address and the time at which a link is generated and retrieved. This log is kept for {{$page.props.config.secrets.prune_after}} days after which they are permanently deleted as well. If a legal authority produces a court order to request details about a message, we will provide them with the IP address from which and the time at which the link was generated and accessed as long as it has not yet been pruned by the system.
         </Faq>
         <Faq question="Isn't that a privacy concern?">
             All secret messages are stored encrypted and encryption occurs at the browser before it is sent to us. So the content of the message is still secure and of no use to anyone except the recipient. We will not be able to retrieve the message content even if we wanted to. We will only share the metadata (IP address and time it was created, and the IP address and time it was retrieved) with legal authorities and only if they request it with a proper court order that relates to an investigation that is related to illegal use like harrasment or terrorism. In all other cases no metadata will be shared.
