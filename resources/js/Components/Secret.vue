@@ -211,7 +211,7 @@
             <ul class="list-disc list-inside">
                 <li>For sending passwords, or share your Netflix credentials with familiy.</li>
                 <li>To confess to your secret crush.</li>
-                <li>Tell your kids about your grandfathers secret treasure stash.</li>
+                <li>Tell your kids about your grandfather's secret treasure stash.</li>
                 <li>Literally anything...</li>
             </ul>
         </Faq>
