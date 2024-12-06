@@ -224,8 +224,5 @@
         <Faq question="How are the metadata stored?">
             The IP Addresses is stored encrypted use AES-256-CBC algorithm with an "application key". This key is not stored in the database and is only stored on our application server. Hence a hack into our database will not reveal the metadata. The time at which a message was created or retrieved is not stored encrypted.
         </Faq>
-        <Faq question="Is there a limit to the message size?">
-            For now, yes. Messages are limited to 160 characters. This is to avoid possible illegal use of the system - like harrasment, or to promote terrorism. We will soon implement an option to create a user account with us (free) which will allow you to send larger messages. This will help deter illegal use of the system and provide means for enforcement and legal entities to track illegal use.
-        </Faq>
     </FlatActionSection>
 </template>
