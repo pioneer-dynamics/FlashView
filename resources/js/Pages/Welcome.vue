@@ -5,7 +5,8 @@ import PrimaryButton from '@/Components/PrimaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
 import InputError from '@/Components/InputError.vue';
 import Secret from '@/Components/Secret.vue';
-import Background from '../../images/bg.jpg';
+import { computed, ref } from 'vue';
+import Background from '../../images/bg.png';
 import Logo from '../../images/logo.png';
 
 const props = defineProps({
@@ -27,11 +28,13 @@ const props = defineProps({
     }
 });
 
+const bgImageClass = computed(() => "bg-gray-50 text-black/50 dark:bg-black dark:text-white/50 bg-cover bg-[url('"+Background+"')]");
+
 </script>
 
 <template>
     <Head title="Welcome" />
-    <div class="bg-gray-50 text-black/50 dark:bg-black dark:text-white/50 bg-cover bg-[url('https://images.unsplash.com/photo-1533134486753-c833f0ed4866?q=80&w=2940&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D')]">
+    <div :class="bgImageClass">
         <!-- <img id="background" class="absolute -left-20 top-0 w-full" :src="Background" /> -->
         <div class="relative min-h-screen flex flex-col items-center justify-center">
             <div class="relative w-full max-w-2xl px-6 lg:max-w-7xl">
