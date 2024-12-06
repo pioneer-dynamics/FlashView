@@ -225,7 +225,7 @@
             The IP Addresses is stored encrypted use AES-256-CBC algorithm with an "application key". This key is not stored in the database and is only stored on our application server. Hence a hack into our database will not reveal the metadata. The time at which a message was created or retrieved is not stored encrypted.
         </Faq>
         <Faq question="How can legal authorities contact you with a court order?">
-            If you are a legal authority, you can email us at {{ $page.props.config.support.legal }}. The request should have the retrieval URL for the message, a scanned copy of the notorised court order, and the reason for the request. To speed up the process (that is to help us validate the authority of the court order) we recommend that the email is sent from the registed domain name for the court or the legal authority and is signed using a valid digital signature.
+            If you are a legal authority, you can email us at <a class="underline text-gamboge-200" :href="'mailto:' + $page.props.config.support.legal ">{{ $page.props.config.support.legal }}</a>. The request should have the retrieval URL for the message, a scanned copy of the notorised court order, and the reason for the request. To speed up the process (that is to help us validate the authority of the court order) we recommend that the email is sent from the registed domain name for the court or the legal authority and is signed using a valid digital signature.
         </Faq>
     </FlatActionSection>
 </template>
