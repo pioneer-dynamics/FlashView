@@ -15,8 +15,12 @@ Route::get('/', function () {
     ]);
 });
 
-Route::get('secret/{secret}/decrypt', [SecretController::class,  'decrypt'])->name('secret.decrypt');
-Route::resource('secret', SecretController::class);
+Route::middleware('signed')->group(function () {
+    Route::get('secret/{secret}/decrypt', [SecretController::class,  'decrypt'])->name('secret.decrypt');
+    Route::get('secret/{secret}', [SecretController::class,  'show'])->name('secret.show');
+});
+
+Route::resource('secret', SecretController::class)->only('create','store');
 
 Route::middleware([
     'auth:sanctum',
