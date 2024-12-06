@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Traits\HasHashId;
 use App\Models\Scopes\ActiveScope;
+use Illuminate\Support\Facades\App;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Attributes\ScopedBy;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -56,10 +57,22 @@ class Secret extends Model
         });
 
         static::retrieved(function (Secret $secret) {
+            if(App::runningInConsole())
+                return;
+            
             $secret->forceFill([
                 'retrieved_at' => now(),
                 'ip_address_retrieved' => request()->ip(),
             ])->save();
         });
+    }
+
+    public function markAsRetrieved()
+    {
+        $this->forceFill([
+            'retrieved_at' => now(),
+            'ip_address_retrieved' => request()->ip(),
+            'message' => null
+        ])->save();
     }
 }
