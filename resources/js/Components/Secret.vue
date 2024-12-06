@@ -207,5 +207,13 @@
         <Faq question="How long will the secret be available?">
             The secret message is deleted when it reaches the expiry set while generating the secret link, or on the first attempt to retrieve the message - whichever comes first.
         </Faq>
+        <Faq question="What would be some of the usecases?">
+            <ul class="list-disc list-inside">
+                <li>For sending passwords, or share your Netflix credentials with familiy.</li>
+                <li>To confess to your secret crush.</li>
+                <li>Tell your kids about your grandfathers secret treasure stash.</li>
+                <li>Literally anything...</li>
+            </ul>
+        </Faq>
     </FlatActionSection>
 </template>
