@@ -38,7 +38,7 @@ class LegalMetadata extends Command
             ['Retreived At', $secret->retrieved_at],
             ['Expires At', $secret->expires_at],
             ['Sent From', $secret->ip_address_sent],
-            ['Retrieved From', $secret->ip_address_retreived],
+            ['Retrieved From', $secret->ip_address_retrieved],
             ['User ID', $secret->user_id],
         ]);
     }
