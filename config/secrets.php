@@ -51,4 +51,6 @@ return [
             'value' => 43200,
         ],
     ],
+
+    'prune_after' => env('SECRET_PRUNE_AFTER_EXPIRY_DAYS_PLUS', 30)
 ];

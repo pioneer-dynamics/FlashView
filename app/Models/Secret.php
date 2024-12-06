@@ -26,7 +26,10 @@ class Secret extends Model
     {
         return [
             'expires_at' => 'datetime',
+            'retrieved_at' => 'datetime',
             'message' => 'encrypted',
+            'ip_address_sent' => 'encrypted',
+            'ip_address_retrieved' => 'encrypted',
         ];
     }
 
@@ -35,19 +38,28 @@ class Secret extends Model
         return $query->where('expires_at', '<', now());
     }
 
+    public function scopeReadyToPrune($query)
+    {
+        return $query->where('expires_at', '<', now()->subDays(config('secrets.prune_after')))->where('message', null);
+    }
+
     public function scopeActive($query)
     {
-        return $query->where('expires_at', '>=', now());
+        return $query->where('expires_at', '>=', now())->where('message', '!=', null);
     }
 
     public static function booted()
     {
         static::creating(function (Secret $secret) {
             $secret->expires_at = $secret->expires_at ?? now()->addMinutes(config('secrets.expiry'));
+            $secret->ip_address_sent = request()->ip();
         });
 
         static::retrieved(function (Secret $secret) {
-            $secret->delete();
+            $secret->forceFill([
+                'retrieved_at' => now(),
+                'ip_address_retrieved' => request()->ip(),
+            ])->save();
         });
     }
 }
