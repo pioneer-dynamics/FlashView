@@ -74,7 +74,12 @@ export class encryption {
 
         const message = await crypt.decrypt(derivedKey, ciphertext);
 
-        return enc.decode(message);
+        const decodedMessage = enc.decode(message);
+
+        if(decodedMessage.length > 0)
+            return decodedMessage;
+        else
+            throw new Error('Could not decrypt message. Password might be wrong. Message destroyed.');
     }
 
     // async encryptFile(file, passphrase = null)
@@ -112,10 +117,12 @@ export class encryption {
 		
     //     var blobUrl = URL.createObjectURL(blob);
 
-    //     return({passphrase, blobUrl, salt: this.arrayBufferToHex(salt)});
+    //     const saltEncoded = this.arrayBufferToHex(salt);
+
+    //     return({passphrase, saltEncoded + blobUrl});
     // }
 
-    // async decryptFile(file, passphrase, salt)
+    // async decryptFile(file, passphrase)
     // {
     //     this.validatePassphrase(passphrase);
         

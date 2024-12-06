@@ -102,14 +102,17 @@
             onSuccess: () => {
                 if(!usePage().props.jetstream.flash?.error && usePage().props.jetstream.flash?.error != 404)
                 {
-                    e.decryptMessage(usePage().props.jetstream.flash.secret.message, other.password).then((data) => {
-                        if(!data || data.length == 0)
-                            form.setError('message', 'Could not get your message. Either the password was wrong, or the message is already expired, or the message was already retrieved. You have no more attempts.');
-                        form.message = data;
-                    })
-                    .catch(() => {
-                        form.setError('message', 'Could not get your message. Either the password was wrong, or the message is already expired, or the message was already retrieved. You have no more attempts.');
-                    });
+                    const secretMessage = usePage().props.jetstream.flash.secret.message;
+                    
+                    const passphrase = other.password;
+
+                    e.decryptMessage(secretMessage, passphrase)
+                        .then((data) => {
+                            form.message = data;
+                        })
+                        .catch((e) => {
+                            form.setError('message', e.message);
+                        });
                 }
             },
             onError: () => {
@@ -176,9 +179,11 @@
                     Generate link
                 </PrimaryButton>
             </span>
-            <PrimaryButton @click.prevent="decryptData"  v-else :class="{ 'opacity-25': decryptForm.processing || (other.password?.length == 0 || other.password == null) }" :disabled="decryptForm.processing || (other.password?.length == 0 || other.password == null)">
-                Retrieve Message
-            </PrimaryButton>
+            <span v-else>
+                <PrimaryButton @click.prevent="decryptData" v-if="!$page.props.jetstream.flash?.secret?.message" :class="{ 'opacity-25': decryptForm.processing || (other.password?.length == 0 || other.password == null) }" :disabled="decryptForm.processing || (other.password?.length == 0 || other.password == null)">
+                    Retrieve Message
+                </PrimaryButton>
+            </span>
         </template>
     </FlatFormSection>
     <FlatActionSection v-if="!$page.props.jetstream.flash?.secret?.url" class="pt-4">
@@ -191,7 +196,7 @@
             Most other providers like onetimesecret.com send the secret and password as plaintext to the server and the server does the encryption. Though the good people at onetimesecret.com do not misuse this, a man in the middle could still grab the secret message. {{ $page.props.config.app.name }} encrypts the message on your browser before sending it to the server. This way we, or a man in the middle, do not know what the secret is or what the passphrase to decrypt it is.
         </Faq>
         <Faq question="How secure is the encryption?">
-            The encryption is based on AES-256-CBC which is one for most secure encryption algorithms available to mankind. With the existing technology it will take millions of years of someone to crack the encryption.
+            The encryption is based on AES-256-CBC which is one for most secure encryption algorithms available to mankind. With the existing technology it will take millions of years for someone to crack the encryption.
         </Faq>
         <Faq question="Why don't you add the passphrase to the link like other providers?">
             While it is convinient for the end user to encode the passphrase into the link, it would also mean that our server receives the passphrase and so does a man in the middle. By not including the passphrase in the link, we have completely cut off ourselves and any man in the middle from being able to retrieve the secret message.
