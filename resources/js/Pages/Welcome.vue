@@ -28,13 +28,13 @@ const props = defineProps({
     }
 });
 
-const bgImageClass = computed(() => "bg-gray-50 text-black/50 dark:bg-black dark:text-white/50 bg-cover bg-[url('"+Background+"')]");
+const bgImageClass = computed(() => "bg-gray-50 text-black/50 dark:bg-black dark:text-white/50 bg-cover ");
 
 </script>
 
 <template>
     <Head title="Welcome" />
-    <div :class="bgImageClass">
+    <div :class="bgImageClass" :style="{'background-image': `url(${Background})`}">
         <!-- <img id="background" class="absolute -left-20 top-0 w-full" :src="Background" /> -->
         <div class="relative min-h-screen flex flex-col items-center justify-center">
             <div class="relative w-full max-w-2xl px-6 lg:max-w-7xl">
