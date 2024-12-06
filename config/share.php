@@ -11,6 +11,7 @@ return [
     'configs' => [
         'app.name',
         'secrets',
+        'support',
     ],
 
     /**
