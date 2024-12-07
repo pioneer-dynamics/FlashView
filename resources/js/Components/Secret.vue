@@ -40,9 +40,7 @@
         expires_in: usePage().props.config.secrets.expiry ,
     });
 
-    const decryptForm = useForm({
-        terms: false,
-    })
+    const decryptForm = useForm({})
 
     const other = useForm({
         password: null,
