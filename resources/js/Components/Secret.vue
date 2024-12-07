@@ -46,14 +46,28 @@
         password: null,
     });
 
+    const decryptionSuccess = ref(false)
+
     const messageClass = computed(() => {
-        if(props.secret && !usePage().props.jetstream.flash?.secret?.message)
-            return 'mt-1 block w-full blur-sm';
-        else
+        if(props.secret) {
+            if(!usePage().props.jetstream.flash?.secret?.message || decryptionSuccess.value === false) {
+                return 'mt-1 block w-full blur-sm';
+            }
+            else {
+                return 'mt-1 block w-full';
+            }
+        }
+        else {
             return 'mt-1 block w-full';
+        }
     })
 
-    const passwordVisible = ref('password');
+    const getErrorMessage = (error) => {
+        switch(error.code) {
+            case 429: return 'Wow! Too many requests too fast, pace yourselves. Please try again in a minute. We will soon introduce user accounts with a higher rate limit.';
+            default: return error.message;
+        }
+    }
 
     const encryptData = () => {
 
@@ -71,13 +85,20 @@
                 message: data.secret
             }))
                 .post(route('secret.store'), {
-                onSuccess: () => {
-                    if(data.passphrase != other.password)
-                    {
-                        other.password = data.passphrase;
-                    }
-                }
-            })
+                    onSuccess: () => {
+                        if(usePage().props.jetstream.flash?.error)
+                        {
+                            form.setError('message', getErrorMessage(usePage().props.jetstream.flash.error));
+                            
+                            return;
+                        }
+                        if(data.passphrase != other.password)
+                        {
+                            other.password = data.passphrase;
+                        }
+                    },
+                    onError: () => form.setError('message', e.message),
+                });
             
         }).
         catch((e) => {
@@ -100,7 +121,7 @@
             preserveScroll: true,
             preserveState: true,
             onSuccess: () => {
-                if(!usePage().props.jetstream.flash?.error && usePage().props.jetstream.flash?.error != 404)
+                if(!usePage().props.jetstream.flash?.error && usePage().props.jetstream.flash?.error?.code != 404)
                 {
                     const secretMessage = usePage().props.jetstream.flash.secret.message;
                     
@@ -109,9 +130,10 @@
                     e.decryptMessage(secretMessage, passphrase)
                         .then((data) => {
                             form.message = data;
+                            decryptionSuccess.value = true;
                         })
-                        .catch((e) => {
-                            form.setError('message', e.message);
+                        .catch((error) => {
+                            form.setError('message', error);
                         });
                 }
             },
@@ -141,7 +163,7 @@
                         <li>Message will be deleted after the expiration time.</li>
                     </ol>
                 </Alert>
-                <Alert hide-title v-if="$page.props.jetstream.flash.error == 404" type="Error">
+                <Alert hide-title v-if="$page.props.jetstream.flash.error?.code == 404" type="Error">
                     This message has expired or has already been retrieved.
                 </Alert>
             </div>
@@ -157,7 +179,7 @@
             </div>
             <div class="col-span-12">
                 <div class="flex flex-wrap sm:flex-nowrap gap-2 sm:space-y-0 sm:space-y-0">
-                    <div class="w-full">
+                    <div class="w-full" v-if="$page.props.jetstream.flash?.secret?.message == undefined">
                         <CodeBlock v-if="$page.props.jetstream.flash?.secret?.url" :value="other.password"/>
                         <TextInput v-else id="password" :autofocus="props.secret != null" ref="passwordInput" v-model="other.password" type="text" class="mt-1 block w-full" :placeholder="passwordPlaceholder" />
                         <InputError :message="other.errors.password" class="mt-2" />
@@ -225,7 +247,10 @@
             The IP Addresses is stored encrypted use AES-256-CBC algorithm with an "application key". This key is not stored in the database and is only stored on our application server. Hence a hack into our database will not reveal the metadata. The time at which a message was created or retrieved is not stored encrypted.
         </Faq>
         <Faq question="How can legal authorities contact you with a court order?">
-            If you are a legal authority, you can email us at <a class="underline text-gamboge-200" :href="'mailto:' + $page.props.config.support.legal ">{{ $page.props.config.support.legal }}</a>. The request should have the retrieval URL for the message, a scanned copy of the notorised court order, and the reason for the request. To speed up the process (that is to help us validate the authority of the court order) we recommend that the email is sent from the registed domain name for the court or the legal authority and is signed using a valid digital signature.
+            If you are a legal authority, you can email us at <a class="underline text-gamboge-200" :href="'mailto:' + $page.props.config.support.legal ">{{ $page.props.config.support.legal }}</a>. The request should have the retrieval URL for the message, a scanned copy of the notorised court order, and the reason for the request. To speed up the process (that is to help us validate the authority of the court order) we recommend that the email be sent from the registed domain name for the court or the legal authority and is signed using a valid digital signature.
+        </Faq>
+        <Faq question="Why is it rate limited?">
+            We rate limit the number of times an anonymous user can generate links to avoid abuse. We will soon introduce user accounts which will allown you to generate more links per minute.
         </Faq>
     </FlatActionSection>
 </template>

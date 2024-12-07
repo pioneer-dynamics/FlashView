@@ -50,7 +50,7 @@ class SecretController extends Controller implements HasMiddleware
     {
         return back()->with('flash', [
             'secret' => [
-                'message' => tap($secret->message, fn ($message) => $secret->update(['message' => null])),
+                'message' => $secret->message,
             ]
         ]);
     }

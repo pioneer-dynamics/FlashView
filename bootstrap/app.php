@@ -1,11 +1,14 @@
 <?php
 
+use Inertia\Inertia;
 use Illuminate\Http\Request;
 use Illuminate\Foundation\Application;
+use GuzzleHttp\Exception\TooManyRedirectsException;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
-use Inertia\Inertia;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Symfony\Component\HttpKernel\Exception\TooManyRequestsHttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -23,9 +26,16 @@ return Application::configure(basePath: dirname(__DIR__))
         //
     })
     ->withExceptions(function (Exceptions $exceptions) {
-        $exceptions->render(function (NotFoundHttpException $e, Request $request) {
-            return redirect()->back()->with('flash', [
-                'error' => 404,
-            ]);
+
+        $exceptions->render(function (HttpException $e, Request $request) {
+            if($request->inertia()) {
+                return redirect()->back()->with('flash', [
+                    'error' => [
+                        'code' => $e->getStatusCode(),
+                        'message' => $e->getMessage(),
+                    ],
+                ]);
+            }
         });
+
     })->create();
