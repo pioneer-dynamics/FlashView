@@ -9,7 +9,7 @@
     import FlatFormSection from '@/Components/FlatFormSection.vue';
     import FlatActionSection from '@/Components/FlatActionSection.vue';
     import Faq from '@/Components/Faq.vue';
-    import InputHelp from '@/Components/InputHelp.vue';
+    import InputLabel from '@/Components/InputLabel.vue';
     import SelectInput from '@/Components/SelectInput.vue';
     import CodeBlock from '@/Components/CodeBlock.vue';
     import Alert from './Alert.vue';
@@ -40,7 +40,9 @@
         expires_in: usePage().props.config.secrets.expiry ,
     });
 
-    const decryptForm = useForm({})
+    const decryptForm = useForm({
+        terms: false,
+    })
 
     const other = useForm({
         password: null,
@@ -145,6 +147,28 @@
         
     }
 </script>
+<style>
+    .underline-svg {
+      position: absolute;
+      bottom: -12px; /* Adjust for spacing */
+      left: 0;
+      width: 100%;
+      height: 20px; /* Adjust SVG height */
+      fill: none;
+      /* stroke: #3b82f6; Tailwind's blue-500 */
+      @apply stroke-gamboge-500;
+      stroke-width: 8; /* Double thickness */
+      stroke-dasharray: 400; /* Total length of the path */
+      stroke-dashoffset: 400; /* Initially hidden */
+      animation: draw 1s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+    }
+
+    @keyframes draw {
+      to {
+        stroke-dashoffset: 0;
+      }
+    }
+</style>
 <template>
     <FlatFormSection>
         <template #title>
@@ -155,7 +179,13 @@
             <div class="col-span-12">
                 <Alert v-if="props.secret != null" type="Warning" hide-title>
                     <div class="mb-2">
-                        You can attempt to retrieve this message ONLY ONCE.
+                        You can attempt to retrieve this message 
+                        <span class="relative inline-block">
+                            ONLY ONCE
+                            <svg class="underline-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 20">
+                                <path d="M0 15 Q150 -10 300 15" />
+                            </svg>
+                        </span>.
                     </div>
                     <ol class="space-y-1 list-decimal list-inside">
                         <li>Wrong password will result in the message being deleted.</li>
@@ -205,6 +235,9 @@
                 <PrimaryButton @click.prevent="decryptData" v-if="!$page.props.jetstream.flash?.secret?.message" :class="{ 'opacity-25': decryptForm.processing || (other.password?.length == 0 || other.password == null) }" :disabled="decryptForm.processing || (other.password?.length == 0 || other.password == null)">
                     Retrieve Message
                 </PrimaryButton>
+                <Link :href="route('welcome')" v-else class="inline-flex items-center px-4 py-2 bg-gamboge-800 dark:bg-gamboge-200 border border-transparent rounded-md font-semibold text-xs text-white dark:text-gamboge-800 uppercase tracking-widest hover:bg-gamboge-700 dark:hover:bg-white focus:bg-gamboge-700 dark:focus:bg-white active:bg-gamboge-900 dark:active:bg-gamboge-300 focus:outline-none focus:ring-2 focus:ring-gamboge-500 focus:ring-offset-2 dark:focus:ring-offset-gamboge-800 disabled:opacity-50 transition ease-in-out duration-150">
+                    Send a new secret link
+                </Link>
             </span>
         </template>
     </FlatFormSection>

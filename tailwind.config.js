@@ -14,6 +14,19 @@ export default {
 
     theme: {
         extend: {
+            keyframes: {
+                blink: {
+                  "50%": {
+                    borderColor: "transparent"
+                  },
+                  "100%": {
+                    borderColor: "currentColor"
+                  }
+                }
+              },
+              animation: {
+                typing: "infinite alternate, blink 1s infinite"
+              },
             fontFamily: {
                 sans: ['Figtree', ...defaultTheme.fontFamily.sans],
             },

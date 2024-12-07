@@ -1,34 +1,35 @@
 <script setup>
-import { Head, Link } from '@inertiajs/vue3';
-import TextAreaInput from '@/Components/TextAreaInput.vue';
-import PrimaryButton from '@/Components/PrimaryButton.vue';
-import TextInput from '@/Components/TextInput.vue';
-import InputError from '@/Components/InputError.vue';
-import Secret from '@/Components/Secret.vue';
-import { computed, ref } from 'vue';
-import Background from '../../images/bg.png';
-import Logo from '../../images/logo.png';
+    import { Head, Link } from '@inertiajs/vue3';
+    import TextAreaInput from '@/Components/TextAreaInput.vue';
+    import PrimaryButton from '@/Components/PrimaryButton.vue';
+    import TextInput from '@/Components/TextInput.vue';
+    import InputError from '@/Components/InputError.vue';
+    import Secret from '@/Components/Secret.vue';
+    import { computed, ref } from 'vue';
+    import Background from '../../images/bg.png';
+    import Logo from '../../images/logo.png';
+    import Typewriter from '@/Components/Typewriter.vue';
 
-const props = defineProps({
-    canLogin: {
-        type: Boolean,
-        default: false,
-    },
-    canRegister: {
-        type: Boolean,
-        default: false,
-    },
-    secret: {
-        type: String,
-        default: null
-    },
-    decryptUrl: {
-        type: String,
-        default: null
-    }
-});
+    const props = defineProps({
+        canLogin: {
+            type: Boolean,
+            default: false,
+        },
+        canRegister: {
+            type: Boolean,
+            default: false,
+        },
+        secret: {
+            type: String,
+            default: null
+        },
+        decryptUrl: {
+            type: String,
+            default: null
+        }
+    });
 
-const bgImageClass = computed(() => "bg-gray-50 text-black/50 dark:bg-black dark:text-white/50 bg-cover ");
+    const bgImageClass = computed(() => "bg-gray-50 text-black/50 dark:bg-black dark:text-white/50 bg-cover ");
 
 </script>
 
@@ -74,6 +75,11 @@ const bgImageClass = computed(() => "bg-gray-50 text-black/50 dark:bg-black dark
 
                 <main class="mt-6 grid-cols-1 gap-6 max-w-4xl mx-auto">
                     <!-- <div class="grid gap-6 lg:grid-cols-1 lg:gap-8 px-40"> -->
+                        <Typewriter class="text-gray-200 dark:text-white mb-6" :phrases="['time-sensitive.', 'one-time use.', 'disposable.']" :speed="100">
+                            <template #before>
+                                Share encrypted information out of your email and chat logs with links that are
+                            </template>
+                        </Typewriter>   
                         <Secret :secret="secret" :decrypt-url="decryptUrl"/>
                     <!-- </div> -->
                 </main>

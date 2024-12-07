@@ -5,16 +5,17 @@ namespace App\Console\Commands;
 use App\Models\Secret;
 use Illuminate\Console\Command;
 use App\Models\Scopes\ActiveScope;
+use Illuminate\Contracts\Console\PromptsForMissingInput;
 use Vinkla\Hashids\Facades\Hashids;
 
-class LegalMetadata extends Command
+class LegalMetadata extends Command implements PromptsForMissingInput
 {
     /**
      * The name and signature of the console command.
      *
      * @var string
      */
-    protected $signature = 'legal:metadata {message_id}';
+    protected $signature = 'legal:metadata {message : The message id}';
 
     /**
      * The console command description.
@@ -28,7 +29,11 @@ class LegalMetadata extends Command
      */
     public function handle()
     {
-        $secret = Secret::withoutGlobalScope(ActiveScope::class)->findOrFail(Hashids::connection('Secret')->decode($this->argument('message_id'))[0]);
+        $secret = rescue(fn() => Secret::withoutGlobalScope(ActiveScope::class)->find(Hashids::connection('Secret')->decode($this->argument('message'))[0]));
+
+        if(!$secret) {
+            $this->fail('Message not found.');
+        }
 
         $this->table([
             'Property', 'Value'
