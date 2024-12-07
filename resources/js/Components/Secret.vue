@@ -46,14 +46,28 @@
         password: null,
     });
 
+    const decryptionSuccess = ref(false)
+
     const messageClass = computed(() => {
-        if(props.secret && !usePage().props.jetstream.flash?.secret?.message)
-            return 'mt-1 block w-full blur-sm';
-        else
+        if(props.secret) {
+            if(!usePage().props.jetstream.flash?.secret?.message || decryptionSuccess.value === false) {
+                return 'mt-1 block w-full blur-sm';
+            }
+            else {
+                return 'mt-1 block w-full';
+            }
+        }
+        else {
             return 'mt-1 block w-full';
+        }
     })
 
-    const passwordVisible = ref('password');
+    const getErrorMessage = (error) => {
+        switch(error.code) {
+            case 429: return 'Wow! Too many requests too fast, pace yourselves. Please try again in a minute. We will soon introduce user accounts with a higher rate limit.';
+            default: return error.message;
+        }
+    }
 
     const encryptData = () => {
 
@@ -71,13 +85,20 @@
                 message: data.secret
             }))
                 .post(route('secret.store'), {
-                onSuccess: () => {
-                    if(data.passphrase != other.password)
-                    {
-                        other.password = data.passphrase;
-                    }
-                }
-            })
+                    onSuccess: () => {
+                        if(usePage().props.jetstream.flash?.error)
+                        {
+                            form.setError('message', getErrorMessage(usePage().props.jetstream.flash.error));
+                            
+                            return;
+                        }
+                        if(data.passphrase != other.password)
+                        {
+                            other.password = data.passphrase;
+                        }
+                    },
+                    onError: () => form.setError('message', e.message),
+                });
             
         }).
         catch((e) => {
@@ -100,7 +121,7 @@
             preserveScroll: true,
             preserveState: true,
             onSuccess: () => {
-                if(!usePage().props.jetstream.flash?.error && usePage().props.jetstream.flash?.error != 404)
+                if(!usePage().props.jetstream.flash?.error && usePage().props.jetstream.flash?.error?.code != 404)
                 {
                     const secretMessage = usePage().props.jetstream.flash.secret.message;
                     
@@ -109,9 +130,10 @@
                     e.decryptMessage(secretMessage, passphrase)
                         .then((data) => {
                             form.message = data;
+                            decryptionSuccess.value = true;
                         })
-                        .catch((e) => {
-                            form.setError('message', e.message);
+                        .catch((error) => {
+                            form.setError('message', error);
                         });
                 }
             },
@@ -141,7 +163,7 @@
                         <li>Message will be deleted after the expiration time.</li>
                     </ol>
                 </Alert>
-                <Alert hide-title v-if="$page.props.jetstream.flash.error == 404" type="Error">
+                <Alert hide-title v-if="$page.props.jetstream.flash.error?.code == 404" type="Error">
                     This message has expired or has already been retrieved.
                 </Alert>
             </div>
@@ -157,7 +179,7 @@
             </div>
             <div class="col-span-12">
                 <div class="flex flex-wrap sm:flex-nowrap gap-2 sm:space-y-0 sm:space-y-0">
-                    <div class="w-full">
+                    <div class="w-full" v-if="$page.props.jetstream.flash?.secret?.message == undefined">
                         <CodeBlock v-if="$page.props.jetstream.flash?.secret?.url" :value="other.password"/>
                         <TextInput v-else id="password" :autofocus="props.secret != null" ref="passwordInput" v-model="other.password" type="text" class="mt-1 block w-full" :placeholder="passwordPlaceholder" />
                         <InputError :message="other.errors.password" class="mt-2" />

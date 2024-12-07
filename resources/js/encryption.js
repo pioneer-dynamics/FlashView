@@ -60,26 +60,31 @@ export class encryption {
 
     async decryptMessage(ciphertext, passphrase)
     {
-        this.validatePassphrase(passphrase);
+        try {
+            this.validatePassphrase(passphrase);
      
-        const crypt = new OpenCrypto()
+            const crypt = new OpenCrypto()
 
-        const salt = this.hexToArrayBuffer(ciphertext.slice(0, 16));
+            const salt = this.hexToArrayBuffer(ciphertext.slice(0, 16));
 
-        ciphertext = ciphertext.slice(16);
+            ciphertext = ciphertext.slice(16);
 
-        const derivedKey = await crypt.derivePassphraseKey(passphrase, salt, 64000);
+            const derivedKey = await crypt.derivePassphraseKey(passphrase, salt, 64000);
 
-        var enc = new TextDecoder();
+            var enc = new TextDecoder();
 
-        const message = await crypt.decrypt(derivedKey, ciphertext);
+            const message = await crypt.decrypt(derivedKey, ciphertext);
 
-        const decodedMessage = enc.decode(message);
+            const decodedMessage = enc.decode(message);
 
-        if(decodedMessage.length > 0)
-            return decodedMessage;
-        else
+            if(decodedMessage?.length > 0)
+                return decodedMessage;
+            else
+                throw new Error();
+        }
+        catch (error) {
             throw new Error('Could not decrypt message. Password might be wrong. Message destroyed.');
+        }
     }
 
     // async encryptFile(file, passphrase = null)
