@@ -52,5 +52,10 @@ return [
         ],
     ],
 
-    'prune_after' => env('SECRET_PRUNE_AFTER_EXPIRY_DAYS_PLUS', 30)
+    'prune_after' => env('SECRET_PRUNE_AFTER_EXPIRY_DAYS_PLUS', 30),
+    
+    'rate_limit' => [
+        'guest' => env('GUEST_SECRET_LIMIT_PER_MINUTE', 3),
+        'user' => env('USER_SECRET_LIMIT_PER_MINUTE', 60),
+    ]
 ];

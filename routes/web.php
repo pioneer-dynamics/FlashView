@@ -20,7 +20,9 @@ Route::middleware('signed')->group(function () {
     Route::get('secret/{secret}', [SecretController::class,  'show'])->name('secret.show');
 });
 
-Route::resource('secret', SecretController::class)->only('create','store');
+Route::middleware(['throttle:secrets'])->group(function () {
+    Route::post('secret', [SecretController::class,  'store'])->name('secret.store');
+});
 
 Route::middleware([
     'auth:sanctum',
