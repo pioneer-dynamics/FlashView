@@ -249,5 +249,8 @@
         <Faq question="How can legal authorities contact you with a court order?">
             If you are a legal authority, you can email us at <a class="underline text-gamboge-200" :href="'mailto:' + $page.props.config.support.legal ">{{ $page.props.config.support.legal }}</a>. The request should have the retrieval URL for the message, a scanned copy of the notorised court order, and the reason for the request. To speed up the process (that is to help us validate the authority of the court order) we recommend that the email be sent from the registed domain name for the court or the legal authority and is signed using a valid digital signature.
         </Faq>
+        <Faq question="Why is it rate limited?">
+            We rate limit the number of times an anonymous user can generate links to avoid abuse. We will soon introduce user accounts which will allown you to generate more links per minute.
+        </Faq>
     </FlatActionSection>
 </template>
