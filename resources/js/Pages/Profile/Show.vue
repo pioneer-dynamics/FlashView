@@ -6,6 +6,7 @@ import SectionBorder from '@/Components/SectionBorder.vue';
 import TwoFactorAuthenticationForm from '@/Pages/Profile/Partials/TwoFactorAuthenticationForm.vue';
 import UpdatePasswordForm from '@/Pages/Profile/Partials/UpdatePasswordForm.vue';
 import UpdateProfileInformationForm from '@/Pages/Profile/Partials/UpdateProfileInformationForm.vue';
+import PassKeyForm from './Partials/PassKeyForm.vue';
 
 defineProps({
     confirmsTwoFactorAuthentication: Boolean,
@@ -43,6 +44,10 @@ defineProps({
 
                     <SectionBorder />
                 </div>
+
+                <PassKeyForm class="mt-10 sm:mt-0" />
+
+                <SectionBorder />
 
                 <LogoutOtherBrowserSessionsForm :sessions="sessions" class="mt-10 sm:mt-0" />
 
