@@ -255,7 +255,7 @@
             Most other providers like onetimesecret.com send the secret and password as plaintext to the server and the server does the encryption. Though the good people at onetimesecret.com do not misuse this, a man in the middle could still grab the secret message. {{ $page.props.config.app.name }} encrypts the message on your browser before sending it to the server. This way we, or a man in the middle, do not know what the secret is or what the passphrase to decrypt it is.
         </Faq>
         <Faq question="How secure is the encryption?">
-            The encryption is based on AES-256-CBC which is one for most secure encryption algorithms available to mankind. With the existing technology it will take millions of years for someone to crack the encryption.
+            The encryption is based on AES-256-GCM which is one for most secure encryption algorithms available to mankind. With the existing technology it will take millions of years for someone to crack the encryption.
         </Faq>
         <Faq question="Why don't you add the passphrase to the link like other providers?">
             While it is convinient for the end user to encode the passphrase into the link, it would also mean that our server receives the passphrase and so does a man in the middle. By not including the passphrase in the link, we have completely cut off ourselves and any man in the middle from being able to retrieve the secret message.
