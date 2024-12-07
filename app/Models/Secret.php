@@ -67,7 +67,7 @@ class Secret extends Model
                 
                 DB::table($secret->getTable())->where('id', $secret->id)->update([
                     'retrieved_at' => now(),
-                    'ip_address_retrieved' => encrypt(request()->ip()),
+                    'ip_address_retrieved' => encrypt(request()->ip(), false),
                     'message' => null
                 ]);
 
