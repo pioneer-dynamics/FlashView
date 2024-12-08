@@ -61,6 +61,6 @@ return [
 
     'message_length' => [
         'guest' => env('GUEST_SECRET_MESSAGE_LENGTH', 160),
-        'user' => env('USER_SECRET_MESSAGE_LENGTH', 10000),
+        'user' => env('USER_SECRET_MESSAGE_LENGTH', 320),
     ]
 ];
