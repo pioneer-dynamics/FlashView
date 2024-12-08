@@ -34,7 +34,7 @@ const logout = () => {
 
         <Banner />
 
-        <div class="bg-gray-50 text-black/50 dark:bg-black dark:text-white/50 bg-cover h-screen" :style="{'background-image': `url(${Background})`}">
+        <div class="bg-gray-50 text-black/50 dark:bg-black dark:text-white/50 bg-cover h-full min-h-screen" :style="{'background-image': `url(${Background})`}">
             <div class="opacity-95">
                 <nav class="bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700">
                     <!-- Primary Navigation Menu -->

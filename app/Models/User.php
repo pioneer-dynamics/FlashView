@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Laravel\Sanctum\HasApiTokens;
 use Laravel\Jetstream\HasProfilePhoto;
 use Illuminate\Notifications\Notifiable;
@@ -12,7 +12,7 @@ use PioneerDynamics\LaravelPasskey\Traits\HasPasskeys;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use PioneerDynamics\LaravelPasskey\Contracts\PasskeyUser;
 
-class User extends Authenticatable implements PasskeyUser
+class User extends Authenticatable implements PasskeyUser, MustVerifyEmail
 {
     use HasApiTokens;
 
