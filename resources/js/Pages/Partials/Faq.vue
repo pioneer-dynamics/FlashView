@@ -45,8 +45,8 @@
         <Faq question="How can legal authorities contact you with a court order?">
             If you are a legal authority, you can email us at <a class="underline text-gamboge-200" :href="'mailto:' + $page.props.config.support.legal ">{{ $page.props.config.support.legal }}</a>. The request should have the retrieval URL for the message, a scanned copy of the notorised court order, and the reason for the request. To speed up the process (that is to help us validate the authority of the court order) we recommend that the email be sent from the registed domain name for the court or the legal authority and is signed using a valid digital signature.
         </Faq>
-        <Faq question="Why is it rate limited?">
-            We rate limit the number of times an anonymous user can generate links to avoid abuse. <Link class="underline text-gamboge-200" :href="route('login')">Login</Link> or <Link class="underline text-gamboge-200" :href="route('register')">create a free account!</Link> to increase the limit.
+        <Faq question="Are there any limits to the number of secret links I can generate?">
+            We rate limit the number of times an anonymous user can generate links to avoid abuse. Currently anonymous users can create {{ $page.props.config.secrets.rate_limit.guest.per_minute }} links per minute and {{ $page.props.config.secrets.rate_limit.guest.per_day }} links per day. Authenticated users on the free plan can create {{ $page.props.config.secrets.rate_limit.user.per_minute }} links per minute and {{ $page.props.config.secrets.rate_limit.user.per_day }} links per day. <Link class="underline text-gamboge-200" :href="route('login')">Login</Link> or <Link class="underline text-gamboge-200" :href="route('register')">create a free account!</Link> to increase the limit.
         </Faq>
     </FlatActionSection>
 </template>

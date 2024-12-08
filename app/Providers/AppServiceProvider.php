@@ -29,10 +29,14 @@ class AppServiceProvider extends ServiceProvider
     {
         RateLimiter::for('secrets', function(Request $request) {
             if($request->user()) {
-                return Limit::perMinute(config('secrets.rate_limit.user'))->by($request->user()->id);
+                return Limit::perMinute(config('secrets.rate_limit.user.per_minute'))
+                                ->perDay(config('secrets.rate_limit.user.per_day'))
+                                ->by($request->user()->id);
             }
             else {
-                return Limit::perMinute(config('secrets.rate_limit.guest'))->by($request->ip());
+                return Limit::perMinute(config('secrets.rate_limit.guest.per_minute'))
+                                ->perDay(config('secrets.rate_limit.guest.per_day')
+                                )->by($request->ip());
             }
         });
     }
