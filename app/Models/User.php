@@ -67,4 +67,9 @@ class User extends Authenticatable implements PasskeyUser
             'password' => 'hashed',
         ];
     }
+
+    public function secrets()
+    {
+        return $this->hasMany(Secret::class);
+    }
 }

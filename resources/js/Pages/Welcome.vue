@@ -1,14 +1,11 @@
 <script setup>
     import { Head, Link } from '@inertiajs/vue3';
-    import TextAreaInput from '@/Components/TextAreaInput.vue';
-    import PrimaryButton from '@/Components/PrimaryButton.vue';
-    import TextInput from '@/Components/TextInput.vue';
-    import InputError from '@/Components/InputError.vue';
-    import Secret from '@/Components/Secret.vue';
     import { computed, ref } from 'vue';
     import Background from '../../images/bg.png';
     import Logo from '../../images/logo.png';
     import Typewriter from '@/Components/Typewriter.vue';
+    import Faq from './Partials/Faq.vue';
+    import SecretForm from '@/Pages/Secret/SecretForm.vue';
 
     const props = defineProps({
         canLogin: {
@@ -49,7 +46,7 @@
                         <Link
                             v-if="$page.props.auth.user"
                             :href="route('dashboard')"
-                            class="rounded-md px-3 py-2 text-black ring-1 ring-transparent transition hover:text-black/70 focus:outline-none focus-visible:ring-[#FF2D20] dark:text-white dark:hover:text-white/80 dark:focus-visible:ring-white"
+                            class="rounded-md px-3 py-2 text-gamboge-200 ring-1 ring-transparent transition hover:text-gamboge-200/70 focus:outline-none focus-visible:ring-[#FF2D20] dark:text-white dark:hover:text-white/80 dark:focus-visible:ring-white"
                         >
                             Dashboard
                         </Link>
@@ -57,7 +54,7 @@
                         <template v-else>
                             <Link
                                 :href="route('login')"
-                                class="rounded-md px-3 py-2 text-black ring-1 ring-transparent transition hover:text-black/70 focus:outline-none focus-visible:ring-[#FF2D20] dark:text-white dark:hover:text-white/80 dark:focus-visible:ring-white"
+                                class="rounded-md px-3 py-2 text-gamboge-200 ring-1 ring-transparent transition hover:text-gamboge-200/70 focus:outline-none focus-visible:ring-[#FF2D20] dark:text-white dark:hover:text-white/80 dark:focus-visible:ring-white"
                             >
                                 Log in
                             </Link>
@@ -65,7 +62,7 @@
                             <Link
                                 v-if="canRegister"
                                 :href="route('register')"
-                                class="rounded-md px-3 py-2 text-black ring-1 ring-transparent transition hover:text-black/70 focus:outline-none focus-visible:ring-[#FF2D20] dark:text-white dark:hover:text-white/80 dark:focus-visible:ring-white"
+                                class="rounded-md px-3 py-2 text-gamboge-200 ring-1 ring-transparent transition hover:text-gamboge-200/70 focus:outline-none focus-visible:ring-[#FF2D20] dark:text-white dark:hover:text-white/80 dark:focus-visible:ring-white"
                             >
                                 Register
                             </Link>
@@ -80,7 +77,8 @@
                                 Keep sensitive information out of your email and chat logs with links that are
                             </template>
                         </Typewriter>   
-                        <Secret :secret="secret" :decrypt-url="decryptUrl"/>
+                        <SecretForm :secret="secret" :decrypt-url="decryptUrl"/>
+                        <Faq/>
                     <!-- </div> -->
                 </main>
 
