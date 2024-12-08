@@ -61,7 +61,6 @@ return [
         ],
         'user' => [
             'per_minute' => env('USER_SECRET_RATE_LIMIT_PER_MINUTE', 60),
-            'per_day' => env('USER_SECRET_RATE_LIMIT_PER_DAY', 1440),
         ],
     ],
 
