@@ -57,5 +57,10 @@ return [
     'rate_limit' => [
         'guest' => env('GUEST_SECRET_LIMIT_PER_MINUTE', 3),
         'user' => env('USER_SECRET_LIMIT_PER_MINUTE', 60),
+    ],
+
+    'message_length' => [
+        'guest' => env('GUEST_SECRET_MESSAGE_LENGTH', 160),
+        'user' => env('USER_SECRET_MESSAGE_LENGTH', 10000),
     ]
 ];

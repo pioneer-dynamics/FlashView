@@ -15,9 +15,11 @@
     import Alert from './Alert.vue';
     import { router } from '@inertiajs/vue3'
 
+    const defaultExpiry = usePage().props.config.secrets.expiry;
+
     const letsDoAnotherOne = () => {
         form.message = '';
-        form.expires_in = usePage().props.config.secrets.expiry ;
+        form.expires_in = defaultExpiry ;
         other.password = null;
         router.reload();
     }
@@ -30,7 +32,7 @@
         decryptUrl: {
             type: String,
             default: null,
-        }
+        },
     })
 
     const passwordInput = ref(null);
@@ -71,12 +73,6 @@
 
     const encryptData = () => {
 
-        if(form.message == null || form.message.length == 0)
-        {
-            form.setError('message', 'Please enter a message.');
-            return ;
-        }
-
         const e = new encryption();
         
         e.encryptMessage(form.message, other.password).then((data) => {
@@ -85,6 +81,7 @@
                 message: data.secret
             }))
                 .post(route('secret.store'), {
+                    preserveScroll: true,
                     onSuccess: () => {
                         if(usePage().props.jetstream.flash?.error)
                         {
@@ -97,7 +94,6 @@
                             other.password = data.passphrase;
                         }
                     },
-                    onError: () => form.setError('message', e.message),
                 });
             
         }).
@@ -114,6 +110,8 @@
     })
 
     const showPrivacyOptions = ref(false)
+
+    const charsLeft = computed(() => usePage().props.config.secrets.message_length[usePage().props?.auth?.user?.id ? 'user' : 'guest']  - form.message?.length);
 
     const decryptData = () => {
         const e = new encryption();
@@ -202,12 +200,14 @@
             </div>
             <div class="col-span-12">
                 <CodeBlock v-if="$page.props.jetstream.flash?.secret?.url" :value="$page.props.jetstream.flash?.secret?.url" class="break-words"/>
-                <TextAreaInput v-else :autofocus="props.secret == null" id="message" rows="7" v-model="form.message" type="text" :class="messageClass" placeholder="Your secret message..." />
+                <TextAreaInput v-else :autofocus="props.secret == null" id="message" rows="7" v-model="form.message" type="text" :class="messageClass" placeholder="Your secret message..." :max-length="usePage().props.config.secrets.message_length[usePage().props?.auth?.user?.id ? 'user' : 'guest']"/>
                 <div class="flex flex-wrap mt-2 relative">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-4">
-                        <path fill-rule="evenodd" d="M12 1.5a5.25 5.25 0 0 0-5.25 5.25v3a3 3 0 0 0-3 3v6.75a3 3 0 0 0 3 3h10.5a3 3 0 0 0 3-3v-6.75a3 3 0 0 0-3-3v-3c0-2.9-2.35-5.25-5.25-5.25Zm3.75 8.25v-3a3.75 3.75 0 1 0-7.5 0v3h7.5Z" clip-rule="evenodd" />
-                    </svg>
-                    <div class="ml-1 text-sm">End-to-end encrypted</div>
+                    <div class="flex flex-wrap">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-4">
+                            <path fill-rule="evenodd" d="M12 1.5a5.25 5.25 0 0 0-5.25 5.25v3a3 3 0 0 0-3 3v6.75a3 3 0 0 0 3 3h10.5a3 3 0 0 0 3-3v-6.75a3 3 0 0 0-3-3v-3c0-2.9-2.35-5.25-5.25-5.25Zm3.75 8.25v-3a3.75 3.75 0 1 0-7.5 0v3h7.5Z" clip-rule="evenodd" />
+                        </svg>
+                        <div class="ml-1 text-sm">End-to-end encrypted</div>
+                    </div>
                 </div>
                 <InputError :message="form.errors.message" class="mt-2" />
             </div>
@@ -219,7 +219,7 @@
                         <InputError :message="other.errors.password" class="mt-2" />
                     </div>
                     <div v-if="!$page.props.jetstream.flash?.secret?.url && props.secret == null">
-                        <SelectInput id="expires_in" v-model="form.expires_in" class="mt-1 block w-full" :options="$page.props.config.secrets.expiry_options" />
+                        <SelectInput id="expires_in" v-model="form.expires_in" class="mt-1 sm:w-full" :options="$page.props.config.secrets.expiry_options" />
                         <InputError :message="other.errors.expires_in" class="mt-2" />
                     </div>
                 </div>
