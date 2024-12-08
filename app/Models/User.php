@@ -2,15 +2,17 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Laravel\Sanctum\HasApiTokens;
+use Laravel\Jetstream\HasProfilePhoto;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
-use Laravel\Jetstream\HasProfilePhoto;
-use Laravel\Sanctum\HasApiTokens;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use PioneerDynamics\LaravelPasskey\Traits\HasPasskeys;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use PioneerDynamics\LaravelPasskey\Contracts\PasskeyUser;
 
-class User extends Authenticatable
+class User extends Authenticatable implements PasskeyUser, MustVerifyEmail
 {
     use HasApiTokens;
 
@@ -19,6 +21,7 @@ class User extends Authenticatable
     use HasProfilePhoto;
     use Notifiable;
     use TwoFactorAuthenticatable;
+    use HasPasskeys;
 
     /**
      * The attributes that are mass assignable.
@@ -63,5 +66,10 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    public function secrets()
+    {
+        return $this->hasMany(Secret::class);
     }
 }

@@ -2,7 +2,7 @@
 import { ref, computed, watch } from 'vue';
 import { router, useForm, usePage } from '@inertiajs/vue3';
 import ActionSection from '@/Components/ActionSection.vue';
-import ConfirmsPassword from '@/Components/ConfirmsPassword.vue';
+import ConfirmsPasswordOrPasskey from '@/Components/ConfirmsPasswordOrPasskey.vue';
 import DangerButton from '@/Components/DangerButton.vue';
 import InputError from '@/Components/InputError.vue';
 import InputLabel from '@/Components/InputLabel.vue';
@@ -189,15 +189,15 @@ const disableTwoFactorAuthentication = () => {
 
             <div class="mt-5">
                 <div v-if="! twoFactorEnabled">
-                    <ConfirmsPassword @confirmed="enableTwoFactorAuthentication">
+                    <ConfirmsPasswordOrPasskey @confirmed="enableTwoFactorAuthentication" :seconds="60">
                         <PrimaryButton type="button" :class="{ 'opacity-25': enabling }" :disabled="enabling">
                             Enable
                         </PrimaryButton>
-                    </ConfirmsPassword>
+                    </ConfirmsPasswordOrPasskey>
                 </div>
 
                 <div v-else>
-                    <ConfirmsPassword @confirmed="confirmTwoFactorAuthentication">
+                    <ConfirmsPasswordOrPasskey @confirmed="confirmTwoFactorAuthentication" :seconds="60">
                         <PrimaryButton
                             v-if="confirming"
                             type="button"
@@ -207,27 +207,27 @@ const disableTwoFactorAuthentication = () => {
                         >
                             Confirm
                         </PrimaryButton>
-                    </ConfirmsPassword>
+                    </ConfirmsPasswordOrPasskey>
 
-                    <ConfirmsPassword @confirmed="regenerateRecoveryCodes">
+                    <ConfirmsPasswordOrPasskey @confirmed="regenerateRecoveryCodes" :seconds="60">
                         <SecondaryButton
                             v-if="recoveryCodes.length > 0 && ! confirming"
                             class="me-3"
                         >
                             Regenerate Recovery Codes
                         </SecondaryButton>
-                    </ConfirmsPassword>
+                    </ConfirmsPasswordOrPasskey>
 
-                    <ConfirmsPassword @confirmed="showRecoveryCodes">
+                    <ConfirmsPasswordOrPasskey @confirmed="showRecoveryCodes" :seconds="60">
                         <SecondaryButton
                             v-if="recoveryCodes.length === 0 && ! confirming"
                             class="me-3"
                         >
                             Show Recovery Codes
                         </SecondaryButton>
-                    </ConfirmsPassword>
+                    </ConfirmsPasswordOrPasskey>
 
-                    <ConfirmsPassword @confirmed="disableTwoFactorAuthentication">
+                    <ConfirmsPasswordOrPasskey @confirmed="disableTwoFactorAuthentication" :seconds="60">
                         <SecondaryButton
                             v-if="confirming"
                             :class="{ 'opacity-25': disabling }"
@@ -235,9 +235,9 @@ const disableTwoFactorAuthentication = () => {
                         >
                             Cancel
                         </SecondaryButton>
-                    </ConfirmsPassword>
+                    </ConfirmsPasswordOrPasskey>
 
-                    <ConfirmsPassword @confirmed="disableTwoFactorAuthentication">
+                    <ConfirmsPasswordOrPasskey @confirmed="disableTwoFactorAuthentication" :seconds="60">
                         <DangerButton
                             v-if="! confirming"
                             :class="{ 'opacity-25': disabling }"
@@ -245,7 +245,7 @@ const disableTwoFactorAuthentication = () => {
                         >
                             Disable
                         </DangerButton>
-                    </ConfirmsPassword>
+                    </ConfirmsPasswordOrPasskey>
                 </div>
             </div>
         </template>

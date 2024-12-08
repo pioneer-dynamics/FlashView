@@ -20,6 +20,8 @@
         "vue": "^3.3.13"
     },
     "dependencies": {
+        "@simplewebauthn/browser": "^9.0.1",
+        "luxon": "^3.4.4",
         "opencrypto": "^1.5.5",
         "random-words": "^2.0.1"
     }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Rules\MessageLength;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreSecretRequest extends FormRequest
@@ -22,9 +23,19 @@ class StoreSecretRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'message' => 'required|string|min:1',
+            'message' => ['required', 'string', 'min:1', new MessageLength($this->getAllowedMessageLength())],
             'expires_in' => 'required|numeric|in:' . implode(',', array_map(fn($item) => $item['value'], config('secrets.expiry_options'))),
         ];
+    }
+
+    private function getAllowedMessageLength()
+    {
+        if($this->user()) {
+            return config('secrets.message_length.user');
+        }
+        else {
+            return config('secrets.message_length.guest');
+        }
     }
 
     public function attributes()
