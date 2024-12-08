@@ -15,9 +15,11 @@
     import Alert from './Alert.vue';
     import { router } from '@inertiajs/vue3'
 
+    const defaultExpiry = usePage().props.config.secrets.expiry;
+
     const letsDoAnotherOne = () => {
         form.message = '';
-        form.expires_in = usePage().props.config.secrets.expiry ;
+        form.expires_in = defaultExpiry ;
         other.password = null;
         router.reload();
     }
@@ -30,7 +32,7 @@
         decryptUrl: {
             type: String,
             default: null,
-        }
+        },
     })
 
     const passwordInput = ref(null);
@@ -71,12 +73,6 @@
 
     const encryptData = () => {
 
-        // if(form.message == null || form.message.length == 0)
-        // {
-        //     form.setError('message', 'Please enter a message.');
-        //     return ;
-        // }
-
         const e = new encryption();
         
         e.encryptMessage(form.message, other.password).then((data) => {
@@ -85,6 +81,7 @@
                 message: data.secret
             }))
                 .post(route('secret.store'), {
+                    preserveScroll: true,
                     onSuccess: () => {
                         if(usePage().props.jetstream.flash?.error)
                         {
@@ -97,7 +94,6 @@
                             other.password = data.passphrase;
                         }
                     },
-                    onError: () => form.setError('message', e.message),
                 });
             
         }).
@@ -223,7 +219,7 @@
                         <InputError :message="other.errors.password" class="mt-2" />
                     </div>
                     <div v-if="!$page.props.jetstream.flash?.secret?.url && props.secret == null">
-                        <SelectInput id="expires_in" v-model="form.expires_in" class="mt-1 block w-full" :options="$page.props.config.secrets.expiry_options" />
+                        <SelectInput id="expires_in" v-model="form.expires_in" class="mt-1 sm:w-full" :options="$page.props.config.secrets.expiry_options" />
                         <InputError :message="other.errors.expires_in" class="mt-2" />
                     </div>
                 </div>
