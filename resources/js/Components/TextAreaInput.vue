@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue';
 
-defineProps({
+const props = defineProps({
     modelValue: String,
     maxLength: {
         type: Number,
@@ -14,15 +14,20 @@ defineProps({
     placeholder: {
         type: String,
         default: ''
+    },
+    autofocus: {
+        type: Boolean,
+        default: false
     }
 });
 
 defineEmits(['update:modelValue']);
 
 const input = ref(null);
+const base = ref(null);
 
 onMounted(() => {
-    if (input.value.hasAttribute('autofocus')) {
+    if (props.autofocus) {
         input.value.focus();
     }
 });
@@ -36,11 +41,11 @@ const inputClass = computed(() => {
 </script>
 
 <template>
-        <span @click="() => input.focus()" :class="{'relative border-gray-300 dark:border-gray-700 dark:bg-gray-700 dark:text-gray-200 focus:border-gray-500 dark:focus:border-gray-600 focus:ring-gray-500 dark:focus:ring-gray-600 rounded-md shadow-sm': maxLength == 0 || input?.value?.length <= maxLength, 'text-red-500 relative border-red-300 dark:border-red-700 dark:bg-red-700 dark:text-red-200 focus:border-red-500 dark:focus:border-red-600 focus:ring-red-500 dark:focus:ring-red-600 rounded-md shadow-sm bg-red-50': maxLength > 0 && input?.value?.length > maxLength}">
+        <span @click="() => input.focus()" ref="base" :class="{'relative ring-0 focus-within:ring-1 border-gray-300 dark:border-gray-700 dark:bg-gray-700 dark:text-gray-200 focus-within:border-gray-500 dark:focus-within:border-gray-600 focus-within:ring-gray-500 dark:focus-within:ring-gray-600 rounded-md shadow-sm': maxLength == 0 || input?.value?.length <= maxLength, 'text-red-500 relative border-red-300 dark:border-red-700 dark:bg-red-100 dark:text-red-200 focus:border-red-500 dark:focus:border-red-600 focus:ring-red-500 dark:focus:ring-red-600 rounded-md shadow-sm bg-red-50': maxLength > 0 && input?.value?.length > maxLength}">
             <textarea
                 ref="input"
-                class="w-full border-0 focus:ring-0 -mt-2 -ml-2 -mr-2 mb-2"
-                :class="{'bg-red-50': maxLength > 0 && input?.value?.length > maxLength}"
+                class="w-full border-0 focus:ring-0 -mt-2 -ml-2 -mr-2 mb-2 dark:bg-gray-700 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-300"
+                :class="{'bg-red-50 dark:bg-red-100 text-red-500 dark:text-red-600': maxLength > 0 && input?.value?.length > maxLength}"
                 :value="modelValue"
                 :rows="rows"
                 :placeholder="placeholder"

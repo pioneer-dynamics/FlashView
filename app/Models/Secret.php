@@ -21,6 +21,7 @@ class Secret extends Model
         'message',
         'filepath',
         'filename',
+        'user_id',
         'expires_at',
     ];
 
@@ -82,5 +83,10 @@ class Secret extends Model
             'ip_address_retrieved' => request()->ip(),
             'message' => null
         ])->save();
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
     }
 }

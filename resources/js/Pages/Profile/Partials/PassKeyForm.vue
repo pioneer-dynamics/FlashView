@@ -67,7 +67,7 @@
 <template>
     <ActionSection>
         <template #title>Passkeys</template>
-        <template #description>Passkeys are a secure form of authentication which enables you to authenticate with your device's authentication mechanism. With passkeys you will not need to login using your password or 2FA, instead you could just use your passkey.</template>
+        <template #description>Add passkeys to your account for highest security.</template>
         <template #content>
             <div class="relative overflow-x-auto shadow-md sm:rounded-lg">
                 <table class="w-full text-sm text-left rtl:text-right text-gray-500 dark:text-gray-400">

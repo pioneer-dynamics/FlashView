@@ -7,6 +7,7 @@ import TwoFactorAuthenticationForm from '@/Pages/Profile/Partials/TwoFactorAuthe
 import UpdatePasswordForm from '@/Pages/Profile/Partials/UpdatePasswordForm.vue';
 import UpdateProfileInformationForm from '@/Pages/Profile/Partials/UpdateProfileInformationForm.vue';
 import PassKeyForm from './Partials/PassKeyForm.vue';
+import Page from '../Page.vue';
 
 defineProps({
     confirmsTwoFactorAuthentication: Boolean,
@@ -22,7 +23,7 @@ defineProps({
             </h2>
         </template>
 
-        <div>
+        <Page>
             <div class="max-w-7xl mx-auto py-10 sm:px-6 lg:px-8">
                 <div v-if="$page.props.jetstream.canUpdateProfileInformation">
                     <UpdateProfileInformationForm :user="$page.props.auth.user" />
@@ -57,6 +58,6 @@ defineProps({
                     <DeleteUserForm class="mt-10 sm:mt-0" />
                 </template>
             </div>
-        </div>
+        </Page>
     </AppLayout>
 </template>
