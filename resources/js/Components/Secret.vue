@@ -71,11 +71,11 @@
 
     const encryptData = () => {
 
-        if(form.message == null || form.message.length == 0)
-        {
-            form.setError('message', 'Please enter a message.');
-            return ;
-        }
+        // if(form.message == null || form.message.length == 0)
+        // {
+        //     form.setError('message', 'Please enter a message.');
+        //     return ;
+        // }
 
         const e = new encryption();
         
@@ -114,6 +114,8 @@
     })
 
     const showPrivacyOptions = ref(false)
+
+    const charsLeft = computed(() => usePage().props.config.secrets.message_length[usePage().props?.auth?.user?.id ? 'user' : 'guest']  - form.message?.length);
 
     const decryptData = () => {
         const e = new encryption();
@@ -202,12 +204,14 @@
             </div>
             <div class="col-span-12">
                 <CodeBlock v-if="$page.props.jetstream.flash?.secret?.url" :value="$page.props.jetstream.flash?.secret?.url" class="break-words"/>
-                <TextAreaInput v-else :autofocus="props.secret == null" id="message" rows="7" v-model="form.message" type="text" :class="messageClass" placeholder="Your secret message..." />
+                <TextAreaInput v-else :autofocus="props.secret == null" id="message" rows="7" v-model="form.message" type="text" :class="messageClass" placeholder="Your secret message..." :max-length="usePage().props.config.secrets.message_length[usePage().props?.auth?.user?.id ? 'user' : 'guest']"/>
                 <div class="flex flex-wrap mt-2 relative">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-4">
-                        <path fill-rule="evenodd" d="M12 1.5a5.25 5.25 0 0 0-5.25 5.25v3a3 3 0 0 0-3 3v6.75a3 3 0 0 0 3 3h10.5a3 3 0 0 0 3-3v-6.75a3 3 0 0 0-3-3v-3c0-2.9-2.35-5.25-5.25-5.25Zm3.75 8.25v-3a3.75 3.75 0 1 0-7.5 0v3h7.5Z" clip-rule="evenodd" />
-                    </svg>
-                    <div class="ml-1 text-sm">End-to-end encrypted</div>
+                    <div class="flex flex-wrap">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-4">
+                            <path fill-rule="evenodd" d="M12 1.5a5.25 5.25 0 0 0-5.25 5.25v3a3 3 0 0 0-3 3v6.75a3 3 0 0 0 3 3h10.5a3 3 0 0 0 3-3v-6.75a3 3 0 0 0-3-3v-3c0-2.9-2.35-5.25-5.25-5.25Zm3.75 8.25v-3a3.75 3.75 0 1 0-7.5 0v3h7.5Z" clip-rule="evenodd" />
+                        </svg>
+                        <div class="ml-1 text-sm">End-to-end encrypted</div>
+                    </div>
                 </div>
                 <InputError :message="form.errors.message" class="mt-2" />
             </div>
