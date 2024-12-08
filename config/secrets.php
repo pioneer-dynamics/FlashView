@@ -55,8 +55,14 @@ return [
     'prune_after' => env('SECRET_PRUNE_AFTER_EXPIRY_DAYS_PLUS', 30),
     
     'rate_limit' => [
-        'guest' => env('GUEST_SECRET_LIMIT_PER_MINUTE', 3),
-        'user' => env('USER_SECRET_LIMIT_PER_MINUTE', 60),
+        'guest' => [
+            'per_minute' => env('GUEST_SECRET_RATE_LIMIT_PER_MINUTE', 3),
+            'per_day' => env('GUEST_SECRET_RATE_LIMIT_PER_DAY', 10),
+        ],
+        'user' => [
+            'per_minute' => env('USER_SECRET_RATE_LIMIT_PER_MINUTE', 60),
+            'per_day' => env('USER_SECRET_RATE_LIMIT_PER_DAY', 1440),
+        ],
     ],
 
     'message_length' => [
