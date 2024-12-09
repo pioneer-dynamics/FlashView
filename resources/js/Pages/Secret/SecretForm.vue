@@ -11,10 +11,11 @@
     import CodeBlock from '@/Components/CodeBlock.vue';
     import Alert from '@/Components/Alert.vue';
     import { router } from '@inertiajs/vue3'
-import InputLabel from '@/Components/InputLabel.vue';
+    import InputLabel from '@/Components/InputLabel.vue';
 
     const defaultExpiry = usePage().props.config.secrets.expiry;
     const stage = ref('generating');
+
 
     const letsDoAnotherOne = () => {
         form.message = '';
@@ -37,11 +38,6 @@ import InputLabel from '@/Components/InputLabel.vue';
 
     const passwordInput = ref(null);
 
-
-    const form = useForm({
-        message: props.secret ? 'This isn’t the actual message—it’s just a placeholder. To view the message, please click the button below.' : '',
-        expires_in: usePage().props.config.secrets.expiry ,
-    });
 
     const decryptForm = useForm({})
 
@@ -113,8 +109,39 @@ import InputLabel from '@/Components/InputLabel.vue';
     })
 
     const showPrivacyOptions = ref(false)
+
+    const userType = computed(() => {
+        let user_type = usePage().props?.auth?.user?.id ? 'user' : 'guest';
+
+        if(usePage().props?.auth?.user?.id)
+        {
+            if(usePage().props?.auth?.user?.subscription)
+            {
+                user_type = 'basic';
+            }
+            else
+            {
+                user_type = 'user';
+            }
+        }
+        else
+        {
+            user_type = 'guest';
+        }
+
+        return user_type
+    })
+
+    const expiryOptions = computed(() => {
+        return usePage().props.config.secrets.expiry_options.filter((option) => option.user.includes(userType.value));
+    })
+
+    const form = useForm({
+        message: props.secret ? 'This isn’t the actual message—it’s just a placeholder. To view the message, please click the button below.' : '',
+        expires_in: expiryOptions.value[expiryOptions.value.length-1].value ,
+    });
     
-    const maxLength = computed(() => usePage().props.config.secrets.message_length[usePage().props?.auth?.user?.id ? 'user' : 'guest']);
+    const maxLength = computed(() => usePage().props.config.secrets.message_length[userType.value]);
 
     const decryptData = () => {
         const e = new encryption();
@@ -215,9 +242,12 @@ import InputLabel from '@/Components/InputLabel.vue';
                             </svg>
                             <div class="ml-1">End-to-end encrypted</div>
                         </div>
-                        <div v-if="!$page.props.auth.user">|</div>
+                        <div v-if="!$page.props.auth.user || !$page.props.auth.user.subscription">|</div>
                         <div v-if="!$page.props.auth.user" class="flex flex-wrap gap-1">
-                            Is {{ maxLength }} characters too short? - <Link class="underline text-gamboge-200" :href="route('login')">login</Link> or <Link class="underline text-gamboge-200" :href="route('register')">create a free account!</Link> to increase the limit.
+                            Is {{ maxLength }} characters too short, or need a longer expiry? - <Link class="underline text-gamboge-200" :href="route('login')">login</Link> or <Link class="underline text-gamboge-200" :href="route('register')">create a free account!</Link> to increase the limit.
+                        </div>
+                        <div v-else-if="!$page.props.auth.user.subscription" class="flex flex-wrap gap-1">
+                            Is {{ maxLength }} characters too short, or need a longer expiry? - <a as="a"class="underline text-gamboge-200" :href="route('subscribe')">subscribe to a paid plan</a> to increase the limit to {{ $page.props.config.secrets.message_length.basic }} characters!!! and an expiry of upto {{ $page.props.config.secrets.expiry_options[$page.props.config.secrets.expiry_options.length-1].label }}.
                         </div>
                     </div>
                     <div class="flex flex-wrap mt-2 gap-1">
@@ -241,7 +271,7 @@ import InputLabel from '@/Components/InputLabel.vue';
                         </span>
                     </div>
                     <div v-if="!$page.props.jetstream.flash?.secret?.url && props.secret == null">
-                        <SelectInput id="expires_in" v-model="form.expires_in" class="mt-1 sm:w-full" :options="$page.props.config.secrets.expiry_options" />
+                        <SelectInput id="expires_in" v-model="form.expires_in" class="mt-1 sm:w-full" :options="expiryOptions" />
                         <InputError :message="other.errors.expires_in" class="mt-2" />
                     </div>
                 </div>

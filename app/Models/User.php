@@ -10,7 +10,9 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use PioneerDynamics\LaravelPasskey\Traits\HasPasskeys;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Laravel\Cashier\Billable;
 use PioneerDynamics\LaravelPasskey\Contracts\PasskeyUser;
+use function Illuminate\Events\queueable;
 
 class User extends Authenticatable implements PasskeyUser, MustVerifyEmail
 {
@@ -22,6 +24,7 @@ class User extends Authenticatable implements PasskeyUser, MustVerifyEmail
     use Notifiable;
     use TwoFactorAuthenticatable;
     use HasPasskeys;
+    use Billable;
 
     /**
      * The attributes that are mass assignable.
@@ -53,7 +56,13 @@ class User extends Authenticatable implements PasskeyUser, MustVerifyEmail
      */
     protected $appends = [
         'profile_photo_url',
+        'subscription'
     ];
+
+    public function getSubscriptionAttribute()
+    {
+        return $this->subscriptions()->active()->first();
+    }
 
     /**
      * Get the attributes that should be cast.
@@ -71,5 +80,14 @@ class User extends Authenticatable implements PasskeyUser, MustVerifyEmail
     public function secrets()
     {
         return $this->hasMany(Secret::class);
+    }
+
+    protected static function booted(): void
+    {
+        static::updated(queueable(function (User $customer) {
+            if ($customer->hasStripeId()) {
+                $customer->syncStripeCustomerDetails();
+            }
+        }));
     }
 }

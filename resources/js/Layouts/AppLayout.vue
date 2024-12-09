@@ -119,6 +119,9 @@ const logout = () => {
                                 </div>
 
                                 <!-- Settings Dropdown -->
+                                <div class="text-sm" v-if="$page.props.auth.user.subscription">
+                                    {{ $page.props.auth.user.subscription.stripe_status }} Basic Plan
+                                </div>
                                 <div class="ms-3 relative">
                                     <Dropdown align="right" width="48">
                                         <template #trigger>
@@ -150,6 +153,13 @@ const logout = () => {
                                             <DropdownLink v-if="$page.props.jetstream.hasApiFeatures" :href="route('api-tokens.index')">
                                                 API Tokens
                                             </DropdownLink>
+
+                                            <span v-if="$page.props.auth.user.subscription">
+                                                <div class="border-t border-gray-200 dark:border-gray-600" />
+                                                <DropdownLink as="a" :href="route('billing')">
+                                                    Billing
+                                                </DropdownLink>
+                                            </span>
 
                                             <div class="border-t border-gray-200 dark:border-gray-600" />
 
