@@ -2,13 +2,17 @@
 
 namespace App\Http\Controllers;
 
+use Inertia\Inertia;
+use App\Models\Secret;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\URL;
+use Vinkla\Hashids\Facades\Hashids;
+use App\Http\Requests\BurnSecretRequest;
 use App\Http\Requests\StoreSecretRequest;
 use App\Http\Requests\UpdateSecretRequest;
-use App\Models\Secret;
-use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
-use Illuminate\Support\Facades\URL;
-use Inertia\Inertia;
+use App\Http\Resources\SecretResourceCollection;
+use Illuminate\Routing\Controllers\HasMiddleware;
 
 class SecretController extends Controller implements HasMiddleware
 {
@@ -54,5 +58,33 @@ class SecretController extends Controller implements HasMiddleware
                 'message' => $secret->message,
             ]
         ]);
+    }
+
+    public function index(Request $request)
+    {
+        $secrets = Secret::withoutEvents(fn() => Secret::withoutGlobalScopes()->where('user_id', $request->user()->id)->orderBy('created_at', 'desc')->get());
+
+        $secrets = new SecretResourceCollection($secrets);
+
+        return Inertia::render('Secret/Index', [
+            'secrets' => $secrets
+        ]);
+    }
+
+    private function getSecretRecordWithoutBurning($secret, $request)
+    {
+        return Secret::withoutEvents(fn() => Secret::withoutGlobalScopes()->where('user_id', $request->user()->id)->where('id', $this->getIdFromHash($secret))->first());
+    }
+
+    public function destroy(BurnSecretRequest $request, $secret)
+    {
+        $secret = $this->getSecretRecordWithoutBurning($secret, $request);
+
+        $secret->markAsRetrieved();
+    }
+
+    private function getIdFromHash($secret)
+    {
+        return Hashids::connection('Secret')->decode($secret)[0];
     }
 }

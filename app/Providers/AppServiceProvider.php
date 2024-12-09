@@ -28,9 +28,14 @@ class AppServiceProvider extends ServiceProvider
     private function defineRateLimits()
     {
         RateLimiter::for('secrets', function(Request $request) {
-            if($request->user()) {
-                return Limit::perMinute(config('secrets.rate_limit.user.per_minute'))
-                                ->by($request->user()->id);
+            if($user = $request->user()) {
+                if($user->subscribed()) {
+                    return Limit::none();
+                }
+                else {
+                    return Limit::perMinute(config('secrets.rate_limit.user.per_minute'))
+                                ->by($request->ip());
+                }
             }
             else {
                 return Limit::perMinute(config('secrets.rate_limit.guest.per_minute'))

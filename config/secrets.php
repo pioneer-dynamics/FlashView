@@ -1,54 +1,60 @@
 <?php
 
 return [
-    /**
-     * Expiry in minutes
-     */
-    'expiry' => env('SECRET_EXPIRY_MINUTES', 10080),
 
     /**
      * Expiry options
      */
     'expiry_options' => [
         [
-            'label' => 'Expires in 5 minutes',
+            'label' => '5 minutes',
             'value' => 5,
-        ],
+            'user' => ['guest', 'user', 'basic'],
+        ], 
         [
-            'label' => 'Expires in 30 minutes',
+            'label' => '30 minutes',
             'value' => 30,
-        ],
+            'user' => ['guest', 'user', 'basic'],
+        ], 
         [
-            'label' => 'Expires in 1 hour',
+            'label' => '1 hour',
             'value' => 60,
-        ],
+            'user' => ['guest', 'user', 'basic'],
+        ], 
         [
-            'label' => 'Expires in 4 hours',
+            'label' => '4 hours',
             'value' => 240,
-        ],        
+            'user' => ['guest', 'user', 'basic'],
+        ],         
         [
-            'label' => 'Expires in 12 hours',
+            'label' => '12 hours',
             'value' => 720,
-        ],
+            'user' => ['guest', 'user', 'basic'],
+        ], 
         [
-            'label' => 'Expires in 1 day',
+            'label' => '1 day',
             'value' => 1440,
-        ],
+            'user' => ['guest', 'user', 'basic'],
+        ], 
         [
-            'label' => 'Expires in 3 days',
+            'label' => '3 days',
             'value' => 4320,
+            'user' => ['basic', 'user'],
         ],
         [
-            'label' => 'Expires in 7 days',
+            'label' => '7 days',
             'value' => 10080,
+            'user' => ['basic', 'user'],
         ],
         [
-            'label' => 'Expires in 14 days',
+            'label' => '14 days',
             'value' => 20160,
+            'user' => ['basic']
         ],
         [
-            'label' => 'Expires in 30 days',
+            'label' => '30 days',
             'value' => 43200,
+            'user' => ['basic']
         ],
     ],
 
@@ -67,5 +73,6 @@ return [
     'message_length' => [
         'guest' => env('GUEST_SECRET_MESSAGE_LENGTH', 160),
         'user' => env('USER_SECRET_MESSAGE_LENGTH', 320),
+        'basic' => env('USER_SECRET_MESSAGE_LENGTH', 100000),
     ]
 ];
