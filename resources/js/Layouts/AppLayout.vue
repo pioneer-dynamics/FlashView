@@ -8,6 +8,7 @@ import DropdownLink from '@/Components/DropdownLink.vue';
 import NavLink from '@/Components/NavLink.vue';
 import ResponsiveNavLink from '@/Components/ResponsiveNavLink.vue';
 import Background from '../../images/bg.png';
+import { DateTime } from 'luxon';
 
 defineProps({
     title: String,
@@ -120,7 +121,9 @@ const logout = () => {
 
                                 <!-- Settings Dropdown -->
                                 <div class="text-sm" v-if="$page.props.auth.user.subscription">
-                                    {{ $page.props.auth.user.subscription.stripe_status }} Basic Plan
+                                    Basic Plan ({{ $page.props.auth.user.subscription.stripe_status }}
+                                    <span v-if="$page.props.auth.user.subscription.ends_at"> till {{ DateTime.fromISO($page.props.auth.user.subscription.ends_at).toLocaleString(DateTime.DATETIME_MED) }}</span>
+                                    )
                                 </div>
                                 <div class="ms-3 relative">
                                     <Dropdown align="right" width="48">
