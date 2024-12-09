@@ -79,7 +79,10 @@ class User extends Authenticatable implements PasskeyUser, MustVerifyEmail
 
         $plan = Plan::where('stripe_monthly_price_id', $stripe_price_id)->orWhere('stripe_yearly_price_id', $stripe_price_id)->first();
 
-        return $plan->stripe_monthly_price_id == $stripe_price_id ? 'monthly' : 'yearly';
+        if($plan)
+            return $plan->stripe_monthly_price_id == $stripe_price_id ? 'monthly' : 'yearly';
+        else
+            return 'yearly';
     }
 
     /**
