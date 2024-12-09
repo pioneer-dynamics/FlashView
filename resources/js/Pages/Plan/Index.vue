@@ -20,9 +20,9 @@ const isMonthly = ref(usePage().props.auth?.user?.frequency == 'monthly' ? true 
             <div class="flex flex-row justify-center mb-4">
                 <div class="flex flex-row gap-0 justify-center rounded-md bg-white">
                     <button @click="() => isMonthly = true" :class="{ 'bg-gamboge-800 dark:bg-gamboge-200': isMonthly }"
-                        class="inline-flex items-center px-4 py-2 border border-transparent rounded-md font-semibold text-xs text-white dark:text-gamboge-800 uppercase tracking-widest focus:outline-none disabled:opacity-50 transition ease-in-out duration-150 justify-center p-2 ">Monthly</button>
+                        class="inline-flex items-center px-4 py-2 border border-transparent rounded-md font-semibold text-xs text-gamboge-300 dark:text-gamboge-800 uppercase tracking-widest focus:outline-none disabled:opacity-50 transition ease-in-out duration-150 justify-center p-2 ">Monthly</button>
                     <button @click="() => isMonthly = false" :class="{ 'bg-gamboge-800 dark:bg-gamboge-200': !isMonthly }"
-                        class="inline-flex items-center px-4 py-2 border border-transparent rounded-md font-semibold text-xs text-white dark:text-gamboge-800 uppercase tracking-widest focus:outline-none disabled:opacity-50 transition ease-in-out duration-150 justify-center p-2">Yearly</button>
+                        class="inline-flex items-center px-4 py-2 border border-transparent rounded-md font-semibold text-xs text-gamboge-300 dark:text-gamboge-800 uppercase tracking-widest focus:outline-none disabled:opacity-50 transition ease-in-out duration-150 justify-center p-2">Yearly</button>
                 </div>
             </div>
             <div class="flex flex-col md:flex-row gap-4 justify-center p-4">
