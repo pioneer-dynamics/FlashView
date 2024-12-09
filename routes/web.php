@@ -1,9 +1,10 @@
 <?php
 
-use App\Http\Controllers\SecretController;
-use Illuminate\Foundation\Application;
-use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
+use Illuminate\Foundation\Application;
+use App\Http\Controllers\SecretController;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -34,4 +35,22 @@ Route::middleware([
 
     Route::get('secrets', [SecretController::class,  'index'])->name('secrets.index');
     Route::delete('secrets/{secret}', [SecretController::class,  'destroy'])->name('secrets.destroy');
+
+    Route::get('/subscribe', function (Request $request) {
+        /**
+         * @var App\Models\User $user
+         */
+        $user = $request->user();
+        return $user
+            ->newSubscription('default', config('subscriptions.plans.basic.price.monthly.stripe_price_id'))
+            ->allowPromotionCodes()
+            ->checkout([
+                'success_url' => route('dashboard'),
+                'cancel_url' => route('dashboard'),
+            ]);
+    })->name('subscribe');
+
+    Route::get('/billing', function (Request $request) {
+        return $request->user()->redirectToBillingPortal(route('dashboard'));
+    })->middleware(['auth'])->name('billing');
 });
