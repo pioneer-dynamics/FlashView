@@ -6,7 +6,7 @@ use App\Models\Plan;
 use Illuminate\Database\Seeder;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 
-class PlanSeeder extends Seeder
+class PlanSeederLocal extends Seeder
 {
     /**
      * Run the database seeds.
