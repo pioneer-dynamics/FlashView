@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\App;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Attributes\ScopedBy;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use mathewparet\LaravelPolicyAbilitiesExport\Traits\ExportsPermissions;
 
 #[ScopedBy([ActiveScope::class])]
 class Secret extends Model
@@ -16,6 +17,7 @@ class Secret extends Model
     /** @use HasFactory<\Database\Factories\SecretFactory> */
     use HasFactory;
     use HasHashId;
+    use ExportsPermissions;
 
     protected $fillable = [
         'message',
@@ -23,6 +25,15 @@ class Secret extends Model
         'filename',
         'user_id',
         'expires_at',
+    ];
+
+    protected $hidden = [
+        'message',
+        'filepath',
+        'ip_address_sent',
+        'ip_address_retrieved',
+        'updated_at',
+        'id'
     ];
 
     protected function casts()

@@ -17,6 +17,7 @@
         "laravel/tinker": "^2.9",
         "league/flysystem-aws-s3-v3": "^3.29",
         "mathewparet/inertia-config-share": "^1.0",
+        "mathewparet/laravel-policy-abilities-export": "^2.0",
         "pioneer-dynamics/laravel-passkey": "^2.0",
         "symfony/http-client": "^7.2",
         "symfony/postmark-mailer": "^7.2",

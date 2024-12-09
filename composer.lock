@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "0ed0b4a4295a53ff041d7b7b256e81dd",
+    "content-hash": "389292426824265362309efcd30184f2",
     "packages": [
         {
             "name": "aws/aws-crt-php",
@@ -2662,6 +2662,50 @@
                 "source": "https://bitbucket.org/mathewparet/inertia-config-share/src/6d64b937a5d0186666d04b14b17a2f0d821bc8e1/?at=v1.0.7"
             },
             "time": "2024-05-06T12:14:07+00:00"
+        },
+        {
+            "name": "mathewparet/laravel-policy-abilities-export",
+            "version": "v2.0.1",
+            "source": {
+                "type": "git",
+                "url": "https://bitbucket.org/mathewparet/laravel-policy-export.git",
+                "reference": "1944cf8f9455049394ac9414f0b03f2284be44b2"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://bitbucket.org/mathewparet/laravel-policy-export/get/1944cf8f9455049394ac9414f0b03f2284be44b2.zip",
+                "reference": "1944cf8f9455049394ac9414f0b03f2284be44b2",
+                "shasum": ""
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "mathewparet\\LaravelPolicyAbilitiesExport\\Providers\\PolicyExportProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "mathewparet\\LaravelPolicyAbilitiesExport\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Mathew Paret",
+                    "email": "mathewparet@gmail.com"
+                }
+            ],
+            "description": "Export Laravel Policy abilities to JSON for use with VueJS front end",
+            "homepage": "https://bitbucket.org/mathewparet/laravel-policy-export",
+            "support": {
+                "source": "https://bitbucket.org/mathewparet/laravel-policy-export/src/1944cf8f9455049394ac9414f0b03f2284be44b2/?at=v2.0.1"
+            },
+            "time": "2023-08-07T12:23:27+00:00"
         },
         {
             "name": "mobiledetect/mobiledetectlib",

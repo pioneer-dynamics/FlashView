@@ -31,4 +31,7 @@ Route::middleware([
     Route::get('/dashboard', function () {
         return Inertia::render('Dashboard');
     })->name('dashboard');
+
+    Route::get('secrets', [SecretController::class,  'index'])->name('secrets.index');
+    Route::delete('secrets/{secret}', [SecretController::class,  'destroy'])->name('secrets.destroy');
 });
