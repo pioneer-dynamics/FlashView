@@ -252,7 +252,7 @@
                             Is {{ maxLength }} characters too short, or need a longer expiry? - <Link class="underline text-gamboge-200" :href="route('login')">login</Link> or <Link class="underline text-gamboge-200" :href="route('register')">create a free account!</Link> to increase the limit.
                         </div>
                         <div v-else-if="!$page.props.auth.user.subscription" class="flex flex-wrap gap-1">
-                            Is {{ maxLength }} characters still too short, or need a longer expiry? - <a as="a"class="underline text-gamboge-200" :href="route('subscribe')">subscribe to a paid plan</a> to increase the limit to {{ numberWithCommas($page.props.config.secrets.message_length.basic) }} characters!!! and an expiry of upto {{ $page.props.config.secrets.expiry_options[$page.props.config.secrets.expiry_options.length-1].label }}.
+                            Is {{ maxLength }} characters still too short, or need a longer expiry? - <a as="a"class="underline text-gamboge-200" :href="route('plans.index')">subscribe to a paid plan</a> to increase the limit to {{ numberWithCommas($page.props.config.secrets.message_length.basic) }} characters!!! and an expiry of upto {{ $page.props.config.secrets.expiry_options[$page.props.config.secrets.expiry_options.length-1].label }}.
                         </div>
                     </div>
                     <div class="flex flex-wrap mt-2 gap-1">

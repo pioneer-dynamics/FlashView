@@ -56,12 +56,30 @@ class User extends Authenticatable implements PasskeyUser, MustVerifyEmail
      */
     protected $appends = [
         'profile_photo_url',
-        'subscription'
+        'subscription',
+        'plan',
+        'frequency',
     ];
 
     public function getSubscriptionAttribute()
     {
         return $this->subscriptions()->active()->first();
+    }
+
+    public function getPlanAttribute()
+    {
+        $stripe_price_id = optional($this->subscription)->stripe_price;
+
+        return Plan::where('stripe_monthly_price_id', $stripe_price_id)->orWhere('stripe_yearly_price_id', $stripe_price_id)->first();
+    }
+    
+    public function getFrequencyAttribute()
+    {
+        $stripe_price_id = optional($this->subscription)->stripe_price;
+
+        $plan = Plan::where('stripe_monthly_price_id', $stripe_price_id)->orWhere('stripe_yearly_price_id', $stripe_price_id)->first();
+
+        return $plan->stripe_monthly_price_id == $stripe_price_id ? 'monthly' : 'yearly';
     }
 
     /**
