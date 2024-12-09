@@ -25,7 +25,7 @@ const isMonthly = ref(usePage().props.auth?.user?.frequency == 'monthly' ? true 
                         class="inline-flex items-center px-4 py-2 border border-transparent rounded-md font-semibold text-xs text-white dark:text-gamboge-800 uppercase tracking-widest focus:outline-none disabled:opacity-50 transition ease-in-out duration-150 justify-center p-2">Yearly</button>
                 </div>
             </div>
-            <div class="flex flex-row gap-4 justify-center">
+            <div class="flex flex-col md:flex-row gap-4 justify-center p-4">
                 <div v-for="plan in plans" :key="plan.id"
                     class="w-full max-w-sm p-4 bg-white border border-gray-200 rounded-lg shadow sm:p-8 dark:bg-gray-800 dark:border-gray-700">
                     <div class="flex flex-wrap gap-2">
