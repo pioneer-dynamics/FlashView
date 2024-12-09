@@ -1,12 +1,16 @@
 <script setup>
-    import { Head, Link } from '@inertiajs/vue3';
+    import { Head, Link, router } from '@inertiajs/vue3';
     import { computed, ref } from 'vue';
     import Background from '../../images/bg.png';
     import Logo from '../../images/logo.png';
     import Typewriter from '@/Components/Typewriter.vue';
     import Faq from './Partials/Faq.vue';
     import SecretForm from '@/Pages/Secret/SecretForm.vue';
-
+    import Dropdown from '@/Components/Dropdown.vue';
+    import DropdownLink from '@/Components/DropdownLink.vue';
+    import AppLayout from '@/Layouts/AppLayout.vue';
+    import Page from './Page.vue';
+        
     const props = defineProps({
         canLogin: {
             type: Boolean,
@@ -31,8 +35,8 @@
 </script>
 
 <template>
-    <Head title="Welcome" />
-    <div :class="bgImageClass" :style="{'background-image': `url(${Background})`}">
+    <AppLayout title="Welcome">
+        <Page>
         <!-- <img id="background" class="absolute -left-20 top-0 w-full" :src="Background" /> -->
         <div class="relative min-h-screen flex flex-col items-center justify-center">
             <div class="relative w-full max-w-2xl px-6 lg:max-w-7xl">
@@ -42,32 +46,6 @@
                             <img :src="Logo" class="h-24 w-auto">
                         </Link>
                     </div>
-                    <nav v-if="canLogin" class="-mx-3 flex flex-1 justify-end">
-                        <Link
-                            v-if="$page.props.auth.user"
-                            :href="route('dashboard')"
-                            class="rounded-md px-3 py-2 text-gamboge-200 ring-1 ring-transparent transition hover:text-gamboge-200/70 focus:outline-none focus-visible:ring-[#FF2D20] dark:text-white dark:hover:text-white/80 dark:focus-visible:ring-white"
-                        >
-                            Dashboard
-                        </Link>
-
-                        <template v-else>
-                            <Link
-                                :href="route('login')"
-                                class="rounded-md px-3 py-2 text-gamboge-200 ring-1 ring-transparent transition hover:text-gamboge-200/70 focus:outline-none focus-visible:ring-[#FF2D20] dark:text-white dark:hover:text-white/80 dark:focus-visible:ring-white"
-                            >
-                                Log in
-                            </Link>
-
-                            <Link
-                                v-if="canRegister"
-                                :href="route('register')"
-                                class="rounded-md px-3 py-2 text-gamboge-200 ring-1 ring-transparent transition hover:text-gamboge-200/70 focus:outline-none focus-visible:ring-[#FF2D20] dark:text-white dark:hover:text-white/80 dark:focus-visible:ring-white"
-                            >
-                                Register
-                            </Link>
-                        </template>
-                    </nav>
                 </header>
 
                 <main class="mt-6 grid-cols-1 gap-6 max-w-4xl mx-auto">
@@ -87,5 +65,6 @@
                 </footer>
             </div>
         </div>
-    </div>
+        </Page>
+    </AppLayout>
 </template>
