@@ -245,9 +245,23 @@ const logout = () => {
                     <div :class="{ 'block': showingNavigationDropdown, 'hidden': !showingNavigationDropdown }"
                         class="sm:hidden">
                         <div class="pt-2 pb-3 space-y-1">
-                            <ResponsiveNavLink :href="route('dashboard')" :active="route().current('dashboard')">
-                                Dashboard
-                            </ResponsiveNavLink>
+                            <template v-if="$page.props?.auth?.user">
+                                <ResponsiveNavLink :href="route('dashboard')" :active="route().current('dashboard')">
+                                    Create Secret Message
+                                </ResponsiveNavLink>
+                                <ResponsiveNavLink :href="route('secrets.index')"
+                                    :active="route().current('secrets.index')">
+                                    My Secrets
+                                </ResponsiveNavLink>
+                            </template>
+                            <template v-if="true">
+                                <ResponsiveNavLink :href="route('plans.index')" :active="route().current('plans.index')">
+                                    Pricing
+                                </ResponsiveNavLink>
+                                <ResponsiveNavLink :href="route('faq.index')" :active="route().current('faq.index')">
+                                    F.A.Q.
+                                </ResponsiveNavLink>
+                            </template>
                         </div>
 
                         <!-- Responsive Settings Options -->
