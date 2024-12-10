@@ -153,8 +153,6 @@
                 break;
         }
 
-        console.log(userType.value, max_expiry);
-
         return usePage().props.config.secrets.expiry_options.filter((option) => option.value <= max_expiry);
     })
 
