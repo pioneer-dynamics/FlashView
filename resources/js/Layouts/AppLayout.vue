@@ -377,10 +377,10 @@ const logout = () => {
                                 <h2 class="mb-6 text-sm font-semibold text-gray-900 uppercase dark:text-white">Follow us</h2>
                                 <ul class="text-gray-500 dark:text-gray-400 font-medium">
                                     <li class="mb-4">
-                                        <a href="https://github.com/pioneer-dynamics/One-Time-Share" class="hover:underline ">Github</a>
+                                        <a target="_blank" href="https://github.com/pioneer-dynamics/One-Time-Share" class="hover:underline ">Github</a>
                                     </li>
                                     <li>
-                                        <a href="https://discord.gg/hGv6XKHuKR" class="hover:underline">Discord</a>
+                                        <a target="_blank" href="https://discord.gg/hGv6XKHuKR" class="hover:underline">Discord</a>
                                     </li>
                                 </ul>
                             </div>
