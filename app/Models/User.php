@@ -83,7 +83,7 @@ class User extends Authenticatable implements PasskeyUser, MustVerifyEmail
         if($plan)
             return $plan->stripe_monthly_price_id == $stripe_price_id ? 'monthly' : 'yearly';
         else
-            return 'yearly';
+            return 'monthly';
     }
 
     /**
