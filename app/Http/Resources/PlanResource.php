@@ -36,6 +36,10 @@ class PlanResource extends JsonResource
     {
         $settings = [];
 
+        if (!isset($this->resource['features'])) {
+            return $settings;        
+        }
+
         foreach($this->resource['features'] as $type => $feature) {
             $settings[$type] = $feature['config'];
         }
