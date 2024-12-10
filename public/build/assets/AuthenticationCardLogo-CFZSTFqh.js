@@ -1,1 +1,0 @@
-import{o,c as e,w as s,a as t,u as a,i as r}from"./app-CejAU3s6.js";import{L as c}from"./logo-3HeDyDTa.js";const _=["src"],f={__name:"AuthenticationCardLogo",setup(n){return(i,u)=>(o(),e(a(r),{href:"/"},{default:s(()=>[t("img",{src:a(c),class:"h-24 w-auto"},null,8,_)]),_:1}))}};export{f as _};
