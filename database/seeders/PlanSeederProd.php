@@ -67,8 +67,8 @@ class PlanSeederProd extends Seeder
 
         Plan::updateOrCreate(['name' => 'Basic'],
         [
-            'stripe_monthly_price_id' => 'price_1QU7dtEZ2BxtappzmgixXiYW',
-            'stripe_yearly_price_id' => 'price_1QU7dtEZ2BxtappzoPqq0iPf',
+            'stripe_monthly_price_id' => 'price_1QUNLuEZ2BxtappzU6frEVBn',
+            'stripe_yearly_price_id' => 'price_1QUNMyEZ2BxtappzLtgG8JRR',
             'stripe_product_id' => 'prod_RMrMjfVfzxi4jD',
             'features' => [
                 'untracked' => [
@@ -117,8 +117,8 @@ class PlanSeederProd extends Seeder
 
         Plan::updateOrCreate(['name' => 'Prime'],
         [
-            'stripe_monthly_price_id' => 'price_1QU7dzEZ2Bxtappz5eCaMbb6',
-            'stripe_yearly_price_id' => 'price_1QU7dzEZ2Bxtappzu2nj5Y0i',
+            'stripe_monthly_price_id' => 'price_1QUNNrEZ2BxtappzMeIeREsc',
+            'stripe_yearly_price_id' => 'price_1QUNODEZ2BxtappzY4gqKygq',
             'stripe_product_id' => 'prod_RMrMnAF1n071Ki',
             'features' => [
                 'untracked' => [
