@@ -39,6 +39,8 @@ Route::middleware([
     })->name('dashboard');
 
     Route::get('plans/{plan}/{period}', [PlanController::class, 'subscribe'])->name('plans.subscribe');
+    Route::post('plans/cancel', [PlanController::class, 'unsubscribe'])->name('plans.unsubscribe');
+    Route::post('plans/resume', [PlanController::class, 'resume'])->name('plans.resume');
 
     Route::get('secrets', [SecretController::class,  'index'])->name('secrets.index');
     Route::delete('secrets/{secret}', [SecretController::class,  'destroy'])->name('secrets.destroy');
