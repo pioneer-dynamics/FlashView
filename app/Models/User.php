@@ -110,5 +110,11 @@ class User extends Authenticatable implements PasskeyUser, MustVerifyEmail
                 $customer->syncStripeCustomerDetails();
             }
         }));
+
+        static::deleting(queueable(function (User $customer) {
+            $customer->subscriptions()->active()->each(function ($subscription) {
+                $subscription->cancelNow();
+            });
+        }));
     }
 }

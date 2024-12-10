@@ -20,6 +20,16 @@ class PlanController extends Controller
         return Inertia::render('Plan/Index', compact('plans'));
     }
 
+    public function unsubscribe(Request $request)
+    {
+        $request->user()->subscription('default')->cancel();
+    }
+    
+    public function resume(Request $request)
+    {
+        $request->user()->subscription('default')->resume();
+    }
+
     public function subscribe(Request $request, Plan $plan, $period)
     {
         $user = $request->user();
