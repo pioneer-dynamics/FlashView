@@ -260,7 +260,7 @@
                     <CodeBlock v-if="stage=='generated'" :value="$page.props.jetstream.flash?.secret?.url" class="break-words mt-1"/>
                 </span>
                 <span v-else>
-                    <TextAreaInput :autofocus="props.secret == null" id="message" rows="7" v-model="form.message" type="text" :class="messageClass" placeholder="Your secret message..." :max-length="maxLength"/>
+                    <TextAreaInput :autofocus="props.secret == null" id="message" rows="7" v-model="form.message" type="text" :class="messageClass" placeholder="Your secret message..." :max-length="$page.props.jetstream.flash?.secret?.message ? 0 : maxLength"/>
                     <div class="flex flex-wrap mt-2 relative text-sm gap-2">
                         <div class="flex flex-wrap">
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-4">
@@ -268,13 +268,15 @@
                             </svg>
                             <div class="ml-1">End-to-end encrypted</div>
                         </div>
-                        <div v-if="!$page.props.auth.user || !$page.props.auth.user.subscription">|</div>
-                        <div v-if="!$page.props.auth.user" class="flex flex-wrap gap-1">
-                            Is {{ maxLength }} characters too short, or need a longer expiry? - <Link class="underline text-gamboge-200" :href="route('login')">login</Link> or <Link class="underline text-gamboge-200" :href="route('register')">create a free account!</Link> to increase the limit.
-                        </div>
-                        <div v-else-if="!$page.props.auth.user.subscription" class="flex flex-wrap gap-1">
-                            Is {{ maxLength }} characters still too short, or need a longer expiry? - <a as="a"class="underline text-gamboge-200" :href="route('plans.index')">subscribe to a paid plan</a> to increase the limits.
-                        </div>
+                        <span v-if="!props.secret" class="flex flex-wrap gap-1">
+                            <div v-if="!$page.props.auth.user || !$page.props.auth.user.subscription">|</div>
+                            <div v-if="!$page.props.auth.user">
+                                Is {{ maxLength }} characters too short, or need a longer expiry? - <Link class="underline text-gamboge-200" :href="route('login')">login</Link> or <Link class="underline text-gamboge-200" :href="route('register')">create a free account!</Link> to increase the limit.
+                            </div>
+                            <div v-else-if="!$page.props.auth.user.subscription" class="flex flex-wrap gap-1">
+                                Is {{ maxLength }} characters still too short, or need a longer expiry? - <a as="a"class="underline text-gamboge-200" :href="route('plans.index')">subscribe to a paid plan</a> to increase the limits.
+                            </div>
+                        </span>
                     </div>
                     <div class="flex flex-wrap mt-2 gap-1">
                         <InputError :message="form.errors.message" />
