@@ -8,7 +8,7 @@ use Illuminate\Contracts\Validation\ValidationRule;
 
 class MessageLength implements ValidationRule
 {
-    public function __construct(private int $length, private int $min_length = 1)
+    public function __construct(private string $userType, private int $length, private int $min_length = 1)
     {
         
     }
@@ -37,29 +37,11 @@ class MessageLength implements ValidationRule
     {
         $user = request()->user();
 
-        return match($this->getUserType()) {
+        return match($this->userType) {
             'subscribed' => $user->plan->settings->messages->message_length,
             'user' => config('secrets.message_length.user'),
             'guest' => config('secrets.message_length.guest'),
         };
-    }
-
-    /**
-     * Identify the type of user submitting the request
-     */
-    private function getUserType(): string
-    {
-        if($user = request()->user()) {
-            if($user->subscribed()) {
-                return 'subscribed';
-            }
-            else {
-                return 'user';
-            }
-        }
-        else {
-            return 'guest';
-        }
     }
 
     /**
