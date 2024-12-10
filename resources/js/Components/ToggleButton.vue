@@ -12,8 +12,8 @@
             <button 
                 v-for="option in options" 
                 @click="() => $emit('update:modelValue', option.value)" 
-                :class="{ 'bg-gamboge-800 dark:bg-gamboge-200': option.value == modelValue }"
-                class="inline-flex items-center px-4 py-2 border border-transparent rounded-md font-semibold text-xs text-gamboge-300 dark:text-gamboge-800 uppercase tracking-widest focus:outline-none disabled:opacity-50 transition ease-in-out duration-150 justify-center p-2 "
+                :class="{ 'bg-gamboge-300 dark:bg-gamboge-800': option.value == modelValue }"
+                class="inline-flex items-center px-4 py-2 border border-transparent rounded-md font-semibold text-xs text-gamboge-800 dark:text-gamboge-200 uppercase tracking-widest focus:outline-none disabled:opacity-50 transition ease-in-out duration-150 justify-center p-2 "
                 >
                     {{ option.label }}
             </button>

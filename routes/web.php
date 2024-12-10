@@ -1,12 +1,13 @@
 <?php
 
-use App\Http\Controllers\FaqController;
 use Inertia\Inertia;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Foundation\Application;
+use App\Http\Controllers\FaqController;
 use App\Http\Controllers\PlanController;
 use App\Http\Controllers\SecretController;
+use App\Http\Controllers\MarkdownDocumentController;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -28,6 +29,10 @@ Route::middleware(['throttle:secrets'])->group(function () {
 
 Route::get('plans', [PlanController::class, 'index'])->name('plans.index');
 Route::get('faq', FaqController::class)->name('faq.index');
+
+Route::get('/terms-of-service', [MarkdownDocumentController::class, 'terms'])->name('terms.show');
+Route::get('/privacy-policy', [MarkdownDocumentController::class, 'privacy'])->name('policy.show');
+Route::get('/license', [MarkdownDocumentController::class, 'license'])->name('license.show');
 
 Route::middleware([
     'auth:sanctum',
