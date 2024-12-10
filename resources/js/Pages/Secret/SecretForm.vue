@@ -122,7 +122,7 @@
         {
             if(usePage().props?.auth?.user?.subscription)
             {
-                user_type = 'basic';
+                user_type = 'subscribed';
             }
             else
             {
@@ -138,7 +138,24 @@
     })
 
     const expiryOptions = computed(() => {
-        return usePage().props.config.secrets.expiry_options.filter((option) => option.user.includes(userType.value));
+
+        let max_expiry = 0;
+
+        switch(userType.value) {
+            case 'subscribed'
+                : max_expiry =  usePage().props.auth.user.plan.settings.expiry.expiry_minutes;
+                break;
+            case 'user'
+                : max_expiry =  usePage().props.config.secrets.expiry_limits.user;
+                break;
+            case 'guest'
+                : max_expiry =  usePage().props.config.secrets.expiry_limits.guest;
+                break;
+        }
+
+        console.log(userType.value, max_expiry);
+
+        return usePage().props.config.secrets.expiry_options.filter((option) => option.value <= max_expiry);
     })
 
     const form = useForm({
@@ -146,7 +163,13 @@
         expires_in: expiryOptions.value[expiryOptions.value.length-1].value ,
     });
     
-    const maxLength = computed(() => usePage().props.config.secrets.message_length[userType.value]);
+    const maxLength = computed(() => {
+        switch(userType.value) {
+            case 'subscribed': return usePage().props.auth.user.plan.settings.messages.message_length;
+            case 'user': return usePage().props.config.secrets.message_length.user;
+            case 'guest': return usePage().props.config.secrets.message_length.guest;
+        }
+    });
 
     const decryptData = () => {
         const e = new encryption();
