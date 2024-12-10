@@ -20,13 +20,13 @@ class PlanResource extends JsonResource
     {
         return array_merge(parent::toArray($request), [
             'settings' => $this->getSettings(),
-            'features' => collect(array_map(function($feature) {
+            'features' => $this->when(isset($this->resource['features']),  collect(array_map(function($feature) {
                 return [
                     'label' => __($feature['label'], $feature['config']),
                     'type' => $feature['type'],
                     'order' => $feature['order']
                 ];
-            }, $this->resource['features']))->sortBy('order')
+            }, $this->resource['features']))->sortBy('order'))
         ]);
 
         
