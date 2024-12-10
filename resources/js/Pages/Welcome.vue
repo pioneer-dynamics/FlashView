@@ -4,7 +4,6 @@
     import Background from '../../images/bg.png';
     import Logo from '../../images/logo.png';
     import Typewriter from '@/Components/Typewriter.vue';
-    import Faq from './Partials/Faq.vue';
     import SecretForm from '@/Pages/Secret/SecretForm.vue';
     import Dropdown from '@/Components/Dropdown.vue';
     import DropdownLink from '@/Components/DropdownLink.vue';
@@ -56,7 +55,6 @@
                             </template>
                         </Typewriter>   
                         <SecretForm :secret="secret" :decrypt-url="decryptUrl"/>
-                        <Faq/>
                     <!-- </div> -->
                 </main>
 
