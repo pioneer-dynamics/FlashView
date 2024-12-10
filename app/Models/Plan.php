@@ -2,8 +2,10 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Laravel\Cashier\Cashier;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Plan extends Model
 {
@@ -12,12 +14,12 @@ class Plan extends Model
 
     protected $fillable = [
         'name',
-        'price_per_month',
-        'price_per_year',
         'features',
         'stripe_monthly_price_id',
         'stripe_yearly_price_id',
         'stripe_product_id',
+        'price_per_month',
+        'price_per_year',
     ];
 
     protected function casts(): array

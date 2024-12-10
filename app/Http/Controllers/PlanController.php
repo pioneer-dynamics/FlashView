@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Plan;
 use Inertia\Inertia;
 use Illuminate\Http\Request;
+use App\Http\Resources\PlanResource;
 use App\Http\Requests\StorePlanRequest;
 use App\Http\Requests\UpdatePlanRequest;
 
@@ -15,7 +16,7 @@ class PlanController extends Controller
      */
     public function index()
     {
-        $plans = Plan::orderBy('price_per_month', 'asc')->get();
+        $plans = PlanResource::collection(Plan::get()->sortBy('price_per_month'));
 
         return Inertia::render('Plan/Index', compact('plans'));
     }

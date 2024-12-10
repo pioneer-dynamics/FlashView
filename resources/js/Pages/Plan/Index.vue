@@ -37,7 +37,7 @@ const isFreePlan = (plan) => plan.price_per_month == 0
         <Page>
             <ToggleButton class="justify-center" :options="[{ label: 'Monthly', value: 'monthly' }, { label: 'Yearly', value: 'yearly' }]" v-model="planFrequency"/>
             <div class="flex flex-col md:flex-row gap-4 justify-center p-4">
-                <div v-for="plan in plans" :key="plan.id"
+                <div v-for="plan in plans.data" :key="plan.id"
                     class="w-full max-w-sm p-4 bg-white border border-gray-200 rounded-lg shadow sm:p-8 dark:bg-gray-800 dark:border-gray-700">
                     <div class="flex flex-wrap gap-2">
                         <h5 class="mb-4 text-xl font-medium text-gray-500 dark:text-gray-400">{{ plan.name }}</h5>
@@ -58,8 +58,9 @@ const isFreePlan = (plan) => plan.price_per_month == 0
                         </span>
                     </div>
                     <ul role="list" class="space-y-5 my-7">
-                        <Feature v-for="feature in plan.features.has" :key="feature" :feature="feature" :has="true" />
-                        <Feature v-for="feature in plan.features.does_not_have" :key="feature" :feature="feature" :has="false" />
+                        <Feature v-for="feature in plan.features" :key="feature" :feature="feature" />
+                        <!-- <Feature v-for="feature in plan.features.limits" :key="feature" :feature="feature" type="limits" />
+                        <Feature v-for="feature in plan.features.does_not_have" :key="feature" :feature="feature" type="missing" /> -->
                     </ul>
                     <span v-if="isFreePlan(plan)">
                         <Link 
