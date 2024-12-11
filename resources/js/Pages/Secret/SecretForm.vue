@@ -312,7 +312,7 @@
                         <CodeBlock :value="form.email" class="mt-1"/>
                     </span>
                 </span>
-                <span v-else>
+                <span v-else-if="!$page.props.jetstream.flash?.secret?.url && props.secret == null">
                     <TextInput v-model="form.email" placeholder="Recipient's email adddress (optional)" class="mt-1 block w-full" type="email"/>
                     <InputError :message="form.errors.email" class="mt-2" />
                 </span>
