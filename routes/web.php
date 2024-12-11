@@ -37,6 +37,7 @@ Route::get('/license', [MarkdownDocumentController::class, 'license'])->name('li
 Route::get('/security', [MarkdownDocumentController::class, 'security'])->name('security.show');
 Route::get('/faq', [MarkdownDocumentController::class, 'faq'])->name('faq.index');
 Route::get('/about', [MarkdownDocumentController::class, 'about'])->name('about.index');
+Route::get('/use-cases', [MarkdownDocumentController::class, 'useCases'])->name('useCases.index');
 
 Route::middleware([
     'auth:sanctum',

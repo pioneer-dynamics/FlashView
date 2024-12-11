@@ -399,7 +399,7 @@ const logout = () => {
                                         <Link :href="route('faq.index')" class="hover:underline">F.A.Q</Link>
                                     </li>
                                     <li>
-                                        <Link :href="route('about.index')" class="hover:underline">About Us</Link>
+                                        <Link :href="route('useCases.index')" class="hover:underline">Use Cases</Link>
                                     </li>
                                     <li>
                                         <Link :href="route('plans.index')" class="hover:underline">Pricing</Link>

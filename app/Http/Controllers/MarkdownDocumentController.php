@@ -163,4 +163,9 @@ class MarkdownDocumentController extends Controller
     {
         return $this->baseMarkdownRender('markdown/about.md', 'About Us', false);
     }
+    
+    public function useCases()
+    {
+        return $this->baseMarkdownRender('markdown/use-cases.md', 'Use Cases', false);
+    }
 }
