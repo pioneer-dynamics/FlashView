@@ -149,10 +149,12 @@
 
     const form = useForm({
         message: props.secret ? 'This isn’t the actual message—it’s just a placeholder. To view the message, please click the button below.' : '',
+        email: '',
         expires_in: expiryOptions.value[expiryOptions.value.length-1].value ,
     });
 
     const letsDoAnotherOne = () => {
+        form.email = '';
         form.message = '';
         form.expires_in = expiryOptions.value[expiryOptions.value.length-1].value ;
         other.password = null;
@@ -302,6 +304,18 @@
                         <InputError :message="other.errors.expires_in" class="mt-2" />
                     </div>
                 </div>
+            </div>
+            <div class="col-span-12" v-if="$page.props.auth.user">
+                <span v-if="stage=='generated'">
+                    <span v-if="form.email">
+                        <InputLabel value="Recipient's Email"/>
+                        <CodeBlock :value="form.email" class="mt-1"/>
+                    </span>
+                </span>
+                <span v-else>
+                    <TextInput v-model="form.email" placeholder="Recipient's email adddress (optional)" class="mt-1 block w-full" type="email"/>
+                    <InputError :message="form.errors.email" class="mt-2" />
+                </span>
             </div>
         </template>
 

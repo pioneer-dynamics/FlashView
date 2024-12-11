@@ -20,11 +20,14 @@ Route::get('/', function () {
 Route::middleware('signed')->group(function () {
     Route::get('secret/{secret}/decrypt', [SecretController::class,  'decrypt'])->name('secret.decrypt');
     Route::get('secret/{secret}', [SecretController::class,  'show'])->name('secret.show');
+    // Route::get('secrets/{secret}/report', [SecretController::class,  'report'])->name('secrets.report');
 });
 
 Route::middleware(['throttle:secrets'])->group(function () {
     Route::post('secret', [SecretController::class,  'store'])->name('secret.store');
 });
+
+
 
 Route::get('plans', [PlanController::class, 'index'])->name('plans.index');
 
