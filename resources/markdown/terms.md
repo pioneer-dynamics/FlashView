@@ -1,6 +1,6 @@
 # {CONFIG:app.name} – WEBSITE TERMS OF USE
 
-> These terms are in addition to the [MIT license](/license) for **{CONFIG:app.name}** (**software**, **application**) itself. To make it easy to understand, the MIT license is for the **Scrooge** application; the website runs on and you are free to download the source code or use the software on your own property (computer, servers) as per the terms specified in the MIT License on our website. However, your use of this {CONFIG:app.domain} (this website) is bound by the below terms.
+> These terms are in addition to the [MIT license]({ROUTE:license.show}) for **{CONFIG:app.name}** (**software**, **application**) itself. To make it easy to understand, the MIT license is for the **Scrooge** application; the website runs on and you are free to download the source code or use the software on your own property (computer, servers) as per the terms specified in the MIT License on our website. However, your use of this {CONFIG:app.domain} (this website) is bound by the below terms.
 
 This website (**Site**) is operated by Mathew Paret (**we**, **our** or **us**).  It is available at: {CONFIG:app.domain} and may be available through other addresses or channels.
 
@@ -33,7 +33,7 @@ Please read these Terms carefully and immediately cease using our Site if you do
 1. reproduce, retransmit, distribute, disseminate, sell, publish, broadcast or circulate any Content to any third party; or
 1. breach any intellectual property rights connected with our Site or the Content, including (without limitation) altering or modifying any of the Content, causing any of the Content to be framed or embedded in another website or platform, or creating derivative works from the Content.
 
-> As a reminder, these terms are purely for the use of our website and not for the **{CONFIG:app.name}** **appllication**. The application itself is licensed under [MIT License](/license).
+> As a reminder, these terms are purely for the use of our website and not for the **{CONFIG:app.name}** **appllication**. The application itself is licensed under [MIT License]({ROUTE:license.show}).
 
 **User Content:** You may be permitted to post, upload, publish, submit or transmit relevant information and content (**User Content**) on our Site.  By making available any User Content on or through our Site, you grant to us a worldwide, irrevocable, perpetual, non-exclusive, transferable, royalty-free licence to use the User Content, with the right to use, view, copy, adapt, modify, distribute, license, sell, transfer, communicate, publicly display, publicly perform, transmit, stream, broadcast, access, or otherwise exploit such User Content on, through or by means of our Site.
 
