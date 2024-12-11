@@ -33,6 +33,12 @@ class PlanSeederLocal extends Seeder
                     ],
                     'type' => 'feature'
                 ],
+                'notification' => [
+                    'order' => 2.5,
+                    'label' => 'Get notified when a message is retrieved',
+                    'config' => [],
+                    'type' => 'feature'
+                ],
                 'expiry' => [
                     'order' => 3,
                     'label' => 'Maximum expiry of :expiry_label',
@@ -85,6 +91,12 @@ class PlanSeederLocal extends Seeder
                     ],
                     'type' => 'feature'
                 ],
+                'notification' => [
+                    'order' => 2.5,
+                    'label' => 'Get notified when a message is retrieved',
+                    'config' => [],
+                    'type' => 'feature'
+                ],
                 'expiry' => [
                     'order' => 3,
                     'label' => 'Maximum expiry of :expiry_label',
@@ -133,6 +145,12 @@ class PlanSeederLocal extends Seeder
                     'config' => [
                         'message_length' => 100000
                     ],
+                    'type' => 'feature'
+                ],
+                'notification' => [
+                    'order' => 2.5,
+                    'label' => 'Get notified when a message is retrieved',
+                    'config' => [],
                     'type' => 'feature'
                 ],
                 'expiry' => [

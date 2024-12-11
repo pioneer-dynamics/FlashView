@@ -80,7 +80,7 @@ class SecretController extends Controller implements HasMiddleware
     {
         $secret = $this->getSecretRecordWithoutBurning($secret, $request);
 
-        $secret->markAsRetrieved();
+        $secret->markSilentlyAsRetrieved();
     }
 
     private function getIdFromHash($secret)

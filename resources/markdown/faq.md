@@ -10,7 +10,7 @@ No, once a secret is retrieved by the recipient's browser, it’s permanently de
 Since the data we send to the browser is end-to-end encrypted by the sender, we cannot verify the password's correctness on the server side (unless the password is sent to us, but that would defeat the purpose of end-to-end encryption). If the browser successfully decrypts the message, we cannot know for sure unless the browser informs us. Allowing this type of communication is risky because a man-in-the-middle attacker could "fake" a response indicating that the password is incorrect, providing false information and preventing the message from being deleted. To mitigate this risk, we delete the message as soon as the encrypted data is delivered to the browser.
 
 ## What is the difference between anonymous users and free accounts?
-Anonymous users can create secrets that last up to 7 days, with a maximum size of 160 characters (size of an SMS). Free account holders enjoy additional benefits: secrets can last up to 14 days and can be up to 1000 characters. Account holders can also burn a secret before it can be retrieved.
+Anonymous users can create secrets that last up to 7 days, with a maximum size of 160 characters (size of an SMS). Free account holders enjoy additional benefits: secrets can last up to 14 days and can be up to 1000 characters. Account holders can also burn a secret before it can be retrieved, and can get notified when their message has been attempted to be retrieved.
 
 ## Why would I trust you?
 Your trust is important, and we understand the need for privacy and security. Here's why you can trust our system:

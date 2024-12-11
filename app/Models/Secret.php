@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Traits\HasHashId;
 use App\Models\Scopes\ActiveScope;
+use App\Notifications\SecretRetrievedNotification;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\App;
 use Illuminate\Database\Eloquent\Model;
@@ -76,13 +77,20 @@ class Secret extends Model
             }
 
             if(blank($secret->retrieved_at) || blank($secret->ip_address_retrieved)) {
-                
-                DB::table($secret->getTable())->where('id', $secret->id)->update([
-                    'retrieved_at' => now(),
-                    'ip_address_retrieved' => encrypt(request()->ip(), false),
-                    'message' => null
-                ]);
+                $secret->markSilentlyAsRetrieved();
+                // DB::table($secret->getTable())->where('id', $secret->id)->update([
+                //     'retrieved_at' => now(),
+                //     'ip_address_retrieved' => encrypt(request()->ip(), false),
+                //     'message' => null
+                // ]);
 
+                if($user = $secret->user)
+                {
+                    /**
+                     * @var \App\Models\User $user
+                     */
+                    $user->notify(new SecretRetrievedNotification($secret));
+                }
             }
         });
     }
@@ -94,6 +102,15 @@ class Secret extends Model
             'ip_address_retrieved' => request()->ip(),
             'message' => null
         ])->save();
+    }
+    
+    public function markSilentlyAsRetrieved()
+    {
+        DB::table($this->getTable())->where('id', $this->id)->update([
+            'retrieved_at' => now(),
+            'ip_address_retrieved' => encrypt(request()->ip(), false),
+            'message' => null
+        ]);
     }
 
     public function user()

@@ -13,17 +13,8 @@
     import { router } from '@inertiajs/vue3'
     import InputLabel from '@/Components/InputLabel.vue';
 
-    const defaultExpiry = usePage().props.config.secrets.expiry;
     const stage = ref('generating');
 
-
-    const letsDoAnotherOne = () => {
-        form.message = '';
-        form.expires_in = defaultExpiry ;
-        other.password = null;
-        stage.value = 'generating';
-        router.reload();
-    }
 
     const props = defineProps({
         secret: {
@@ -160,6 +151,14 @@
         message: props.secret ? 'This isn’t the actual message—it’s just a placeholder. To view the message, please click the button below.' : '',
         expires_in: expiryOptions.value[expiryOptions.value.length-1].value ,
     });
+
+    const letsDoAnotherOne = () => {
+        form.message = '';
+        form.expires_in = expiryOptions.value[expiryOptions.value.length-1].value ;
+        other.password = null;
+        stage.value = 'generating';
+        router.reload();
+    }
     
     const maxLength = computed(() => {
         switch(userType.value) {
