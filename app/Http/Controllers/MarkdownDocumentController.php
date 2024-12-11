@@ -54,12 +54,23 @@ class MarkdownDocumentController extends Controller
      */
     private function replaceVars(&$html)
     {
-        preg_match_all($this->getPatternToMatch(), $html, $matches);
+        preg_match_all($this->getConfigPatternToMatch(), $html, $matches);
 
         array_walk($matches[1], function (&$match) {
             throw_unless(in_array($match, $this->allowed_configurations), MarkdownExportOfUnApprovedConfiguration::class, $match);
 
             $match = config($match);
+        });
+
+        $html = str_replace($matches[0], $matches[1], $html);
+    }
+    
+    private function replaceRoutes(&$html)
+    {
+        preg_match_all($this->getRoutePatternToMatch(), $html, $matches);
+
+        array_walk($matches[1], function (&$match) {
+            $match = route($match);
         });
 
         $html = str_replace($matches[0], $matches[1], $html);
@@ -71,9 +82,14 @@ class MarkdownDocumentController extends Controller
      *
      * @return string
      */
-    private function getPatternToMatch()
+    private function getConfigPatternToMatch()
     {
         return "/{CONFIG:([\w.]+)}/";
+    }
+    
+    private function getRoutePatternToMatch()
+    {
+        return "/{ROUTE:([\w.]+)}/";
     }
 
     /**
@@ -86,9 +102,13 @@ class MarkdownDocumentController extends Controller
      */
     private function baseMarkdownRender($file, $title)
     {
-        $html = Str::markdown(file_get_contents(resource_path($file)));
+        $markdown = file_get_contents(resource_path($file));
 
-        $this->replaceVars($html);
+        $this->replaceVars($markdown);
+        
+        $this->replaceRoutes($markdown);
+
+        $html = Str::markdown($markdown);
 
         return Inertia::render('Doc/Page', [
             'markdown' => $html,
@@ -105,6 +125,11 @@ class MarkdownDocumentController extends Controller
     public function license()
     {
         return $this->baseMarkdownRender('markdown/license.md', 'MIT License');
+    }
+   
+    public function faq()
+    {
+        return $this->baseMarkdownRender('markdown/faq.md', 'F.A.Q.');
     }
 
     /**
