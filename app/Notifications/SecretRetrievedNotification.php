@@ -40,7 +40,7 @@ class SecretRetrievedNotification extends Notification implements ShouldQueue
                     ->line(__('Your secret with Message ID :message_id was retrieved.', ['message_id' => $this->secret->hash_id]))
                     ->line('The message has now been deleted from our server.')
                     ->action('My Message History', url(route('secrets.index')))
-                    ->line('Thank you for using :app', ['app' => config('app.name')]);
+                    ->line(__('Thank you for using :app', ['app' => config('app.name')]));
     }
 
     /**
