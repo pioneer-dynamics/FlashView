@@ -283,7 +283,7 @@ const logout = () => {
                                 </div>
                             </div>
 
-                            <div class="mt-3 space-y-1">
+                            <div class="mt-3 space-y-1" v-if="$page.props?.auth?.user">
                                 <ResponsiveNavLink :href="route('profile.show')"
                                     :active="route().current('profile.show')">
                                     Profile
@@ -348,6 +348,16 @@ const logout = () => {
                                         </template>
                                     </template>
                                 </template>
+                            </div>
+                            <div v-else>
+                                <ResponsiveNavLink :href="route('login')"
+                                    :active="route().current('login')">
+                                    Login
+                                </ResponsiveNavLink>
+                                <ResponsiveNavLink :href="route('register')"
+                                    :active="route().current('register')">
+                                    Register
+                                </ResponsiveNavLink>
                             </div>
                         </div>
                     </div>
