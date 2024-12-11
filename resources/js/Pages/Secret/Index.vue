@@ -7,6 +7,7 @@ import ConfirmationModal from '@/Components/ConfirmationModal.vue';
 import { ref } from 'vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
 import DangerButton from '@/Components/DangerButton.vue';
+import Paginator from '@/Components/Paginator.vue';
 
 defineProps({
     secrets: Array
@@ -65,6 +66,11 @@ const burn = () => {
                             <td class="px-6 py-4 text-center">
                                 <span v-if="secret.retrieved_at">{{ DateTime.fromISO(secret.retrieved_at).toLocaleString(DateTime.DATETIME_MED) }}</span>
                                 <button v-if="!secret.retrieved_at" @click.prevent="() => messageIdBeingDeleted = secret" class="inline-flex items-center font-medium text-red-600 dark:text-red-500 hover:underline cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 dark:focus:ring-offset-red-800">Burn</button>
+                            </td>
+                        </tr>
+                        <tr class="odd:bg-white odd:dark:bg-gray-900 even:bg-gray-50 even:dark:bg-gray-800 border-b dark:border-gray-700">
+                            <td colspan="4" class="text-center">
+                                <Paginator :links="secrets.meta.links" />
                             </td>
                         </tr>
                     </tbody>

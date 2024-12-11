@@ -62,7 +62,7 @@ class SecretController extends Controller implements HasMiddleware
 
     public function index(Request $request)
     {
-        $secrets = Secret::withoutEvents(fn() => Secret::withoutGlobalScopes()->where('user_id', $request->user()->id)->orderBy('created_at', 'desc')->get());
+        $secrets = Secret::withoutEvents(fn() => Secret::withoutGlobalScopes()->where('user_id', $request->user()->id)->orderBy('created_at', 'desc')->paginate(2));
 
         $secrets = new SecretResourceCollection($secrets);
 
