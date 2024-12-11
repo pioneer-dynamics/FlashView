@@ -69,6 +69,9 @@ const logout = () => {
                                         <NavLink :href="route('faq.index')" :active="route().current('faq.index')">
                                             F.A.Q.
                                         </NavLink>
+                                        <NavLink :href="route('about.index')" :active="route().current('about.index')">
+                                            About Us
+                                        </NavLink>
                                     </template>
                                 </div>
                             </div>
@@ -261,6 +264,9 @@ const logout = () => {
                                 <ResponsiveNavLink :href="route('faq.index')" :active="route().current('faq.index')">
                                     F.A.Q.
                                 </ResponsiveNavLink>
+                                <ResponsiveNavLink :href="route('about.index')" :active="route().current('about.index')">
+                                    About Us
+                                </ResponsiveNavLink>
                             </template>
                         </div>
 
@@ -391,6 +397,9 @@ const logout = () => {
                                 <ul class="text-gray-500 dark:text-gray-400 font-medium space-y-4">
                                     <li>
                                         <Link :href="route('faq.index')" class="hover:underline">F.A.Q</Link>
+                                    </li>
+                                    <li>
+                                        <Link :href="route('about.index')" class="hover:underline">About Us</Link>
                                     </li>
                                     <li>
                                         <Link :href="route('plans.index')" class="hover:underline">Pricing</Link>

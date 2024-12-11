@@ -98,9 +98,10 @@ class MarkdownDocumentController extends Controller
      *
      * @param  string  $file this must be a path resovable by `resource_path()`
      * @param  string  $title the HTML title for the page
+     * @param  bool    $showUpdatedAt = true
      * @return \Inertia\Response;
      */
-    private function baseMarkdownRender($file, $title)
+    private function baseMarkdownRender($file, $title, $showUpdatedAt = true)
     {
         $markdown = file_get_contents(resource_path($file));
 
@@ -114,6 +115,7 @@ class MarkdownDocumentController extends Controller
             'markdown' => $html,
             'updated' => $this->getFileUpdatedDate($file),
             'title' => $title,
+            'showUpdatedAt' => $showUpdatedAt,
         ]);
     }
 
@@ -129,7 +131,7 @@ class MarkdownDocumentController extends Controller
    
     public function faq()
     {
-        return $this->baseMarkdownRender('markdown/faq.md', 'F.A.Q.');
+        return $this->baseMarkdownRender('markdown/faq.md', 'F.A.Q.', false);
     }
 
     /**
@@ -155,5 +157,10 @@ class MarkdownDocumentController extends Controller
     public function privacy()
     {
         return $this->baseMarkdownRender('markdown/policy.md', 'Privacy Policy');
+    }
+    
+    public function about()
+    {
+        return $this->baseMarkdownRender('markdown/about.md', 'About Us', false);
     }
 }

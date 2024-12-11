@@ -1,7 +1,6 @@
 # F.A.Q.
 
 ## Why Use {CONFIG:app.name}?
-
 When you share passwords or private links through email or chat, copies of that information can end up stored in multiple locations, creating potential security risks. Using a {CONFIG:app.name} link ensures the information is accessible for a single viewing only, preventing it from being read by anyone else afterward. This provides a secure way to share sensitive information, knowing it will only be seen by the intended recipient. Think of it as a self-destructing message for added peace of mind. Moreover, the contents of the mssage are end-to-end encrypted (i.e., even we cannot see the contents of the message because the message is alreeady encrypted in the browser before it is sent to us).
 
 ## Can I retrieve a secret that has already been shared?

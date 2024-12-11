@@ -33,6 +33,7 @@ Route::get('/privacy-policy', [MarkdownDocumentController::class, 'privacy'])->n
 Route::get('/license', [MarkdownDocumentController::class, 'license'])->name('license.show');
 Route::get('/security', [MarkdownDocumentController::class, 'security'])->name('security.show');
 Route::get('/faq', [MarkdownDocumentController::class, 'faq'])->name('faq.index');
+Route::get('/about', [MarkdownDocumentController::class, 'about'])->name('about.index');
 
 Route::middleware([
     'auth:sanctum',
