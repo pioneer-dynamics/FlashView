@@ -52,8 +52,8 @@ return [
      * Max expiry limits for a non-susbscribed user or guest (in minutes)
      */
     'expiry_limits' => [
-        'guest' => 1440,
-        'user' => 10080,
+        'guest' => 10080,
+        'user' => 20160,
     ],
 
     /**
@@ -61,7 +61,7 @@ return [
      */
     'message_length' => [
         'guest' => env('GUEST_SECRET_MESSAGE_LENGTH', 160),
-        'user' => env('USER_SECRET_MESSAGE_LENGTH', 320),
+        'user' => env('USER_SECRET_MESSAGE_LENGTH', 1000),
     ],
 
     /**

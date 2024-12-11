@@ -29,16 +29,22 @@ class PlanSeederProd extends Seeder
                     'order' => 2,
                     'label' => ':message_length character limit per message',
                     'config' => [
-                        'message_length' => 320
+                        'message_length' => 1000
                     ],
+                    'type' => 'feature'
+                ],
+                'notification' => [
+                    'order' => 2.5,
+                    'label' => 'Get notified when a message is retrieved',
+                    'config' => [],
                     'type' => 'feature'
                 ],
                 'expiry' => [
                     'order' => 3,
                     'label' => 'Maximum expiry of :expiry_label',
                     'config' => [
-                        'expiry_label' => '7 days',
-                        'expiry_minutes' => 10080
+                        'expiry_label' => '14 days',
+                        'expiry_minutes' => 20160
                     ],
                     'type' => 'limit'
                 ],
@@ -83,6 +89,12 @@ class PlanSeederProd extends Seeder
                     'config' => [
                         'message_length' => 100000
                     ],
+                    'type' => 'feature'
+                ],
+                'notification' => [
+                    'order' => 2.5,
+                    'label' => 'Get notified when a message is retrieved',
+                    'config' => [],
                     'type' => 'feature'
                 ],
                 'expiry' => [
@@ -133,6 +145,12 @@ class PlanSeederProd extends Seeder
                     'config' => [
                         'message_length' => 100000
                     ],
+                    'type' => 'feature'
+                ],
+                'notification' => [
+                    'order' => 2.5,
+                    'label' => 'Get notified when a message is retrieved',
+                    'config' => [],
                     'type' => 'feature'
                 ],
                 'expiry' => [

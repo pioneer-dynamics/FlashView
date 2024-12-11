@@ -29,6 +29,7 @@ class MarkdownDocumentController extends Controller
         'app.domain',
         'app.name',
         'support.legal',
+        'support.security',
     ];
 
     /**
@@ -53,12 +54,23 @@ class MarkdownDocumentController extends Controller
      */
     private function replaceVars(&$html)
     {
-        preg_match_all($this->getPatternToMatch(), $html, $matches);
+        preg_match_all($this->getConfigPatternToMatch(), $html, $matches);
 
         array_walk($matches[1], function (&$match) {
             throw_unless(in_array($match, $this->allowed_configurations), MarkdownExportOfUnApprovedConfiguration::class, $match);
 
             $match = config($match);
+        });
+
+        $html = str_replace($matches[0], $matches[1], $html);
+    }
+    
+    private function replaceRoutes(&$html)
+    {
+        preg_match_all($this->getRoutePatternToMatch(), $html, $matches);
+
+        array_walk($matches[1], function (&$match) {
+            $match = route($match);
         });
 
         $html = str_replace($matches[0], $matches[1], $html);
@@ -70,9 +82,14 @@ class MarkdownDocumentController extends Controller
      *
      * @return string
      */
-    private function getPatternToMatch()
+    private function getConfigPatternToMatch()
     {
         return "/{CONFIG:([\w.]+)}/";
+    }
+    
+    private function getRoutePatternToMatch()
+    {
+        return "/{ROUTE:([\w.]+)}/";
     }
 
     /**
@@ -81,18 +98,24 @@ class MarkdownDocumentController extends Controller
      *
      * @param  string  $file this must be a path resovable by `resource_path()`
      * @param  string  $title the HTML title for the page
+     * @param  bool    $showUpdatedAt = true
      * @return \Inertia\Response;
      */
-    private function baseMarkdownRender($file, $title)
+    private function baseMarkdownRender($file, $title, $showUpdatedAt = true)
     {
-        $html = Str::markdown(file_get_contents(resource_path($file)));
+        $markdown = file_get_contents(resource_path($file));
 
-        $this->replaceVars($html);
+        $this->replaceVars($markdown);
+        
+        $this->replaceRoutes($markdown);
+
+        $html = Str::markdown($markdown);
 
         return Inertia::render('Doc/Page', [
             'markdown' => $html,
             'updated' => $this->getFileUpdatedDate($file),
             'title' => $title,
+            'showUpdatedAt' => $showUpdatedAt,
         ]);
     }
 
@@ -105,6 +128,11 @@ class MarkdownDocumentController extends Controller
     {
         return $this->baseMarkdownRender('markdown/license.md', 'MIT License');
     }
+   
+    public function faq()
+    {
+        return $this->baseMarkdownRender('markdown/faq.md', 'F.A.Q.', false);
+    }
 
     /**
      * Show the terms and conditions document
@@ -115,6 +143,11 @@ class MarkdownDocumentController extends Controller
     {
         return $this->baseMarkdownRender('markdown/terms.md', 'Terms of Service');
     }
+    
+    public function security()
+    {
+        return $this->baseMarkdownRender('markdown/security.md', 'Security');
+    }
 
     /**
      * Show the privacy policy document
@@ -124,5 +157,10 @@ class MarkdownDocumentController extends Controller
     public function privacy()
     {
         return $this->baseMarkdownRender('markdown/policy.md', 'Privacy Policy');
+    }
+    
+    public function about()
+    {
+        return $this->baseMarkdownRender('markdown/about.md', 'About Us', false);
     }
 }

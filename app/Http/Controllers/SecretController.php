@@ -7,11 +7,13 @@ use App\Models\Secret;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\URL;
 use Vinkla\Hashids\Facades\Hashids;
+use Illuminate\Support\Facades\Mail;
 use App\Http\Requests\BurnSecretRequest;
 use App\Http\Requests\StoreSecretRequest;
 use App\Http\Requests\UpdateSecretRequest;
 use Illuminate\Routing\Controllers\Middleware;
 use App\Http\Resources\SecretResourceCollection;
+use App\Mail\NewSecretNotification;
 use Illuminate\Routing\Controllers\HasMiddleware;
 
 class SecretController extends Controller implements HasMiddleware
@@ -21,6 +23,13 @@ class SecretController extends Controller implements HasMiddleware
         return [
             new Middleware('signed', only: ['show', 'decrypt']),
         ];
+    }
+
+    public function report($secret)
+    {
+        $secret = Secret::withoutEvents(fn() => Secret::withoutGlobalScopes()->find($this->getIdFromHash($secret)));
+
+        // collect details from recipient as proof of spam or abuse.
     }
 
     /**
@@ -35,6 +44,14 @@ class SecretController extends Controller implements HasMiddleware
         ]);
 
         $url = URL::temporarySignedRoute('secret.show', $expires_at, ['secret' => $secret->hash_id]);
+
+        if($request->user())
+        {
+            if($email = $request->safe()->email)
+            {
+                Mail::to($email)->send(new NewSecretNotification($request->user(), $url, $secret->hash_id));
+            }
+        }
 
         return back()->with('flash', [
             'secret' => [
@@ -80,7 +97,7 @@ class SecretController extends Controller implements HasMiddleware
     {
         $secret = $this->getSecretRecordWithoutBurning($secret, $request);
 
-        $secret->markAsRetrieved();
+        $secret->markSilentlyAsRetrieved();
     }
 
     private function getIdFromHash($secret)

@@ -4,7 +4,6 @@ use Inertia\Inertia;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Foundation\Application;
-use App\Http\Controllers\FaqController;
 use App\Http\Controllers\PlanController;
 use App\Http\Controllers\SecretController;
 use App\Http\Controllers\MarkdownDocumentController;
@@ -21,18 +20,23 @@ Route::get('/', function () {
 Route::middleware('signed')->group(function () {
     Route::get('secret/{secret}/decrypt', [SecretController::class,  'decrypt'])->name('secret.decrypt');
     Route::get('secret/{secret}', [SecretController::class,  'show'])->name('secret.show');
+    // Route::get('secrets/{secret}/report', [SecretController::class,  'report'])->name('secrets.report');
 });
 
 Route::middleware(['throttle:secrets'])->group(function () {
     Route::post('secret', [SecretController::class,  'store'])->name('secret.store');
 });
 
+
+
 Route::get('plans', [PlanController::class, 'index'])->name('plans.index');
-Route::get('faq', FaqController::class)->name('faq.index');
 
 Route::get('/terms-of-service', [MarkdownDocumentController::class, 'terms'])->name('terms.show');
 Route::get('/privacy-policy', [MarkdownDocumentController::class, 'privacy'])->name('policy.show');
 Route::get('/license', [MarkdownDocumentController::class, 'license'])->name('license.show');
+Route::get('/security', [MarkdownDocumentController::class, 'security'])->name('security.show');
+Route::get('/faq', [MarkdownDocumentController::class, 'faq'])->name('faq.index');
+Route::get('/about', [MarkdownDocumentController::class, 'about'])->name('about.index');
 
 Route::middleware([
     'auth:sanctum',

@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('secrets', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->nullable()->constrained()->cascadeOnDelete();
+            $table->foreignId('user_id')->nullable()->constrained()->nullOnDelete();
             $table->text('message')->nullable();
             $table->string('filepath')->nullable();
             $table->string('filename')->nullable();
