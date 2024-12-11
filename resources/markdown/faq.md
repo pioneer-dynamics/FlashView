@@ -4,7 +4,7 @@
 When you share passwords or private links through email or chat, copies of that information can end up stored in multiple locations, creating potential security risks. Using a {CONFIG:app.name} link ensures the information is accessible for a single viewing only, preventing it from being read by anyone else afterward. This provides a secure way to share sensitive information, knowing it will only be seen by the intended recipient. Think of it as a self-destructing message for added peace of mind. Moreover, the contents of the mssage are end-to-end encrypted (i.e., even we cannot see the contents of the message because the message is alreeady encrypted in the browser before it is sent to us).
 
 ## Can I {CONFIG:app.name} email the link to the recipiet?
-We thought of implementing this feature, but that means we receive the email address related to the secret. Though we would could store the email encrypted or obfuscated, a man-in-the-middle monitoring our network would know who is receiving secrets.
+Yes! [Login]({ROUTE:login}) or [create a free account!]({ROUTE:register}) to access this feature.
 
 ## Can I retrieve a secret that has already been shared?
 No, once a secret is retrieved by the recipient's browser, it’s permanently deleted even before it is decrypted by the browser. Hence, even if the recipient enters the wrong password the message is deleted and can't be retrieved again.
