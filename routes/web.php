@@ -33,6 +33,7 @@ Route::get('faq', FaqController::class)->name('faq.index');
 Route::get('/terms-of-service', [MarkdownDocumentController::class, 'terms'])->name('terms.show');
 Route::get('/privacy-policy', [MarkdownDocumentController::class, 'privacy'])->name('policy.show');
 Route::get('/license', [MarkdownDocumentController::class, 'license'])->name('license.show');
+Route::get('/security', [MarkdownDocumentController::class, 'security'])->name('security.show');
 
 Route::middleware([
     'auth:sanctum',

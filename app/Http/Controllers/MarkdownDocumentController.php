@@ -29,6 +29,7 @@ class MarkdownDocumentController extends Controller
         'app.domain',
         'app.name',
         'support.legal',
+        'support.security',
     ];
 
     /**
@@ -114,6 +115,11 @@ class MarkdownDocumentController extends Controller
     public function terms()
     {
         return $this->baseMarkdownRender('markdown/terms.md', 'Terms of Service');
+    }
+    
+    public function security()
+    {
+        return $this->baseMarkdownRender('markdown/security.md', 'Security');
     }
 
     /**

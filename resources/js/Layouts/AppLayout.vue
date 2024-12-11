@@ -421,6 +421,9 @@ const logout = () => {
                                         <Link :href="route('terms.show')" class="hover:underline">Terms &amp; Conditions</Link>
                                     </li>
                                     <li>
+                                        <Link :href="route('security.show')" class="hover:underline">Security</Link>
+                                    </li>
+                                    <li>
                                         <Link :href="route('license.show')" class="hover:underline">MIT License</Link>
                                     </li>
                                 </ul>
