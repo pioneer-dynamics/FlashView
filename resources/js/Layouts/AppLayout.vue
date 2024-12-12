@@ -391,7 +391,7 @@ const logout = () => {
                                 <ApplicationMark class="block h-15 w-auto" />
                             </Link>
                         </div>
-                        <div class="grid grid-cols-2 gap-8 sm:gap-6 sm:grid-cols-3">
+                        <div class="grid grid-cols-2 gap-8 sm:gap-6 sm:grid-cols-4">
                             <div>
                                 <h2 class="mb-6 text-sm font-semibold text-gray-900 uppercase dark:text-white">Resources</h2>
                                 <ul class="text-gray-500 dark:text-gray-400 font-medium space-y-4">
@@ -441,11 +441,12 @@ const logout = () => {
                     </div>
                     <hr class="my-6 border-gray-200 sm:mx-auto dark:border-gray-700 lg:my-8" />
                     <div class="sm:flex sm:items-center sm:justify-between">
-                        <span class="text-sm text-gray-500 sm:text-center dark:text-gray-400 flex flex-wrap gap-2">
-                            <div>© {{ new Date().getFullYear() }} <a href="https://flashview.link/" class="hover:underline">FlashView™</a>.</div>
+                        <span class="text-sm text-gray-500 sm:text-center dark:text-gray-400 flex flex-wrap gap-1 space-x-2">
+                            <div>© {{ new Date().getFullYear() }} <a href="https://flashview.link/" class="hover:underline text-gamboge-500 dark:text-gamboge-200">FlashView™</a>.</div>
                             <div>All Rights Reserved.</div>
-                            <div>Made with ❤️ by <a target="_blank" href="https://www.linkedin.com/in/mathew-paret-b6b96041" class="hover:underline">Mathew Paret</a>.</div>
-                            <div><a href="https://status.flashview.link" target="_blank" class="hover:underline"><img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/pioneer-dynamics/status.flashview.link/refs/heads/master/api/flash-view-application-server/uptime.json"></a></div>
+                            <!-- <div>Made with ❤️ by <a target="_blank" href="https://www.linkedin.com/in/mathew-paret-b6b96041" class="hover:underline text-gamboge-500 dark:text-gamboge-200">Mathew Paret</a>.</div> -->
+                            <div><a :href="'mailto:' + $page.props.config.support.email" class="hover:underline text-gamboge-500 dark:text-gamboge-200">Support</a></div>
+                            <div><a href="https://status.flashview.link" target="_blank" class="hover:underline text-gamboge-500 dark:text-gamboge-200"><img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/pioneer-dynamics/status.flashview.link/refs/heads/master/api/flash-view-application-server/uptime.json"></a></div>
                         </span>
                         <div class="flex mt-4 sm:justify-center sm:mt-0">
                             <!-- <a target="_blank" href="#" class="text-gray-500 hover:text-gray-900 dark:hover:text-white">
