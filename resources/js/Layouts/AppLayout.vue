@@ -405,7 +405,7 @@ const logout = () => {
                                         <Link :href="route('plans.index')" class="hover:underline">Pricing</Link>
                                     </li>
                                     <li>
-                                        <div class="flex flex-wrap gap-2"><a href="https://status.flashview.link" target="_blank" class="hover:underline">Status</a></div>
+                                        <div class="flex flex-wrap gap-2"><a href="https://docs.flashview.link" target="_blank" class="hover:underline">Docs</a></div>
                                     </li>
                                 </ul>
                             </div>
