@@ -33,12 +33,6 @@ class PlanSeederProd extends Seeder
                     ],
                     'type' => 'feature'
                 ],
-                'notification' => [
-                    'order' => 2.5,
-                    'label' => 'Get notified when a message is retrieved',
-                    'config' => [],
-                    'type' => 'feature'
-                ],
                 'expiry' => [
                     'order' => 3,
                     'label' => 'Maximum expiry of :expiry_label',
@@ -55,6 +49,14 @@ class PlanSeederProd extends Seeder
                         'per_minute' => 60
                     ],
                     'type' => 'limit'
+                ],
+                'notification' => [
+                    'order' => 4.5,
+                    'label' => 'Get notified when a message is retrieved',
+                    'config' => [
+                        'notifications' => false
+                    ],
+                    'type' => 'missing'
                 ],
                 'support' => [
                     'order' => 5,
@@ -91,12 +93,6 @@ class PlanSeederProd extends Seeder
                     ],
                     'type' => 'feature'
                 ],
-                'notification' => [
-                    'order' => 2.5,
-                    'label' => 'Get notified when a message is retrieved',
-                    'config' => [],
-                    'type' => 'feature'
-                ],
                 'expiry' => [
                     'order' => 3,
                     'label' => 'Maximum expiry of :expiry_label',
@@ -110,6 +106,14 @@ class PlanSeederProd extends Seeder
                     'order' => 4,
                     'label' => 'No rate limits',
                     'config' => [],
+                    'type' => 'feature'
+                ],
+                'notification' => [
+                    'order' => 4.5,
+                    'label' => 'Get notified when a message is retrieved',
+                    'config' => [
+                        'notifications' => true
+                    ],
                     'type' => 'feature'
                 ],
                 'support' => [
@@ -147,12 +151,6 @@ class PlanSeederProd extends Seeder
                     ],
                     'type' => 'feature'
                 ],
-                'notification' => [
-                    'order' => 2.5,
-                    'label' => 'Get notified when a message is retrieved',
-                    'config' => [],
-                    'type' => 'feature'
-                ],
                 'expiry' => [
                     'order' => 3,
                     'label' => 'Maximum expiry of :expiry_label',
@@ -166,6 +164,14 @@ class PlanSeederProd extends Seeder
                     'order' => 4,
                     'label' => 'No rate limits',
                     'config' => [],
+                    'type' => 'feature'
+                ],
+                'notification' => [
+                    'order' => 4.5,
+                    'label' => 'Get notified when a message is retrieved',
+                    'config' => [
+                        'notifications' => true
+                    ],
                     'type' => 'feature'
                 ],
                 'support' => [

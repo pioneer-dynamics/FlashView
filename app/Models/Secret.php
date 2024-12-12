@@ -86,10 +86,17 @@ class Secret extends Model
 
                 if($user = $secret->user)
                 {
+                    $plan = $user->plan->jsonSerialize();
+
                     /**
                      * @var \App\Models\User $user
                      */
-                    $user->notify(new SecretRetrievedNotification($secret));
+                    if(isset($plan['id']))
+                    {
+                        if($plan['settings']['notification']['notifications']) {
+                            $user->notify(new SecretRetrievedNotification($secret));
+                        }
+                    }
                 }
             }
         });
