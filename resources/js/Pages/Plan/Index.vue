@@ -8,6 +8,7 @@ import { reactive, ref } from 'vue';
 import { DateTime } from 'luxon';
 import ToggleButton from '@/Components/ToggleButton.vue';
 import Feature from './Partials/Feature.vue';
+import Alert from '@/Components/Alert.vue';
 
 const props = defineProps({
     plans: Array,
