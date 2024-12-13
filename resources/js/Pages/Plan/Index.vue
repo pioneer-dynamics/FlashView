@@ -40,7 +40,12 @@ const isFreePlan = (plan) => plan.price_per_month == 0
                 <div v-for="plan in plans.data" :key="plan.id"
                     class="w-full max-w-sm p-4 bg-gray-50 border border-gray-200 rounded-lg shadow sm:p-8 dark:bg-gray-800 dark:border-gray-700">
                     <div class="flex flex-wrap gap-2">
-                        <h5 class="mb-4 text-xl font-medium text-gray-500 dark:text-gray-400">{{ plan.name }}</h5>
+                        <h5 class="mb-4 text-xl font-medium text-gray-500 dark:text-gray-400">
+                            {{ plan.name }} {{ planFrequency }}
+                            <span v-if="planFrequency == 'yearly' && plan.price_per_month > 0" class="ml-2 bg-purple-100 text-purple-800 text-xs font-medium me-2 px-2.5 py-0.5 rounded-full dark:bg-purple-900 dark:text-purple-300">
+                                Save {{(( (( plan.price_per_month * 12 ) - plan.price_per_year) / ( plan.price_per_month * 12 )) * 100).toFixed(2) }}%
+                            </span>
+                        </h5>
                         <div 
                             class="mb-4 text-xl font-medium text-xs text-red-500 dark:text-red-400" 
                             v-if="userIsSubscribedTo(plan) && $page.props?.auth?.user?.subscription?.ends_at"
@@ -48,14 +53,22 @@ const isFreePlan = (plan) => plan.price_per_month == 0
                             Expires on: {{ DateTime.fromISO($page.props?.auth?.user?.subscription?.ends_at).toLocaleString(DateTime.DATEMED) }}
                         </div>
                     </div>
-                    <div class="flex items-baseline text-gray-900 dark:text-white">
-                        <span class="text-3xl font-semibold">A$</span>
-                        <span class="text-5xl font-extrabold tracking-tight">
-                            {{ planFrequency == 'monthly' ? plan.price_per_month : plan.price_per_year }}
-                        </span>
-                        <span class="ms-1 text-xl font-normal text-gray-500 dark:text-gray-400">/
-                            <span>{{ planFrequency == 'monthly' ? 'month' : 'year' }}</span>
-                        </span>
+                    <div class="flex justify-between">
+                        <div class="flex items-baseline text-gray-900 dark:text-white">
+                            <span class="text-3xl font-semibold">A$</span>
+                            <span class="text-5xl font-extrabold tracking-tight">
+                                {{ planFrequency == 'monthly' ? plan.price_per_month : plan.price_per_year }}
+                            </span>
+                            <span class="ms-1 text-xl font-normal text-gray-500 dark:text-gray-400">/
+                                <span>{{ planFrequency == 'monthly' ? 'month' : 'year' }}</span>
+                            </span>
+                        </div>
+                        <div class="line-through decoration-gray-500 flex items-baseline text-gray-500" v-if="planFrequency =='yearly'">
+                            <span class="text-3xl font-semibold">A$</span>
+                            <span class="text-3xl font-extrabold tracking-tight">
+                                {{ plan.price_per_month * 12 }}
+                            </span>
+                        </div>
                     </div>
                     <ul role="list" class="space-y-5 my-7">
                         <Feature v-for="feature in plan.features" :key="feature" :feature="feature" />
