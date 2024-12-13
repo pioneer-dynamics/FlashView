@@ -30,6 +30,12 @@ class MarkdownDocumentController extends Controller
         'app.name',
         'support.legal',
         'support.security',
+        'secrets.prune_after',
+        'secrets.message_length.guest',
+        'secrets.message_length.user',
+        'secrets.rate_limit.user.per_minute',
+        'secrets.rate_limit.guest.per_minute',
+        'secrets.rate_limit.guest.per_day',
     ];
 
     /**
@@ -57,7 +63,7 @@ class MarkdownDocumentController extends Controller
         preg_match_all($this->getConfigPatternToMatch(), $html, $matches);
 
         array_walk($matches[1], function (&$match) {
-            throw_unless(in_array($match, $this->allowed_configurations), MarkdownExportOfUnApprovedConfiguration::class, $match);
+            throw_unless(in_array($match, array_merge($this->allowed_configurations, config('share.configs'))), MarkdownExportOfUnApprovedConfiguration::class, $match);
 
             $match = config($match);
         });
