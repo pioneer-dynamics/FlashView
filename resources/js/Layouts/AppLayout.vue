@@ -55,7 +55,7 @@ const logout = () => {
                                 <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
                                     <template v-if="$page.props?.auth?.user">
                                         <NavLink :href="route('dashboard')" :active="route().current('dashboard')">
-                                            Create Secret Message
+                                            New Secret
                                         </NavLink>
                                         <NavLink :href="route('secrets.index')"
                                             :active="route().current('secrets.index')">
@@ -250,7 +250,7 @@ const logout = () => {
                         <div class="pt-2 pb-3 space-y-1">
                             <template v-if="$page.props?.auth?.user">
                                 <ResponsiveNavLink :href="route('dashboard')" :active="route().current('dashboard')">
-                                    Create Secret Message
+                                    New Secret
                                 </ResponsiveNavLink>
                                 <ResponsiveNavLink :href="route('secrets.index')"
                                     :active="route().current('secrets.index')">
