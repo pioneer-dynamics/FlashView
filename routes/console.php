@@ -12,3 +12,4 @@ Artisan::command('inspire', function () {
 
 Schedule::job(new ClearExpiredSecrets)->daily();
 Schedule::job(new PurgeMetadataForExpiredMessages)->daily();
+Schedule::command('cloudflare:reload')->daily();
