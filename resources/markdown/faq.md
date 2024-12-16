@@ -19,7 +19,7 @@ Anonymous users can create secrets that last up to 7 days, with a maximum size o
 Your trust is important, and we understand the need for privacy and security. Here's why you can trust our system:
 
 1. **We cannot access your information:** The secrets are end-to-end encrypted. So, even if we wanted to, we have no access to the secret.
-1. **Open-source:** Our code is fully <a href="https://github.com/pioneer-dynamics/One-Time-Share" target="_blank">OpenSource!</a>, allowing you to review it or run your own instance if you prefer, ensuring transparency and trust.
+1. **Open-source:** Our code is fully <a href="https://github.com/pioneer-dynamics/FlashView" target="_blank">OpenSource!</a>, allowing you to review it or run your own instance if you prefer, ensuring transparency and trust.
 1. **Industry-standard security:** We follow best practices for security, using HTTPS for all connections and encrypting stored data at rest to protect your information.
 
 These practices are in place to ensure your privacy and data security are protected at all times.
