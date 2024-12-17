@@ -37,7 +37,7 @@ class MessageLength implements ValidationRule
     {
         $user = request()->user();
 
-        $plan = $user->plan->jsonSerialize();
+        $plan = $user?->plan?->jsonSerialize();
 
         return match($this->userType) {
             'subscribed' => $plan['settings']['messages']['message_length'],
