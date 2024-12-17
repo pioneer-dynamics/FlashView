@@ -36,7 +36,7 @@ class ValidExpiry implements ValidationRule
     {
         $user = request()->user();
 
-        $plan = $user->plan->jsonSerialize();
+        $plan = $user?->plan?->jsonSerialize();
 
         return match($this->userType) {
             'subscribed' => $plan['settings']['expiry']['expiry_minutes'],
