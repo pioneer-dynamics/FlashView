@@ -40,6 +40,17 @@ class FortifyServiceProvider extends ServiceProvider
         $this->defineFortifyClasses();
 
         $this->defineDefaultFortifyRateLimiters();
+
+        $this->defineSignupRateLimiter();
+    }
+
+    private function defineSignupRateLimiter()
+    {
+        RateLimiter::for('signup', function (Request $request) {
+            return Limit::perMinute(3)->by($request->ip());
+        });
+    }
+
     private function defineDefaultFortifyRateLimiters()
     {
         RateLimiter::for('login', function (Request $request) {
