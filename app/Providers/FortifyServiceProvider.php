@@ -39,6 +39,9 @@ class FortifyServiceProvider extends ServiceProvider
     {
         $this->defineFortifyClasses();
 
+        $this->defineDefaultFortifyRateLimiters();
+    private function defineDefaultFortifyRateLimiters()
+    {
         RateLimiter::for('login', function (Request $request) {
             $throttleKey = Str::transliterate(Str::lower($request->input(Fortify::username())).'|'.$request->ip());
 
