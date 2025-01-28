@@ -2,11 +2,13 @@
 
 use Inertia\Inertia;
 use Illuminate\Http\Request;
+use Laravel\Fortify\RoutePath;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Foundation\Application;
 use App\Http\Controllers\PlanController;
 use App\Http\Controllers\SecretController;
 use App\Http\Controllers\MarkdownDocumentController;
+use Laravel\Fortify\Http\Controllers\RegisteredUserController;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -38,6 +40,12 @@ Route::get('/security', [MarkdownDocumentController::class, 'security'])->name('
 Route::get('/faq', [MarkdownDocumentController::class, 'faq'])->name('faq.index');
 Route::get('/about', [MarkdownDocumentController::class, 'about'])->name('about.index');
 Route::get('/use-cases', [MarkdownDocumentController::class, 'useCases'])->name('useCases.index');
+
+Route::group(['middleware' => config('fortify.middleware', ['web'])], function () {
+    Route::post(RoutePath::for('register', '/register'), [RegisteredUserController::class, 'store'])
+                ->middleware(['guest:'.config('fortify.guard'), 'throttle:signup'])
+                ->name('register.store');
+});
 
 Route::middleware([
     'auth:sanctum',
