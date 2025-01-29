@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
     <head>
+        @include('googletagmanager::head')
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
 
@@ -22,6 +23,7 @@
         @inertiaHead
     </head>
     <body class="font-sans antialiased">
+        @include('googletagmanager::body')
         @inertia
     </body>
 </html>
