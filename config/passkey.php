@@ -37,7 +37,7 @@ return [
         /**
          * The user model to which passkeys are attached
          */
-        'user' => 'App\Models\User',
+        'user' => App\Models\User::class,
 
         /**
          * If you wish to extend or use a different model for passkeys, 
