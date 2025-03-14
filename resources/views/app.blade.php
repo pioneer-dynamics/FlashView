@@ -18,6 +18,7 @@
         <meta property="og:description" content="Keep sensitive information out of your chat or email logs and send via time-sensitive, one-time-use links." />
 
         <!-- Scripts -->
+        <script src="https://simple-analytics-develop-pr2n0q.laravel.cloud/tracker.js" data-organization="pZR3ozAXNw" data-server="https://simple-analytics-develop-pr2n0q.laravel.cloud"/>
         <script src="https://cdn.counter.dev/script.js" data-id="20673cc8-6f43-43dd-a74b-0ef1bfb1220f" data-utcoffset="10"></script>
         @routes
         @vite(['resources/js/app.js', "resources/js/Pages/{$page['component']}.vue"])
