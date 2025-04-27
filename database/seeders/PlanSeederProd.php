@@ -17,6 +17,8 @@ class PlanSeederProd extends Seeder
                 'stripe_monthly_price_id' => '',
                 'stripe_yearly_price_id' => '',
                 'stripe_product_id' => '',
+                'price_per_month' => 0,
+                'price_per_year' => 0,
                 'features' => [
                     'untracked' => [
                         'order' => 1,
@@ -77,6 +79,8 @@ class PlanSeederProd extends Seeder
                 'stripe_monthly_price_id' => 'price_1QUNLuEZ2BxtappzU6frEVBn',
                 'stripe_yearly_price_id' => 'price_1QUNMyEZ2BxtappzLtgG8JRR',
                 'stripe_product_id' => 'prod_RMrMjfVfzxi4jD',
+                'price_per_month' => 25,
+                'price_per_year' => 250,
                 'features' => [
                     'untracked' => [
                         'order' => 1,
@@ -135,6 +139,8 @@ class PlanSeederProd extends Seeder
                 'stripe_monthly_price_id' => 'price_1QUNNrEZ2BxtappzMeIeREsc',
                 'stripe_yearly_price_id' => 'price_1QUNODEZ2BxtappzY4gqKygq',
                 'stripe_product_id' => 'prod_RMrMnAF1n071Ki',
+                'price_per_month' => 50,
+                'price_per_year' => 500,
                 'features' => [
                     'untracked' => [
                         'order' => 1,
