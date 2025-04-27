@@ -39,7 +39,7 @@ Route::get('/faq', [MarkdownDocumentController::class, 'faq'])->name('faq.index'
 Route::get('/about', [MarkdownDocumentController::class, 'about'])->name('about.index');
 Route::get('/use-cases', [MarkdownDocumentController::class, 'useCases'])->name('useCases.index');
 
-Route::group(['middleware' => config('fortify.middleware', ['web'])], function () {
+Route::middleware(config('fortify.middleware', ['web']))->group(function () {
     Route::post(RoutePath::for('register', '/register'), [RegisteredUserController::class, 'store'])
         ->middleware(['guest:'.config('fortify.guard'), 'throttle:signup'])
         ->name('register.store');
