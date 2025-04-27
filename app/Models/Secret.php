@@ -2,14 +2,14 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Attributes\Scope;
 use App\Models\Scopes\ActiveScope;
 use App\Notifications\SecretRetrievedNotification;
 use App\Traits\HasHashId;
+use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Attributes\ScopedBy;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\DB;
 use mathewparet\LaravelPolicyAbilitiesExport\Traits\ExportsPermissions;
@@ -21,6 +21,7 @@ class Secret extends Model
 
     /** @use HasFactory<\Database\Factories\SecretFactory> */
     use HasFactory;
+
     use HasHashId;
 
     protected $fillable = [
