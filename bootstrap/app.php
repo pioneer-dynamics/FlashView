@@ -17,7 +17,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->replace(
             \Illuminate\Http\Middleware\TrustProxies::class,
-            \Monicahq\Cloudflare\Http\Middleware\TrustProxies::class
+            \App\Http\Middleware\TrustProxies::class,
         );
 
         $middleware->web(append: [
