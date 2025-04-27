@@ -2,19 +2,18 @@
 
 namespace App\Http\Controllers;
 
-use Inertia\Inertia;
-use App\Models\Secret;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\URL;
-use Vinkla\Hashids\Facades\Hashids;
-use Illuminate\Support\Facades\Mail;
 use App\Http\Requests\BurnSecretRequest;
 use App\Http\Requests\StoreSecretRequest;
-use App\Http\Requests\UpdateSecretRequest;
-use Illuminate\Routing\Controllers\Middleware;
 use App\Http\Resources\SecretResourceCollection;
 use App\Mail\NewSecretNotification;
+use App\Models\Secret;
+use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\URL;
+use Inertia\Inertia;
+use Vinkla\Hashids\Facades\Hashids;
 
 class SecretController extends Controller implements HasMiddleware
 {
@@ -27,7 +26,7 @@ class SecretController extends Controller implements HasMiddleware
 
     public function report($secret)
     {
-        $secret = Secret::withoutEvents(fn() => Secret::withoutGlobalScopes()->find($this->getIdFromHash($secret)));
+        $secret = Secret::withoutEvents(fn () => Secret::withoutGlobalScopes()->find($this->getIdFromHash($secret)));
 
         // collect details from recipient as proof of spam or abuse.
     }
@@ -39,24 +38,22 @@ class SecretController extends Controller implements HasMiddleware
     {
         $secret = Secret::create([
             'message' => $request->message,
-            'expires_at' => $expires_at = now()->addMinutes((int)$request->expires_in),
-            'user_id' => optional($request->user())->id
+            'expires_at' => $expires_at = now()->addMinutes((int) $request->expires_in),
+            'user_id' => $request->user()?->id,
         ]);
 
         $url = URL::temporarySignedRoute('secret.show', $expires_at, ['secret' => $secret->hash_id]);
 
-        if($request->user())
-        {
-            if($email = $request->safe()->email)
-            {
+        if ($request->user()) {
+            if ($email = $request->safe()->email) {
                 Mail::to($email)->send(new NewSecretNotification($request->user(), $url, $secret->hash_id));
             }
         }
 
         return back()->with('flash', [
             'secret' => [
-                'url' => $url
-            ]
+                'url' => $url,
+            ],
         ]);
     }
 
@@ -73,24 +70,24 @@ class SecretController extends Controller implements HasMiddleware
         return back()->with('flash', [
             'secret' => [
                 'message' => $secret->message,
-            ]
+            ],
         ]);
     }
 
     public function index(Request $request)
     {
-        $secrets = Secret::withoutEvents(fn() => Secret::withoutGlobalScopes()->where('user_id', $request->user()->id)->orderBy('created_at', 'desc')->paginate());
+        $secrets = Secret::withoutEvents(fn () => Secret::withoutGlobalScopes()->where('user_id', $request->user()->id)->orderBy('created_at', 'desc')->paginate());
 
         $secrets = new SecretResourceCollection($secrets);
 
         return Inertia::render('Secret/Index', [
-            'secrets' => $secrets
+            'secrets' => $secrets,
         ]);
     }
 
     private function getSecretRecordWithoutBurning($secret, $request)
     {
-        return Secret::withoutEvents(fn() => Secret::withoutGlobalScopes()->where('user_id', $request->user()->id)->where('id', $this->getIdFromHash($secret))->first());
+        return Secret::withoutEvents(fn () => Secret::withoutGlobalScopes()->where('user_id', $request->user()->id)->where('id', $this->getIdFromHash($secret))->first());
     }
 
     public function destroy(BurnSecretRequest $request, $secret)

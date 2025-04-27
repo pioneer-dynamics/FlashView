@@ -9,27 +9,27 @@ return [
         [
             'label' => '5 minutes',
             'value' => 5,
-        ], 
+        ],
         [
             'label' => '30 minutes',
             'value' => 30,
-        ], 
+        ],
         [
             'label' => '1 hour',
             'value' => 60,
-        ], 
+        ],
         [
             'label' => '4 hours',
             'value' => 240,
-        ],         
+        ],
         [
             'label' => '12 hours',
             'value' => 720,
-        ], 
+        ],
         [
             'label' => '1 day',
             'value' => 1440,
-        ], 
+        ],
         [
             'label' => '3 days',
             'value' => 4320,
@@ -68,7 +68,7 @@ return [
      * Number of days for which to keep the metadata related to a message
      */
     'prune_after' => env('SECRET_PRUNE_AFTER_EXPIRY_DAYS_PLUS', 30),
-    
+
     /**
      * Rate limits for a non-susbscribed user or guest
      */

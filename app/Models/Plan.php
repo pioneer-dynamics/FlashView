@@ -2,10 +2,8 @@
 
 namespace App\Models;
 
-use Laravel\Cashier\Cashier;
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 
 class Plan extends Model
 {

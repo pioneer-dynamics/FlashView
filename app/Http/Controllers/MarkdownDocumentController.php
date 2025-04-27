@@ -70,7 +70,7 @@ class MarkdownDocumentController extends Controller
 
         $html = str_replace($matches[0], $matches[1], $html);
     }
-    
+
     private function replaceRoutes(&$html)
     {
         preg_match_all($this->getRoutePatternToMatch(), $html, $matches);
@@ -92,7 +92,7 @@ class MarkdownDocumentController extends Controller
     {
         return "/{CONFIG:([\w.]+)}/";
     }
-    
+
     private function getRoutePatternToMatch()
     {
         return "/{ROUTE:([\w.]+)}/";
@@ -102,9 +102,9 @@ class MarkdownDocumentController extends Controller
      * All documents are rendered similarly. This base render function does the job for all based on
      * parameters for that specific markdown file.
      *
-     * @param  string  $file this must be a path resovable by `resource_path()`
-     * @param  string  $title the HTML title for the page
-     * @param  bool    $showUpdatedAt = true
+     * @param  string  $file  this must be a path resovable by `resource_path()`
+     * @param  string  $title  the HTML title for the page
+     * @param  bool  $showUpdatedAt  = true
      * @return \Inertia\Response;
      */
     private function baseMarkdownRender($file, $title, $showUpdatedAt = true)
@@ -112,7 +112,7 @@ class MarkdownDocumentController extends Controller
         $markdown = file_get_contents(resource_path($file));
 
         $this->replaceVars($markdown);
-        
+
         $this->replaceRoutes($markdown);
 
         $html = Str::markdown($markdown);
@@ -134,7 +134,7 @@ class MarkdownDocumentController extends Controller
     {
         return $this->baseMarkdownRender('markdown/license.md', 'MIT License');
     }
-   
+
     public function faq()
     {
         return $this->baseMarkdownRender('markdown/faq.md', 'F.A.Q.', false);
@@ -149,7 +149,7 @@ class MarkdownDocumentController extends Controller
     {
         return $this->baseMarkdownRender('markdown/terms.md', 'Terms of Service');
     }
-    
+
     public function security()
     {
         return $this->baseMarkdownRender('markdown/security.md', 'Security');
@@ -164,12 +164,12 @@ class MarkdownDocumentController extends Controller
     {
         return $this->baseMarkdownRender('markdown/policy.md', 'Privacy Policy');
     }
-    
+
     public function about()
     {
         return $this->baseMarkdownRender('markdown/about.md', 'About Us', false);
     }
-    
+
     public function useCases()
     {
         return $this->baseMarkdownRender('markdown/use-cases.md', 'Use Cases', false);

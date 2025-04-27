@@ -3,7 +3,7 @@
 return [
     /**
      * Configuration keys to be shared.
-     * 
+     *
      * Example:
      * 'app' shares config('app')
      * 'app.name' shares config('app.name')
@@ -22,5 +22,5 @@ return [
         'error',
         'alert',
         'success',
-    ]
+    ],
 ];

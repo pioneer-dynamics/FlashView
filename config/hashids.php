@@ -29,7 +29,7 @@ return [
     'connections' => [
 
         'Secret' => [
-            'salt' => env('HASH_ID_SALT_SECRET',''),
+            'salt' => env('HASH_ID_SALT_SECRET', ''),
             'length' => 10,
             // 'alphabet' => 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890'
         ],

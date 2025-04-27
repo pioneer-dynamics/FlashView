@@ -2,12 +2,12 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Plan;
-use Inertia\Inertia;
-use Illuminate\Http\Request;
-use App\Http\Resources\PlanResource;
 use App\Http\Requests\StorePlanRequest;
 use App\Http\Requests\UpdatePlanRequest;
+use App\Http\Resources\PlanResource;
+use App\Models\Plan;
+use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class PlanController extends Controller
 {
@@ -25,7 +25,7 @@ class PlanController extends Controller
     {
         $request->user()->subscription('default')->cancel();
     }
-    
+
     public function resume(Request $request)
     {
         $request->user()->subscription('default')->resume();
@@ -35,21 +35,20 @@ class PlanController extends Controller
     {
         $user = $request->user();
 
-        $price_id = match($period) {
+        $price_id = match ($period) {
             'yearly' => $plan->stripe_yearly_price_id,
             'monthly' => $plan->stripe_monthly_price_id,
         };
 
-        if($user->subscriptions()->active()->count() == 0) {
+        if ($user->subscriptions()->active()->count() == 0) {
             return $user
-                    ->newSubscription('default', $price_id)
-                    ->allowPromotionCodes()
-                    ->checkout([
-                        'success_url' => route('dashboard'),
-                        'cancel_url' => route('dashboard'),
-                    ]);
-        }
-        else {
+                ->newSubscription('default', $price_id)
+                ->allowPromotionCodes()
+                ->checkout([
+                    'success_url' => route('dashboard'),
+                    'cancel_url' => route('dashboard'),
+                ]);
+        } else {
             $user->subscription('default')->swap($price_id);
 
             return redirect()->route('plans.index');

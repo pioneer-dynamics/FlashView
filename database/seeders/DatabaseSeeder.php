@@ -13,11 +13,10 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
-
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
+        $plan_seeder = app()->environment('production') ? PlanSeederProd::class : PlanSeederLocal::class;
+        
+        $this->call([
+            $plan_seeder
         ]);
     }
 }

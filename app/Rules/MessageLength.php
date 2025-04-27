@@ -3,15 +3,13 @@
 namespace App\Rules;
 
 use Closure;
-use Illuminate\Support\Str;
 use Illuminate\Contracts\Validation\ValidationRule;
+use Illuminate\Support\Str;
 
 class MessageLength implements ValidationRule
 {
-    public function __construct(private string $userType, private int $length, private int $min_length = 1)
-    {
-        
-    }
+    public function __construct(private string $userType, private int $length, private int $min_length = 1) {}
+
     /**
      * Run the validation rule.
      *
@@ -22,11 +20,11 @@ class MessageLength implements ValidationRule
         $message_length = $this->getActualMessageLength($value);
 
         if ($message_length > $this->getAllowedMessageLength()) {
-            $fail('The :attribute must be at most ' . $this->length . ' characters.');
+            $fail('The :attribute must be at most '.$this->length.' characters.');
         }
 
-        if($message_length < $this->min_length) {
-            $fail('The :attribute must be at least ' . $this->min_length . ' ' . Str::plural('character', $this->min_length) . '.');
+        if ($message_length < $this->min_length) {
+            $fail('The :attribute must be at least '.$this->min_length.' '.Str::plural('character', $this->min_length).'.');
         }
     }
 
@@ -39,7 +37,7 @@ class MessageLength implements ValidationRule
 
         $plan = $user?->plan?->jsonSerialize();
 
-        return match($this->userType) {
+        return match ($this->userType) {
             'subscribed' => $plan['settings']['messages']['message_length'],
             'user' => config('secrets.message_length.user'),
             'guest' => config('secrets.message_length.guest'),

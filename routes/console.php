@@ -1,7 +1,7 @@
 <?php
 
-use App\Jobs\PurgeMetadataForExpiredMessages;
 use App\Jobs\ClearExpiredSecrets;
+use App\Jobs\PurgeMetadataForExpiredMessages;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;

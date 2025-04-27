@@ -2,9 +2,7 @@
 
 namespace App\Http\Resources;
 
-use Illuminate\Support\Arr;
 use Illuminate\Http\Request;
-use Laravel\Cashier\Cashier;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 class PlanResource extends JsonResource
@@ -21,32 +19,31 @@ class PlanResource extends JsonResource
         $features = collect();
 
         if (isset($this->resource['features'])) {
-            $features = collect(array_map(function($feature) {
+            $features = collect(array_map(function ($feature) {
                 return [
                     'label' => __($feature['label'], $feature['config']),
                     'type' => $feature['type'],
-                    'order' => $feature['order']
+                    'order' => $feature['order'],
                 ];
             }, $this->resource['features']))->sortBy('order');
         }
 
         return array_merge(parent::toArray($request), [
             'settings' => $this->getSettings(),
-            'features' => $features
+            'features' => $features,
         ]);
 
-        
     }
 
     private function getSettings()
     {
         $settings = [];
 
-        if (!isset($this->resource['features'])) {
-            return $settings;        
+        if (! isset($this->resource['features'])) {
+            return $settings;
         }
 
-        foreach($this->resource['features'] as $type => $feature) {
+        foreach ($this->resource['features'] as $type => $feature) {
             $settings[$type] = $feature['config'];
         }
 

@@ -4,9 +4,9 @@ namespace App\Notifications;
 
 use App\Models\Secret;
 use Illuminate\Bus\Queueable;
-use Illuminate\Notifications\Notification;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
+use Illuminate\Notifications\Notification;
 
 class SecretRetrievedNotification extends Notification implements ShouldQueue
 {
@@ -36,11 +36,11 @@ class SecretRetrievedNotification extends Notification implements ShouldQueue
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
-                    ->subject(__('Your secret with Message ID :message_id was retrieved', ['message_id' => $this->secret->hash_id]))
-                    ->line(__('Your secret with Message ID :message_id was retrieved.', ['message_id' => $this->secret->hash_id]))
-                    ->line('The message has now been deleted from our server.')
-                    ->action('My Message History', url(route('secrets.index')))
-                    ->line(__('Thank you for using :app', ['app' => config('app.name')]));
+            ->subject(__('Your secret with Message ID :message_id was retrieved', ['message_id' => $this->secret->hash_id]))
+            ->line(__('Your secret with Message ID :message_id was retrieved.', ['message_id' => $this->secret->hash_id]))
+            ->line('The message has now been deleted from our server.')
+            ->action('My Message History', url(route('secrets.index')))
+            ->line(__('Thank you for using :app', ['app' => config('app.name')]));
     }
 
     /**
