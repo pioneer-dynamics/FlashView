@@ -27,7 +27,7 @@ class LegalMetadata extends Command implements PromptsForMissingInput
     /**
      * Execute the console command.
      */
-    public function handle()
+    public function handle(): void
     {
         $secret = rescue(fn () => Secret::withoutGlobalScope(ActiveScope::class)->find(Hashids::connection('Secret')->decode($this->argument('message'))[0]));
 

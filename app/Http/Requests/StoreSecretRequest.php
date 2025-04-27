@@ -55,7 +55,7 @@ class StoreSecretRequest extends FormRequest
         }
     }
 
-    public function attributes()
+    public function attributes(): array
     {
         return [
             'expires_in' => 'expiry',

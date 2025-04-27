@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use App\Models\Scopes\ActiveScope;
 use App\Notifications\SecretRetrievedNotification;
@@ -123,7 +124,7 @@ class Secret extends Model
         ]);
     }
 
-    public function user()
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
