@@ -34,12 +34,6 @@ class PlanSeederLocal extends Seeder
                         ],
                         'type' => 'feature',
                     ],
-                    'notification' => [
-                        'order' => 2.5,
-                        'label' => 'Get notified when a message is retrieved',
-                        'config' => [],
-                        'type' => 'feature',
-                    ],
                     'expiry' => [
                         'order' => 3,
                         'label' => 'Maximum expiry of :expiry_label',
@@ -56,6 +50,14 @@ class PlanSeederLocal extends Seeder
                             'per_minute' => 60,
                         ],
                         'type' => 'limit',
+                    ],
+                    'notification' => [
+                        'order' => 4.5,
+                        'label' => 'Get notified when a message is retrieved',
+                        'config' => [
+                            'notifications' => false,
+                        ],
+                        'type' => 'missing',
                     ],
                     'support' => [
                         'order' => 5,
@@ -77,8 +79,8 @@ class PlanSeederLocal extends Seeder
                 'stripe_monthly_price_id' => 'price_1QUGImEZ2BxtappzUogdfoAC',
                 'stripe_yearly_price_id' => 'price_1QUGIUEZ2BxtappzdKIHkpjj',
                 'stripe_product_id' => 'prod_RMpATUwRFFsDOm',
-                'price_per_year' => 250,
                 'price_per_month' => 25,
+                'price_per_year' => 250,
                 'features' => [
                     'untracked' => [
                         'order' => 1,
@@ -94,12 +96,6 @@ class PlanSeederLocal extends Seeder
                         ],
                         'type' => 'feature',
                     ],
-                    'notification' => [
-                        'order' => 2.5,
-                        'label' => 'Get notified when a message is retrieved',
-                        'config' => [],
-                        'type' => 'feature',
-                    ],
                     'expiry' => [
                         'order' => 3,
                         'label' => 'Maximum expiry of :expiry_label',
@@ -113,6 +109,14 @@ class PlanSeederLocal extends Seeder
                         'order' => 4,
                         'label' => 'No rate limits',
                         'config' => [],
+                        'type' => 'feature',
+                    ],
+                    'notification' => [
+                        'order' => 4.5,
+                        'label' => 'Get notified when a message is retrieved',
+                        'config' => [
+                            'notifications' => true,
+                        ],
                         'type' => 'feature',
                     ],
                     'support' => [
@@ -135,8 +139,8 @@ class PlanSeederLocal extends Seeder
                 'stripe_monthly_price_id' => 'price_1QUGGeEZ2Bxtappztl6dcGiw',
                 'stripe_yearly_price_id' => 'price_1QUGH7EZ2Bxtappzq3amWBoI',
                 'stripe_product_id' => 'prod_RMnK2qfP5WLlVt',
-                'price_per_year' => 500,
                 'price_per_month' => 50,
+                'price_per_year' => 500,
                 'features' => [
                     'untracked' => [
                         'order' => 1,
@@ -152,12 +156,6 @@ class PlanSeederLocal extends Seeder
                         ],
                         'type' => 'feature',
                     ],
-                    'notification' => [
-                        'order' => 2.5,
-                        'label' => 'Get notified when a message is retrieved',
-                        'config' => [],
-                        'type' => 'feature',
-                    ],
                     'expiry' => [
                         'order' => 3,
                         'label' => 'Maximum expiry of :expiry_label',
@@ -171,6 +169,14 @@ class PlanSeederLocal extends Seeder
                         'order' => 4,
                         'label' => 'No rate limits',
                         'config' => [],
+                        'type' => 'feature',
+                    ],
+                    'notification' => [
+                        'order' => 4.5,
+                        'label' => 'Get notified when a message is retrieved',
+                        'config' => [
+                            'notifications' => true,
+                        ],
                         'type' => 'feature',
                     ],
                     'support' => [

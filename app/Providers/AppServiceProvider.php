@@ -6,6 +6,7 @@ use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Facades\URL;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -14,7 +15,14 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // 
+    }
+
+    private function forceHttps()
+    {
+        if (!app()->environment('local')) {
+            URL::forceScheme('https');
+        }
     }
 
     /**
@@ -23,6 +31,8 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->defineRateLimits();
+
+        $this->forceHttps();
     }
 
     private function defineRateLimits()
