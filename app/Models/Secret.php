@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Attributes\Scope;
 use App\Models\Scopes\ActiveScope;
 use App\Notifications\SecretRetrievedNotification;
 use App\Traits\HasHashId;
@@ -49,17 +50,20 @@ class Secret extends Model
         ];
     }
 
-    public function scopeExpired($query)
+    #[Scope]
+    protected function expired($query)
     {
         return $query->where('expires_at', '<', now());
     }
 
-    public function scopeReadyToPrune($query)
+    #[Scope]
+    protected function readyToPrune($query)
     {
         return $query->where('expires_at', '<', now()->subDays(config('secrets.prune_after')))->where('message', null);
     }
 
-    public function scopeActive($query)
+    #[Scope]
+    protected function active($query)
     {
         return $query->where('expires_at', '>=', now())->where('message', '!=', null);
     }
