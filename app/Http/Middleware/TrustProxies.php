@@ -28,6 +28,7 @@ class TrustProxies extends Middleware
             $header = $request->headers->get('x-forwarded-proto');
             // Ensure it only has a single value (if there are multiple, take the first one)
             $request->headers->set('x-forwarded-proto', strtok($header, ','));
+            $request->server->set('HTTPS', 'on');
         }
     
         return parent::handle($request, $next);
