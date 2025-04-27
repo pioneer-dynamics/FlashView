@@ -71,14 +71,14 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
 
     public function getPlanAttribute()
     {
-        $stripe_price_id = optional($this->subscription)->stripe_price;
+        $stripe_price_id = $this->subscription?->stripe_price;
 
         return new PlanResource(Plan::where('stripe_monthly_price_id', $stripe_price_id)->orWhere('stripe_yearly_price_id', $stripe_price_id)->first());
     }
 
     public function getFrequencyAttribute()
     {
-        $stripe_price_id = optional($this->subscription)->stripe_price;
+        $stripe_price_id = $this->subscription?->stripe_price;
 
         $plan = Plan::where('stripe_monthly_price_id', $stripe_price_id)->orWhere('stripe_yearly_price_id', $stripe_price_id)->first();
 
