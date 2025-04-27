@@ -27,9 +27,7 @@ class XFrameHeadersMiddleware
          * DENY and SAMEORGIN are supported by all browsers. Using ALLOW-FROM is not recommended because not all browsers support it.
          *
          * For more information, access: https://cheatsheetseries.owasp.org/cheatsheets/Clickjacking_Defense_Cheat_Sheet.html
-         *
          */
-
         $response = $next($request);
 
         $response->headers->set('X-Frame-Options', 'SAMEORIGIN', false);

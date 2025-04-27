@@ -2,10 +2,10 @@
 
 namespace App\Providers;
 
-use Illuminate\Http\Request;
-use Illuminate\Support\ServiceProvider;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -27,20 +27,18 @@ class AppServiceProvider extends ServiceProvider
 
     private function defineRateLimits()
     {
-        RateLimiter::for('secrets', function(Request $request) {
-            if($user = $request->user()) {
-                if($user->subscribed()) {
+        RateLimiter::for('secrets', function (Request $request) {
+            if ($user = $request->user()) {
+                if ($user->subscribed()) {
                     return Limit::none();
-                }
-                else {
+                } else {
                     return Limit::perMinute(config('secrets.rate_limit.user.per_minute'))
-                                ->by($request->ip());
+                        ->by($request->ip());
                 }
-            }
-            else {
+            } else {
                 return Limit::perMinute(config('secrets.rate_limit.guest.per_minute'))
-                                ->perDay(config('secrets.rate_limit.guest.per_day')
-                                )->by($request->ip());
+                    ->perDay(config('secrets.rate_limit.guest.per_day')
+                    )->by($request->ip());
             }
         });
     }

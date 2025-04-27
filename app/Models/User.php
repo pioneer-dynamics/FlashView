@@ -2,30 +2,32 @@
 
 namespace App\Models;
 
-use Laravel\Cashier\Billable;
-use Laravel\Sanctum\HasApiTokens;
 use App\Http\Resources\PlanResource;
-use Laravel\Jetstream\HasProfilePhoto;
-use Illuminate\Notifications\Notifiable;
-use function Illuminate\Events\queueable;
-use Laravel\Fortify\TwoFactorAuthenticatable;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use PioneerDynamics\LaravelPasskey\Traits\HasPasskeys;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
+use Laravel\Cashier\Billable;
+use Laravel\Fortify\TwoFactorAuthenticatable;
+use Laravel\Jetstream\HasProfilePhoto;
+use Laravel\Sanctum\HasApiTokens;
 use PioneerDynamics\LaravelPasskey\Contracts\PasskeyUser;
+use PioneerDynamics\LaravelPasskey\Traits\HasPasskeys;
 
-class User extends Authenticatable implements PasskeyUser, MustVerifyEmail
+use function Illuminate\Events\queueable;
+
+class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
 {
+    use Billable;
+
     use HasApiTokens;
 
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory;
+    use HasPasskeys;
     use HasProfilePhoto;
     use Notifiable;
     use TwoFactorAuthenticatable;
-    use HasPasskeys;
-    use Billable;
 
     /**
      * The attributes that are mass assignable.
@@ -73,17 +75,18 @@ class User extends Authenticatable implements PasskeyUser, MustVerifyEmail
 
         return new PlanResource(Plan::where('stripe_monthly_price_id', $stripe_price_id)->orWhere('stripe_yearly_price_id', $stripe_price_id)->first());
     }
-    
+
     public function getFrequencyAttribute()
     {
         $stripe_price_id = optional($this->subscription)->stripe_price;
 
         $plan = Plan::where('stripe_monthly_price_id', $stripe_price_id)->orWhere('stripe_yearly_price_id', $stripe_price_id)->first();
 
-        if($plan)
+        if ($plan) {
             return $plan->stripe_monthly_price_id == $stripe_price_id ? 'monthly' : 'yearly';
-        else
+        } else {
             return 'monthly';
+        }
     }
 
     /**

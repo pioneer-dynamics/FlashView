@@ -4,7 +4,6 @@ namespace App\Policies;
 
 use App\Models\Secret;
 use App\Models\User;
-use Illuminate\Auth\Access\Response;
 
 class SecretPolicy
 {
@@ -21,8 +20,9 @@ class SecretPolicy
      */
     public function delete(User $user, Secret $secret): bool
     {
-        if($secret->user_id === $user->id)
+        if ($secret->user_id === $user->id) {
             return true;
+        }
 
         return false;
     }
