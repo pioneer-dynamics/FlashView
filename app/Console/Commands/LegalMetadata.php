@@ -2,9 +2,9 @@
 
 namespace App\Console\Commands;
 
+use App\Models\Scopes\ActiveScope;
 use App\Models\Secret;
 use Illuminate\Console\Command;
-use App\Models\Scopes\ActiveScope;
 use Illuminate\Contracts\Console\PromptsForMissingInput;
 use Vinkla\Hashids\Facades\Hashids;
 
@@ -27,17 +27,17 @@ class LegalMetadata extends Command implements PromptsForMissingInput
     /**
      * Execute the console command.
      */
-    public function handle()
+    public function handle(): void
     {
-        $secret = rescue(fn() => Secret::withoutGlobalScope(ActiveScope::class)->find(Hashids::connection('Secret')->decode($this->argument('message'))[0]));
+        $secret = rescue(fn () => Secret::withoutGlobalScope(ActiveScope::class)->find(Hashids::connection('Secret')->decode($this->argument('message'))[0]));
 
-        if(!$secret) {
+        if (! $secret) {
             $this->fail('Message not found.');
         }
 
         $this->table([
-            'Property', 'Value'
-        ],[
+            'Property', 'Value',
+        ], [
             ['Message ID', $secret->hash_id],
             ['Created At', $secret->created_at],
             ['Retreived At', $secret->retrieved_at],

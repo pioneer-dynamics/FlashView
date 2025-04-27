@@ -35,30 +35,27 @@ class StoreSecretRequest extends FormRequest
      */
     private function getUserType(): string
     {
-        if($user = request()->user()) {
-            if($user->subscribed()) {
+        if ($user = request()->user()) {
+            if ($user->subscribed()) {
                 return 'subscribed';
-            }
-            else {
+            } else {
                 return 'user';
             }
-        }
-        else {
+        } else {
             return 'guest';
         }
     }
 
     private function getAllowedMessageLength()
     {
-        if($this->user()) {
+        if ($this->user()) {
             return config('secrets.message_length.user');
-        }
-        else {
+        } else {
             return config('secrets.message_length.guest');
         }
     }
 
-    public function attributes()
+    public function attributes(): array
     {
         return [
             'expires_in' => 'expiry',

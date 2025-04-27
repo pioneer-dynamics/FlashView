@@ -1,14 +1,14 @@
 <?php
 
-use Inertia\Inertia;
-use Illuminate\Http\Request;
-use Laravel\Fortify\RoutePath;
-use Illuminate\Support\Facades\Route;
-use Illuminate\Foundation\Application;
+use App\Http\Controllers\MarkdownDocumentController;
 use App\Http\Controllers\PlanController;
 use App\Http\Controllers\SecretController;
-use App\Http\Controllers\MarkdownDocumentController;
+use Illuminate\Foundation\Application;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
+use Inertia\Inertia;
 use Laravel\Fortify\Http\Controllers\RegisteredUserController;
+use Laravel\Fortify\RoutePath;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -29,8 +29,6 @@ Route::middleware(['throttle:secrets'])->group(function () {
     Route::post('secret', [SecretController::class,  'store'])->name('secret.store');
 });
 
-
-
 Route::get('plans', [PlanController::class, 'index'])->name('plans.index');
 
 Route::get('/terms-of-service', [MarkdownDocumentController::class, 'terms'])->name('terms.show');
@@ -41,10 +39,10 @@ Route::get('/faq', [MarkdownDocumentController::class, 'faq'])->name('faq.index'
 Route::get('/about', [MarkdownDocumentController::class, 'about'])->name('about.index');
 Route::get('/use-cases', [MarkdownDocumentController::class, 'useCases'])->name('useCases.index');
 
-Route::group(['middleware' => config('fortify.middleware', ['web'])], function () {
+Route::middleware(config('fortify.middleware', ['web']))->group(function () {
     Route::post(RoutePath::for('register', '/register'), [RegisteredUserController::class, 'store'])
-                ->middleware(['guest:'.config('fortify.guard'), 'throttle:signup'])
-                ->name('register.store');
+        ->middleware(['guest:'.config('fortify.guard'), 'throttle:signup'])
+        ->name('register.store');
 });
 
 Route::middleware([

@@ -3,8 +3,8 @@
 namespace App\Http\Requests;
 
 use App\Models\Secret;
-use Vinkla\Hashids\Facades\Hashids;
 use Illuminate\Foundation\Http\FormRequest;
+use Vinkla\Hashids\Facades\Hashids;
 
 class BurnSecretRequest extends FormRequest
 {
@@ -18,7 +18,7 @@ class BurnSecretRequest extends FormRequest
 
     private function getSecretRecordWithoutBurning($secret)
     {
-        return Secret::withoutEvents(fn() => Secret::withoutGlobalScopes()->where('user_id', $this->user()->id)->where('id', $this->getId($secret))->first());
+        return Secret::withoutEvents(fn () => Secret::withoutGlobalScopes()->where('user_id', $this->user()->id)->where('id', $this->getId($secret))->first());
     }
 
     private function getId($secret)

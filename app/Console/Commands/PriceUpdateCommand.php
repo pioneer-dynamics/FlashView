@@ -3,9 +3,8 @@
 namespace App\Console\Commands;
 
 use App\Models\Plan;
-use Laravel\Cashier\Cashier;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Cache;
+use Laravel\Cashier\Cashier;
 
 class PriceUpdateCommand extends Command
 {
@@ -26,12 +25,12 @@ class PriceUpdateCommand extends Command
     /**
      * Execute the console command.
      */
-    public function handle()
+    public function handle(): void
     {
         Plan::get()->each(function ($plan) {
             $plan->update([
-                'price_per_month' => !blank($plan->stripe_monthly_price_id) ? Cashier::stripe()->prices->retrieve($plan->stripe_monthly_price_id)->unit_amount / 100 : 0,
-                'price_per_year' => !blank($plan->stripe_yearly_price_id) ? Cashier::stripe()->prices->retrieve($plan->stripe_yearly_price_id)->unit_amount / 100 : 0
+                'price_per_month' => ! blank($plan->stripe_monthly_price_id) ? Cashier::stripe()->prices->retrieve($plan->stripe_monthly_price_id)->unit_amount / 100 : 0,
+                'price_per_year' => ! blank($plan->stripe_yearly_price_id) ? Cashier::stripe()->prices->retrieve($plan->stripe_yearly_price_id)->unit_amount / 100 : 0,
             ]);
         });
     }

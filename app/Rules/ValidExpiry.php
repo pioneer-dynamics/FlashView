@@ -16,7 +16,7 @@ class ValidExpiry implements ValidationRule
      */
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {
-        if(!in_array($value, array_map(fn($expiry) => $expiry['value'], $this->getAllowedExpiryOptions()) )) {
+        if (! in_array($value, array_map(fn ($expiry) => $expiry['value'], $this->getAllowedExpiryOptions()))) {
             $fail('The :attribute is invalid.');
         }
     }
@@ -26,7 +26,7 @@ class ValidExpiry implements ValidationRule
      */
     private function getAllowedExpiryOptions(): array
     {
-        return array_filter(config('secrets.expiry_options'), fn($item) => $item['value'] <= $this->getMaxAllowedExpiry());
+        return array_filter(config('secrets.expiry_options'), fn ($item) => $item['value'] <= $this->getMaxAllowedExpiry());
     }
 
     /**
@@ -38,7 +38,7 @@ class ValidExpiry implements ValidationRule
 
         $plan = $user?->plan?->jsonSerialize();
 
-        return match($this->userType) {
+        return match ($this->userType) {
             'subscribed' => $plan['settings']['expiry']['expiry_minutes'],
             'user' => config('secrets.expiry_limits.user'),
             'guest' => config('secrets.expiry_limits.guest'),

@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Traits;
 
 use Illuminate\Database\Eloquent\Casts\Attribute;
@@ -10,7 +11,7 @@ trait HasHashId
     {
         $connection = self::autoResolveConnectionName();
 
-        return config('hashids.connections.'. $connection) 
+        return config('hashids.connections.'.$connection)
             ? $connection
             : config('hasids.default');
     }
@@ -33,7 +34,7 @@ trait HasHashId
     public function hashId(): Attribute
     {
         return Attribute::make(
-            get: fn() => LaravelHashids::connection(self::getHashIdConnection())->encode($this->id)
+            get: fn () => LaravelHashids::connection(self::getHashIdConnection())->encode($this->id)
         );
     }
 

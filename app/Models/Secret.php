@@ -2,23 +2,27 @@
 
 namespace App\Models;
 
-use App\Traits\HasHashId;
 use App\Models\Scopes\ActiveScope;
 use App\Notifications\SecretRetrievedNotification;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\App;
-use Illuminate\Database\Eloquent\Model;
+use App\Traits\HasHashId;
+use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Attributes\ScopedBy;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\App;
+use Illuminate\Support\Facades\DB;
 use mathewparet\LaravelPolicyAbilitiesExport\Traits\ExportsPermissions;
 
 #[ScopedBy([ActiveScope::class])]
 class Secret extends Model
 {
+    use ExportsPermissions;
+
     /** @use HasFactory<\Database\Factories\SecretFactory> */
     use HasFactory;
+
     use HasHashId;
-    use ExportsPermissions;
 
     protected $fillable = [
         'message',
@@ -34,7 +38,7 @@ class Secret extends Model
         'ip_address_sent',
         'ip_address_retrieved',
         'updated_at',
-        'id'
+        'id',
     ];
 
     protected function casts()
@@ -48,17 +52,20 @@ class Secret extends Model
         ];
     }
 
-    public function scopeExpired($query)
+    #[Scope]
+    protected function expired($query)
     {
         return $query->where('expires_at', '<', now());
     }
 
-    public function scopeReadyToPrune($query)
+    #[Scope]
+    protected function readyToPrune($query)
     {
         return $query->where('expires_at', '<', now()->subDays(config('secrets.prune_after')))->where('message', null);
     }
 
-    public function scopeActive($query)
+    #[Scope]
+    protected function active($query)
     {
         return $query->where('expires_at', '>=', now())->where('message', '!=', null);
     }
@@ -72,11 +79,11 @@ class Secret extends Model
 
         static::retrieved(function (Secret $secret) {
 
-            if(App::runningInConsole()) {
+            if (App::runningInConsole()) {
                 return;
             }
 
-            if(blank($secret->retrieved_at) || blank($secret->ip_address_retrieved)) {
+            if (blank($secret->retrieved_at) || blank($secret->ip_address_retrieved)) {
                 $secret->markSilentlyAsRetrieved();
                 // DB::table($secret->getTable())->where('id', $secret->id)->update([
                 //     'retrieved_at' => now(),
@@ -84,16 +91,14 @@ class Secret extends Model
                 //     'message' => null
                 // ]);
 
-                if($user = $secret->user)
-                {
+                if ($user = $secret->user) {
                     $plan = $user->plan->jsonSerialize();
 
                     /**
                      * @var \App\Models\User $user
                      */
-                    if(isset($plan['id']))
-                    {
-                        if($plan['settings']['notification']['notifications']) {
+                    if (isset($plan['id'])) {
+                        if ($plan['settings']['notification']['notifications']) {
                             $user->notify(new SecretRetrievedNotification($secret));
                         }
                     }
@@ -107,20 +112,20 @@ class Secret extends Model
         $this->forceFill([
             'retrieved_at' => now(),
             'ip_address_retrieved' => request()->ip(),
-            'message' => null
+            'message' => null,
         ])->save();
     }
-    
+
     public function markSilentlyAsRetrieved()
     {
         DB::table($this->getTable())->where('id', $this->id)->update([
             'retrieved_at' => now(),
             'ip_address_retrieved' => encrypt(request()->ip(), false),
-            'message' => null
+            'message' => null,
         ]);
     }
 
-    public function user()
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
