@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "87e54536c36390d550ab5c0ba308a097",
+    "content-hash": "0d005a07b6e18cd379de9397f3c3b740",
     "packages": [
         {
             "name": "aws/aws-crt-php",
@@ -4169,16 +4169,16 @@
         },
         {
             "name": "pioneer-dynamics/laravel-passkey",
-            "version": "v2.0.6",
+            "version": "v2.0.8",
             "source": {
                 "type": "git",
                 "url": "https://github.com/pioneer-dynamics/laravel-passkey.git",
-                "reference": "8886b93247f780307fb78697477c1be86efb5e53"
+                "reference": "8081370ae66660b1363e7e428f2f83486ebf727c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/pioneer-dynamics/laravel-passkey/zipball/8886b93247f780307fb78697477c1be86efb5e53",
-                "reference": "8886b93247f780307fb78697477c1be86efb5e53",
+                "url": "https://api.github.com/repos/pioneer-dynamics/laravel-passkey/zipball/8081370ae66660b1363e7e428f2f83486ebf727c",
+                "reference": "8081370ae66660b1363e7e428f2f83486ebf727c",
                 "shasum": ""
             },
             "require": {
@@ -4212,9 +4212,9 @@
             "description": "Easy Passkey integration for Laravel",
             "support": {
                 "issues": "https://github.com/pioneer-dynamics/laravel-passkey/issues",
-                "source": "https://github.com/pioneer-dynamics/laravel-passkey/tree/v2.0.6"
+                "source": "https://github.com/pioneer-dynamics/laravel-passkey/tree/v2.0.8"
             },
-            "time": "2025-04-27T02:59:46+00:00"
+            "time": "2025-06-12T12:28:10+00:00"
         },
         {
             "name": "pragmarx/google2fa",
