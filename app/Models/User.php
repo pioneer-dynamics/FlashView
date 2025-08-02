@@ -65,6 +65,10 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
         'frequency',
     ];
 
+    protected $with = [
+        'passkeys',
+    ];
+
     public function getSubscriptionAttribute()
     {
         return $this->subscriptions()->active()->first();
