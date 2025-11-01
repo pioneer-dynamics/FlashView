@@ -24,6 +24,7 @@
         "mathewparet/laravel-policy-abilities-export": "^2.0",
         "monicahq/laravel-cloudflare": "^3.8",
         "pioneer-dynamics/laravel-passkey": "^2.0",
+        "resend/resend-laravel": "^0.23.0",
         "spatie/laravel-googletagmanager": "^2.7",
         "symfony/http-client": "^7.2",
         "symfony/postmark-mailer": "^7.2",
