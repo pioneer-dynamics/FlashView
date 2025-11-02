@@ -74,7 +74,7 @@ return [
         /**
          * Use package defined routes?
          */
-        'enabled' => true,
+        'enabled' => false,
 
         /**
          * What should be the prefix for the package defined routes

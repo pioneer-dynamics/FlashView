@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\MarkdownDocumentController;
+use App\Http\Controllers\PasskeyController;
 use App\Http\Controllers\PlanController;
 use App\Http\Controllers\SecretController;
 use Illuminate\Foundation\Application;
@@ -43,6 +44,28 @@ Route::middleware(config('fortify.middleware', ['web']))->group(function () {
     Route::post(RoutePath::for('register', '/register'), [RegisteredUserController::class, 'store'])
         ->middleware(['guest:'.config('fortify.guard'), 'throttle:signup'])
         ->name('register.store');
+});
+
+// Passkey routes - custom implementation to fix flash data race conditions
+Route::prefix(config('passkey.routes.prefix', '/passkeys'))->group(function () {
+    // Public passkey routes
+    Route::post('/authentication-options', [PasskeyController::class, 'getAuthenticationOptions'])
+        ->name('passkeys.authentication-options');
+    Route::post('/login', [PasskeyController::class, 'login'])
+        ->name('passkeys.login');
+
+    // Protected passkey routes
+    Route::middleware(['auth:sanctum', config('jetstream.auth_session')])->group(function () {
+        Route::post('/registration-options', [PasskeyController::class, 'getRegistrationOptions'])
+            ->middleware('password.confirm:,' . config('passkey.password_confirmation_ttl'))
+            ->name('passkeys.registration-options');
+        Route::post('/verify', [PasskeyController::class, 'verify'])
+            ->name('passkeys.verify');
+        Route::post('/', [PasskeyController::class, 'store'])
+            ->name('passkeys.store');
+        Route::delete('/{passkey}', [PasskeyController::class, 'destroy'])
+            ->name('passkeys.destroy');
+    });
 });
 
 Route::middleware([
