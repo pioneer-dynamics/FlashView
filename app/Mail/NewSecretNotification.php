@@ -11,7 +11,7 @@ use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\URL;
 
-class NewSecretNotification extends Mailable implements ShouldQueue
+class NewSecretNotification extends Mailable //implements ShouldQueue
 {
     use Queueable, SerializesModels;
 
