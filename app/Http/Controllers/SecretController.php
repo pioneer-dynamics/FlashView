@@ -47,7 +47,6 @@ class SecretController extends Controller implements HasMiddleware
         
         if ($request->user()) {
             if ($email = $request->safe()->email) {
-                logger('Email sent to recepient', compact('email', 'url'));
                 Mail::to($email)->send(new NewSecretNotification($request->user(), $url, $secret->hash_id));
             }
         }
