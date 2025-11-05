@@ -8,8 +8,10 @@ We provide security updates for the following versions of {CONFIG:app.name}
 
 | Version | Supported |
 | ------- | --------- |
-| 2.x.x + | ✅        |
-| 1.x.x   | ✅        |
+| 4.x.x + | ✅        |
+| 3.x.x + | ✅        |
+| 2.x.x   | ❌        |
+| 1.x.x   | ❌        |
 | <= 1.0.0 | ❌       |
 
 If you are using an unsupported version, we highly encourage upgrading to a supported version to benefit from the latest security updates.
