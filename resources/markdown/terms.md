@@ -1,6 +1,6 @@
 # {CONFIG:app.name} – WEBSITE TERMS OF USE
 
-> These terms are in addition to the [MIT license]({ROUTE:license.show}) for **{CONFIG:app.name}** (**software**, **application**) itself. To make it easy to understand, the MIT license is for the **Scrooge** application; the website runs on and you are free to download the source code or use the software on your own property (computer, servers) as per the terms specified in the MIT License on our website. However, your use of this {CONFIG:app.domain} (this website) is bound by the below terms.
+> These terms are in addition to the [MIT license]({ROUTE:license.show}) for **{CONFIG:app.name}** (**software**, **application**) itself. To make it easy to understand, the MIT license is for the **{CONFIG:app.name}** application; the website runs on and you are free to download the source code or use the software on your own property (computer, servers) as per the terms specified in the MIT License on our website. However, your use of this {CONFIG:app.domain} (this website) is bound by the below terms.
 
 This website (**Site**) is operated by Mathew Paret (**we**, **our** or **us**).  It is available at: {CONFIG:app.domain} and may be available through other addresses or channels.
 
