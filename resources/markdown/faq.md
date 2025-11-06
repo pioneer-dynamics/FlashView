@@ -9,7 +9,7 @@ Yes! [Login]({ROUTE:login}) or [create a free account!]({ROUTE:register}) to acc
 ## Can I retrieve a secret that has already been shared?
 No, once a secret is retrieved by the recipient's browser, it’s permanently deleted even before it is decrypted by the browser. Hence, even if the recipient enters the wrong password the message is deleted and can't be retrieved again.
 
-## Shouldn't the recipient be allowed to re-try with the correct password if the firsst attempt fails?
+## Shouldn't the recipient be allowed to re-try with the correct password if the first attempt fails?
 Since the data we send to the browser is end-to-end encrypted by the sender, we cannot verify the password's correctness on the server side (unless the password is sent to us, but that would defeat the purpose of end-to-end encryption). If the browser successfully decrypts the message, we cannot know for sure unless the browser informs us. Allowing this type of communication is risky because a man-in-the-middle attacker could "fake" a response indicating that the password is incorrect, providing false information and preventing the message from being deleted. To mitigate this risk, we delete the message as soon as the encrypted data is delivered to the browser.
 
 ## What is the difference between anonymous users and free accounts?
