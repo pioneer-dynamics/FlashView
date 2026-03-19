@@ -65,7 +65,3 @@ Route::middleware([
         return $request->user()->redirectToBillingPortal(route('dashboard'));
     })->middleware(['auth'])->name('billing');
 });
-
-Route::get('/debug-headers', function (\Illuminate\Http\Request $request) {
-    return $request->headers->all();
-});
