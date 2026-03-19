@@ -9,28 +9,37 @@ use Monicahq\Cloudflare\Http\Middleware\TrustProxies as Middleware;
 
 class TrustProxies extends Middleware
 {
-    protected $proxies = '*';
-
-    protected $headers = 
+    protected $headers =
         Request::HEADER_X_FORWARDED_FOR |
         Request::HEADER_X_FORWARDED_HOST |
         Request::HEADER_X_FORWARDED_PORT |
         Request::HEADER_X_FORWARDED_PROTO;
 
+    public function __construct()
+    {
+        // Support additional trusted proxies (e.g., AWS ALB) via environment variable.
+        // On Laravel Cloud, set TRUSTED_PROXIES=* to trust all proxies, or use specific CIDR ranges.
+        if ($additional = env('TRUSTED_PROXIES')) {
+            $this->proxies = $additional === '*'
+                ? '*'
+                : array_map('trim', explode(',', $additional));
+        }
+    }
+
     /**
      * Handle an incoming request.
      *
-     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
+     * Note: CF-Connecting-IP is trusted unconditionally when replace_ip=true.
+     * Origin access must be restricted to Cloudflare to prevent IP spoofing.
      */
     public function handle(Request $request, Closure $next): Response
     {
         if ($request->headers->has('x-forwarded-proto')) {
             $header = $request->headers->get('x-forwarded-proto');
-            // Ensure it only has a single value (if there are multiple, take the first one)
             $request->headers->set('x-forwarded-proto', strtok($header, ','));
             $request->server->set('HTTPS', 'on');
         }
-    
+
         return parent::handle($request, $next);
     }
 }
