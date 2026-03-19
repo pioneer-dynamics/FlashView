@@ -70,4 +70,17 @@ return [
 
     'ipv6-path' => 'ips-v6',
 
+    /*
+    |--------------------------------------------------------------------------
+    | Additional trusted proxies
+    |--------------------------------------------------------------------------
+    |
+    | Additional proxy IPs to trust beyond the Cloudflare ranges. Set to '*'
+    | to trust all proxies (e.g., on Laravel Cloud behind AWS ALB), or use
+    | comma-separated CIDR ranges for tighter security.
+    |
+    */
+
+    'trusted_proxies' => env('TRUSTED_PROXIES'),
+
 ];

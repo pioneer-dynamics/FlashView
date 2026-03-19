@@ -17,9 +17,9 @@ class TrustProxies extends Middleware
 
     public function __construct()
     {
-        // Support additional trusted proxies (e.g., AWS ALB) via environment variable.
+        // Support additional trusted proxies (e.g., AWS ALB) via config.
         // On Laravel Cloud, set TRUSTED_PROXIES=* to trust all proxies, or use specific CIDR ranges.
-        if ($additional = env('TRUSTED_PROXIES')) {
+        if ($additional = config('laravelcloudflare.trusted_proxies')) {
             $this->proxies = $additional === '*'
                 ? '*'
                 : array_map('trim', explode(',', $additional));
