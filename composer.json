@@ -112,7 +112,7 @@
                 },
                 "autoload": {
                     "psr-4": {
-                        "Svgta\\WebAuthn\\": "src/"
+                        "Svgta\\WebAuthn\\": "lib/"
                     }
                 },
                 "require": {

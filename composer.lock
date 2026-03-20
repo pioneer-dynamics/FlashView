@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "0d5aeec346a243cd9e9c59efc444ab7f",
+    "content-hash": "82b7725880924581e235cd82a8817150",
     "packages": [
         {
             "name": "aws/aws-crt-php",
@@ -5514,7 +5514,7 @@
             "type": "library",
             "autoload": {
                 "psr-4": {
-                    "Svgta\\WebAuthn\\": "src/"
+                    "Svgta\\WebAuthn\\": "lib/"
                 }
             }
         },
