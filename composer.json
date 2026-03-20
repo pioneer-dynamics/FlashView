@@ -30,6 +30,16 @@
                     "hashids/hashids": "^5.0",
                     "illuminate/contracts": "^12.0|^13.0",
                     "illuminate/support": "^12.0|^13.0"
+                },
+                "extra": {
+                    "laravel": {
+                        "providers": [
+                            "Vinkla\\Hashids\\HashidsServiceProvider"
+                        ],
+                        "aliases": {
+                            "Hashids": "Vinkla\\Hashids\\Facades\\Hashids"
+                        }
+                    }
                 }
             }
         },
@@ -51,6 +61,13 @@
                 "require": {
                     "php": "^7.4|^8.0",
                     "illuminate/support": "^8.0|^9.0|^10.0|^11.0|^12.0|^13.0"
+                },
+                "extra": {
+                    "laravel": {
+                        "providers": [
+                            "Monicahq\\Cloudflare\\TrustedProxyServiceProvider"
+                        ]
+                    }
                 }
             }
         },
@@ -73,6 +90,13 @@
                     "laravel/framework": "^10.10|^11.0|^12.0|^13.0",
                     "svgta/webauthn": "^1.0",
                     "symfony/clock": "^6.3|^7.0|^8.0"
+                },
+                "extra": {
+                    "laravel": {
+                        "providers": [
+                            "PioneerDynamics\\LaravelPasskey\\Providers\\PasskeyServiceProvider"
+                        ]
+                    }
                 }
             }
         },

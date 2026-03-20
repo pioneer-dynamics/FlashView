@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "57af105222337f366e6db1b54753d0c0",
+    "content-hash": "0d5aeec346a243cd9e9c59efc444ab7f",
     "packages": [
         {
             "name": "aws/aws-crt-php",
@@ -3455,6 +3455,13 @@
                 "php": "^7.4|^8.0"
             },
             "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Monicahq\\Cloudflare\\TrustedProxyServiceProvider"
+                    ]
+                }
+            },
             "autoload": {
                 "psr-4": {
                     "Monicahq\\Cloudflare\\": "src/"
@@ -4196,6 +4203,13 @@
                 "symfony/clock": "^6.3|^7.0|^8.0"
             },
             "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "PioneerDynamics\\LaravelPasskey\\Providers\\PasskeyServiceProvider"
+                    ]
+                }
+            },
             "autoload": {
                 "psr-4": {
                     "PioneerDynamics\\LaravelPasskey\\": "src/"
@@ -8529,6 +8543,16 @@
                 "php": "^8.2"
             },
             "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Vinkla\\Hashids\\HashidsServiceProvider"
+                    ],
+                    "aliases": {
+                        "Hashids": "Vinkla\\Hashids\\Facades\\Hashids"
+                    }
+                }
+            },
             "autoload": {
                 "psr-4": {
                     "Vinkla\\Hashids\\": "src/"
