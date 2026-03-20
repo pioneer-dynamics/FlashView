@@ -8,39 +8,177 @@
         "framework"
     ],
     "license": "MIT",
+    "repositories": [
+        {
+            "type": "package",
+            "package": {
+                "name": "vinkla/hashids",
+                "version": "13.0.1",
+                "source": {
+                    "url": "https://github.com/vinkla/laravel-hashids.git",
+                    "type": "git",
+                    "reference": "13.0.0"
+                },
+                "autoload": {
+                    "psr-4": {
+                        "Vinkla\\Hashids\\": "src/"
+                    }
+                },
+                "require": {
+                    "php": "^8.2",
+                    "graham-campbell/manager": "^5.2",
+                    "hashids/hashids": "^5.0",
+                    "illuminate/contracts": "^12.0|^13.0",
+                    "illuminate/support": "^12.0|^13.0"
+                },
+                "extra": {
+                    "laravel": {
+                        "providers": [
+                            "Vinkla\\Hashids\\HashidsServiceProvider"
+                        ],
+                        "aliases": {
+                            "Hashids": "Vinkla\\Hashids\\Facades\\Hashids"
+                        }
+                    }
+                }
+            }
+        },
+        {
+            "type": "package",
+            "package": {
+                "name": "monicahq/laravel-cloudflare",
+                "version": "3.8.1",
+                "source": {
+                    "url": "https://github.com/monicahq/laravel-cloudflare.git",
+                    "type": "git",
+                    "reference": "3.8.0"
+                },
+                "autoload": {
+                    "psr-4": {
+                        "Monicahq\\Cloudflare\\": "src/"
+                    }
+                },
+                "require": {
+                    "php": "^7.4|^8.0",
+                    "illuminate/support": "^8.0|^9.0|^10.0|^11.0|^12.0|^13.0"
+                },
+                "extra": {
+                    "laravel": {
+                        "providers": [
+                            "Monicahq\\Cloudflare\\TrustedProxyServiceProvider"
+                        ]
+                    }
+                }
+            }
+        },
+        {
+            "type": "package",
+            "package": {
+                "name": "pioneer-dynamics/laravel-passkey",
+                "version": "2.0.9",
+                "source": {
+                    "url": "https://github.com/pioneer-dynamics/laravel-passkey.git",
+                    "type": "git",
+                    "reference": "v2.0.8"
+                },
+                "autoload": {
+                    "psr-4": {
+                        "PioneerDynamics\\LaravelPasskey\\": "src/"
+                    }
+                },
+                "require": {
+                    "laravel/framework": "^10.10|^11.0|^12.0|^13.0",
+                    "svgta/webauthn": "^1.0",
+                    "symfony/clock": "^6.3|^7.0|^8.0"
+                },
+                "extra": {
+                    "laravel": {
+                        "providers": [
+                            "PioneerDynamics\\LaravelPasskey\\Providers\\PasskeyServiceProvider"
+                        ]
+                    }
+                }
+            }
+        },
+        {
+            "type": "package",
+            "package": {
+                "name": "svgta/webauthn",
+                "version": "1.0.4",
+                "source": {
+                    "url": "https://github.com/svgta1/webauthn-php.git",
+                    "type": "git",
+                    "reference": "v1.0.3"
+                },
+                "autoload": {
+                    "psr-4": {
+                        "Svgta\\WebAuthn\\": "lib/"
+                    }
+                },
+                "require": {
+                    "ext-json": "*",
+                    "guzzlehttp/guzzle": "^7.8",
+                    "svgta/svgta-lib": "^1.0",
+                    "symfony/clock": "^6.3|^7.0|^8.0",
+                    "web-auth/webauthn-lib": "4.*"
+                }
+            }
+        },
+        {
+            "type": "package",
+            "package": {
+                "name": "svgta/svgta-lib",
+                "version": "1.3.5",
+                "source": {
+                    "url": "https://github.com/svgta1/svgtaLib.git",
+                    "type": "git",
+                    "reference": "v1.3.4"
+                },
+                "autoload": {
+                    "psr-4": {
+                        "Svgta\\Lib\\": "src/"
+                    }
+                },
+                "require": {
+                    "spomky-labs/aes-key-wrap": "^7.0",
+                    "web-token/jwt-library": "^3.3|^4.0"
+                }
+            }
+        }
+    ],
     "require": {
-        "php": "^8.2",
+        "php": "^8.3",
         "inertiajs/inertia-laravel": "^2.0",
-        "laravel/cashier": "^15.6",
-        "laravel/framework": "^12.10",
+        "laravel/cashier": "^16.0",
+        "laravel/framework": "^13.0",
         "laravel/horizon": "^5.33",
         "laravel/jetstream": "^5.3",
-        "laravel/mcp": "^0.1.1",
-        "laravel/nightwatch": "^1.7",
+        "laravel/mcp": "^0.6.0",
+        "laravel/nightwatch": "^1.24.4",
         "laravel/sanctum": "^4.0",
-        "laravel/tinker": "^2.10.1",
-        "league/commonmark": "2.6.0",
+        "laravel/tinker": "^3.0",
+        "league/commonmark": "^2.8.1",
         "league/flysystem-aws-s3-v3": "^3.29",
         "mathewparet/inertia-config-share": "^1.0",
         "mathewparet/laravel-policy-abilities-export": "^2.0",
-        "monicahq/laravel-cloudflare": "^3.8",
-        "pioneer-dynamics/laravel-passkey": "^2.0",
-        "resend/resend-laravel": "^0.23.0",
-        "spatie/laravel-googletagmanager": "^2.7",
-        "symfony/http-client": "^7.2",
-        "symfony/postmark-mailer": "^7.2",
+        "monicahq/laravel-cloudflare": "3.8.1",
+        "pioneer-dynamics/laravel-passkey": "2.0.9",
+        "resend/resend-laravel": "^1.0",
+        "spatie/laravel-googletagmanager": "^3.0",
+        "symfony/http-client": "^7.4|^8.0",
+        "symfony/postmark-mailer": "^7.4|^8.0",
         "tightenco/ziggy": "^2.0",
-        "vinkla/hashids": "^13.0"
+        "vinkla/hashids": "13.0.1"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",
-        "laravel/boost": "^1.1",
+        "laravel/boost": "^2.0",
         "laravel/pail": "^1.2.2",
         "laravel/pint": "^1.13",
         "laravel/sail": "^1.41",
         "mockery/mockery": "^1.6",
         "nunomaduro/collision": "^8.6",
-        "phpunit/phpunit": "^11.5.3"
+        "phpunit/phpunit": "^12.0"
     },
     "autoload": {
         "psr-4": {
