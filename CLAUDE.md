@@ -10,9 +10,9 @@ This application is a Laravel application and its main Laravel ecosystems packag
 
 - php - 8.4.18
 - inertiajs/inertia-laravel (INERTIA) - v2
-- laravel/cashier (CASHIER) - v15
+- laravel/cashier (CASHIER) - v16
 - laravel/fortify (FORTIFY) - v1
-- laravel/framework (LARAVEL) - v12
+- laravel/framework (LARAVEL) - v13
 - laravel/horizon (HORIZON) - v5
 - laravel/mcp (MCP) - v0
 - laravel/nightwatch (NIGHTWATCH) - v1
@@ -21,7 +21,7 @@ This application is a Laravel application and its main Laravel ecosystems packag
 - tightenco/ziggy (ZIGGY) - v2
 - laravel/pint (PINT) - v1
 - laravel/sail (SAIL) - v1
-- phpunit/phpunit (PHPUNIT) - v11
+- phpunit/phpunit (PHPUNIT) - v12
 - @inertiajs/vue3 (INERTIA) - v1
 - tailwindcss (TAILWINDCSS) - v3
 - vue (VUE) - v3
@@ -348,7 +348,7 @@ Route::get('/users', function () {
 
 ## Project Overview
 
-FlashView (formerly OneTimeSecret) — a Laravel 12 + Vue 3 application for secure, encrypted secret sharing. Secrets are encrypted client-side using OpenCrypto (AES-GCM with PBKDF2), stored server-side, and accessed via signed URLs with automatic expiration.
+FlashView (formerly OneTimeSecret) — a Laravel 13 + Vue 3 application for secure, encrypted secret sharing. Secrets are encrypted client-side using OpenCrypto (AES-GCM with PBKDF2), stored server-side, and accessed via signed URLs with automatic expiration.
 
 ## Commands
 
@@ -380,7 +380,7 @@ php artisan migrate
 
 ## Architecture
 
-**Backend:** Laravel 12 with Inertia.js 2.0 bridge to Vue 3. Routes are in `routes/web.php` (primary) and `routes/api.php` (minimal, Sanctum-protected).
+**Backend:** Laravel 13 with Inertia.js 2.0 bridge to Vue 3. Routes are in `routes/web.php` (primary) and `routes/api.php` (minimal, Sanctum-protected).
 
 **Frontend:** Vue 3 Composition API with Inertia.js for SPA-like navigation. Pages in `resources/js/Pages/`, layouts in `resources/js/Layouts/`, components in `resources/js/Components/`. Styled with Tailwind CSS.
 

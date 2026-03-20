@@ -99,8 +99,8 @@
                     "web-auth/webauthn-lib": "4.*"
                 }
             }
-        }
-        ,{
+        },
+        {
             "type": "package",
             "package": {
                 "name": "svgta/svgta-lib",
@@ -130,6 +130,7 @@
         "laravel/horizon": "^5.33",
         "laravel/jetstream": "^5.3",
         "laravel/mcp": "^0.6.0",
+        "laravel/nightwatch": "^1.24.4",
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^3.0",
         "league/commonmark": "^2.8.1",
@@ -137,7 +138,6 @@
         "mathewparet/inertia-config-share": "^1.0",
         "mathewparet/laravel-policy-abilities-export": "^2.0",
         "monicahq/laravel-cloudflare": "3.8.1",
-        "laravel/nightwatch": "^1.24.4",
         "pioneer-dynamics/laravel-passkey": "2.0.9",
         "resend/resend-laravel": "^1.0",
         "spatie/laravel-googletagmanager": "^3.0",
