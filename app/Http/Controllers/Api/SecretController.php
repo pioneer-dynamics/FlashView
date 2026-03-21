@@ -18,8 +18,8 @@ class SecretController extends Controller
      */
     public function index(ListSecretsRequest $request): JsonResponse
     {
-        $secrets = Secret::withoutEvents(fn () => Secret::withoutGlobalScopes()
-            ->where('user_id', $request->user()->id)
+        $secrets = Secret::withoutEvents(fn () => $request->user()->secrets()
+            ->withoutGlobalScopes()
             ->orderBy('created_at', 'desc')
             ->paginate());
 

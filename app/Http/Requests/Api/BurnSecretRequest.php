@@ -38,8 +38,8 @@ class BurnSecretRequest extends FormRequest
             return null;
         }
 
-        return $this->secretRecord = Secret::withoutEvents(fn () => Secret::withoutGlobalScopes()
-            ->where('user_id', $this->user()->id)
+        return $this->secretRecord = Secret::withoutEvents(fn () => $this->user()->secrets()
+            ->withoutGlobalScopes()
             ->where('id', $id)
             ->first());
     }
