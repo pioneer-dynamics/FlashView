@@ -42,7 +42,7 @@ class DeleteApiTokenTest extends TestCase
         $token = $user->tokens()->create([
             'name' => 'Test Token',
             'token' => Str::random(40),
-            'abilities' => ['create', 'read'],
+            'abilities' => ['secrets:create', 'secrets:list'],
         ]);
 
         $this->delete('/user/api-tokens/'.$token->id);
