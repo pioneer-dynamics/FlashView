@@ -2,8 +2,10 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Secret;
 use App\Rules\MessageLength;
 use App\Rules\ValidExpiry;
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreSecretRequest extends FormRequest
@@ -13,46 +15,44 @@ class StoreSecretRequest extends FormRequest
      */
     public function authorize(): bool
     {
+        if ($this->user()) {
+            return $this->user()->can('create', Secret::class);
+        }
+
         return true;
     }
 
     /**
      * Get the validation rules that apply to the request.
      *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+     * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {
         return [
             'message' => ['required', 'string', 'min:1', new MessageLength($this->getUserType(), $this->getAllowedMessageLength())],
             'expires_in' => ['required', 'numeric', new ValidExpiry($this->getUserType())],
-            'email' => $this->user()?->id ? ['nullable', 'email'] : ['prohibited'],
+            'email' => $this->user() ? ['nullable', 'email'] : ['prohibited'],
         ];
     }
 
     /**
-     * Identify the type of user submitting the request
+     * Identify the type of user submitting the request.
      */
     private function getUserType(): string
     {
-        if ($user = request()->user()) {
-            if ($user->subscribed()) {
-                return 'subscribed';
-            } else {
-                return 'user';
-            }
-        } else {
-            return 'guest';
+        if ($user = $this->user()) {
+            return $user->subscribed() ? 'subscribed' : 'user';
         }
+
+        return 'guest';
     }
 
-    private function getAllowedMessageLength()
+    private function getAllowedMessageLength(): int
     {
-        if ($this->user()) {
-            return config('secrets.message_length.user');
-        } else {
-            return config('secrets.message_length.guest');
-        }
+        return $this->user()
+            ? config('secrets.message_length.user')
+            : config('secrets.message_length.guest');
     }
 
     public function attributes(): array

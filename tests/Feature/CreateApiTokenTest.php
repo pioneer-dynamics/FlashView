@@ -41,14 +41,14 @@ class CreateApiTokenTest extends TestCase
         $this->post('/user/api-tokens', [
             'name' => 'Test Token',
             'permissions' => [
-                'read',
-                'update',
+                'secrets:create',
+                'secrets:list',
             ],
         ]);
 
         $this->assertCount(1, $user->fresh()->tokens);
         $this->assertEquals('Test Token', $user->fresh()->tokens->first()->name);
-        $this->assertTrue($user->fresh()->tokens->first()->can('read'));
-        $this->assertFalse($user->fresh()->tokens->first()->can('delete'));
+        $this->assertTrue($user->fresh()->tokens->first()->can('secrets:create'));
+        $this->assertFalse($user->fresh()->tokens->first()->can('secrets:delete'));
     }
 }

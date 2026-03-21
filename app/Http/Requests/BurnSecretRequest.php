@@ -3,38 +3,57 @@
 namespace App\Http\Requests;
 
 use App\Models\Secret;
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Vinkla\Hashids\Facades\Hashids;
 
 class BurnSecretRequest extends FormRequest
 {
+    private ?Secret $secretRecord = null;
+
     /**
      * Determine if the user is authorized to make this request.
      */
     public function authorize(): bool
     {
-        return $this->user()->can('delete', $this->getSecretRecordWithoutBurning($this->secret));
+        $secret = $this->getSecretRecord();
+
+        if (! $secret) {
+            return false;
+        }
+
+        return $this->user()->can('delete', $secret);
     }
 
-    private function getSecretRecordWithoutBurning($secret)
+    /**
+     * Resolve the secret record without triggering retrieval events.
+     */
+    public function getSecretRecord(): ?Secret
     {
-        return Secret::withoutEvents(fn () => Secret::withoutGlobalScopes()->where('user_id', $this->user()->id)->where('id', $this->getId($secret))->first());
-    }
+        if ($this->secretRecord !== null) {
+            return $this->secretRecord;
+        }
 
-    private function getId($secret)
-    {
-        return Hashids::connection('Secret')->decode($secret)[0];
+        $decoded = Hashids::connection('Secret')->decode($this->route('secret'));
+        $id = $decoded[0] ?? null;
+
+        if (! $id) {
+            return null;
+        }
+
+        return $this->secretRecord = Secret::withoutEvents(fn () => $this->user()->secrets()
+            ->withoutGlobalScopes()
+            ->where('id', $id)
+            ->first());
     }
 
     /**
      * Get the validation rules that apply to the request.
      *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+     * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {
-        return [
-            //
-        ];
+        return [];
     }
 }
