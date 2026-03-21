@@ -7,11 +7,13 @@ use App\Http\Requests\StoreSecretRequest;
 use App\Http\Resources\SecretResourceCollection;
 use App\Models\Secret;
 use App\Services\SecretService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\URL;
 use Inertia\Inertia;
+use Inertia\Response;
 use Vinkla\Hashids\Facades\Hashids;
 
 class SecretController extends Controller implements HasMiddleware
@@ -25,7 +27,7 @@ class SecretController extends Controller implements HasMiddleware
         ];
     }
 
-    public function report($secret)
+    public function report(string $secret): void
     {
         $secret = Secret::withoutEvents(fn () => Secret::withoutGlobalScopes()->find($this->getIdFromHash($secret)));
 
@@ -35,7 +37,7 @@ class SecretController extends Controller implements HasMiddleware
     /**
      * Store a newly created resource in storage.
      */
-    public function store(StoreSecretRequest $request)
+    public function store(StoreSecretRequest $request): RedirectResponse
     {
         $result = $this->secretService->createSecret(
             $request->message,
@@ -57,12 +59,12 @@ class SecretController extends Controller implements HasMiddleware
     /**
      * Display the specified resource.
      */
-    public function show($secret)
+    public function show(string $secret): Response
     {
         return Inertia::render('Welcome', ['secret' => $secret, 'decryptUrl' => URL::temporarySignedRoute('secret.decrypt', now()->addMinutes(5), ['secret' => $secret])]);
     }
 
-    public function decrypt(Secret $secret)
+    public function decrypt(Secret $secret): RedirectResponse
     {
         return back()->with('flash', [
             'secret' => [
@@ -71,7 +73,7 @@ class SecretController extends Controller implements HasMiddleware
         ]);
     }
 
-    public function index(Request $request)
+    public function index(Request $request): Response
     {
         $secrets = $this->secretService->listSecrets($request->user());
 
@@ -82,12 +84,12 @@ class SecretController extends Controller implements HasMiddleware
         ]);
     }
 
-    public function destroy(BurnSecretRequest $request, $secret)
+    public function destroy(BurnSecretRequest $request, string $secret): void
     {
         $this->secretService->burnSecret($request->getSecretRecord());
     }
 
-    private function getIdFromHash($secret)
+    private function getIdFromHash(string $secret): int
     {
         return Hashids::connection('Secret')->decode($secret)[0];
     }

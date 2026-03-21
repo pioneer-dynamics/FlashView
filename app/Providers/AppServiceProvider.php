@@ -20,7 +20,7 @@ class AppServiceProvider extends ServiceProvider
         //
     }
 
-    private function forceHttps()
+    private function forceHttps(): void
     {
         if (! app()->environment('local')) {
             URL::forceScheme('https');
@@ -39,7 +39,7 @@ class AppServiceProvider extends ServiceProvider
         Subscription::observe(SubscriptionObserver::class);
     }
 
-    private function defineRateLimits()
+    private function defineRateLimits(): void
     {
         RateLimiter::for('secrets', function (Request $request) {
             if ($user = $request->user()) {
