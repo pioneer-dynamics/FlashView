@@ -5,18 +5,19 @@ namespace App\Http\Controllers;
 use App\Http\Requests\BurnSecretRequest;
 use App\Http\Requests\StoreSecretRequest;
 use App\Http\Resources\SecretResourceCollection;
-use App\Mail\NewSecretNotification;
 use App\Models\Secret;
+use App\Services\SecretService;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\URL;
 use Inertia\Inertia;
 use Vinkla\Hashids\Facades\Hashids;
 
 class SecretController extends Controller implements HasMiddleware
 {
+    public function __construct(private SecretService $secretService) {}
+
     public static function middleware(): array
     {
         return [
@@ -36,24 +37,19 @@ class SecretController extends Controller implements HasMiddleware
      */
     public function store(StoreSecretRequest $request)
     {
-        $secret = Secret::create([
-            'message' => $request->message,
-            'expires_at' => $expires_at = now()->addMinutes((int) $request->expires_in),
-            'user_id' => $request->user()?->id,
-        ]);
+        $result = $this->secretService->createSecret(
+            $request->message,
+            (int) $request->expires_in,
+            $request->user()?->id,
+        );
 
-        $url = URL::temporarySignedRoute('secret.show', $expires_at, ['secret' => $secret->hash_id]);
-
-        
-        if ($request->user()) {
-            if ($email = $request->safe()->email) {
-                Mail::to($email)->send(new NewSecretNotification($request->user(), $url, $secret->hash_id));
-            }
+        if ($request->user() && $email = $request->safe()->email) {
+            $this->secretService->notifyRecipient($request->user(), $email, $result['url'], $result['secret']->hash_id);
         }
 
         return back()->with('flash', [
             'secret' => [
-                'url' => $url,
+                'url' => $result['url'],
             ],
         ]);
     }
@@ -77,7 +73,7 @@ class SecretController extends Controller implements HasMiddleware
 
     public function index(Request $request)
     {
-        $secrets = Secret::withoutEvents(fn () => Secret::withoutGlobalScopes()->where('user_id', $request->user()->id)->orderBy('created_at', 'desc')->paginate());
+        $secrets = $this->secretService->listSecrets($request->user());
 
         $secrets = new SecretResourceCollection($secrets);
 
@@ -86,16 +82,9 @@ class SecretController extends Controller implements HasMiddleware
         ]);
     }
 
-    private function getSecretRecordWithoutBurning($secret, $request)
-    {
-        return Secret::withoutEvents(fn () => Secret::withoutGlobalScopes()->where('user_id', $request->user()->id)->where('id', $this->getIdFromHash($secret))->first());
-    }
-
     public function destroy(BurnSecretRequest $request, $secret)
     {
-        $secret = $this->getSecretRecordWithoutBurning($secret, $request);
-
-        $secret->markSilentlyAsRetrieved();
+        $this->secretService->burnSecret($request->getSecretRecord());
     }
 
     private function getIdFromHash($secret)

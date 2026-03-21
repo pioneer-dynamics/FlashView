@@ -3,27 +3,23 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Api\BurnSecretRequest;
 use App\Http\Requests\Api\ListSecretsRequest;
-use App\Http\Requests\Api\StoreSecretRequest;
+use App\Http\Requests\BurnSecretRequest;
+use App\Http\Requests\StoreSecretRequest;
 use App\Http\Resources\SecretResource;
-use App\Mail\NewSecretNotification;
-use App\Models\Secret;
+use App\Services\SecretService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\URL;
 
 class SecretController extends Controller
 {
+    public function __construct(private SecretService $secretService) {}
+
     /**
      * List authenticated user's secrets.
      */
     public function index(ListSecretsRequest $request): JsonResponse
     {
-        $secrets = Secret::withoutEvents(fn () => $request->user()->secrets()
-            ->withoutGlobalScopes()
-            ->orderBy('created_at', 'desc')
-            ->paginate());
+        $secrets = $this->secretService->listSecrets($request->user());
 
         return SecretResource::collection($secrets)->response();
     }
@@ -33,20 +29,18 @@ class SecretController extends Controller
      */
     public function store(StoreSecretRequest $request): JsonResponse
     {
-        $secret = Secret::create([
-            'message' => $request->message,
-            'expires_at' => $expiresAt = now()->addMinutes((int) $request->expires_in),
-            'user_id' => $request->user()->id,
-        ]);
-
-        $url = URL::temporarySignedRoute('secret.show', $expiresAt, ['secret' => $secret->hash_id]);
+        $result = $this->secretService->createSecret(
+            $request->message,
+            (int) $request->expires_in,
+            $request->user()->id,
+        );
 
         if ($email = $request->safe()->email) {
-            Mail::to($email)->send(new NewSecretNotification($request->user(), $url, $secret->hash_id));
+            $this->secretService->notifyRecipient($request->user(), $email, $result['url'], $result['secret']->hash_id);
         }
 
-        return (new SecretResource($secret))
-            ->additional(['data' => ['url' => $url]])
+        return (new SecretResource($result['secret']))
+            ->additional(['data' => ['url' => $result['url']]])
             ->response()
             ->setStatusCode(201);
     }
@@ -56,8 +50,7 @@ class SecretController extends Controller
      */
     public function destroy(BurnSecretRequest $request, string $secret): JsonResponse
     {
-        $secretRecord = $request->getSecretRecord();
-        $secretRecord->markSilentlyAsRetrieved();
+        $this->secretService->burnSecret($request->getSecretRecord());
 
         return response()->json(['message' => 'Secret burned successfully.']);
     }
