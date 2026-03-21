@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Api;
 
+use App\Models\Secret;
 use App\Rules\MessageLength;
 use App\Rules\ValidExpiry;
 use Illuminate\Contracts\Validation\ValidationRule;
@@ -14,7 +15,7 @@ class StoreSecretRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true;
+        return $this->user()->can('create', Secret::class);
     }
 
     /**

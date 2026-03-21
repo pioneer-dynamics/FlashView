@@ -12,7 +12,15 @@ class SecretPolicy
      */
     public function viewAny(User $user): bool
     {
-        return false;
+        return $user->tokenCan('secrets:list');
+    }
+
+    /**
+     * Determine whether the user can create models.
+     */
+    public function create(User $user): bool
+    {
+        return $user->tokenCan('secrets:create');
     }
 
     /**
@@ -20,10 +28,6 @@ class SecretPolicy
      */
     public function delete(User $user, Secret $secret): bool
     {
-        if ($secret->user_id === $user->id) {
-            return true;
-        }
-
-        return false;
+        return $secret->user_id === $user->id && $user->tokenCan('secrets:delete');
     }
 }
