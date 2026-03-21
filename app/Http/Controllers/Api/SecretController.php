@@ -7,8 +7,10 @@ use App\Http\Requests\Api\BurnSecretRequest;
 use App\Http\Requests\Api\ListSecretsRequest;
 use App\Http\Requests\Api\StoreSecretRequest;
 use App\Http\Resources\SecretResource;
+use App\Mail\NewSecretNotification;
 use App\Models\Secret;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\URL;
 
 class SecretController extends Controller
@@ -38,6 +40,10 @@ class SecretController extends Controller
         ]);
 
         $url = URL::temporarySignedRoute('secret.show', $expiresAt, ['secret' => $secret->hash_id]);
+
+        if ($email = $request->safe()->email) {
+            Mail::to($email)->send(new NewSecretNotification($request->user(), $url, $secret->hash_id));
+        }
 
         return (new SecretResource($secret))
             ->additional(['data' => ['url' => $url]])
