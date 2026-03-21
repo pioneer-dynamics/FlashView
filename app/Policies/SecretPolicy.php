@@ -12,7 +12,7 @@ class SecretPolicy
      */
     public function viewAny(User $user): bool
     {
-        return $user->tokenCan('secrets:list');
+        return $this->checkAbility($user, 'secrets:list');
     }
 
     /**
@@ -20,7 +20,7 @@ class SecretPolicy
      */
     public function create(User $user): bool
     {
-        return $user->tokenCan('secrets:create');
+        return $this->checkAbility($user, 'secrets:create');
     }
 
     /**
@@ -28,6 +28,18 @@ class SecretPolicy
      */
     public function delete(User $user, Secret $secret): bool
     {
-        return $secret->user_id === $user->id && $user->tokenCan('secrets:delete');
+        return $secret->user_id === $user->id && $this->checkAbility($user, 'secrets:delete');
+    }
+
+    /**
+     * Check token ability, allowing web session users without Sanctum guard.
+     */
+    private function checkAbility(User $user, string $ability): bool
+    {
+        if (! $user->currentAccessToken()) {
+            return true;
+        }
+
+        return $user->tokenCan($ability);
     }
 }
