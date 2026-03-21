@@ -20,6 +20,7 @@ class SecretResource extends JsonResource
             'created_at' => $this->created_at,
             'is_expired' => $this->expires_at->isPast(),
             'is_retrieved' => $this->retrieved_at !== null,
+            'retrieved_at' => $this->retrieved_at,
         ];
     }
 }
