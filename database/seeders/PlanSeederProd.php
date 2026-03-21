@@ -67,7 +67,7 @@ class PlanSeederProd extends Seeder
                     ],
                     'api' => [
                         'order' => 6,
-                        'label' => 'API Access (coming soon)',
+                        'label' => 'API Access',
                         'config' => [],
                         'type' => 'missing',
                     ],
@@ -127,7 +127,7 @@ class PlanSeederProd extends Seeder
                     ],
                     'api' => [
                         'order' => 6,
-                        'label' => 'API Access (coming soon)',
+                        'label' => 'API Access',
                         'config' => [],
                         'type' => 'missing',
                     ],
@@ -187,7 +187,7 @@ class PlanSeederProd extends Seeder
                     ],
                     'api' => [
                         'order' => 6,
-                        'label' => 'API Access (coming soon)',
+                        'label' => 'API Access',
                         'config' => [],
                         'type' => 'feature',
                     ],
