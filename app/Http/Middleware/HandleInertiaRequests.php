@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -35,10 +36,8 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
-        $parentShare = parent::share($request);
+        Inertia::share('auth.hasApiAccess', fn () => $request->user()?->hasApiAccess() ?? false);
 
-        $parentShare['auth']['hasApiAccess'] = fn () => $request->user()?->hasApiAccess() ?? false;
-
-        return $parentShare;
+        return parent::share($request);
     }
 }
