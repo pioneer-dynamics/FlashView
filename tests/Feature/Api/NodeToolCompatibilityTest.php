@@ -23,7 +23,8 @@ class NodeToolCompatibilityTest extends TestCase
         $ciphertext = bin2hex($salt).base64_encode($iv.$encrypted.$authTag);
 
         // The MessageLength rule should parse this and estimate plaintext = 13 bytes
-        $rule = new MessageLength('guest', 10000);
+        $guestLimit = config('secrets.message_length.guest');
+        $rule = new MessageLength('guest', $guestLimit);
 
         $failed = false;
         $rule->validate('message', $ciphertext, function () use (&$failed) {
