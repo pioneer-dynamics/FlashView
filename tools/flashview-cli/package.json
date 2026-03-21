@@ -1,0 +1,21 @@
+{
+    "name": "flashview-cli",
+    "version": "1.0.0",
+    "description": "CLI tool for FlashView — create and manage encrypted secrets",
+    "type": "module",
+    "bin": {
+        "flashview": "./bin/flashview.js"
+    },
+    "engines": {
+        "node": ">=18.0.0"
+    },
+    "scripts": {
+        "test": "node --test tests/*.test.js"
+    },
+    "dependencies": {
+        "commander": "^12.0.0",
+        "conf": "^13.0.0",
+        "random-words": "^2.0.0"
+    },
+    "devDependencies": {}
+}
