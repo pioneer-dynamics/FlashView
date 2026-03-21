@@ -106,12 +106,12 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
         return $plan && ($plan->features['api']['type'] ?? 'missing') === 'feature';
     }
 
-    public function getPlanAttribute()
+    public function getPlanAttribute(): PlanResource
     {
         return new PlanResource($this->resolvePlan());
     }
 
-    public function getFrequencyAttribute()
+    public function getFrequencyAttribute(): string
     {
         $stripePrice = $this->subscription?->stripe_price;
         $plan = $this->resolvePlan();
