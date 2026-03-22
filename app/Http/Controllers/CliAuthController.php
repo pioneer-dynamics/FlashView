@@ -7,7 +7,6 @@ use App\Http\Requests\CliTokenExchangeRequest;
 use App\Http\Resources\CliTokenResource;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -32,7 +31,7 @@ class CliAuthController extends Controller
     /**
      * Generate an authorization code and redirect to CLI callback.
      */
-    public function authorize(CliAuthorizeRequest $request): RedirectResponse
+    public function authorize(CliAuthorizeRequest $request): \Symfony\Component\HttpFoundation\Response
     {
         $baseCallback = "http://127.0.0.1:{$request->validated('port')}/callback";
 
