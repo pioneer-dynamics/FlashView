@@ -62,6 +62,11 @@ const logout = () => {
                                             My Secrets
                                         </NavLink>
                                     </template>
+                                    <template v-else>
+                                        <NavLink :href="route('welcome')" :active="route().current('welcome')">
+                                            New Secret
+                                        </NavLink>
+                                    </template>
                                     <template v-if="true">
                                         <NavLink :href="route('plans.index')" :active="route().current('plans.index')">
                                             Pricing
@@ -255,6 +260,11 @@ const logout = () => {
                                 <ResponsiveNavLink :href="route('secrets.index')"
                                     :active="route().current('secrets.index')">
                                     My Secrets
+                                </ResponsiveNavLink>
+                            </template>
+                            <template v-else>
+                                <ResponsiveNavLink :href="route('welcome')" :active="route().current('welcome')">
+                                    New Secret
                                 </ResponsiveNavLink>
                             </template>
                             <template v-if="true">
