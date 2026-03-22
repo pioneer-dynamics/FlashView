@@ -1,6 +1,6 @@
 <script setup>
 import { ref } from 'vue'
-import { router, usePage } from '@inertiajs/vue3'
+import { Link, router, usePage } from '@inertiajs/vue3'
 import AuthenticationCard from '@/Components/AuthenticationCard.vue'
 import AuthenticationCardLogo from '@/Components/AuthenticationCardLogo.vue'
 import PrimaryButton from '@/Components/PrimaryButton.vue'
@@ -45,10 +45,11 @@ function submit(action) {
                 <SecondaryButton @click="submit('deny')" :disabled="processing">
                     Close
                 </SecondaryButton>
-                <a :href="route('plans.index')"
-                   class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-md hover:bg-indigo-500">
-                    View Plans
-                </a>
+                <Link :href="route('plans.index')">
+                    <PrimaryButton>
+                        View Plans
+                    </PrimaryButton>
+                </Link>
             </div>
         </div>
 

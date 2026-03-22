@@ -422,6 +422,8 @@ program
         } catch (err) {
             if (err.message === 'TIMEOUT') {
                 console.error('\nLogin timed out. Please try again.');
+            } else if (err.code === 'ECONNREFUSED' || err.code === 'ENOTFOUND') {
+                console.error('\nCould not connect to server. Check your URL and network.');
             } else {
                 console.error(`\nLogin failed: ${err.message}`);
             }

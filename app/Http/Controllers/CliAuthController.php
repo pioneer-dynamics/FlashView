@@ -3,10 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\CliAuthorizeRequest;
+use App\Http\Requests\CliTokenExchangeRequest;
+use App\Http\Resources\CliTokenResource;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -67,14 +68,9 @@ class CliAuthController extends Controller
     /**
      * Exchange an authorization code for a Sanctum API token.
      */
-    public function exchangeToken(Request $request): JsonResponse
+    public function exchangeToken(CliTokenExchangeRequest $request): CliTokenResource|JsonResponse
     {
-        $request->validate([
-            'code' => ['required', 'string'],
-            'state' => ['required', 'string'],
-        ]);
-
-        $cacheKey = "cli_auth:{$request->code}";
+        $cacheKey = "cli_auth:{$request->validated('code')}";
         $data = Cache::pull($cacheKey);
 
         if (! $data) {
@@ -83,7 +79,7 @@ class CliAuthController extends Controller
             ], 401);
         }
 
-        if ($data['state'] !== $request->state) {
+        if ($data['state'] !== $request->validated('state')) {
             return response()->json([
                 'message' => 'State parameter mismatch.',
             ], 422);
@@ -93,12 +89,9 @@ class CliAuthController extends Controller
 
         $token = $user->createToken('FlashView CLI', Jetstream::$defaultPermissions);
 
-        return response()->json([
+        return new CliTokenResource([
             'token' => $token->plainTextToken,
-            'user' => [
-                'name' => $user->name,
-                'email' => $user->email,
-            ],
+            'user' => $user,
         ]);
     }
 }

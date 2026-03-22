@@ -143,8 +143,8 @@ class CliAuthTest extends TestCase
         $response->assertRedirect();
 
         $location = $response->headers->get('Location');
-        $this->assertStringContains('error=denied', $location);
-        $this->assertStringContains('state=abcdef1234567890', $location);
+        $this->assertStringContainsString('error=denied', $location);
+        $this->assertStringContainsString('state=abcdef1234567890', $location);
     }
 
     public function test_authorize_redirects_with_no_api_access_error(): void
@@ -161,7 +161,7 @@ class CliAuthTest extends TestCase
         $response->assertRedirect();
 
         $location = $response->headers->get('Location');
-        $this->assertStringContains('error=no_api_access', $location);
+        $this->assertStringContainsString('error=no_api_access', $location);
     }
 
     public function test_authorize_requires_authentication(): void
@@ -282,16 +282,5 @@ class CliAuthTest extends TestCase
         $this->postJson('/cli/token', [])
             ->assertStatus(422)
             ->assertJsonValidationErrors(['code', 'state']);
-    }
-
-    /**
-     * Assert that a string contains a substring.
-     */
-    private function assertStringContains(string $needle, string $haystack): void
-    {
-        $this->assertTrue(
-            str_contains($haystack, $needle),
-            "Failed asserting that '{$haystack}' contains '{$needle}'."
-        );
     }
 }
