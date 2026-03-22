@@ -407,6 +407,9 @@ const logout = () => {
                                     <li>
                                         <div class="flex flex-wrap gap-2"><a href="https://docs.flashview.link" target="_blank" class="hover:underline">Docs</a></div>
                                     </li>
+                                    <li>
+                                        <Link :href="route('cli.index')" class="hover:underline">CLI Tool</Link>
+                                    </li>
                                 </ul>
                             </div>
                             <div>
