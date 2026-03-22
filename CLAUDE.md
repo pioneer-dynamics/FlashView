@@ -414,3 +414,8 @@ php artisan migrate
 - `master` is the main/release branch
 - `develop` is the active development branch
 - Uses git-flow style with `release/` branches
+
+## Committing to git and raising PR
+
+- When committing to git do not mention claude.
+- When raising PR do not mention claude.
