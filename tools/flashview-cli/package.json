@@ -1,5 +1,13 @@
 {
-    "name": "flashview-cli",
+    "name": "@pioneer-dynamics/flashview-cli",
+    "publishConfig": {
+        "access": "public"
+    },
+    "files": [
+        "bin/",
+        "src/",
+        "README.md"
+    ],
     "version": "1.0.0",
     "description": "CLI tool for FlashView — create and manage encrypted secrets",
     "type": "module",

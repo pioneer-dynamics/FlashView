@@ -9,13 +9,7 @@ A command-line tool for creating and managing encrypted secrets via the FlashVie
 ## Installation
 
 ```bash
-# From the repository
-cd tools/flashview-cli
-npm install
-npm link
-
-# Or install globally (when published)
-npm install -g flashview-cli
+npm install -g @pioneer-dynamics/flashview-cli
 ```
 
 ## Setup
@@ -23,7 +17,7 @@ npm install -g flashview-cli
 Configure your API token and server URL:
 
 ```bash
-flashview configure set --url https://your-flashview-server.com --token your-api-token
+flashview configure set --url https://flashview.link --token your-api-token
 ```
 
 You can generate an API token from your FlashView dashboard under **API Tokens** (requires a plan with API access).
