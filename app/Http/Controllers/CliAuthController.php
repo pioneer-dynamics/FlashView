@@ -20,12 +20,20 @@ class CliAuthController extends Controller
      */
     public function show(CliAuthorizeRequest $request): Response
     {
+        $user = $request->user();
+
+        $existingToken = $user->tokens()->where('name', 'FlashView CLI')->first();
+
+        $defaultPermissions = $existingToken
+            ? $existingToken->abilities
+            : Jetstream::$defaultPermissions;
+
         return Inertia::render('Cli/Authorize', [
             'port' => (int) $request->validated('port'),
             'state' => $request->validated('state'),
-            'hasApiAccess' => $request->user()->hasApiAccess(),
+            'hasApiAccess' => $user->hasApiAccess(),
             'availablePermissions' => Jetstream::$permissions,
-            'defaultPermissions' => Jetstream::$defaultPermissions,
+            'defaultPermissions' => $defaultPermissions,
         ]);
     }
 

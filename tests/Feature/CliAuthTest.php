@@ -339,4 +339,50 @@ class CliAuthTest extends TestCase
             ->assertStatus(422)
             ->assertJsonValidationErrors(['code', 'state']);
     }
+
+    public function test_authorize_page_defaults_to_existing_token_abilities(): void
+    {
+        $user = $this->createUserWithApiAccess();
+
+        $user->createToken('FlashView CLI', ['secrets:create', 'secrets:list']);
+
+        $response = $this->actingAs($user)
+            ->get('/cli/authorize?port=12345&state=abcdef1234567890');
+
+        $response->assertStatus(200);
+        $response->assertInertia(fn ($page) => $page
+            ->component('Cli/Authorize')
+            ->where('defaultPermissions', ['secrets:create', 'secrets:list'])
+        );
+    }
+
+    public function test_authorize_page_defaults_to_jetstream_defaults_when_no_cli_token_exists(): void
+    {
+        $user = $this->createUserWithApiAccess();
+
+        $response = $this->actingAs($user)
+            ->get('/cli/authorize?port=12345&state=abcdef1234567890');
+
+        $response->assertStatus(200);
+        $response->assertInertia(fn ($page) => $page
+            ->component('Cli/Authorize')
+            ->where('defaultPermissions', Jetstream::$defaultPermissions)
+        );
+    }
+
+    public function test_authorize_page_defaults_to_jetstream_defaults_when_only_non_cli_tokens_exist(): void
+    {
+        $user = $this->createUserWithApiAccess();
+
+        $user->createToken('Other Token', ['secrets:create', 'secrets:list', 'secrets:delete']);
+
+        $response = $this->actingAs($user)
+            ->get('/cli/authorize?port=12345&state=abcdef1234567890');
+
+        $response->assertStatus(200);
+        $response->assertInertia(fn ($page) => $page
+            ->component('Cli/Authorize')
+            ->where('defaultPermissions', Jetstream::$defaultPermissions)
+        );
+    }
 }
