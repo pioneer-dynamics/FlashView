@@ -174,4 +174,9 @@ class MarkdownDocumentController extends Controller
     {
         return $this->baseMarkdownRender('markdown/use-cases.md', 'Use Cases', false);
     }
+
+    public function cli()
+    {
+        return $this->baseMarkdownRender('markdown/cli.md', 'CLI Tool', false);
+    }
 }

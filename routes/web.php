@@ -40,6 +40,7 @@ Route::get('/security', [MarkdownDocumentController::class, 'security'])->name('
 Route::get('/faq', [MarkdownDocumentController::class, 'faq'])->name('faq.index');
 Route::get('/about', [MarkdownDocumentController::class, 'about'])->name('about.index');
 Route::get('/use-cases', [MarkdownDocumentController::class, 'useCases'])->name('useCases.index');
+Route::get('/cli', [MarkdownDocumentController::class, 'cli'])->name('cli.index');
 
 Route::middleware(config('fortify.middleware', ['web']))->group(function () {
     Route::post(RoutePath::for('register', '/register'), [RegisteredUserController::class, 'store'])
