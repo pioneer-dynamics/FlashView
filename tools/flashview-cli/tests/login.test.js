@@ -1,5 +1,6 @@
 import { describe, it, beforeEach, afterEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
+import crypto from 'node:crypto';
 import { createServer } from 'node:http';
 
 describe('login helpers', () => {

@@ -1,4 +1,5 @@
 import { Command } from 'commander';
+import crypto from 'node:crypto';
 import { createServer } from 'node:http';
 import { createInterface } from 'node:readline';
 import { encryptMessage } from './crypto.js';
