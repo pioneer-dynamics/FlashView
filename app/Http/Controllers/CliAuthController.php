@@ -24,6 +24,7 @@ class CliAuthController extends Controller
             'port' => (int) $request->validated('port'),
             'state' => $request->validated('state'),
             'hasApiAccess' => $request->user()->hasApiAccess(),
+            'availablePermissions' => Jetstream::$permissions,
             'defaultPermissions' => Jetstream::$defaultPermissions,
         ]);
     }
@@ -51,11 +52,17 @@ class CliAuthController extends Controller
             ]));
         }
 
+        $permissions = array_values(array_intersect(
+            $request->input('permissions', Jetstream::$defaultPermissions),
+            Jetstream::$permissions,
+        ));
+
         $code = Str::random(64);
 
         Cache::put("cli_auth:{$code}", [
             'user_id' => $user->id,
             'state' => $request->validated('state'),
+            'permissions' => $permissions,
         ], now()->addSeconds(60));
 
         return Inertia::location($baseCallback.'?'.http_build_query([
@@ -86,7 +93,7 @@ class CliAuthController extends Controller
 
         $user = User::findOrFail($data['user_id']);
 
-        $token = $user->createToken('FlashView CLI', Jetstream::$defaultPermissions);
+        $token = $user->createToken('FlashView CLI', $data['permissions'] ?? Jetstream::$defaultPermissions);
 
         return new CliTokenResource([
             'token' => $token->plainTextToken,

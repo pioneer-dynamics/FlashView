@@ -58,6 +58,7 @@ class CliAuthTest extends TestCase
             ->has('port')
             ->has('state')
             ->has('hasApiAccess')
+            ->has('availablePermissions')
             ->has('defaultPermissions')
             ->where('port', 12345)
             ->where('state', 'abcdef1234567890')
@@ -262,6 +263,7 @@ class CliAuthTest extends TestCase
         Cache::put("cli_auth:{$code}", [
             'user_id' => $user->id,
             'state' => $state,
+            'permissions' => Jetstream::$defaultPermissions,
         ], now()->addSeconds(60));
 
         $this->postJson('/cli/token', [
@@ -275,6 +277,29 @@ class CliAuthTest extends TestCase
         foreach (Jetstream::$defaultPermissions as $permission) {
             $this->assertTrue($token->can($permission));
         }
+    }
+
+    public function test_exchange_token_creates_token_with_selected_permissions(): void
+    {
+        $user = $this->createUserWithApiAccess();
+        $code = 'test_code_'.str_repeat('v', 54);
+        $state = 'abcdef1234567890';
+
+        Cache::put("cli_auth:{$code}", [
+            'user_id' => $user->id,
+            'state' => $state,
+            'permissions' => ['secrets:create', 'secrets:list'],
+        ], now()->addSeconds(60));
+
+        $this->postJson('/cli/token', [
+            'code' => $code,
+            'state' => $state,
+        ])->assertOk();
+
+        $token = $user->fresh()->tokens->first();
+        $this->assertTrue($token->can('secrets:create'));
+        $this->assertTrue($token->can('secrets:list'));
+        $this->assertFalse($token->can('secrets:delete'));
     }
 
     public function test_exchange_token_validates_required_fields(): void
