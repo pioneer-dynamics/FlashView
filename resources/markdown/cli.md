@@ -25,9 +25,15 @@ npx @pioneer-dynamics/flashview-cli --help
 
 ## Setup
 
-You'll need an API token to use the CLI. Generate one from your [API Tokens]({ROUTE:api-tokens.index}) page (requires a plan with API access).
+The easiest way to get started is to log in via your browser:
 
-Then configure the CLI:
+```
+flashview login
+```
+
+This opens your browser, lets you authenticate with your existing credentials (including 2FA and passkeys), choose token permissions, and automatically saves the API token to your CLI config. To update permissions later, just run `flashview login` again.
+
+Alternatively, you can manually create a token from your [API Tokens]({ROUTE:api-tokens.index}) page and configure the CLI directly:
 
 ```
 flashview configure set --token your-api-token
@@ -36,6 +42,7 @@ flashview configure set --token your-api-token
 The default server URL is `https://flashview.link`. To use a self-hosted instance, pass `--url`:
 
 ```
+flashview login --url https://your-server.com
 flashview configure set --token your-api-token --url https://your-server.com
 ```
 

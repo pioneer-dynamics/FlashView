@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\CliAuthController;
 use App\Http\Controllers\MarkdownDocumentController;
 use App\Http\Controllers\PlanController;
 use App\Http\Controllers\SecretController;
@@ -47,6 +48,23 @@ Route::middleware(config('fortify.middleware', ['web']))->group(function () {
         ->middleware(['guest:'.config('fortify.guard'), 'throttle:signup'])
         ->name('register.store');
 });
+
+// CLI Authorization Flow (auth required — Fortify handles redirect-to-login automatically)
+Route::middleware([
+    'auth:sanctum',
+    config('jetstream.auth_session'),
+    'verified',
+])->group(function () {
+    Route::get('/cli/authorize', [CliAuthController::class, 'show'])->name('cli.authorize');
+    Route::post('/cli/authorize', [CliAuthController::class, 'authorize'])
+        ->middleware('throttle:6,1')
+        ->name('cli.authorize.store');
+});
+
+// Token exchange (validated by signed code, no session auth needed, rate-limited)
+Route::post('/cli/token', [CliAuthController::class, 'exchangeToken'])
+    ->middleware('throttle:6,1')
+    ->name('cli.token');
 
 Route::middleware([
     'auth:sanctum',

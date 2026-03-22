@@ -1,4 +1,5 @@
 import { Command } from 'commander';
+import { createServer } from 'node:http';
 import { createInterface } from 'node:readline';
 import { encryptMessage } from './crypto.js';
 import { FlashViewClient, ApiError } from './api.js';
@@ -254,6 +255,183 @@ program
             console.log('Secret burned successfully.');
         }
     }));
+
+// --- Login ---
+
+/**
+ * Start a temporary HTTP server on a random available port.
+ *
+ * @returns {Promise<{ server: import('node:http').Server, port: number }>}
+ */
+function startCallbackServer() {
+    return new Promise((resolve, reject) => {
+        const server = createServer();
+        server.listen(0, '127.0.0.1', () => {
+            const port = server.address().port;
+            resolve({ server, port });
+        });
+        server.on('error', reject);
+    });
+}
+
+/**
+ * Wait for the authorization callback.
+ *
+ * @param {import('node:http').Server} server
+ * @param {string} expectedState
+ * @param {number} timeout
+ * @returns {Promise<string>}
+ */
+function waitForCallback(server, expectedState, timeout) {
+    return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => {
+            server.close();
+            reject(new Error('TIMEOUT'));
+        }, timeout);
+
+        server.on('request', (req, res) => {
+            const url = new URL(req.url, `http://${req.headers.host}`);
+
+            if (url.pathname === '/callback') {
+                const code = url.searchParams.get('code');
+                const error = url.searchParams.get('error');
+                const state = url.searchParams.get('state');
+
+                clearTimeout(timer);
+
+                if (state !== expectedState) {
+                    res.writeHead(400, { 'Content-Type': 'text/html' });
+                    res.end('<html><body><h1>State mismatch</h1><p>Authorization failed. Please try again.</p></body></html>');
+                    reject(new Error('State parameter mismatch. Please try again.'));
+                    return;
+                }
+
+                if (error) {
+                    const errorMessages = {
+                        denied: 'Authorization denied.',
+                        no_api_access: 'Your plan does not include API access. Visit your account to upgrade.',
+                    };
+                    const message = errorMessages[error] || `Authorization failed: ${error}`;
+
+                    res.writeHead(200, { 'Content-Type': 'text/html' });
+                    res.end(`<html><body><h1>Authorization failed</h1><p>${message} You can close this window.</p></body></html>`);
+                    reject(new Error(message));
+                    return;
+                }
+
+                res.writeHead(200, { 'Content-Type': 'text/html' });
+                res.end('<html><body><h1>Authentication successful!</h1><p>You can close this window and return to the terminal.</p></body></html>');
+                resolve(code);
+            } else {
+                res.writeHead(404);
+                res.end();
+            }
+        });
+    });
+}
+
+/**
+ * Exchange the authorization code for an API token.
+ *
+ * @param {string} serverUrl
+ * @param {string} code
+ * @param {string} state
+ * @returns {Promise<{ token: string, user: { name: string, email: string } }>}
+ */
+async function exchangeCode(serverUrl, code, state) {
+    const response = await fetch(`${serverUrl}/cli/token`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+        },
+        body: JSON.stringify({ code, state }),
+    });
+
+    if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.message || `Token exchange failed (HTTP ${response.status})`);
+    }
+
+    return response.json();
+}
+
+/**
+ * Try to open a URL in the default browser.
+ *
+ * @param {string} url
+ * @returns {Promise<boolean>}
+ */
+async function openBrowser(url) {
+    try {
+        const { exec } = await import('node:child_process');
+        const { promisify } = await import('node:util');
+        const execAsync = promisify(exec);
+
+        if (process.platform === 'darwin') {
+            await execAsync(`open "${url}"`);
+        } else if (process.platform === 'win32') {
+            await execAsync(`start "" "${url}"`);
+        } else {
+            if (!process.env.DISPLAY && !process.env.WAYLAND_DISPLAY) {
+                return false;
+            }
+            await execAsync(`xdg-open "${url}"`);
+        }
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+program
+    .command('login')
+    .description('Authenticate with FlashView via your browser')
+    .option('--url <url>', 'FlashView server URL (default: https://flashview.link)')
+    .option('--timeout <seconds>', 'Login timeout in seconds', '120')
+    .action(async (options) => {
+        const serverUrl = (options.url || getConfigInfo().url || 'https://flashview.link').replace(/\/+$/, '');
+        const timeoutMs = parseInt(options.timeout, 10) * 1000;
+        const state = crypto.randomUUID().replace(/-/g, '');
+
+        const { server, port } = await startCallbackServer();
+
+        const authorizeUrl = `${serverUrl}/cli/authorize?port=${port}&state=${state}`;
+
+        const opened = await openBrowser(authorizeUrl);
+        if (opened) {
+            console.log('Opening browser for authentication...');
+            console.log('If the browser does not open, visit this URL:');
+        } else {
+            console.log('Open this URL in your browser to authenticate:');
+        }
+        console.log(`\n  ${authorizeUrl}\n`);
+
+        const timeoutSec = parseInt(options.timeout, 10);
+        console.log(`Waiting for authentication (timeout: ${timeoutSec}s)...`);
+
+        try {
+            const code = await waitForCallback(server, state, timeoutMs);
+
+            const result = await exchangeCode(serverUrl, code, state);
+
+            setConfig({ url: serverUrl, token: result.token });
+
+            console.log(`\nAuthenticated as ${result.user.name} (${result.user.email})`);
+            console.log('Token saved. You can now use FlashView CLI commands.');
+        } catch (err) {
+            if (err.message === 'TIMEOUT') {
+                console.error('\nLogin timed out. Please try again.');
+            } else if (err.code === 'ECONNREFUSED' || err.code === 'ENOTFOUND') {
+                console.error('\nCould not connect to server. Check your URL and network.');
+            } else {
+                console.error(`\nLogin failed: ${err.message}`);
+            }
+            process.exit(1);
+        } finally {
+            server.close();
+        }
+    });
 
 export function run() {
     program.parse();
