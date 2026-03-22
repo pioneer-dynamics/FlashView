@@ -93,6 +93,8 @@ class CliAuthController extends Controller
 
         $user = User::findOrFail($data['user_id']);
 
+        $user->tokens()->where('name', 'FlashView CLI')->delete();
+
         $token = $user->createToken('FlashView CLI', $data['permissions'] ?? Jetstream::$defaultPermissions);
 
         return new CliTokenResource([

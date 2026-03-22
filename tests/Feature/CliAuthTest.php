@@ -302,6 +302,37 @@ class CliAuthTest extends TestCase
         $this->assertFalse($token->can('secrets:delete'));
     }
 
+    public function test_exchange_token_revokes_existing_cli_tokens(): void
+    {
+        $user = $this->createUserWithApiAccess();
+
+        $user->createToken('FlashView CLI', ['secrets:create']);
+        $user->createToken('Other Token', ['secrets:create']);
+        $this->assertCount(2, $user->fresh()->tokens);
+
+        $code = 'test_code_'.str_repeat('r', 54);
+        $state = 'abcdef1234567890';
+
+        Cache::put("cli_auth:{$code}", [
+            'user_id' => $user->id,
+            'state' => $state,
+            'permissions' => ['secrets:create', 'secrets:list'],
+        ], now()->addSeconds(60));
+
+        $this->postJson('/cli/token', [
+            'code' => $code,
+            'state' => $state,
+        ])->assertOk();
+
+        $tokens = $user->fresh()->tokens;
+        $this->assertCount(2, $tokens);
+        $this->assertEquals('Other Token', $tokens->where('name', 'Other Token')->first()->name);
+
+        $cliToken = $tokens->where('name', 'FlashView CLI')->first();
+        $this->assertTrue($cliToken->can('secrets:create'));
+        $this->assertTrue($cliToken->can('secrets:list'));
+    }
+
     public function test_exchange_token_validates_required_fields(): void
     {
         $this->postJson('/cli/token', [])
