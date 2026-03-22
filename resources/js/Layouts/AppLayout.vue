@@ -62,6 +62,11 @@ const logout = () => {
                                             My Secrets
                                         </NavLink>
                                     </template>
+                                    <template v-else>
+                                        <NavLink :href="route('welcome')" :active="route().current('welcome')">
+                                            New Secret
+                                        </NavLink>
+                                    </template>
                                     <template v-if="true">
                                         <NavLink :href="route('plans.index')" :active="route().current('plans.index')">
                                             Pricing
@@ -188,7 +193,7 @@ const logout = () => {
                                                 Profile
                                             </DropdownLink>
 
-                                            <DropdownLink v-if="$page.props.jetstream.hasApiFeatures"
+                                            <DropdownLink v-if="$page.props.jetstream.hasApiFeatures && $page.props.auth?.hasApiAccess"
                                                 :href="route('api-tokens.index')">
                                                 API Tokens
                                             </DropdownLink>
@@ -257,6 +262,11 @@ const logout = () => {
                                     My Secrets
                                 </ResponsiveNavLink>
                             </template>
+                            <template v-else>
+                                <ResponsiveNavLink :href="route('welcome')" :active="route().current('welcome')">
+                                    New Secret
+                                </ResponsiveNavLink>
+                            </template>
                             <template v-if="true">
                                 <ResponsiveNavLink :href="route('plans.index')" :active="route().current('plans.index')">
                                     Pricing
@@ -295,7 +305,7 @@ const logout = () => {
                                     Profile
                                 </ResponsiveNavLink>
 
-                                <ResponsiveNavLink v-if="$page.props.jetstream.hasApiFeatures"
+                                <ResponsiveNavLink v-if="$page.props.jetstream.hasApiFeatures && $page.props.auth?.hasApiAccess"
                                     :href="route('api-tokens.index')" :active="route().current('api-tokens.index')">
                                     API Tokens
                                 </ResponsiveNavLink>
@@ -406,6 +416,9 @@ const logout = () => {
                                     </li>
                                     <li>
                                         <div class="flex flex-wrap gap-2"><a href="https://docs.flashview.link" target="_blank" class="hover:underline">Docs</a></div>
+                                    </li>
+                                    <li>
+                                        <Link :href="route('cli.index')" class="hover:underline">CLI Tool</Link>
                                     </li>
                                 </ul>
                             </div>

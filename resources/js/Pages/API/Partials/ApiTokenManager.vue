@@ -1,6 +1,6 @@
 <script setup>
 import { ref } from 'vue';
-import { useForm } from '@inertiajs/vue3';
+import { useForm, Link } from '@inertiajs/vue3';
 import ActionMessage from '@/Components/ActionMessage.vue';
 import ActionSection from '@/Components/ActionSection.vue';
 import Checkbox from '@/Components/Checkbox.vue';
@@ -14,6 +14,7 @@ import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
 import SectionBorder from '@/Components/SectionBorder.vue';
 import TextInput from '@/Components/TextInput.vue';
+import Alert from '@/Components/Alert.vue';
 
 const props = defineProps({
     tokens: Array,
@@ -74,6 +75,17 @@ const deleteApiToken = () => {
 
 <template>
     <div>
+        <!-- CLI Tool Info -->
+        <div class="mb-6">
+            <Alert type="Info" :hideTitle="true">
+                <span class="dark:text-gray-300">
+                    You can also create and manage secrets from your terminal using the
+                    <Link :href="route('cli.index')" class="underline font-semibold">FlashView CLI</Link>.
+                    Learn more and get started.
+                </span>
+            </Alert>
+        </div>
+
         <!-- Generate API Token -->
         <FormSection @submitted="createApiToken">
             <template #title>

@@ -3,12 +3,14 @@
 use App\Http\Controllers\MarkdownDocumentController;
 use App\Http\Controllers\PlanController;
 use App\Http\Controllers\SecretController;
+use App\Http\Middleware\EnsurePlanHasApiAccess;
 use Illuminate\Foundation\Application;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Laravel\Fortify\Http\Controllers\RegisteredUserController;
 use Laravel\Fortify\RoutePath;
+use Laravel\Jetstream\Http\Controllers\Inertia\ApiTokenController;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -38,6 +40,7 @@ Route::get('/security', [MarkdownDocumentController::class, 'security'])->name('
 Route::get('/faq', [MarkdownDocumentController::class, 'faq'])->name('faq.index');
 Route::get('/about', [MarkdownDocumentController::class, 'about'])->name('about.index');
 Route::get('/use-cases', [MarkdownDocumentController::class, 'useCases'])->name('useCases.index');
+Route::get('/cli', [MarkdownDocumentController::class, 'cli'])->name('cli.index');
 
 Route::middleware(config('fortify.middleware', ['web']))->group(function () {
     Route::post(RoutePath::for('register', '/register'), [RegisteredUserController::class, 'store'])
@@ -60,6 +63,13 @@ Route::middleware([
 
     Route::get('secrets', [SecretController::class,  'index'])->name('secrets.index');
     Route::delete('secrets/{secret}', [SecretController::class,  'destroy'])->name('secrets.destroy');
+
+    Route::middleware([EnsurePlanHasApiAccess::class])->group(function () {
+        Route::get('/user/api-tokens', [ApiTokenController::class, 'index'])->name('api-tokens.index');
+        Route::post('/user/api-tokens', [ApiTokenController::class, 'store'])->name('api-tokens.store');
+        Route::put('/user/api-tokens/{token}', [ApiTokenController::class, 'update'])->name('api-tokens.update');
+        Route::delete('/user/api-tokens/{token}', [ApiTokenController::class, 'destroy'])->name('api-tokens.destroy');
+    });
 
     Route::get('/billing', function (Request $request) {
         return $request->user()->redirectToBillingPortal(route('dashboard'));

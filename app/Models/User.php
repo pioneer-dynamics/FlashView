@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Http\Resources\PlanResource;
+use Database\Factories\UserFactory;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -22,7 +23,7 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
     use Billable;
     use HasApiTokens;
 
-    /** @use HasFactory<\Database\Factories\UserFactory> */
+    /** @use HasFactory<UserFactory> */
     use HasFactory;
 
     use HasPasskeys;
@@ -74,21 +75,49 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
         return $this->subscriptions()->active()->first();
     }
 
-    public function getPlanAttribute()
+    /**
+     * Resolve the user's current subscription Plan model.
+     */
+    public function resolvePlan(): ?Plan
     {
-        $stripe_price_id = $this->subscription?->stripe_price;
+        $stripePrice = $this->subscription?->stripe_price;
 
-        return new PlanResource(Plan::where('stripe_monthly_price_id', $stripe_price_id)->orWhere('stripe_yearly_price_id', $stripe_price_id)->first());
+        if (! $stripePrice) {
+            return null;
+        }
+
+        return Plan::where(fn ($q) => $q
+            ->where('stripe_monthly_price_id', $stripePrice)
+            ->orWhere('stripe_yearly_price_id', $stripePrice)
+        )->first();
     }
 
-    public function getFrequencyAttribute()
+    /**
+     * Check if the user's plan includes API access.
+     */
+    public function hasApiAccess(): bool
     {
-        $stripe_price_id = $this->subscription?->stripe_price;
+        if (! $this->subscribed()) {
+            return false;
+        }
 
-        $plan = Plan::where('stripe_monthly_price_id', $stripe_price_id)->orWhere('stripe_yearly_price_id', $stripe_price_id)->first();
+        $plan = $this->resolvePlan();
+
+        return $plan && ($plan->features['api']['type'] ?? 'missing') === 'feature';
+    }
+
+    public function getPlanAttribute(): PlanResource
+    {
+        return new PlanResource($this->resolvePlan());
+    }
+
+    public function getFrequencyAttribute(): string
+    {
+        $stripePrice = $this->subscription?->stripe_price;
+        $plan = $this->resolvePlan();
 
         if ($plan) {
-            return $plan->stripe_monthly_price_id == $stripe_price_id ? 'monthly' : 'yearly';
+            return $plan->stripe_monthly_price_id == $stripePrice ? 'monthly' : 'yearly';
         } else {
             return 'monthly';
         }
@@ -121,6 +150,7 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
         }));
 
         static::deleting(queueable(function (User $customer) {
+            $customer->tokens()->delete();
             $customer->subscriptions()->active()->each(function ($subscription) {
                 $subscription->cancelNow();
             });
