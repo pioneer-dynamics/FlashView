@@ -1,5 +1,7 @@
 import Conf from 'conf';
 
+const DEFAULT_URL = 'https://flashview.link';
+
 const config = new Conf({
     projectName: 'flashview-cli',
     schema: {
@@ -14,11 +16,11 @@ const config = new Conf({
  * @returns {{ url: string, token: string }}
  */
 export function getConfig() {
-    const url = config.get('url');
+    const url = config.get('url') || DEFAULT_URL;
     const token = config.get('token');
 
-    if (!url || !token) {
-        console.error('Not configured. Run: flashview configure set --url <url> --token <token>');
+    if (!token) {
+        console.error('Not configured. Run: flashview configure set --token <token>');
         process.exit(1);
     }
 
@@ -44,8 +46,8 @@ export function getConfigInfo() {
  * @param {{ url: string, token: string }} options
  */
 export function setConfig({ url, token }) {
-    config.set('url', url);
-    config.set('token', token);
+    if (url) config.set('url', url);
+    if (token) config.set('token', token);
 }
 
 /**

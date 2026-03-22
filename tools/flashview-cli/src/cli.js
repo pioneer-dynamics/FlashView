@@ -117,7 +117,7 @@ const configure = program
 configure
     .command('set')
     .description('Set API token and server URL')
-    .requiredOption('--url <url>', 'FlashView server URL')
+    .option('--url <url>', 'FlashView server URL (default: https://flashview.link)')
     .requiredOption('--token <token>', 'API token (from FlashView dashboard)')
     .action(({ url, token }) => {
         setConfig({ url, token });
