@@ -10,7 +10,7 @@ use Illuminate\Support\Str;
 use Laravel\Jetstream\Features;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\User>
+ * @extends Factory<User>
  */
 class UserFactory extends Factory
 {
@@ -36,6 +36,7 @@ class UserFactory extends Factory
             'remember_token' => Str::random(10),
             'profile_photo_path' => null,
             'current_team_id' => null,
+            'notify_secret_retrieved' => false,
         ];
     }
 
@@ -46,6 +47,16 @@ class UserFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'email_verified_at' => null,
+        ]);
+    }
+
+    /**
+     * Indicate that the user has opted in to secret retrieved notifications.
+     */
+    public function withSecretRetrievedNotifications(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'notify_secret_retrieved' => true,
         ]);
     }
 
