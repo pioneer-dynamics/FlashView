@@ -1,6 +1,6 @@
 <script setup>
 import { ref } from 'vue'
-import { Link, router, usePage } from '@inertiajs/vue3'
+import { Head, Link, router, usePage } from '@inertiajs/vue3'
 import AuthenticationCard from '@/Components/AuthenticationCard.vue'
 import AuthenticationCardLogo from '@/Components/AuthenticationCardLogo.vue'
 import Checkbox from '@/Components/Checkbox.vue'
@@ -31,6 +31,8 @@ function submit(action) {
 </script>
 
 <template>
+    <Head title="CLI Login" />
+
     <AuthenticationCard>
         <template #logo>
             <AuthenticationCardLogo />
