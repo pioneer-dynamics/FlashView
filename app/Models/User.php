@@ -40,6 +40,7 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
         'name',
         'email',
         'password',
+        'notify_secret_retrieved',
     ];
 
     /**
@@ -133,6 +134,7 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'notify_secret_retrieved' => 'boolean',
         ];
     }
 
