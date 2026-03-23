@@ -2,9 +2,9 @@
 import { computed } from 'vue';
 import { useForm, usePage } from '@inertiajs/vue3';
 import ActionMessage from '@/Components/ActionMessage.vue';
+import ActionSection from '@/Components/ActionSection.vue';
 import FormSection from '@/Components/FormSection.vue';
 import Checkbox from '@/Components/Checkbox.vue';
-import InputLabel from '@/Components/InputLabel.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 
 const page = usePage();
@@ -26,7 +26,7 @@ const updateNotificationPreferences = () => {
 </script>
 
 <template>
-    <FormSection @submitted="updateNotificationPreferences">
+    <FormSection v-if="planSupportsNotifications" @submitted="updateNotificationPreferences">
         <template #title>
             Notification Preferences
         </template>
@@ -36,7 +36,7 @@ const updateNotificationPreferences = () => {
         </template>
 
         <template #form>
-            <div v-if="planSupportsNotifications" class="col-span-6">
+            <div class="col-span-6">
                 <label class="flex items-center">
                     <Checkbox
                         v-model:checked="form.notify_secret_retrieved"
@@ -49,18 +49,9 @@ const updateNotificationPreferences = () => {
                     You will receive an email each time any of your secrets is opened by a recipient.
                 </p>
             </div>
-
-            <div v-else class="col-span-6">
-                <p class="text-sm text-gray-600 dark:text-gray-400">
-                    Secret retrieval notifications are available on paid plans.
-                    <a :href="route('plans.index')" class="text-indigo-600 dark:text-indigo-400 hover:underline">
-                        View plans
-                    </a>
-                </p>
-            </div>
         </template>
 
-        <template v-if="planSupportsNotifications" #actions>
+        <template #actions>
             <ActionMessage :on="form.recentlySuccessful" class="me-3">
                 Saved.
             </ActionMessage>
@@ -70,4 +61,23 @@ const updateNotificationPreferences = () => {
             </PrimaryButton>
         </template>
     </FormSection>
+
+    <ActionSection v-else>
+        <template #title>
+            Notification Preferences
+        </template>
+
+        <template #description>
+            Manage your email notification preferences.
+        </template>
+
+        <template #content>
+            <p class="text-sm text-gray-600 dark:text-gray-400">
+                Secret retrieval notifications are available on paid plans.
+                <a :href="route('plans.index')" class="text-indigo-600 dark:text-indigo-400 hover:underline">
+                    View plans
+                </a>
+            </p>
+        </template>
+    </ActionSection>
 </template>
