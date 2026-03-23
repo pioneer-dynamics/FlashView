@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\CliAuthController;
 use App\Http\Controllers\MarkdownDocumentController;
+use App\Http\Controllers\NotificationPreferencesController;
 use App\Http\Controllers\PlanController;
 use App\Http\Controllers\SecretController;
 use App\Http\Middleware\EnsurePlanHasApiAccess;
@@ -78,6 +79,9 @@ Route::middleware([
     Route::get('plans/{plan}/{period}', [PlanController::class, 'subscribe'])->name('plans.subscribe');
     Route::post('plans/cancel', [PlanController::class, 'unsubscribe'])->name('plans.unsubscribe');
     Route::post('plans/resume', [PlanController::class, 'resume'])->name('plans.resume');
+
+    Route::put('/user/notification-preferences', [NotificationPreferencesController::class, 'update'])
+        ->name('user.notification-preferences.update');
 
     Route::get('secrets', [SecretController::class,  'index'])->name('secrets.index');
     Route::delete('secrets/{secret}', [SecretController::class,  'destroy'])->name('secrets.destroy');
