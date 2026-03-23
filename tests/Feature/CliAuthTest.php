@@ -13,13 +13,6 @@ class CliAuthTest extends TestCase
 {
     use RefreshDatabase;
 
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        $this->withoutVite();
-    }
-
     private function createUserWithApiAccess(): User
     {
         $user = User::factory()->withPersonalTeam()->create();
