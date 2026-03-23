@@ -1,10 +1,17 @@
 import { Command } from 'commander';
 import crypto from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { createServer } from 'node:http';
+import { dirname, join } from 'node:path';
 import { createInterface } from 'node:readline';
+import { fileURLToPath } from 'node:url';
 import { encryptMessage } from './crypto.js';
 import { FlashViewClient, ApiError } from './api.js';
 import { getConfig, getConfigInfo, setConfig, clearConfig } from './config.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const pkg = JSON.parse(readFileSync(join(__dirname, '..', 'package.json'), 'utf-8'));
 
 // Allowed expiry values — must match config/secrets.php expiry_options
 // See: config/secrets.php for the server-side list
@@ -108,7 +115,7 @@ const program = new Command();
 program
     .name('flashview')
     .description('FlashView CLI — Create and manage encrypted secrets')
-    .version('1.0.0');
+    .version(pkg.version);
 
 // --- Configure ---
 
