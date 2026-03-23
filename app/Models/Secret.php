@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\Scopes\ActiveScope;
 use App\Notifications\SecretRetrievedNotification;
 use App\Traits\HasHashId;
+use Database\Factories\SecretFactory;
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Attributes\ScopedBy;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -19,7 +20,7 @@ class Secret extends Model
 {
     use ExportsPermissions;
 
-    /** @use HasFactory<\Database\Factories\SecretFactory> */
+    /** @use HasFactory<SecretFactory> */
     use HasFactory;
 
     use HasHashId;
@@ -95,10 +96,10 @@ class Secret extends Model
                     $plan = $user->plan->jsonSerialize();
 
                     /**
-                     * @var \App\Models\User $user
+                     * @var User $user
                      */
                     if (isset($plan['id'])) {
-                        if ($plan['settings']['notification']['notifications']) {
+                        if ($plan['settings']['notification']['notifications'] && $user->notify_secret_retrieved) {
                             $user->notify(new SecretRetrievedNotification($secret));
                         }
                     }
