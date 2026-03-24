@@ -14,7 +14,6 @@ Route::prefix('v1')->as('api.v1.')->group(function () {
     
     Route::middleware(['auth:sanctum', EnsurePlanHasApiAccess::class])->group(function () {
         Route::get('config', ConfigController::class)
-            ->middleware('throttle:60,1')
             ->name('config');
             
         Route::post('secrets', [SecretController::class, 'store'])
