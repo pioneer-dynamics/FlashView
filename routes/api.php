@@ -11,11 +11,12 @@ Route::get('/user', function (Request $request) {
 })->middleware('auth:sanctum');
 
 Route::prefix('v1')->as('api.v1.')->group(function () {
-    Route::get('config', ConfigController::class)
-        ->middleware('throttle:60,1')
-        ->name('config');
-
+    
     Route::middleware(['auth:sanctum', EnsurePlanHasApiAccess::class])->group(function () {
+        Route::get('config', ConfigController::class)
+            ->middleware('throttle:60,1')
+            ->name('config');
+            
         Route::post('secrets', [SecretController::class, 'store'])
             ->middleware('throttle:api-secrets')
             ->name('secrets.store');
