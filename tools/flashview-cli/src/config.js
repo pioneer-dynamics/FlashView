@@ -24,7 +24,7 @@ export function getConfig() {
     const token = config.get('token');
 
     if (!token) {
-        console.error('Not configured. Run: flashview login or flashview configure set --token <token>');
+        console.error('Not configured. Run: flashview login or flashview config set --token <token>');
         process.exit(1);
     }
 

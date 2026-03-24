@@ -56,7 +56,7 @@ function withErrorHandling(fn) {
         } catch (err) {
             if (err instanceof ApiError) {
                 if (err.status === 401) {
-                    console.error('Authentication failed. Run `flashview configure set` to update your token.');
+                    console.error('Authentication failed. Run `flashview config set` to update your token.');
                 } else if (err.status === 403) {
                     console.error(err.message);
                 } else if (err.status === 410) {
@@ -93,13 +93,13 @@ program
     .description('FlashView CLI — Create and manage encrypted secrets')
     .version(pkg.version);
 
-// --- Configure ---
+// --- Config ---
 
-const configure = program
-    .command('configure')
+const configCmd = program
+    .command('config')
     .description('Manage CLI configuration');
 
-configure
+configCmd
     .command('set')
     .description('Set API token and server URL')
     .option('--url <url>', 'FlashView server URL (default: https://flashview.link)')
@@ -109,7 +109,7 @@ configure
         console.log('Configuration saved.');
     });
 
-configure
+configCmd
     .command('show')
     .description('Show current configuration')
     .action(() => {
@@ -119,7 +119,7 @@ configure
         console.log(`Config:     ${path}`);
     });
 
-configure
+configCmd
     .command('clear')
     .description('Clear stored configuration')
     .action(() => {
