@@ -4,7 +4,7 @@ import { execSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parseExpiry, FALLBACK_EXPIRY_OPTIONS, SHORTHAND_MAP } from '../src/cli.js';
+import { parseExpiry, FALLBACK_EXPIRY_OPTIONS, SHORTHAND_MAP } from '../src/expiry.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);

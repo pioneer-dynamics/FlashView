@@ -13,10 +13,10 @@ export class FlashViewClient {
     }
 
     /**
-     * Fetch server configuration (public endpoint).
+     * Fetch server configuration (requires authentication).
      *
      * @param {string} baseUrl
-     * @param {string|null} token - Optional auth token for plan-specific limits
+     * @param {string|null} token - Auth token for API access
      * @returns {Promise<Object>}
      */
     static async fetchConfig(baseUrl, token = null) {

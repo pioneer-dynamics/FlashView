@@ -8,6 +8,9 @@ use App\Http\Resources\ConfigResource;
 
 class ConfigController extends Controller
 {
+    /**
+     * Return the authenticated user's configuration limits.
+     */
     public function __invoke(ConfigRequest $request): ConfigResource
     {
         $user = $request->user();
