@@ -23,11 +23,8 @@ Route::get('/', function () {
     ]);
 })->name('welcome');
 
-Route::controller(SecretController::class)->group(function () {
-    Route::get('secret/{secret}/decrypt', 'decrypt')->name('secret.decrypt');
-    Route::get('secret/{secret}', 'show')->name('secret.show');
-    Route::post('secret', 'store')->middleware('throttle:secrets')->name('secret.store');
-});
+Route::resource('secret', SecretController::class)->only(['store', 'show']);
+Route::get('secret/{secret}/decrypt', [SecretController::class, 'decrypt'])->name('secret.decrypt');
 
 Route::get('plans', [PlanController::class, 'index'])->name('plans.index');
 
