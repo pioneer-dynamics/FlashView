@@ -23,6 +23,7 @@ class SecretController extends Controller implements HasMiddleware
     {
         return [
             new Middleware('signed', only: ['show', 'decrypt']),
+            new Middleware('throttle:secrets', only: ['store']),
         ];
     }
 
