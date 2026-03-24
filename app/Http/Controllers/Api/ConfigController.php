@@ -3,14 +3,14 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
+use App\Http\Requests\Api\ConfigRequest;
+use App\Http\Resources\ConfigResource;
 
 class ConfigController extends Controller
 {
-    public function __invoke(Request $request): JsonResponse
+    public function __invoke(ConfigRequest $request): ConfigResource
     {
-        $response = [
+        $data = [
             'expiry_options' => config('secrets.expiry_options'),
             'expiry_limits' => config('secrets.expiry_limits'),
             'message_length' => config('secrets.message_length'),
@@ -20,13 +20,13 @@ class ConfigController extends Controller
         if ($user?->subscribed()) {
             $plan = $user->resolvePlan();
             if ($plan) {
-                $response['plan_limits'] = [
+                $data['plan_limits'] = [
                     'expiry_minutes' => $plan->features['expiry']['config']['expiry_minutes'] ?? null,
                     'message_length' => $plan->features['messages']['config']['message_length'] ?? null,
                 ];
             }
         }
 
-        return response()->json($response);
+        return new ConfigResource($data);
     }
 }
