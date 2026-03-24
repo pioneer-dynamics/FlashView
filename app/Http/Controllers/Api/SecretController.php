@@ -10,6 +10,7 @@ use App\Http\Requests\BurnSecretRequest;
 use App\Http\Requests\StoreSecretRequest;
 use App\Http\Resources\SecretMessageResource;
 use App\Http\Resources\SecretResource;
+use App\Models\Secret;
 use App\Services\SecretService;
 use Illuminate\Http\JsonResponse;
 
@@ -59,26 +60,19 @@ class SecretController extends Controller
     /**
      * Retrieve a secret's encrypted message (one-time access).
      *
-     * Uses a Form Request instead of route model binding to prevent
-     * the `retrieved` Eloquent event from firing before authorization.
-     * The secret is loaded with withoutEvents in the request, then
-     * consumed here after authorization succeeds.
+     * The Form Request gates on secrets:list token ability before
+     * the model is loaded. Secret::findByHashID triggers the normal
+     * Eloquent retrieved event, which marks the secret as consumed
+     * and notifies the owner. ActiveScope ensures expired or
+     * already-retrieved secrets return 404 automatically.
      */
     public function retrieve(RetrieveSecretRequest $request, string $secret): JsonResponse
     {
-        $secretRecord = $request->getSecretRecord();
-
-        if (! $secretRecord) {
-            abort(404, 'Secret not found.');
-        }
-
-        $message = $secretRecord->message;
-
-        $secretRecord->markSilentlyAsRetrieved();
+        $secretRecord = Secret::findByHashID($secret);
 
         return (new SecretMessageResource([
             'hash_id' => $secretRecord->hash_id,
-            'message' => $message,
+            'message' => $secretRecord->message,
         ]))->response();
     }
 
