@@ -7,11 +7,10 @@ use App\Http\Requests\Api\ListSecretsRequest;
 use App\Http\Requests\Api\ShowSecretMetadataRequest;
 use App\Http\Requests\BurnSecretRequest;
 use App\Http\Requests\StoreSecretRequest;
+use App\Http\Resources\SecretMessageResource;
 use App\Http\Resources\SecretResource;
-use App\Models\Secret;
 use App\Services\SecretService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
 class SecretController extends Controller
 {
@@ -63,7 +62,7 @@ class SecretController extends Controller
      * conditions. The service handles marking as retrieved and
      * notifying the owner.
      */
-    public function retrieve(Request $request, string $secret): JsonResponse
+    public function retrieve(string $secret): JsonResponse
     {
         $result = $this->secretService->retrieveSecret($secret);
 
@@ -71,12 +70,7 @@ class SecretController extends Controller
             abort(404, 'Secret not found.');
         }
 
-        return response()->json([
-            'data' => [
-                'hash_id' => $result['hash_id'],
-                'message' => $result['message'],
-            ],
-        ]);
+        return (new SecretMessageResource($result))->response();
     }
 
     /**
