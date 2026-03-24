@@ -7,6 +7,7 @@ use App\Models\Secret;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
+use ReflectionProperty;
 use Tests\TestCase;
 
 class SecretRetrievalTest extends TestCase
@@ -59,6 +60,18 @@ class SecretRetrievalTest extends TestCase
         $this->user = User::factory()->withPersonalTeam()->create();
     }
 
+    /**
+     * Allow the `retrieved` Eloquent event to fire during HTTP tests.
+     *
+     * The event skips when `App::runningInConsole()` is true, which is
+     * always true during PHPUnit. This override simulates real HTTP
+     * behaviour so the event marks secrets as retrieved.
+     */
+    private function simulateHttpMode(): void
+    {
+        (new ReflectionProperty(app(), 'isRunningInConsole'))->setValue(app(), false);
+    }
+
     private function subscribeUserToPlan(User $user, Plan $plan): void
     {
         $user->subscriptions()->create([
@@ -82,6 +95,7 @@ class SecretRetrievalTest extends TestCase
 
     public function test_can_retrieve_secret_message(): void
     {
+        $this->simulateHttpMode();
         $this->subscribeUserToPlan($this->user, $this->primePlan);
         Sanctum::actingAs($this->user, ['secrets:list']);
 
@@ -104,6 +118,7 @@ class SecretRetrievalTest extends TestCase
 
     public function test_secret_is_marked_as_retrieved_after_access(): void
     {
+        $this->simulateHttpMode();
         $this->subscribeUserToPlan($this->user, $this->primePlan);
         Sanctum::actingAs($this->user, ['secrets:list']);
 
@@ -118,6 +133,7 @@ class SecretRetrievalTest extends TestCase
 
     public function test_subsequent_retrieval_returns_404(): void
     {
+        $this->simulateHttpMode();
         $this->subscribeUserToPlan($this->user, $this->primePlan);
         Sanctum::actingAs($this->user, ['secrets:list']);
 
@@ -176,6 +192,7 @@ class SecretRetrievalTest extends TestCase
 
     public function test_any_authenticated_user_can_retrieve_others_secret(): void
     {
+        $this->simulateHttpMode();
         $otherUser = User::factory()->withPersonalTeam()->create();
         $this->subscribeUserToPlan($otherUser, $this->primePlan);
         Sanctum::actingAs($otherUser, ['secrets:list']);

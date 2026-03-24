@@ -9,6 +9,7 @@ use App\Http\Requests\BurnSecretRequest;
 use App\Http\Requests\StoreSecretRequest;
 use App\Http\Resources\SecretMessageResource;
 use App\Http\Resources\SecretResource;
+use App\Models\Secret;
 use App\Services\SecretService;
 use Illuminate\Http\JsonResponse;
 
@@ -58,19 +59,17 @@ class SecretController extends Controller
     /**
      * Retrieve a secret's encrypted message (one-time access).
      *
-     * Uses SecretService for atomic read-and-mark to prevent race
-     * conditions. The service handles marking as retrieved and
-     * notifying the owner.
+     * Route model binding triggers the `retrieved` Eloquent event,
+     * which marks the secret as consumed and notifies the owner —
+     * matching the web decrypt flow exactly. The ActiveScope ensures
+     * expired or already-retrieved secrets return 404.
      */
-    public function retrieve(string $secret): JsonResponse
+    public function retrieve(Secret $secret): JsonResponse
     {
-        $result = $this->secretService->retrieveSecret($secret);
-
-        if (! $result) {
-            abort(404, 'Secret not found.');
-        }
-
-        return (new SecretMessageResource($result))->response();
+        return (new SecretMessageResource([
+            'hash_id' => $secret->hash_id,
+            'message' => $secret->message,
+        ]))->response();
     }
 
     /**
