@@ -35,7 +35,13 @@ trait HasHashId
 
     public function resolveRouteBinding($value, $field = null)
     {
-        return self::findOrFail(LaravelHashids::connection(self::getHashIdConnection())->decode($value)[0]);
+        $id = static::decodeHashId($value);
+
+        if ($id === null) {
+            abort(404);
+        }
+
+        return self::findOrFail($id);
     }
 
     public function hashId(): Attribute
