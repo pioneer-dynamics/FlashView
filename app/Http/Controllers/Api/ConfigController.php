@@ -16,8 +16,8 @@ class ConfigController extends Controller
             'message_length' => config('secrets.message_length'),
         ];
 
-        $user = $request->user('sanctum');
-        if ($user?->subscribed()) {
+        $user = $request->user();
+        if ($user->subscribed()) {
             $plan = $user->resolvePlan();
             if ($plan) {
                 $data['plan_limits'] = [
