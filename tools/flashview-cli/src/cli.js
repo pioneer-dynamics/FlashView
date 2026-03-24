@@ -86,7 +86,7 @@ function withErrorHandling(fn) {
                 } else if (err.status === 403) {
                     console.error(err.message);
                 } else if (err.status === 410) {
-                    console.error('This secret has expired or has already been viewed.');
+                    console.error('This message has expired or has already been retrieved.');
                 } else if (err.status === 422 && err.errors) {
                     console.error('Validation errors:');
                     for (const [field, messages] of Object.entries(err.errors)) {
@@ -219,10 +219,27 @@ program
         const config = getConfig();
         const client = new FlashViewClient(config.url, config.token);
 
-        const result = await client.retrieveSecret(hashId);
+        let result;
+        try {
+            result = await client.retrieveSecret(hashId);
+        } catch (err) {
+            if (err instanceof ApiError && err.status === 404) {
+                console.error('This message has expired or has already been retrieved.');
+                process.exit(1);
+            }
+            throw err;
+        }
+
         const encryptedMessage = result.data.message;
 
-        const plaintext = decryptMessage(encryptedMessage, options.passphrase);
+        let plaintext;
+        try {
+            plaintext = decryptMessage(encryptedMessage, options.passphrase);
+        } catch {
+            console.error('Decryption failed. The password may be incorrect.');
+            console.error('Warning: The secret has been consumed from the server and cannot be retrieved again.');
+            process.exit(1);
+        }
 
         if (options.json) {
             console.log(JSON.stringify({
