@@ -5,7 +5,6 @@ namespace App\Http\Requests;
 use App\Models\Secret;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
-use Vinkla\Hashids\Facades\Hashids;
 
 class BurnSecretRequest extends FormRequest
 {
@@ -34,8 +33,7 @@ class BurnSecretRequest extends FormRequest
             return $this->secretRecord;
         }
 
-        $decoded = Hashids::connection('Secret')->decode($this->route('secret'));
-        $id = $decoded[0] ?? null;
+        $id = Secret::decodeHashId($this->route('secret'));
 
         if (! $id) {
             return null;

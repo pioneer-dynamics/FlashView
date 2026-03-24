@@ -14,8 +14,6 @@ use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\URL;
 use Inertia\Inertia;
 use Inertia\Response;
-use Vinkla\Hashids\Facades\Hashids;
-
 class SecretController extends Controller implements HasMiddleware
 {
     public function __construct(private SecretService $secretService) {}
@@ -29,7 +27,7 @@ class SecretController extends Controller implements HasMiddleware
 
     public function report(string $secret): void
     {
-        $secret = Secret::withoutEvents(fn () => Secret::withoutGlobalScopes()->find($this->getIdFromHash($secret)));
+        $secret = Secret::withoutEvents(fn () => Secret::withoutGlobalScopes()->find(Secret::decodeHashId($secret)));
 
         // collect details from recipient as proof of spam or abuse.
     }
@@ -89,8 +87,4 @@ class SecretController extends Controller implements HasMiddleware
         $this->secretService->burnSecret($request->getSecretRecord());
     }
 
-    private function getIdFromHash(string $secret): int
-    {
-        return Hashids::connection('Secret')->decode($secret)[0];
-    }
 }

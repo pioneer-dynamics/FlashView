@@ -26,6 +26,13 @@ trait HasHashId
         $this->append('hash_id');
     }
 
+    public static function decodeHashId(string $hashId): ?int
+    {
+        $decoded = LaravelHashids::connection(self::getHashIdConnection())->decode($hashId);
+
+        return $decoded[0] ?? null;
+    }
+
     public function resolveRouteBinding($value, $field = null)
     {
         return self::findOrFail(LaravelHashids::connection(self::getHashIdConnection())->decode($value)[0]);
