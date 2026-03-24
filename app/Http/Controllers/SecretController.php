@@ -14,6 +14,7 @@ use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\URL;
 use Inertia\Inertia;
 use Inertia\Response;
+
 class SecretController extends Controller implements HasMiddleware
 {
     public function __construct(private SecretService $secretService) {}
@@ -86,5 +87,4 @@ class SecretController extends Controller implements HasMiddleware
     {
         $this->secretService->burnSecret($request->getSecretRecord());
     }
-
 }
