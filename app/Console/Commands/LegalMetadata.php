@@ -6,7 +6,6 @@ use App\Models\Scopes\ActiveScope;
 use App\Models\Secret;
 use Illuminate\Console\Command;
 use Illuminate\Contracts\Console\PromptsForMissingInput;
-use Vinkla\Hashids\Facades\Hashids;
 
 class LegalMetadata extends Command implements PromptsForMissingInput
 {
@@ -29,7 +28,8 @@ class LegalMetadata extends Command implements PromptsForMissingInput
      */
     public function handle(): void
     {
-        $secret = rescue(fn () => Secret::withoutGlobalScope(ActiveScope::class)->find(Hashids::connection('Secret')->decode($this->argument('message'))[0]));
+        $id = Secret::decodeHashId($this->argument('message'));
+        $secret = $id ? Secret::withoutGlobalScope(ActiveScope::class)->find($id) : null;
 
         if (! $secret) {
             $this->fail('Message not found.');
