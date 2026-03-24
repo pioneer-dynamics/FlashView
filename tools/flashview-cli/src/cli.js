@@ -561,6 +561,8 @@ program
         }
     });
 
+export { parseExpiry, FALLBACK_EXPIRY_OPTIONS, SHORTHAND_MAP };
+
 export function run() {
     program.parse();
 }

@@ -79,6 +79,15 @@ export function clearCachedServerConfig() {
 }
 
 /**
+ * Override the cache timestamp (for testing purposes).
+ *
+ * @param {number} timestamp
+ */
+export function setServerConfigFetchedAt(timestamp) {
+    config.set('serverConfigFetchedAt', timestamp);
+}
+
+/**
  * Save configuration.
  *
  * @param {{ url: string, token: string }} options
