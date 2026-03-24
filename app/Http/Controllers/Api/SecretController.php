@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\ListSecretsRequest;
+use App\Http\Requests\Api\ShowSecretMetadataRequest;
 use App\Http\Requests\BurnSecretRequest;
 use App\Http\Requests\StoreSecretRequest;
 use App\Http\Resources\SecretResource;
@@ -43,6 +44,14 @@ class SecretController extends Controller
             ->additional(['data' => ['url' => $result['url']]])
             ->response()
             ->setStatusCode(201);
+    }
+
+    /**
+     * Show metadata for a secret.
+     */
+    public function show(ShowSecretMetadataRequest $request, string $secret): JsonResponse
+    {
+        return (new SecretResource($request->getSecretRecord()))->response();
     }
 
     /**

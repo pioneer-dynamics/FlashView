@@ -236,6 +236,33 @@ program
         }
     }));
 
+// --- Status ---
+
+program
+    .command('status <hashId>')
+    .description('Show status of a secret (use hash ID from create output or list)')
+    .option('--json', 'Output as JSON (for scripting)')
+    .action(withErrorHandling(async (hashId, options) => {
+        const config = getConfig();
+        const client = new FlashViewClient(config.url, config.token);
+
+        const result = await client.getSecretStatus(hashId);
+        const secret = result.data;
+
+        if (options.json) {
+            console.log(JSON.stringify(result));
+        } else {
+            const status = secret.is_retrieved ? 'Retrieved' : secret.is_expired ? 'Expired' : 'Active';
+            console.log(`Hash ID:      ${secret.hash_id}`);
+            console.log(`Status:       ${status}`);
+            console.log(`Created:      ${secret.created_at}`);
+            console.log(`Expires:      ${secret.expires_at}`);
+            if (secret.retrieved_at) {
+                console.log(`Retrieved:    ${secret.retrieved_at}`);
+            }
+        }
+    }));
+
 // --- Burn ---
 
 program

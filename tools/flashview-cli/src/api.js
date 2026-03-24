@@ -40,6 +40,16 @@ export class FlashViewClient {
     }
 
     /**
+     * Get status of a secret.
+     *
+     * @param {string} hashId
+     * @returns {Promise<Object>}
+     */
+    async getSecretStatus(hashId) {
+        return this.request('GET', `/api/v1/secrets/${hashId}`);
+    }
+
+    /**
      * Burn (delete) a secret.
      *
      * @param {string} hashId
