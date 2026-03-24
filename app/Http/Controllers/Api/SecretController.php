@@ -8,6 +8,7 @@ use App\Http\Requests\Api\ShowSecretMetadataRequest;
 use App\Http\Requests\BurnSecretRequest;
 use App\Http\Requests\StoreSecretRequest;
 use App\Http\Resources\SecretResource;
+use App\Models\Secret;
 use App\Services\SecretService;
 use Illuminate\Http\JsonResponse;
 
@@ -52,6 +53,24 @@ class SecretController extends Controller
     public function show(ShowSecretMetadataRequest $request, string $secret): JsonResponse
     {
         return (new SecretResource($request->getSecretRecord()))->response();
+    }
+
+    /**
+     * Retrieve a secret's encrypted message (one-time access).
+     *
+     * Route model binding resolves the hash_id and triggers the
+     * `retrieved` Eloquent event, which marks the secret as retrieved
+     * and sends the owner notification — matching the web decrypt flow.
+     * The ActiveScope ensures expired or already-retrieved secrets return 404.
+     */
+    public function retrieve(Secret $secret): JsonResponse
+    {
+        return response()->json([
+            'data' => [
+                'hash_id' => $secret->hash_id,
+                'message' => $secret->message,
+            ],
+        ]);
     }
 
     /**

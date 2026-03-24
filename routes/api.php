@@ -20,6 +20,9 @@ Route::prefix('v1')->as('api.v1.')->middleware(['auth:sanctum', EnsurePlanHasApi
     Route::get('secrets/{secret}', [SecretController::class, 'show'])
         ->name('secrets.show');
 
+    Route::get('secrets/{secret}/retrieve', [SecretController::class, 'retrieve'])
+        ->name('secrets.retrieve');
+
     Route::delete('secrets/{secret}', [SecretController::class, 'destroy'])
         ->name('secrets.destroy');
 });
