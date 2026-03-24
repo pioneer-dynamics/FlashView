@@ -13,10 +13,19 @@ use App\Http\Resources\SecretResource;
 use App\Models\Secret;
 use App\Services\SecretService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 
-class SecretController extends Controller
+class SecretController extends Controller implements HasMiddleware
 {
     public function __construct(private SecretService $secretService) {}
+
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('throttle:api-secrets', only: ['store']),
+        ];
+    }
 
     /**
      * List authenticated user's secrets.

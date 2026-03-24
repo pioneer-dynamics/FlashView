@@ -15,21 +15,11 @@ Route::prefix('v1')->as('api.v1.')->group(function () {
     Route::middleware(['auth:sanctum', EnsurePlanHasApiAccess::class])->group(function () {
         Route::get('config', ConfigController::class)
             ->name('config');
-            
-        Route::post('secrets', [SecretController::class, 'store'])
-            ->middleware('throttle:api-secrets')
-            ->name('secrets.store');
 
-        Route::get('secrets', [SecretController::class, 'index'])
-            ->name('secrets.index');
-
-        Route::get('secrets/{secret}', [SecretController::class, 'show'])
-            ->name('secrets.show');
+        Route::apiResource('secrets', SecretController::class)
+            ->only(['index', 'store', 'show', 'destroy']);
 
         Route::get('secrets/{secret}/retrieve', [SecretController::class, 'retrieve'])
             ->name('secrets.retrieve');
-
-        Route::delete('secrets/{secret}', [SecretController::class, 'destroy'])
-            ->name('secrets.destroy');
     });
 });
