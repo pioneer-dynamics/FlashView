@@ -5,7 +5,7 @@ import { createServer } from 'node:http';
 import { dirname, join } from 'node:path';
 import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
-import { encryptMessage } from './crypto.js';
+import { encryptMessage, decryptMessage } from './crypto.js';
 import { FlashViewClient, ApiError } from './api.js';
 import { getConfig, getConfigInfo, setConfig, clearConfig } from './config.js';
 
@@ -85,6 +85,8 @@ function withErrorHandling(fn) {
                     console.error('Authentication failed. Run `flashview configure set` to update your token.');
                 } else if (err.status === 403) {
                     console.error(err.message);
+                } else if (err.status === 410) {
+                    console.error('This message has expired or has already been retrieved.');
                 } else if (err.status === 422 && err.errors) {
                     console.error('Validation errors:');
                     for (const [field, messages] of Object.entries(err.errors)) {
@@ -201,6 +203,51 @@ program
             console.log(`Hash ID:    ${result.data.hash_id}`);
             console.log(`Expires:    ${result.data.expires_at}`);
             console.log('\nSave the URL and passphrase now — they cannot be retrieved later.');
+            console.log('\nNote: CLI retrieval requires the recipient to have a FlashView account with API access.');
+            console.log('      Share the URL above for recipients without CLI access.');
+        }
+    }));
+
+// --- Get ---
+
+program
+    .command('get <hashId>')
+    .description('Retrieve and decrypt a secret (text secrets only)')
+    .requiredOption('-p, --passphrase <passphrase>', 'Decryption passphrase')
+    .option('--json', 'Output as JSON (for scripting)')
+    .action(withErrorHandling(async (hashId, options) => {
+        const config = getConfig();
+        const client = new FlashViewClient(config.url, config.token);
+
+        let result;
+        try {
+            result = await client.retrieveSecret(hashId);
+        } catch (err) {
+            if (err instanceof ApiError && err.status === 404) {
+                console.error('This message has expired or has already been retrieved.');
+                process.exit(1);
+            }
+            throw err;
+        }
+
+        const encryptedMessage = result.data.message;
+
+        let plaintext;
+        try {
+            plaintext = decryptMessage(encryptedMessage, options.passphrase);
+        } catch {
+            console.error('Decryption failed. The password may be incorrect.');
+            console.error('Warning: The secret has been consumed from the server and cannot be retrieved again.');
+            process.exit(1);
+        }
+
+        if (options.json) {
+            console.log(JSON.stringify({
+                hash_id: result.data.hash_id,
+                message: plaintext,
+            }));
+        } else {
+            process.stdout.write(plaintext);
         }
     }));
 
