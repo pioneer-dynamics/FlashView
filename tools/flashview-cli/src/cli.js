@@ -236,17 +236,17 @@ program
         }
     }));
 
-// --- Metadata ---
+// --- Status ---
 
 program
-    .command('metadata <hashId>')
-    .description('Show metadata for a secret (use hash ID from create output or list)')
+    .command('status <hashId>')
+    .description('Show status of a secret (use hash ID from create output or list)')
     .option('--json', 'Output as JSON (for scripting)')
     .action(withErrorHandling(async (hashId, options) => {
         const config = getConfig();
         const client = new FlashViewClient(config.url, config.token);
 
-        const result = await client.getSecretMetadata(hashId);
+        const result = await client.getSecretStatus(hashId);
         const secret = result.data;
 
         if (options.json) {

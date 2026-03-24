@@ -40,12 +40,12 @@ export class FlashViewClient {
     }
 
     /**
-     * Get metadata for a secret.
+     * Get status of a secret.
      *
      * @param {string} hashId
      * @returns {Promise<Object>}
      */
-    async getSecretMetadata(hashId) {
+    async getSecretStatus(hashId) {
         return this.request('GET', `/api/v1/secrets/${hashId}`);
     }
 
