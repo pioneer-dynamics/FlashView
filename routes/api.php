@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\ConfigController;
 use App\Http\Controllers\Api\SecretController;
 use App\Http\Middleware\EnsurePlanHasApiAccess;
 use Illuminate\Http\Request;
@@ -9,20 +10,27 @@ Route::get('/user', function (Request $request) {
     return $request->user();
 })->middleware('auth:sanctum');
 
-Route::prefix('v1')->as('api.v1.')->middleware(['auth:sanctum', EnsurePlanHasApiAccess::class])->group(function () {
-    Route::post('secrets', [SecretController::class, 'store'])
-        ->middleware('throttle:api-secrets')
-        ->name('secrets.store');
+Route::prefix('v1')->as('api.v1.')->group(function () {
+    
+    Route::middleware(['auth:sanctum', EnsurePlanHasApiAccess::class])->group(function () {
+        Route::get('config', ConfigController::class)
+            ->middleware('throttle:60,1')
+            ->name('config');
+            
+        Route::post('secrets', [SecretController::class, 'store'])
+            ->middleware('throttle:api-secrets')
+            ->name('secrets.store');
 
-    Route::get('secrets', [SecretController::class, 'index'])
-        ->name('secrets.index');
+        Route::get('secrets', [SecretController::class, 'index'])
+            ->name('secrets.index');
 
-    Route::get('secrets/{secret}', [SecretController::class, 'show'])
-        ->name('secrets.show');
+        Route::get('secrets/{secret}', [SecretController::class, 'show'])
+            ->name('secrets.show');
 
-    Route::get('secrets/{secret}/retrieve', [SecretController::class, 'retrieve'])
-        ->name('secrets.retrieve');
+        Route::get('secrets/{secret}/retrieve', [SecretController::class, 'retrieve'])
+            ->name('secrets.retrieve');
 
-    Route::delete('secrets/{secret}', [SecretController::class, 'destroy'])
-        ->name('secrets.destroy');
+        Route::delete('secrets/{secret}', [SecretController::class, 'destroy'])
+            ->name('secrets.destroy');
+    });
 });

@@ -8,37 +8,11 @@ import { fileURLToPath } from 'node:url';
 import { encryptMessage, decryptMessage } from './crypto.js';
 import { FlashViewClient, ApiError } from './api.js';
 import { getConfig, getConfigInfo, setConfig, clearConfig } from './config.js';
+import { parseExpiry, getServerConfig, FALLBACK_EXPIRY_OPTIONS } from './expiry.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const pkg = JSON.parse(readFileSync(join(__dirname, '..', 'package.json'), 'utf-8'));
-
-// Allowed expiry values — must match config/secrets.php expiry_options
-// See: config/secrets.php for the server-side list
-const EXPIRY_LABELS = {
-    '5m': 5, '30m': 30, '1h': 60, '4h': 240, '12h': 720,
-    '1d': 1440, '3d': 4320, '7d': 10080, '14d': 20160, '30d': 43200,
-};
-const ALLOWED_EXPIRY_OPTIONS = Object.values(EXPIRY_LABELS);
-
-/**
- * Parse an expiry value from human-readable label or raw minutes.
- *
- * @param {string} value
- * @returns {number|null}
- */
-function parseExpiry(value) {
-    if (EXPIRY_LABELS[value.toLowerCase()]) {
-        return EXPIRY_LABELS[value.toLowerCase()];
-    }
-
-    const minutes = parseInt(value, 10);
-    if (!isNaN(minutes) && ALLOWED_EXPIRY_OPTIONS.includes(minutes)) {
-        return minutes;
-    }
-
-    return null;
-}
 
 /**
  * Read all data from stdin.
@@ -167,11 +141,16 @@ program
         const config = getConfig();
         const client = new FlashViewClient(config.url, config.token);
 
-        const expiresIn = parseExpiry(options.expiresIn);
+        const serverConfig = await getServerConfig();
+        const expiryOptions = serverConfig?.expiry_options ?? FALLBACK_EXPIRY_OPTIONS;
+        const allowedValues = expiryOptions.map(o => o.value);
+
+        const expiresIn = parseExpiry(options.expiresIn, allowedValues);
         if (!expiresIn) {
-            const labels = Object.keys(EXPIRY_LABELS).join(', ');
+            const labels = expiryOptions.map(o => o.label).join(', ');
             console.error(`Invalid expiry value: ${options.expiresIn}`);
             console.error(`Allowed values: ${labels}`);
+            console.error('You can also specify a value in minutes directly (e.g., --expires-in 120).');
             process.exit(1);
         }
 
