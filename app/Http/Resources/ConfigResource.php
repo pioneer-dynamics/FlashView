@@ -21,16 +21,10 @@ class ConfigResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        $data = [
+        return [
             'expiry_options' => $this->resource['expiry_options'],
-            'expiry_limits' => $this->resource['expiry_limits'],
-            'message_length' => $this->resource['message_length'],
+            'max_expiry' => $this->resource['max_expiry'],
+            'max_message_length' => $this->resource['max_message_length'],
         ];
-
-        if (isset($this->resource['plan_limits'])) {
-            $data['plan_limits'] = $this->resource['plan_limits'];
-        }
-
-        return $data;
     }
 }

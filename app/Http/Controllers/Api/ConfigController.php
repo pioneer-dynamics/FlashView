@@ -10,23 +10,26 @@ class ConfigController extends Controller
 {
     public function __invoke(ConfigRequest $request): ConfigResource
     {
-        $data = [
-            'expiry_options' => config('secrets.expiry_options'),
-            'expiry_limits' => config('secrets.expiry_limits'),
-            'message_length' => config('secrets.message_length'),
-        ];
-
         $user = $request->user();
-        if ($user->subscribed()) {
-            $plan = $user->resolvePlan();
-            if ($plan) {
-                $data['plan_limits'] = [
-                    'expiry_minutes' => $plan->features['expiry']['config']['expiry_minutes'] ?? null,
-                    'message_length' => $plan->features['messages']['config']['message_length'] ?? null,
-                ];
-            }
-        }
+        $plan = $user->resolvePlan();
 
-        return new ConfigResource($data);
+        $maxExpiry = $plan
+            ? ($plan->features['expiry']['config']['expiry_minutes'] ?? config('secrets.expiry_limits.user'))
+            : config('secrets.expiry_limits.user');
+
+        $maxMessageLength = $plan
+            ? ($plan->features['messages']['config']['message_length'] ?? config('secrets.message_length.user'))
+            : config('secrets.message_length.user');
+
+        $expiryOptions = array_values(array_filter(
+            config('secrets.expiry_options'),
+            fn (array $option) => $option['value'] <= $maxExpiry,
+        ));
+
+        return new ConfigResource([
+            'expiry_options' => $expiryOptions,
+            'max_expiry' => $maxExpiry,
+            'max_message_length' => $maxMessageLength,
+        ]);
     }
 }
