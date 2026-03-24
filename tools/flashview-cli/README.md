@@ -25,26 +25,26 @@ This opens your browser, lets you authenticate with your existing credentials (i
 Alternatively, you can manually create a token from your [API Tokens](https://flashview.link/user/api-tokens) page and configure the CLI directly:
 
 ```
-flashview configure set --token your-api-token
+flashview config set --token your-api-token
 ```
 
 The default server URL is `https://flashview.link`. To use a self-hosted instance, pass `--url`:
 
 ```
 flashview login --url https://your-server.com
-flashview configure set --token your-api-token --url https://your-server.com
+flashview config set --token your-api-token --url https://your-server.com
 ```
 
 ### View current configuration
 
 ```bash
-flashview configure show
+flashview config show
 ```
 
 ### Clear stored configuration
 
 ```bash
-flashview configure clear
+flashview config clear
 ```
 
 ## Usage
