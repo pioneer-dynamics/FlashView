@@ -50,6 +50,16 @@ export class FlashViewClient {
     }
 
     /**
+     * Retrieve a secret's encrypted message (one-time access).
+     *
+     * @param {string} hashId
+     * @returns {Promise<Object>}
+     */
+    async retrieveSecret(hashId) {
+        return this.request('GET', `/api/v1/secrets/${hashId}/retrieve`);
+    }
+
+    /**
      * Burn (delete) a secret.
      *
      * @param {string} hashId
