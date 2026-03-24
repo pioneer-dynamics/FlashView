@@ -7,8 +7,12 @@ const config = new Conf({
     schema: {
         url: { type: 'string' },
         token: { type: 'string' },
+        serverConfig: { type: 'object' },
+        serverConfigFetchedAt: { type: 'number' },
     },
 });
+
+const CONFIG_CACHE_TTL = 60 * 60 * 1000; // 1 hour in milliseconds
 
 /**
  * Get the stored configuration, exiting if not configured.
@@ -41,6 +45,40 @@ export function getConfigInfo() {
 }
 
 /**
+ * Get cached server configuration if still valid.
+ *
+ * @returns {Object|null}
+ */
+export function getCachedServerConfig() {
+    const fetchedAt = config.get('serverConfigFetchedAt');
+    const cached = config.get('serverConfig');
+
+    if (cached && fetchedAt && (Date.now() - fetchedAt) < CONFIG_CACHE_TTL) {
+        return cached;
+    }
+
+    return null;
+}
+
+/**
+ * Store server configuration in cache.
+ *
+ * @param {Object} serverConfig
+ */
+export function setCachedServerConfig(serverConfig) {
+    config.set('serverConfig', serverConfig);
+    config.set('serverConfigFetchedAt', Date.now());
+}
+
+/**
+ * Clear cached server configuration.
+ */
+export function clearCachedServerConfig() {
+    config.delete('serverConfig');
+    config.delete('serverConfigFetchedAt');
+}
+
+/**
  * Save configuration.
  *
  * @param {{ url: string, token: string }} options
@@ -48,6 +86,7 @@ export function getConfigInfo() {
 export function setConfig({ url, token }) {
     if (url) config.set('url', url);
     if (token) config.set('token', token);
+    clearCachedServerConfig();
 }
 
 /**
