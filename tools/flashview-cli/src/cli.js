@@ -191,7 +191,7 @@ program
 // --- Get ---
 
 program
-    .command('get <hashId>')
+    .command('get <messageId>')
     .description('Retrieve and decrypt a secret (text secrets only)')
     .requiredOption('-p, --passphrase <passphrase>', 'Decryption passphrase')
     .option('--json', 'Output as JSON (for scripting)')
@@ -267,7 +267,7 @@ program
 // --- Status ---
 
 program
-    .command('status <hashId>')
+    .command('status <messageId>')
     .description('Show status of a secret (use message ID from create output or list)')
     .option('--json', 'Output as JSON (for scripting)')
     .action(withErrorHandling(async (hashId, options) => {
@@ -294,7 +294,7 @@ program
 // --- Burn ---
 
 program
-    .command('burn <hashId>')
+    .command('burn <messageId>')
     .description('Burn (delete) a secret')
     .option('--json', 'Output as JSON (for scripting)')
     .option('-y, --yes', 'Skip confirmation prompt')
