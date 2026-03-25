@@ -13,15 +13,15 @@ import TextInput from '@/Components/TextInput.vue';
 import ConfirmationModal from '@/Components/ConfirmationModal.vue';
 
 const page = usePage();
-const user = computed(() => page.props.auth.user);
 const hasApiAccess = computed(() => page.props.auth?.hasApiAccess ?? false);
+const webhook = computed(() => page.props.auth?.webhook);
 
 const showSecret = ref(false);
 const confirmingSecretRegeneration = ref(false);
 const secretCopied = ref(false);
 
 const form = useForm({
-    webhook_url: user.value.webhook_url ?? '',
+    webhook_url: webhook.value?.webhook_url ?? '',
 });
 
 const updateWebhookSettings = () => {
@@ -31,8 +31,8 @@ const updateWebhookSettings = () => {
 };
 
 const copySecret = () => {
-    if (user.value.webhook_secret) {
-        navigator.clipboard.writeText(user.value.webhook_secret);
+    if (webhook.value?.webhook_secret) {
+        navigator.clipboard.writeText(webhook.value.webhook_secret);
         secretCopied.value = true;
         setTimeout(() => { secretCopied.value = false; }, 2000);
     }
@@ -75,11 +75,11 @@ const regenerateSecret = () => {
                 </p>
             </div>
 
-            <div v-if="user.webhook_secret" class="col-span-6">
+            <div v-if="webhook?.webhook_secret" class="col-span-6">
                 <InputLabel value="Webhook Secret" />
                 <div class="mt-1 flex items-center gap-3">
                     <code class="flex-1 rounded-md border border-gray-300 bg-gray-50 px-3 py-2 font-mono text-sm text-gray-800 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200">
-                        {{ showSecret ? user.webhook_secret : '••••••••••••••••••••••••••••••••' }}
+                        {{ showSecret ? webhook.webhook_secret : '••••••••••••••••••••••••••••••••' }}
                     </code>
                     <SecondaryButton type="button" @click="showSecret = !showSecret">
                         {{ showSecret ? 'Hide' : 'Show' }}

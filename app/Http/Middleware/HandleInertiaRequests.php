@@ -36,34 +36,20 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
-        // Inertia::share('auth.hasApiAccess', fn () => $request->user()?->hasApiAccess() ?? false);
+        Inertia::share('auth.hasApiAccess', fn () => $request->user()?->hasApiAccess() ?? false);
+        Inertia::share('auth.webhook', function () use ($request) {
+            $user = $request->user();
 
-        // if ($request->user()) {
-        //     Inertia::share('auth.user.webhook_url', fn () => $request->user()->webhook_url);
-        //     Inertia::share('auth.user.webhook_secret', function () use ($request) {
-        //         if (! $request->routeIs('profile.show')) {
-        //             return null;
-        //         }
+            if (! $user) {
+                return null;
+            }
 
-        //         return $request->user()->webhook_secret;
-        //     });
-        // }
+            return [
+                'webhook_url' => $user->webhook_url,
+                'webhook_secret' => $request->routeIs('profile.show') ? $user->webhook_secret : null,
+            ];
+        });
 
-        // return parent::share($request);
-
-        $authedShare = $request->user() 
-            ? [
-                'auth' => [
-                    'hasApiAccess' => fn () => $request->user()?->hasApiAccess() ?? false,
-                    'user' => [
-                        'webhook_url' => fn() => $request->user()->webhook_url,
-                        'webhook_secret' => fn() => $request->routeIs('profile.show') ? $request->user()?->webhook_secret : null,
-                    ]
-                ]
-            ]
-            : [];
-
-
-        return array_merge(parent::share($request), $authedShare);
+        return parent::share($request);
     }
 }
