@@ -191,4 +191,53 @@ class WebhookSettingsTest extends TestCase
 
         $response->assertStatus(422);
     }
+
+    public function test_webhook_cleared_when_subscription_cancelled(): void
+    {
+        $this->subscribeUserToPlan($this->user, $this->primePlan);
+        $this->user->updateQuietly([
+            'webhook_url' => 'https://example.com/webhook',
+            'webhook_secret' => bin2hex(random_bytes(32)),
+        ]);
+
+        $subscription = $this->user->subscriptions()->first();
+        $subscription->update([
+            'stripe_status' => 'canceled',
+            'ends_at' => now(),
+        ]);
+
+        $this->user->refresh();
+        $this->assertNull($this->user->webhook_url);
+        $this->assertNull($this->user->webhook_secret);
+    }
+
+    public function test_webhook_cleared_when_plan_downgraded_to_non_api(): void
+    {
+        $this->subscribeUserToPlan($this->user, $this->primePlan);
+        $this->user->updateQuietly([
+            'webhook_url' => 'https://example.com/webhook',
+            'webhook_secret' => bin2hex(random_bytes(32)),
+        ]);
+
+        $basicPlan = Plan::factory()->create([
+            'name' => 'Basic',
+            'stripe_monthly_price_id' => 'price_monthly_basic_downgrade',
+            'stripe_yearly_price_id' => 'price_yearly_basic_downgrade',
+            'stripe_product_id' => 'prod_basic_downgrade',
+            'price_per_month' => 25,
+            'price_per_year' => 250,
+            'features' => [
+                'api' => ['order' => 6, 'label' => 'API', 'config' => [], 'type' => 'missing'],
+            ],
+        ]);
+
+        $subscription = $this->user->subscriptions()->first();
+        $subscription->update([
+            'stripe_price' => $basicPlan->stripe_monthly_price_id,
+        ]);
+
+        $this->user->refresh();
+        $this->assertNull($this->user->webhook_url);
+        $this->assertNull($this->user->webhook_secret);
+    }
 }
