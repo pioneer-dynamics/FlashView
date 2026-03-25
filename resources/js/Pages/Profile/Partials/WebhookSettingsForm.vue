@@ -19,6 +19,7 @@ const webhook = computed(() => page.props.auth?.webhook);
 
 const revealedSecret = ref(null);
 const confirmingSecretRegeneration = ref(false);
+const regenerating = ref(false);
 const secretCopied = ref(false);
 
 const form = useForm({
@@ -56,11 +57,16 @@ const copySecret = () => {
 };
 
 const regenerateSecret = () => {
+    regenerating.value = true;
+
     router.post(route('user.webhook-settings.regenerate-secret'), {}, {
         preserveScroll: true,
         onSuccess: () => {
             confirmingSecretRegeneration.value = false;
             revealedSecret.value = page.props.jetstream.flash.webhookSecret;
+        },
+        onFinish: () => {
+            regenerating.value = false;
         },
     });
 };
@@ -99,7 +105,7 @@ const regenerateSecret = () => {
                         {{ revealedSecret ?? '••••••••••••••••••••••••••••••••' }}
                     </code>
                     <ConfirmsPasswordOrPasskey v-if="!revealedSecret" @confirmed="revealSecret">
-                        <SecondaryButton type="button">
+                        <SecondaryButton type="button" :class="{ 'opacity-25': regenerating }" :disabled="regenerating">
                             Show
                         </SecondaryButton>
                     </ConfirmsPasswordOrPasskey>
@@ -120,7 +126,7 @@ const regenerateSecret = () => {
                 </p>
 
                 <div class="mt-4">
-                    <DangerButton type="button" @click="confirmingSecretRegeneration = true">
+                    <DangerButton type="button" :class="{ 'opacity-25': regenerating }" :disabled="regenerating" @click="confirmingSecretRegeneration = true">
                         Regenerate Secret
                     </DangerButton>
                 </div>
