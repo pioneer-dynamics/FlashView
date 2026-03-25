@@ -46,7 +46,6 @@ class HandleInertiaRequests extends Middleware
 
             return [
                 'webhook_url' => $user->webhook_url,
-                'webhook_secret' => $request->routeIs('profile.show') ? $user->webhook_secret : null,
             ];
         });
 

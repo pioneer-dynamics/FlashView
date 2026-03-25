@@ -17,7 +17,7 @@ const page = usePage();
 const hasApiAccess = computed(() => page.props.auth?.hasApiAccess ?? false);
 const webhook = computed(() => page.props.auth?.webhook);
 
-const showSecret = ref(false);
+const revealedSecret = ref(null);
 const confirmingSecretRegeneration = ref(false);
 const secretCopied = ref(false);
 
@@ -28,16 +28,28 @@ const form = useForm({
 const updateWebhookSettings = () => {
     form.put(route('user.webhook-settings.update'), {
         preserveScroll: true,
+        onSuccess: () => {
+            revealedSecret.value = null;
+        },
     });
 };
 
 const revealSecret = () => {
-    showSecret.value = true;
+    router.post(route('user.webhook-settings.reveal-secret'), {}, {
+        preserveScroll: true,
+        onSuccess: () => {
+            revealedSecret.value = page.props.jetstream.flash.webhookSecret;
+        },
+    });
+};
+
+const hideSecret = () => {
+    revealedSecret.value = null;
 };
 
 const copySecret = () => {
-    if (webhook.value?.webhook_secret) {
-        navigator.clipboard.writeText(webhook.value.webhook_secret);
+    if (revealedSecret.value) {
+        navigator.clipboard.writeText(revealedSecret.value);
         secretCopied.value = true;
         setTimeout(() => { secretCopied.value = false; }, 2000);
     }
@@ -48,7 +60,7 @@ const regenerateSecret = () => {
         preserveScroll: true,
         onSuccess: () => {
             confirmingSecretRegeneration.value = false;
-            showSecret.value = true;
+            revealedSecret.value = page.props.jetstream.flash.webhookSecret;
         },
     });
 };
@@ -80,25 +92,28 @@ const regenerateSecret = () => {
                 </p>
             </div>
 
-            <div v-if="webhook?.webhook_secret" class="col-span-6">
+            <div v-if="webhook?.webhook_url" class="col-span-6">
                 <InputLabel value="Webhook Secret" />
                 <div class="mt-1 flex items-center gap-3">
                     <code class="flex-1 rounded-md border border-gray-300 bg-gray-50 px-3 py-2 font-mono text-sm text-gray-800 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200">
-                        {{ showSecret ? webhook.webhook_secret : '••••••••••••••••••••••••••••••••' }}
+                        {{ revealedSecret ?? '••••••••••••••••••••••••••••••••' }}
                     </code>
-                    <ConfirmsPasswordOrPasskey v-if="!showSecret" @confirmed="revealSecret">
+                    <ConfirmsPasswordOrPasskey v-if="!revealedSecret" @confirmed="revealSecret">
                         <SecondaryButton type="button">
                             Show
                         </SecondaryButton>
                     </ConfirmsPasswordOrPasskey>
-                    <SecondaryButton v-else type="button" @click="showSecret = false">
+                    <SecondaryButton v-else type="button" @click="hideSecret">
                         Hide
                     </SecondaryButton>
-                    <ConfirmsPasswordOrPasskey @confirmed="copySecret">
+                    <ConfirmsPasswordOrPasskey v-if="!revealedSecret" @confirmed="revealSecret">
                         <SecondaryButton type="button">
-                            {{ secretCopied ? 'Copied!' : 'Copy' }}
+                            Copy
                         </SecondaryButton>
                     </ConfirmsPasswordOrPasskey>
+                    <SecondaryButton v-else type="button" @click="copySecret">
+                        {{ secretCopied ? 'Copied!' : 'Copy' }}
+                    </SecondaryButton>
                 </div>
                 <p class="mt-2 text-xs text-gray-500 dark:text-gray-500">
                     Use this secret to verify webhook signatures via the <code class="text-xs">X-Signature-256</code> header.

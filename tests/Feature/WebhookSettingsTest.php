@@ -173,7 +173,8 @@ class WebhookSettingsTest extends TestCase
         ]);
         $this->actingAs($this->user);
 
-        $response = $this->post('/user/webhook-settings/regenerate-secret');
+        $response = $this->withSession(['auth.password_confirmed_at' => time()])
+            ->post('/user/webhook-settings/regenerate-secret');
 
         $response->assertRedirect();
 
@@ -182,12 +183,75 @@ class WebhookSettingsTest extends TestCase
         $this->assertEquals(64, strlen($this->user->webhook_secret));
     }
 
+    public function test_regenerate_secret_returns_secret_via_flash(): void
+    {
+        $this->subscribeUserToPlan($this->user, $this->primePlan);
+        $this->user->updateQuietly([
+            'webhook_url' => 'https://example.com/webhook',
+            'webhook_secret' => bin2hex(random_bytes(32)),
+        ]);
+        $this->actingAs($this->user);
+
+        $response = $this->withSession(['auth.password_confirmed_at' => time()])
+            ->post('/user/webhook-settings/regenerate-secret');
+
+        $response->assertSessionHas('flash.webhookSecret');
+    }
+
+    public function test_reveal_secret_returns_secret_via_flash(): void
+    {
+        $this->subscribeUserToPlan($this->user, $this->primePlan);
+        $secret = bin2hex(random_bytes(32));
+        $this->user->updateQuietly([
+            'webhook_url' => 'https://example.com/webhook',
+            'webhook_secret' => $secret,
+        ]);
+        $this->actingAs($this->user);
+
+        $response = $this->withSession(['auth.password_confirmed_at' => time()])
+            ->post('/user/webhook-settings/reveal-secret');
+
+        $response->assertSessionHas('flash.webhookSecret', $secret);
+    }
+
+    public function test_reveal_secret_requires_password_confirmation(): void
+    {
+        $this->subscribeUserToPlan($this->user, $this->primePlan);
+        $this->user->updateQuietly([
+            'webhook_url' => 'https://example.com/webhook',
+            'webhook_secret' => bin2hex(random_bytes(32)),
+        ]);
+        $this->actingAs($this->user);
+
+        $response = $this->post('/user/webhook-settings/reveal-secret');
+
+        $response->assertRedirect();
+        $response->assertSessionMissing('flash.webhookSecret');
+    }
+
+    public function test_regenerate_secret_requires_password_confirmation(): void
+    {
+        $this->subscribeUserToPlan($this->user, $this->primePlan);
+        $oldSecret = bin2hex(random_bytes(32));
+        $this->user->updateQuietly([
+            'webhook_url' => 'https://example.com/webhook',
+            'webhook_secret' => $oldSecret,
+        ]);
+        $this->actingAs($this->user);
+
+        $response = $this->post('/user/webhook-settings/regenerate-secret');
+
+        $response->assertRedirect();
+        $this->assertEquals($oldSecret, $this->user->fresh()->webhook_secret);
+    }
+
     public function test_cannot_regenerate_secret_without_webhook_configured(): void
     {
         $this->subscribeUserToPlan($this->user, $this->primePlan);
         $this->actingAs($this->user);
 
-        $response = $this->post('/user/webhook-settings/regenerate-secret');
+        $response = $this->withSession(['auth.password_confirmed_at' => time()])
+            ->post('/user/webhook-settings/regenerate-secret');
 
         $response->assertStatus(422);
     }

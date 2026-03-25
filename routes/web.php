@@ -92,7 +92,11 @@ Route::middleware([
 
         Route::put('/user/webhook-settings', [WebhookSettingsController::class, 'update'])
             ->name('user.webhook-settings.update');
+        Route::post('/user/webhook-settings/reveal-secret', [WebhookSettingsController::class, 'revealSecret'])
+            ->middleware('password.confirm')
+            ->name('user.webhook-settings.reveal-secret');
         Route::post('/user/webhook-settings/regenerate-secret', [WebhookSettingsController::class, 'regenerateSecret'])
+            ->middleware('password.confirm')
             ->name('user.webhook-settings.regenerate-secret');
     });
 

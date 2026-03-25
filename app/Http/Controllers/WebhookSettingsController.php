@@ -26,6 +26,18 @@ class WebhookSettingsController extends Controller
         return back();
     }
 
+    public function revealSecret(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+
+        abort_unless($user->planSupportsWebhook(), 403);
+        abort_unless($user->hasWebhookConfigured(), 422);
+
+        return back()->with('flash', [
+            'webhookSecret' => $user->webhook_secret,
+        ]);
+    }
+
     public function regenerateSecret(Request $request): RedirectResponse
     {
         $user = $request->user();
@@ -37,6 +49,8 @@ class WebhookSettingsController extends Controller
             'webhook_secret' => bin2hex(random_bytes(32)),
         ]);
 
-        return back();
+        return back()->with('flash', [
+            'webhookSecret' => $user->fresh()->webhook_secret,
+        ]);
     }
 }
