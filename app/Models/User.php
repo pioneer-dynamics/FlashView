@@ -124,6 +124,20 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
         return $plan && ($plan->features['notification']['config']['email'] ?? false);
     }
 
+    /**
+     * Check if the user's plan supports webhook notifications.
+     */
+    public function planSupportsWebhook(): bool
+    {
+        if (! $this->subscribed()) {
+            return false;
+        }
+
+        $plan = $this->resolvePlan();
+
+        return $plan && ($plan->features['notification']['config']['webhook'] ?? false);
+    }
+
     public function getPlanAttribute(): PlanResource
     {
         return new PlanResource($this->resolvePlan());

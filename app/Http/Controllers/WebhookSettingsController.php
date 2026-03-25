@@ -30,6 +30,7 @@ class WebhookSettingsController extends Controller
     {
         $user = $request->user();
 
+        abort_unless($user->planSupportsWebhook(), 403);
         abort_unless($user->hasWebhookConfigured(), 422);
 
         $user->updateQuietly([

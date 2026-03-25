@@ -11,59 +11,13 @@ class NotificationPreferencesTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_guest_cannot_update_notification_preferences(): void
+    private Plan $basicPlan;
+
+    protected function setUp(): void
     {
-        $response = $this->put('/user/notification-preferences', [
-            'notify_secret_retrieved' => true,
-        ]);
+        parent::setUp();
 
-        $response->assertRedirect('/login');
-    }
-
-    public function test_user_can_enable_secret_retrieved_notification(): void
-    {
-        $user = User::factory()->create();
-
-        $this->actingAs($user);
-
-        $response = $this->put('/user/notification-preferences', [
-            'notify_secret_retrieved' => true,
-        ]);
-
-        $response->assertSessionHasNoErrors();
-        $this->assertTrue($user->fresh()->notify_secret_retrieved);
-    }
-
-    public function test_user_can_disable_secret_retrieved_notification(): void
-    {
-        $user = User::factory()->withSecretRetrievedNotifications()->create();
-
-        $this->actingAs($user);
-
-        $response = $this->put('/user/notification-preferences', [
-            'notify_secret_retrieved' => false,
-        ]);
-
-        $response->assertSessionHasNoErrors();
-        $this->assertFalse($user->fresh()->notify_secret_retrieved);
-    }
-
-    public function test_validation_requires_boolean(): void
-    {
-        $user = User::factory()->create();
-
-        $this->actingAs($user);
-
-        $response = $this->put('/user/notification-preferences', [
-            'notify_secret_retrieved' => 'not-a-boolean',
-        ]);
-
-        $response->assertSessionHasErrors('notify_secret_retrieved');
-    }
-
-    public function test_notification_preference_cleared_when_plan_downgraded(): void
-    {
-        $basicPlan = Plan::factory()->create([
+        $this->basicPlan = Plan::factory()->create([
             'name' => 'Basic',
             'stripe_monthly_price_id' => 'price_monthly_basic',
             'stripe_yearly_price_id' => 'price_yearly_basic',
@@ -79,23 +33,111 @@ class NotificationPreferencesTest extends TestCase
                 ],
             ],
         ]);
+    }
 
-        $user = User::factory()->withSecretRetrievedNotifications()->create();
+    private function subscribeUserToPlan(User $user, Plan $plan): void
+    {
         $user->subscriptions()->create([
             'type' => 'default',
-            'stripe_id' => 'sub_test_'.$user->id,
+            'stripe_id' => 'sub_'.fake()->unique()->word(),
             'stripe_status' => 'active',
-            'stripe_price' => $basicPlan->stripe_monthly_price_id,
+            'stripe_price' => $plan->stripe_monthly_price_id,
             'quantity' => 1,
         ]);
+    }
 
+    public function test_guest_cannot_update_notification_preferences(): void
+    {
+        $response = $this->put('/user/notification-preferences', [
+            'notify_secret_retrieved' => true,
+        ]);
+
+        $response->assertRedirect('/login');
+    }
+
+    public function test_user_can_enable_secret_retrieved_notification(): void
+    {
+        $user = User::factory()->create();
+        $this->subscribeUserToPlan($user, $this->basicPlan);
+        $this->actingAs($user);
+
+        $response = $this->put('/user/notification-preferences', [
+            'notify_secret_retrieved' => true,
+        ]);
+
+        $response->assertSessionHasNoErrors();
         $this->assertTrue($user->fresh()->notify_secret_retrieved);
+    }
 
+    public function test_user_can_disable_secret_retrieved_notification(): void
+    {
+        $user = User::factory()->withSecretRetrievedNotifications()->create();
+        $this->subscribeUserToPlan($user, $this->basicPlan);
+        $this->actingAs($user);
+
+        $response = $this->put('/user/notification-preferences', [
+            'notify_secret_retrieved' => false,
+        ]);
+
+        $response->assertSessionHasNoErrors();
+        $this->assertFalse($user->fresh()->notify_secret_retrieved);
+    }
+
+    public function test_validation_requires_boolean(): void
+    {
+        $user = User::factory()->create();
+        $this->subscribeUserToPlan($user, $this->basicPlan);
+        $this->actingAs($user);
+
+        $response = $this->put('/user/notification-preferences', [
+            'notify_secret_retrieved' => 'not-a-boolean',
+        ]);
+
+        $response->assertSessionHasErrors('notify_secret_retrieved');
+    }
+
+    public function test_user_without_email_plan_cannot_update_notification_preferences(): void
+    {
         $freePlan = Plan::factory()->create([
             'name' => 'Free',
             'stripe_monthly_price_id' => 'price_monthly_free',
             'stripe_yearly_price_id' => 'price_yearly_free',
             'stripe_product_id' => 'prod_free',
+            'price_per_month' => 0,
+            'price_per_year' => 0,
+            'features' => [
+                'notification' => [
+                    'order' => 4.5,
+                    'label' => 'Notifications',
+                    'config' => ['email' => false, 'webhook' => false],
+                    'type' => 'missing',
+                ],
+            ],
+        ]);
+
+        $user = User::factory()->create();
+        $this->subscribeUserToPlan($user, $freePlan);
+        $this->actingAs($user);
+
+        $response = $this->put('/user/notification-preferences', [
+            'notify_secret_retrieved' => true,
+        ]);
+
+        $response->assertStatus(403);
+    }
+
+    public function test_notification_preference_cleared_when_plan_downgraded(): void
+    {
+        $user = User::factory()->withSecretRetrievedNotifications()->create();
+        $this->subscribeUserToPlan($user, $this->basicPlan);
+
+        $this->assertTrue($user->fresh()->notify_secret_retrieved);
+
+        $freePlan = Plan::factory()->create([
+            'name' => 'Free Downgrade',
+            'stripe_monthly_price_id' => 'price_monthly_free_downgrade',
+            'stripe_yearly_price_id' => 'price_yearly_free_downgrade',
+            'stripe_product_id' => 'prod_free_downgrade',
             'price_per_month' => 0,
             'price_per_year' => 0,
             'features' => [
@@ -118,31 +160,8 @@ class NotificationPreferencesTest extends TestCase
 
     public function test_notification_preference_cleared_when_subscription_cancelled(): void
     {
-        $basicPlan = Plan::factory()->create([
-            'name' => 'Basic',
-            'stripe_monthly_price_id' => 'price_monthly_basic_cancel',
-            'stripe_yearly_price_id' => 'price_yearly_basic_cancel',
-            'stripe_product_id' => 'prod_basic_cancel',
-            'price_per_month' => 25,
-            'price_per_year' => 250,
-            'features' => [
-                'notification' => [
-                    'order' => 4.5,
-                    'label' => 'Notifications',
-                    'config' => ['email' => true, 'webhook' => false],
-                    'type' => 'feature',
-                ],
-            ],
-        ]);
-
         $user = User::factory()->withSecretRetrievedNotifications()->create();
-        $user->subscriptions()->create([
-            'type' => 'default',
-            'stripe_id' => 'sub_test_cancel_'.$user->id,
-            'stripe_status' => 'active',
-            'stripe_price' => $basicPlan->stripe_monthly_price_id,
-            'quantity' => 1,
-        ]);
+        $this->subscribeUserToPlan($user, $this->basicPlan);
 
         $this->assertTrue($user->fresh()->notify_secret_retrieved);
 

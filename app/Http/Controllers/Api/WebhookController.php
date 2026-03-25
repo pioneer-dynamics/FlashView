@@ -12,6 +12,8 @@ class WebhookController extends Controller
 {
     public function show(Request $request): WebhookResource
     {
+        abort_unless($request->user()->planSupportsWebhook(), 403);
+
         return new WebhookResource($request->user());
     }
 
@@ -40,6 +42,7 @@ class WebhookController extends Controller
     {
         $user = $request->user();
 
+        abort_unless($user->planSupportsWebhook(), 403);
         abort_unless($user->hasWebhookConfigured(), 422);
 
         $newSecret = bin2hex(random_bytes(32));
@@ -53,6 +56,7 @@ class WebhookController extends Controller
 
     public function destroy(Request $request): JsonResponse
     {
+        abort_unless($request->user()->planSupportsWebhook(), 403);
         $request->user()->updateQuietly([
             'webhook_url' => null,
             'webhook_secret' => null,
