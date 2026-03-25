@@ -13,6 +13,43 @@ export class FlashViewClient {
     }
 
     /**
+     * Fetch server configuration (requires authentication).
+     *
+     * @param {string} baseUrl
+     * @param {string|null} token - Auth token for API access
+     * @returns {Promise<Object>}
+     */
+    static async fetchConfig(baseUrl, token = null) {
+        const url = `${baseUrl.replace(/\/$/, '')}/api/v1/config`;
+        const headers = { 'Accept': 'application/json' };
+
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 10000);
+
+        let response;
+        try {
+            response = await fetch(url, { headers, signal: controller.signal });
+        } catch (err) {
+            if (err.name === 'AbortError') {
+                throw new ApiError('Config fetch timed out', 0);
+            }
+            throw err;
+        } finally {
+            clearTimeout(timeout);
+        }
+
+        if (!response.ok) {
+            throw new ApiError(`Config fetch failed (HTTP ${response.status})`, response.status);
+        }
+
+        return response.json();
+    }
+
+    /**
      * Create an encrypted secret.
      *
      * @param {string} encryptedMessage
@@ -37,6 +74,26 @@ export class FlashViewClient {
      */
     async listSecrets(page = 1) {
         return this.request('GET', `/api/v1/secrets?page=${page}`);
+    }
+
+    /**
+     * Get status of a secret.
+     *
+     * @param {string} hashId
+     * @returns {Promise<Object>}
+     */
+    async getSecretStatus(hashId) {
+        return this.request('GET', `/api/v1/secrets/${hashId}`);
+    }
+
+    /**
+     * Retrieve a secret's encrypted message (one-time access).
+     *
+     * @param {string} hashId
+     * @returns {Promise<Object>}
+     */
+    async retrieveSecret(hashId) {
+        return this.request('GET', `/api/v1/secrets/${hashId}/retrieve`);
     }
 
     /**

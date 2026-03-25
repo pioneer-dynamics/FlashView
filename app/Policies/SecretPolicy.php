@@ -24,6 +24,14 @@ class SecretPolicy
     }
 
     /**
+     * Determine whether the user can view the model.
+     */
+    public function view(User $user, Secret $secret): bool
+    {
+        return $secret->user_id === $user->id && $this->checkAbility($user, 'secrets:list');
+    }
+
+    /**
      * Determine whether the user can delete the model.
      */
     public function delete(User $user, Secret $secret): bool

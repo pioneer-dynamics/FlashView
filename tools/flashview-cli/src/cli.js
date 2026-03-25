@@ -5,40 +5,14 @@ import { createServer } from 'node:http';
 import { dirname, join } from 'node:path';
 import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
-import { encryptMessage } from './crypto.js';
+import { encryptMessage, decryptMessage } from './crypto.js';
 import { FlashViewClient, ApiError } from './api.js';
 import { getConfig, getConfigInfo, setConfig, clearConfig } from './config.js';
+import { parseExpiry, getServerConfig, FALLBACK_EXPIRY_OPTIONS } from './expiry.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const pkg = JSON.parse(readFileSync(join(__dirname, '..', 'package.json'), 'utf-8'));
-
-// Allowed expiry values — must match config/secrets.php expiry_options
-// See: config/secrets.php for the server-side list
-const EXPIRY_LABELS = {
-    '5m': 5, '30m': 30, '1h': 60, '4h': 240, '12h': 720,
-    '1d': 1440, '3d': 4320, '7d': 10080, '14d': 20160, '30d': 43200,
-};
-const ALLOWED_EXPIRY_OPTIONS = Object.values(EXPIRY_LABELS);
-
-/**
- * Parse an expiry value from human-readable label or raw minutes.
- *
- * @param {string} value
- * @returns {number|null}
- */
-function parseExpiry(value) {
-    if (EXPIRY_LABELS[value.toLowerCase()]) {
-        return EXPIRY_LABELS[value.toLowerCase()];
-    }
-
-    const minutes = parseInt(value, 10);
-    if (!isNaN(minutes) && ALLOWED_EXPIRY_OPTIONS.includes(minutes)) {
-        return minutes;
-    }
-
-    return null;
-}
 
 /**
  * Read all data from stdin.
@@ -82,9 +56,11 @@ function withErrorHandling(fn) {
         } catch (err) {
             if (err instanceof ApiError) {
                 if (err.status === 401) {
-                    console.error('Authentication failed. Run `flashview configure set` to update your token.');
+                    console.error('Authentication failed. Run `flashview config set` to update your token.');
                 } else if (err.status === 403) {
                     console.error(err.message);
+                } else if (err.status === 410) {
+                    console.error('This message has expired or has already been retrieved.');
                 } else if (err.status === 422 && err.errors) {
                     console.error('Validation errors:');
                     for (const [field, messages] of Object.entries(err.errors)) {
@@ -117,13 +93,13 @@ program
     .description('FlashView CLI — Create and manage encrypted secrets')
     .version(pkg.version);
 
-// --- Configure ---
+// --- Config ---
 
-const configure = program
-    .command('configure')
+const configCmd = program
+    .command('config')
     .description('Manage CLI configuration');
 
-configure
+configCmd
     .command('set')
     .description('Set API token and server URL')
     .option('--url <url>', 'FlashView server URL (default: https://flashview.link)')
@@ -133,7 +109,7 @@ configure
         console.log('Configuration saved.');
     });
 
-configure
+configCmd
     .command('show')
     .description('Show current configuration')
     .action(() => {
@@ -143,7 +119,7 @@ configure
         console.log(`Config:     ${path}`);
     });
 
-configure
+configCmd
     .command('clear')
     .description('Clear stored configuration')
     .action(() => {
@@ -165,11 +141,16 @@ program
         const config = getConfig();
         const client = new FlashViewClient(config.url, config.token);
 
-        const expiresIn = parseExpiry(options.expiresIn);
+        const serverConfig = await getServerConfig();
+        const expiryOptions = serverConfig?.expiry_options ?? FALLBACK_EXPIRY_OPTIONS;
+        const allowedValues = expiryOptions.map(o => o.value);
+
+        const expiresIn = parseExpiry(options.expiresIn, allowedValues);
         if (!expiresIn) {
-            const labels = Object.keys(EXPIRY_LABELS).join(', ');
+            const labels = expiryOptions.map(o => o.label).join(', ');
             console.error(`Invalid expiry value: ${options.expiresIn}`);
             console.error(`Allowed values: ${labels}`);
+            console.error('You can also specify a value in minutes directly (e.g., --expires-in 120).');
             process.exit(1);
         }
 
@@ -201,6 +182,51 @@ program
             console.log(`Hash ID:    ${result.data.hash_id}`);
             console.log(`Expires:    ${result.data.expires_at}`);
             console.log('\nSave the URL and passphrase now — they cannot be retrieved later.');
+            console.log('\nNote: CLI retrieval requires the recipient to have a FlashView account with API access.');
+            console.log('      Share the URL above for recipients without CLI access.');
+        }
+    }));
+
+// --- Get ---
+
+program
+    .command('get <hashId>')
+    .description('Retrieve and decrypt a secret (text secrets only)')
+    .requiredOption('-p, --passphrase <passphrase>', 'Decryption passphrase')
+    .option('--json', 'Output as JSON (for scripting)')
+    .action(withErrorHandling(async (hashId, options) => {
+        const config = getConfig();
+        const client = new FlashViewClient(config.url, config.token);
+
+        let result;
+        try {
+            result = await client.retrieveSecret(hashId);
+        } catch (err) {
+            if (err instanceof ApiError && err.status === 404) {
+                console.error('This message has expired or has already been retrieved.');
+                process.exit(1);
+            }
+            throw err;
+        }
+
+        const encryptedMessage = result.data.message;
+
+        let plaintext;
+        try {
+            plaintext = decryptMessage(encryptedMessage, options.passphrase);
+        } catch {
+            console.error('Decryption failed. The password may be incorrect.');
+            console.error('Warning: The secret has been consumed from the server and cannot be retrieved again.');
+            process.exit(1);
+        }
+
+        if (options.json) {
+            console.log(JSON.stringify({
+                hash_id: result.data.hash_id,
+                message: plaintext,
+            }));
+        } else {
+            process.stdout.write(plaintext);
         }
     }));
 
@@ -232,6 +258,33 @@ program
             }
             if (result.meta?.last_page > 1) {
                 console.log(`\nPage ${result.meta.current_page} of ${result.meta.last_page}`);
+            }
+        }
+    }));
+
+// --- Status ---
+
+program
+    .command('status <hashId>')
+    .description('Show status of a secret (use hash ID from create output or list)')
+    .option('--json', 'Output as JSON (for scripting)')
+    .action(withErrorHandling(async (hashId, options) => {
+        const config = getConfig();
+        const client = new FlashViewClient(config.url, config.token);
+
+        const result = await client.getSecretStatus(hashId);
+        const secret = result.data;
+
+        if (options.json) {
+            console.log(JSON.stringify(result));
+        } else {
+            const status = secret.is_retrieved ? 'Retrieved' : secret.is_expired ? 'Expired' : 'Active';
+            console.log(`Hash ID:      ${secret.hash_id}`);
+            console.log(`Status:       ${status}`);
+            console.log(`Created:      ${secret.created_at}`);
+            console.log(`Expires:      ${secret.expires_at}`);
+            if (secret.retrieved_at) {
+                console.log(`Retrieved:    ${secret.retrieved_at}`);
             }
         }
     }));

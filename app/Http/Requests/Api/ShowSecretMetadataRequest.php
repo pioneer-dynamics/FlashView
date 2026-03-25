@@ -1,12 +1,12 @@
 <?php
 
-namespace App\Http\Requests;
+namespace App\Http\Requests\Api;
 
 use App\Models\Secret;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
-class BurnSecretRequest extends FormRequest
+class ShowSecretMetadataRequest extends FormRequest
 {
     private ?Secret $secretRecord = null;
 
@@ -21,7 +21,7 @@ class BurnSecretRequest extends FormRequest
             return false;
         }
 
-        return $this->user()->can('delete', $secret);
+        return $this->user()->can('view', $secret);
     }
 
     /**

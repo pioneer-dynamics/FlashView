@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\CliAuthController;
 use App\Http\Controllers\MarkdownDocumentController;
+use App\Http\Controllers\NotificationPreferencesController;
 use App\Http\Controllers\PlanController;
 use App\Http\Controllers\SecretController;
 use App\Http\Middleware\EnsurePlanHasApiAccess;
@@ -22,26 +23,21 @@ Route::get('/', function () {
     ]);
 })->name('welcome');
 
-Route::middleware('signed')->group(function () {
-    Route::get('secret/{secret}/decrypt', [SecretController::class,  'decrypt'])->name('secret.decrypt');
-    Route::get('secret/{secret}', [SecretController::class,  'show'])->name('secret.show');
-    // Route::get('secrets/{secret}/report', [SecretController::class,  'report'])->name('secrets.report');
-});
-
-Route::middleware(['throttle:secrets'])->group(function () {
-    Route::post('secret', [SecretController::class,  'store'])->name('secret.store');
-});
+Route::resource('secret', SecretController::class)->only(['store', 'show']);
+Route::get('secret/{secret}/decrypt', [SecretController::class, 'decrypt'])->name('secret.decrypt');
 
 Route::get('plans', [PlanController::class, 'index'])->name('plans.index');
 
-Route::get('/terms-of-service', [MarkdownDocumentController::class, 'terms'])->name('terms.show');
-Route::get('/privacy-policy', [MarkdownDocumentController::class, 'privacy'])->name('policy.show');
-Route::get('/license', [MarkdownDocumentController::class, 'license'])->name('license.show');
-Route::get('/security', [MarkdownDocumentController::class, 'security'])->name('security.show');
-Route::get('/faq', [MarkdownDocumentController::class, 'faq'])->name('faq.index');
-Route::get('/about', [MarkdownDocumentController::class, 'about'])->name('about.index');
-Route::get('/use-cases', [MarkdownDocumentController::class, 'useCases'])->name('useCases.index');
-Route::get('/cli', [MarkdownDocumentController::class, 'cli'])->name('cli.index');
+Route::controller(MarkdownDocumentController::class)->group(function () {
+    Route::get('/terms-of-service', 'terms')->name('terms.show');
+    Route::get('/privacy-policy', 'privacy')->name('policy.show');
+    Route::get('/license', 'license')->name('license.show');
+    Route::get('/security', 'security')->name('security.show');
+    Route::get('/faq', 'faq')->name('faq.index');
+    Route::get('/about', 'about')->name('about.index');
+    Route::get('/use-cases', 'useCases')->name('useCases.index');
+    Route::get('/cli', 'cli')->name('cli.index');
+});
 
 Route::middleware(config('fortify.middleware', ['web']))->group(function () {
     Route::post(RoutePath::for('register', '/register'), [RegisteredUserController::class, 'store'])
@@ -79,8 +75,13 @@ Route::middleware([
     Route::post('plans/cancel', [PlanController::class, 'unsubscribe'])->name('plans.unsubscribe');
     Route::post('plans/resume', [PlanController::class, 'resume'])->name('plans.resume');
 
-    Route::get('secrets', [SecretController::class,  'index'])->name('secrets.index');
-    Route::delete('secrets/{secret}', [SecretController::class,  'destroy'])->name('secrets.destroy');
+    Route::put('/user/notification-preferences', [NotificationPreferencesController::class, 'update'])
+        ->name('user.notification-preferences.update');
+
+    Route::controller(SecretController::class)->group(function () {
+        Route::get('secrets', 'index')->name('secrets.index');
+        Route::delete('secrets/{secret}', 'destroy')->name('secrets.destroy');
+    });
 
     Route::middleware([EnsurePlanHasApiAccess::class])->group(function () {
         Route::get('/user/api-tokens', [ApiTokenController::class, 'index'])->name('api-tokens.index');
