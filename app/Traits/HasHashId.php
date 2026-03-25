@@ -2,6 +2,8 @@
 
 namespace App\Traits;
 
+use App\Exceptions\HashIdDecodeException;
+use App\Exceptions\InvalidHashIdException;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Vinkla\Hashids\Facades\Hashids as LaravelHashids;
 
@@ -51,8 +53,18 @@ trait HasHashId
         );
     }
 
-    public static function findByHashID($hash_id)
+    public static function findByHashID(string $hash_id): static
     {
-        return self::findOrFail(LaravelHashids::connection(self::getHashIdConnection())->decode($hash_id)[0]);
+        try {
+            $id = static::decodeHashId($hash_id);
+        } catch (\Throwable $e) {
+            throw new HashIdDecodeException($hash_id, $e);
+        }
+
+        if ($id === null) {
+            throw new InvalidHashIdException($hash_id);
+        }
+
+        return self::findOrFail($id);
     }
 }

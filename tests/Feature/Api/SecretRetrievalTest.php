@@ -2,12 +2,14 @@
 
 namespace Tests\Feature\Api;
 
+use App\Exceptions\InvalidHashIdException;
 use App\Models\Plan;
 use App\Models\Secret;
 use App\Models\User;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
+use PHPUnit\Framework\Attributes\DataProvider;
 use ReflectionProperty;
 use Tests\TestCase;
 
@@ -239,6 +241,42 @@ class SecretRetrievalTest extends TestCase
         $response = $this->getJson("/api/v1/secrets/{$secret->hash_id}/retrieve");
 
         $response->assertForbidden();
+    }
+
+    /**
+     * @return array<string, array{string}>
+     */
+    public static function invalidHashIdProvider(): array
+    {
+        return [
+            'garbage string' => ['invalid-hash'],
+            'special characters' => ['!!!@@@'],
+            'random alphanumeric' => ['abc123xyz'],
+        ];
+    }
+
+    #[DataProvider('invalidHashIdProvider')]
+    public function test_invalid_hash_id_returns_404(string $invalidHashId): void
+    {
+        $this->subscribeUserToPlan($this->user, $this->primePlan);
+        Sanctum::actingAs($this->user, ['secrets:list']);
+
+        $response = $this->getJson("/api/v1/secrets/{$invalidHashId}/retrieve");
+
+        $response->assertNotFound();
+    }
+
+    #[DataProvider('invalidHashIdProvider')]
+    public function test_invalid_hash_id_throws_invalid_hash_id_exception(string $invalidHashId): void
+    {
+        $this->subscribeUserToPlan($this->user, $this->primePlan);
+        Sanctum::actingAs($this->user, ['secrets:list']);
+
+        $this->withoutExceptionHandling();
+
+        $this->expectException(InvalidHashIdException::class);
+
+        $this->getJson("/api/v1/secrets/{$invalidHashId}/retrieve");
     }
 
     public function test_forbidden_request_does_not_consume_secret(): void
