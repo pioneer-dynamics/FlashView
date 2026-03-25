@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue';
-import { useForm, usePage, router } from '@inertiajs/vue3';
+import { Link, useForm, usePage, router } from '@inertiajs/vue3';
 import ActionMessage from '@/Components/ActionMessage.vue';
 import ActionSection from '@/Components/ActionSection.vue';
 import FormSection from '@/Components/FormSection.vue';
@@ -123,9 +123,9 @@ const regenerateSecret = () => {
         <template #content>
             <p class="text-sm text-gray-600 dark:text-gray-400">
                 Webhook notifications are available on the Prime plan.
-                <a :href="route('plans.index')" class="text-indigo-600 dark:text-indigo-400 hover:underline">
+                <Link :href="route('plans.index')" class="text-indigo-600 dark:text-indigo-400 hover:underline">
                     View plans
-                </a>
+                </Link>
             </p>
         </template>
     </ActionSection>

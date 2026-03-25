@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue';
-import { useForm, usePage } from '@inertiajs/vue3';
+import { Link, useForm, usePage } from '@inertiajs/vue3';
 import ActionMessage from '@/Components/ActionMessage.vue';
 import ActionSection from '@/Components/ActionSection.vue';
 import FormSection from '@/Components/FormSection.vue';
@@ -74,9 +74,9 @@ const updateNotificationPreferences = () => {
         <template #content>
             <p class="text-sm text-gray-600 dark:text-gray-400">
                 Secret retrieval notifications are available on paid plans.
-                <a :href="route('plans.index')" class="text-indigo-600 dark:text-indigo-400 hover:underline">
+                <Link :href="route('plans.index')" class="text-indigo-600 dark:text-indigo-400 hover:underline">
                     View plans
-                </a>
+                </Link>
             </p>
         </template>
     </ActionSection>
