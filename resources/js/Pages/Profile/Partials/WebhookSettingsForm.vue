@@ -3,14 +3,15 @@ import { computed, ref } from 'vue';
 import { Link, useForm, usePage, router } from '@inertiajs/vue3';
 import ActionMessage from '@/Components/ActionMessage.vue';
 import ActionSection from '@/Components/ActionSection.vue';
+import ConfirmationModal from '@/Components/ConfirmationModal.vue';
+import ConfirmsPasswordOrPasskey from '@/Components/ConfirmsPasswordOrPasskey.vue';
+import DangerButton from '@/Components/DangerButton.vue';
 import FormSection from '@/Components/FormSection.vue';
 import InputError from '@/Components/InputError.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
-import DangerButton from '@/Components/DangerButton.vue';
 import TextInput from '@/Components/TextInput.vue';
-import ConfirmationModal from '@/Components/ConfirmationModal.vue';
 
 const page = usePage();
 const hasApiAccess = computed(() => page.props.auth?.hasApiAccess ?? false);
@@ -28,6 +29,10 @@ const updateWebhookSettings = () => {
     form.put(route('user.webhook-settings.update'), {
         preserveScroll: true,
     });
+};
+
+const revealSecret = () => {
+    showSecret.value = true;
 };
 
 const copySecret = () => {
@@ -81,12 +86,19 @@ const regenerateSecret = () => {
                     <code class="flex-1 rounded-md border border-gray-300 bg-gray-50 px-3 py-2 font-mono text-sm text-gray-800 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200">
                         {{ showSecret ? webhook.webhook_secret : '••••••••••••••••••••••••••••••••' }}
                     </code>
-                    <SecondaryButton type="button" @click="showSecret = !showSecret">
-                        {{ showSecret ? 'Hide' : 'Show' }}
+                    <ConfirmsPasswordOrPasskey v-if="!showSecret" @confirmed="revealSecret">
+                        <SecondaryButton type="button">
+                            Show
+                        </SecondaryButton>
+                    </ConfirmsPasswordOrPasskey>
+                    <SecondaryButton v-else type="button" @click="showSecret = false">
+                        Hide
                     </SecondaryButton>
-                    <SecondaryButton type="button" @click="copySecret">
-                        {{ secretCopied ? 'Copied!' : 'Copy' }}
-                    </SecondaryButton>
+                    <ConfirmsPasswordOrPasskey @confirmed="copySecret">
+                        <SecondaryButton type="button">
+                            {{ secretCopied ? 'Copied!' : 'Copy' }}
+                        </SecondaryButton>
+                    </ConfirmsPasswordOrPasskey>
                 </div>
                 <p class="mt-2 text-xs text-gray-500 dark:text-gray-500">
                     Use this secret to verify webhook signatures via the <code class="text-xs">X-Signature-256</code> header.
@@ -144,9 +156,11 @@ const regenerateSecret = () => {
                 Cancel
             </SecondaryButton>
 
-            <DangerButton class="ms-3" @click="regenerateSecret">
-                Regenerate Secret
-            </DangerButton>
+            <ConfirmsPasswordOrPasskey @confirmed="regenerateSecret">
+                <DangerButton class="ms-3">
+                    Regenerate Secret
+                </DangerButton>
+            </ConfirmsPasswordOrPasskey>
         </template>
     </ConfirmationModal>
 </template>
