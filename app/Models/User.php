@@ -41,6 +41,8 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
         'email',
         'password',
         'notify_secret_retrieved',
+        'webhook_url',
+        'webhook_secret',
     ];
 
     /**
@@ -53,6 +55,7 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
         'remember_token',
         'two_factor_recovery_codes',
         'two_factor_secret',
+        'webhook_secret',
     ];
 
     /**
@@ -135,7 +138,13 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'notify_secret_retrieved' => 'boolean',
+            'webhook_secret' => 'encrypted',
         ];
+    }
+
+    public function hasWebhookConfigured(): bool
+    {
+        return filled($this->webhook_url) && filled($this->webhook_secret);
     }
 
     public function secrets(): HasMany
