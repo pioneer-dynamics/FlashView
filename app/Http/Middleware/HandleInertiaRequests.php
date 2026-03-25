@@ -56,14 +56,14 @@ class HandleInertiaRequests extends Middleware
                 'auth' => [
                     'hasApiAccess' => fn () => $request->user()?->hasApiAccess() ?? false,
                     'user' => [
-                        'webhook_url', fn() => $request->user()->webhook_url,
-                        'webhook_secret', fn() => $request->routeIs('profile.show') ? $request->user()?->webhook_secret : null,
+                        'webhook_url' => fn() => $request->user()->webhook_url,
+                        'webhook_secret' => fn() => $request->routeIs('profile.show') ? $request->user()?->webhook_secret : null,
                     ]
                 ]
             ]
             : [];
 
 
-        return array_merge_recursive(parent::share($request), $authedShare);
+        return array_merge(parent::share($request), $authedShare);
     }
 }
