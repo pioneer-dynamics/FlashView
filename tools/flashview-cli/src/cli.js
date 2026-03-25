@@ -9,31 +9,11 @@ import { encryptMessage, decryptMessage } from './crypto.js';
 import { FlashViewClient, ApiError } from './api.js';
 import { getConfig, getConfigInfo, setConfig, clearConfig } from './config.js';
 import { parseExpiry, getServerConfig, FALLBACK_EXPIRY_OPTIONS } from './expiry.js';
+import { renameHashIdKey } from './transform.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const pkg = JSON.parse(readFileSync(join(__dirname, '..', 'package.json'), 'utf-8'));
-
-/**
- * Remap `hash_id` to `message_id` in an object or array of objects.
- *
- * @param {object|object[]} obj
- * @returns {object|object[]}
- */
-function renameHashIdKey(obj) {
-    if (Array.isArray(obj)) {
-        return obj.map(renameHashIdKey);
-    }
-    if (obj && typeof obj === 'object') {
-        const { hash_id, ...rest } = obj;
-        const result = { ...rest };
-        if (hash_id !== undefined) {
-            result.message_id = hash_id;
-        }
-        return result;
-    }
-    return obj;
-}
 
 /**
  * Read all data from stdin.
@@ -515,7 +495,6 @@ program
             server.close();
         }
     });
-
 export function run() {
     program.parse();
 }
