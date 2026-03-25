@@ -15,6 +15,27 @@ const __dirname = dirname(__filename);
 const pkg = JSON.parse(readFileSync(join(__dirname, '..', 'package.json'), 'utf-8'));
 
 /**
+ * Remap `hash_id` to `message_id` in an object or array of objects.
+ *
+ * @param {object|object[]} obj
+ * @returns {object|object[]}
+ */
+function renameHashIdKey(obj) {
+    if (Array.isArray(obj)) {
+        return obj.map(renameHashIdKey);
+    }
+    if (obj && typeof obj === 'object') {
+        const { hash_id, ...rest } = obj;
+        const result = { ...rest };
+        if (hash_id !== undefined) {
+            result.message_id = hash_id;
+        }
+        return result;
+    }
+    return obj;
+}
+
+/**
  * Read all data from stdin.
  *
  * @returns {Promise<string>}
@@ -172,14 +193,14 @@ program
             console.log(JSON.stringify({
                 url: result.data.url,
                 passphrase,
-                hash_id: result.data.hash_id,
+                message_id: result.data.hash_id,
                 expires_at: result.data.expires_at,
             }));
         } else {
             console.log('Secret created successfully!\n');
             console.log(`URL:        ${result.data.url}`);
             console.log(`Passphrase: ${passphrase}`);
-            console.log(`Hash ID:    ${result.data.hash_id}`);
+            console.log(`Message ID: ${result.data.hash_id}`);
             console.log(`Expires:    ${result.data.expires_at}`);
             console.log('\nSave the URL and passphrase now — they cannot be retrieved later.');
             console.log('\nNote: CLI retrieval requires the recipient to have a FlashView account with API access.');
@@ -222,7 +243,7 @@ program
 
         if (options.json) {
             console.log(JSON.stringify({
-                hash_id: result.data.hash_id,
+                message_id: result.data.hash_id,
                 message: plaintext,
             }));
         } else {
@@ -244,13 +265,14 @@ program
         const result = await client.listSecrets(parseInt(options.page, 10));
 
         if (options.json) {
-            console.log(JSON.stringify(result));
+            const remapped = { ...result, data: result.data.map(renameHashIdKey) };
+            console.log(JSON.stringify(remapped));
         } else {
             if (!result.data.length) {
                 console.log('No secrets found.');
                 return;
             }
-            console.log('Hash ID          Expires At               Status');
+            console.log('Message ID       Expires At               Status');
             console.log('\u2500'.repeat(60));
             for (const secret of result.data) {
                 const status = secret.is_retrieved ? 'Retrieved' : secret.is_expired ? 'Expired' : 'Active';
@@ -266,7 +288,7 @@ program
 
 program
     .command('status <hashId>')
-    .description('Show status of a secret (use hash ID from create output or list)')
+    .description('Show status of a secret (use message ID from create output or list)')
     .option('--json', 'Output as JSON (for scripting)')
     .action(withErrorHandling(async (hashId, options) => {
         const config = getConfig();
@@ -276,10 +298,10 @@ program
         const secret = result.data;
 
         if (options.json) {
-            console.log(JSON.stringify(result));
+            console.log(JSON.stringify({ ...result, data: renameHashIdKey(result.data) }));
         } else {
             const status = secret.is_retrieved ? 'Retrieved' : secret.is_expired ? 'Expired' : 'Active';
-            console.log(`Hash ID:      ${secret.hash_id}`);
+            console.log(`Message ID:   ${secret.hash_id}`);
             console.log(`Status:       ${status}`);
             console.log(`Created:      ${secret.created_at}`);
             console.log(`Expires:      ${secret.expires_at}`);
