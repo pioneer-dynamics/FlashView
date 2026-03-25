@@ -53,7 +53,7 @@ class PlanSeederLocal extends Seeder
                     ],
                     'notification' => [
                         'order' => 4.5,
-                        'label' => 'Get notified via email when a message is retrieved',
+                        'label' => 'Get notified when a message is retrieved',
                         'config' => [
                             'email' => false,
                             'webhook' => false,
