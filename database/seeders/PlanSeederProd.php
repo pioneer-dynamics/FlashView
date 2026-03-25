@@ -55,7 +55,8 @@ class PlanSeederProd extends Seeder
                         'order' => 4.5,
                         'label' => 'Get notified when a message is retrieved',
                         'config' => [
-                            'notifications' => false,
+                            'email' => false,
+                            'webhook' => false,
                         ],
                         'type' => 'missing',
                     ],
@@ -113,9 +114,10 @@ class PlanSeederProd extends Seeder
                     ],
                     'notification' => [
                         'order' => 4.5,
-                        'label' => 'Get notified when a message is retrieved',
+                        'label' => 'Get notified via email when a message is retrieved',
                         'config' => [
-                            'notifications' => true,
+                            'email' => true,
+                            'webhook' => false,
                         ],
                         'type' => 'feature',
                     ],
@@ -173,9 +175,10 @@ class PlanSeederProd extends Seeder
                     ],
                     'notification' => [
                         'order' => 4.5,
-                        'label' => 'Get notified when a message is retrieved',
+                        'label' => 'Get notified via email or webhook when a message is retrieved',
                         'config' => [
-                            'notifications' => true,
+                            'email' => true,
+                            'webhook' => true,
                         ],
                         'type' => 'feature',
                     ],

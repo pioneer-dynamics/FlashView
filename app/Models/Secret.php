@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Jobs\SendWebhookNotification;
 use App\Models\Scopes\ActiveScope;
 use App\Notifications\SecretRetrievedNotification;
 use App\Traits\HasHashId;
@@ -99,8 +100,19 @@ class Secret extends Model
                      * @var User $user
                      */
                     if (isset($plan['id'])) {
-                        if ($plan['settings']['notification']['notifications'] && $user->notify_secret_retrieved) {
+                        if (($plan['settings']['notification']['email'] ?? false) && $user->notify_secret_retrieved) {
                             $user->notify(new SecretRetrievedNotification($secret));
+                        }
+
+                        $planSupportsWebhook = ($plan['settings']['notification']['webhook'] ?? false);
+                        if ($planSupportsWebhook && $user->hasWebhookConfigured()) {
+                            dispatch(new SendWebhookNotification(
+                                webhookUrl: $user->webhook_url,
+                                webhookSecret: $user->webhook_secret,
+                                hashId: $secret->hash_id,
+                                createdAt: $secret->created_at->toIso8601String(),
+                                retrievedAt: now()->toIso8601String(),
+                            ));
                         }
                     }
                 }

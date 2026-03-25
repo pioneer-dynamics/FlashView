@@ -61,6 +61,17 @@ class UserFactory extends Factory
     }
 
     /**
+     * Indicate that the user has a webhook configured.
+     */
+    public function withWebhook(string $url = 'https://example.com/webhook', ?string $secret = null): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'webhook_url' => $url,
+            'webhook_secret' => $secret ?? bin2hex(random_bytes(32)),
+        ]);
+    }
+
+    /**
      * Indicate that the user should have a personal team.
      */
     public function withPersonalTeam(?callable $callback = null): static

@@ -106,7 +106,7 @@ class SecretRetrievedNotificationTest extends TestCase
                 'notification' => [
                     'order' => 4.5,
                     'label' => 'Get notified when a message is retrieved',
-                    'config' => ['notifications' => $enabled],
+                    'config' => ['email' => $enabled],
                     'type' => $enabled ? 'feature' : 'missing',
                 ],
             ],
