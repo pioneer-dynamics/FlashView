@@ -5,6 +5,7 @@ use App\Http\Controllers\MarkdownDocumentController;
 use App\Http\Controllers\NotificationPreferencesController;
 use App\Http\Controllers\PlanController;
 use App\Http\Controllers\SecretController;
+use App\Http\Controllers\WebhookSettingsController;
 use App\Http\Middleware\EnsurePlanHasApiAccess;
 use Illuminate\Foundation\Application;
 use Illuminate\Http\Request;
@@ -88,6 +89,11 @@ Route::middleware([
         Route::post('/user/api-tokens', [ApiTokenController::class, 'store'])->name('api-tokens.store');
         Route::put('/user/api-tokens/{token}', [ApiTokenController::class, 'update'])->name('api-tokens.update');
         Route::delete('/user/api-tokens/{token}', [ApiTokenController::class, 'destroy'])->name('api-tokens.destroy');
+
+        Route::put('/user/webhook-settings', [WebhookSettingsController::class, 'update'])
+            ->name('user.webhook-settings.update');
+        Route::post('/user/webhook-settings/regenerate-secret', [WebhookSettingsController::class, 'regenerateSecret'])
+            ->name('user.webhook-settings.regenerate-secret');
     });
 
     Route::get('/billing', function (Request $request) {
