@@ -40,6 +40,7 @@ class JetstreamServiceProvider extends ServiceProvider
             'secrets:create',
             'secrets:list',
             'secrets:delete',
+            'webhook:manage',
         ]);
     }
 }

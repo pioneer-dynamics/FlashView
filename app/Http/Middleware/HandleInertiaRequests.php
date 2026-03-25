@@ -37,6 +37,17 @@ class HandleInertiaRequests extends Middleware
     public function share(Request $request): array
     {
         Inertia::share('auth.hasApiAccess', fn () => $request->user()?->hasApiAccess() ?? false);
+        Inertia::share('auth.webhook', function () use ($request) {
+            $user = $request->user();
+
+            if (! $user) {
+                return null;
+            }
+
+            return [
+                'webhook_url' => $user->webhook_url,
+            ];
+        });
 
         return parent::share($request);
     }

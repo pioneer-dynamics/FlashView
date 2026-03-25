@@ -9,6 +9,7 @@ import { encryptMessage, decryptMessage } from './crypto.js';
 import { FlashViewClient, ApiError } from './api.js';
 import { getConfig, getConfigInfo, setConfig, clearConfig } from './config.js';
 import { parseExpiry, getServerConfig, FALLBACK_EXPIRY_OPTIONS } from './expiry.js';
+import { renameHashIdKey } from './transform.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -172,14 +173,14 @@ program
             console.log(JSON.stringify({
                 url: result.data.url,
                 passphrase,
-                hash_id: result.data.hash_id,
+                message_id: result.data.hash_id,
                 expires_at: result.data.expires_at,
             }));
         } else {
             console.log('Secret created successfully!\n');
             console.log(`URL:        ${result.data.url}`);
             console.log(`Passphrase: ${passphrase}`);
-            console.log(`Hash ID:    ${result.data.hash_id}`);
+            console.log(`Message ID: ${result.data.hash_id}`);
             console.log(`Expires:    ${result.data.expires_at}`);
             console.log('\nSave the URL and passphrase now — they cannot be retrieved later.');
             console.log('\nNote: CLI retrieval requires the recipient to have a FlashView account with API access.');
@@ -190,7 +191,7 @@ program
 // --- Get ---
 
 program
-    .command('get <hashId>')
+    .command('get <messageId>')
     .description('Retrieve and decrypt a secret (text secrets only)')
     .requiredOption('-p, --passphrase <passphrase>', 'Decryption passphrase')
     .option('--json', 'Output as JSON (for scripting)')
@@ -222,7 +223,7 @@ program
 
         if (options.json) {
             console.log(JSON.stringify({
-                hash_id: result.data.hash_id,
+                message_id: result.data.hash_id,
                 message: plaintext,
             }));
         } else {
@@ -244,13 +245,14 @@ program
         const result = await client.listSecrets(parseInt(options.page, 10));
 
         if (options.json) {
-            console.log(JSON.stringify(result));
+            const remapped = { ...result, data: result.data.map(renameHashIdKey) };
+            console.log(JSON.stringify(remapped));
         } else {
             if (!result.data.length) {
                 console.log('No secrets found.');
                 return;
             }
-            console.log('Hash ID          Expires At               Status');
+            console.log('Message ID       Expires At               Status');
             console.log('\u2500'.repeat(60));
             for (const secret of result.data) {
                 const status = secret.is_retrieved ? 'Retrieved' : secret.is_expired ? 'Expired' : 'Active';
@@ -265,8 +267,8 @@ program
 // --- Status ---
 
 program
-    .command('status <hashId>')
-    .description('Show status of a secret (use hash ID from create output or list)')
+    .command('status <messageId>')
+    .description('Show status of a secret (use message ID from create output or list)')
     .option('--json', 'Output as JSON (for scripting)')
     .action(withErrorHandling(async (hashId, options) => {
         const config = getConfig();
@@ -276,10 +278,10 @@ program
         const secret = result.data;
 
         if (options.json) {
-            console.log(JSON.stringify(result));
+            console.log(JSON.stringify({ ...result, data: renameHashIdKey(result.data) }));
         } else {
             const status = secret.is_retrieved ? 'Retrieved' : secret.is_expired ? 'Expired' : 'Active';
-            console.log(`Hash ID:      ${secret.hash_id}`);
+            console.log(`Message ID:   ${secret.hash_id}`);
             console.log(`Status:       ${status}`);
             console.log(`Created:      ${secret.created_at}`);
             console.log(`Expires:      ${secret.expires_at}`);
@@ -292,7 +294,7 @@ program
 // --- Burn ---
 
 program
-    .command('burn <hashId>')
+    .command('burn <messageId>')
     .description('Burn (delete) a secret')
     .option('--json', 'Output as JSON (for scripting)')
     .option('-y, --yes', 'Skip confirmation prompt')
@@ -493,7 +495,6 @@ program
             server.close();
         }
     });
-
 export function run() {
     program.parse();
 }

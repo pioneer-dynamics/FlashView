@@ -2,17 +2,18 @@
 
 namespace App\Http\Requests;
 
+use App\Rules\NotPrivateUrl;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
-class UpdateNotificationPreferencesRequest extends FormRequest
+class UpdateWebhookSettingsRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
      */
     public function authorize(): bool
     {
-        return $this->user()->planSupportsEmailNotifications();
+        return $this->user()->planSupportsWebhook();
     }
 
     /**
@@ -23,7 +24,17 @@ class UpdateNotificationPreferencesRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'notify_secret_retrieved' => ['required', 'boolean'],
+            'webhook_url' => ['nullable', 'url:https', 'max:2048', new NotPrivateUrl],
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'webhook_url.url' => 'The webhook URL must be a valid HTTPS URL.',
         ];
     }
 }

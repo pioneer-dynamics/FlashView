@@ -13,12 +13,40 @@ class SubscriptionObserver
 
             if (! $user->hasApiAccess()) {
                 $user->tokens()->delete();
+
+                if ($user->hasWebhookConfigured()) {
+                    $user->updateQuietly([
+                        'webhook_url' => null,
+                        'webhook_secret' => null,
+                    ]);
+                }
+            }
+
+            if (! $user->planSupportsEmailNotifications() && $user->notify_secret_retrieved) {
+                $user->updateQuietly([
+                    'notify_secret_retrieved' => false,
+                ]);
             }
         }
     }
 
     public function deleted(Subscription $subscription): void
     {
-        $subscription->user->tokens()->delete();
+        $user = $subscription->user;
+
+        $user->tokens()->delete();
+
+        if ($user->hasWebhookConfigured()) {
+            $user->updateQuietly([
+                'webhook_url' => null,
+                'webhook_secret' => null,
+            ]);
+        }
+
+        if ($user->notify_secret_retrieved) {
+            $user->updateQuietly([
+                'notify_secret_retrieved' => false,
+            ]);
+        }
     }
 }

@@ -44,7 +44,7 @@ class SecretApiTest extends TestCase
                 'notification' => [
                     'order' => 4.5,
                     'label' => 'Get notified when a message is retrieved',
-                    'config' => ['notifications' => true],
+                    'config' => ['email' => true],
                     'type' => 'feature',
                 ],
                 'api' => [
