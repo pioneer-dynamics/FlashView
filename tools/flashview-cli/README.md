@@ -87,13 +87,13 @@ flashview list --json
 ### Burn (delete) a secret
 
 ```bash
-flashview burn <hash_id>
+flashview burn <message_id>
 
 # Skip confirmation
-flashview burn <hash_id> --yes
+flashview burn <message_id> --yes
 
 # JSON output
-flashview burn <hash_id> --json
+flashview burn <message_id> --json
 ```
 
 ## Security Notes

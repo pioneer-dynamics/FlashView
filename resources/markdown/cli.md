@@ -78,8 +78,8 @@ flashview list --page 2
 ### Burn (Delete) a Secret
 
 ```
-flashview burn <hash_id>
-flashview burn <hash_id> --yes   # skip confirmation
+flashview burn <message_id>
+flashview burn <message_id> --yes   # skip confirmation
 ```
 
 ## Security
