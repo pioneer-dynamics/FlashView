@@ -4,20 +4,15 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\UpdateWebhookSettingsRequest;
+use App\Http\Resources\WebhookResource;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class WebhookController extends Controller
 {
-    public function show(Request $request): JsonResponse
+    public function show(Request $request): WebhookResource
     {
-        $user = $request->user();
-
-        return response()->json([
-            'webhook_url' => $user->webhook_url,
-            'webhook_secret' => $user->webhook_secret ? str_repeat('*', 56).substr($user->webhook_secret, -8) : null,
-            'configured' => $user->hasWebhookConfigured(),
-        ]);
+        return new WebhookResource($request->user());
     }
 
     public function update(UpdateWebhookSettingsRequest $request): JsonResponse
@@ -35,12 +30,10 @@ class WebhookController extends Controller
 
         $user->updateQuietly($data);
 
-        return response()->json([
-            'webhook_url' => $user->webhook_url,
-            'webhook_secret' => $user->webhook_secret ? str_repeat('*', 56).substr($user->webhook_secret, -8) : null,
-            'configured' => $user->hasWebhookConfigured(),
-            'message' => 'Webhook settings updated.',
-        ]);
+        return response()->json(array_merge(
+            (new WebhookResource($user))->resolve(),
+            ['message' => 'Webhook settings updated.'],
+        ));
     }
 
     public function regenerateSecret(Request $request): JsonResponse
