@@ -110,6 +110,20 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
         return $plan && ($plan->features['api']['type'] ?? 'missing') === 'feature';
     }
 
+    /**
+     * Check if the user's plan supports email notifications.
+     */
+    public function planSupportsEmailNotifications(): bool
+    {
+        if (! $this->subscribed()) {
+            return false;
+        }
+
+        $plan = $this->resolvePlan();
+
+        return $plan && ($plan->features['notification']['config']['email'] ?? false);
+    }
+
     public function getPlanAttribute(): PlanResource
     {
         return new PlanResource($this->resolvePlan());

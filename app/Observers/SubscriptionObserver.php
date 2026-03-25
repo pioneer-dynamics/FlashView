@@ -21,6 +21,12 @@ class SubscriptionObserver
                     ]);
                 }
             }
+
+            if (! $user->planSupportsEmailNotifications() && $user->notify_secret_retrieved) {
+                $user->updateQuietly([
+                    'notify_secret_retrieved' => false,
+                ]);
+            }
         }
     }
 
@@ -34,6 +40,12 @@ class SubscriptionObserver
             $user->updateQuietly([
                 'webhook_url' => null,
                 'webhook_secret' => null,
+            ]);
+        }
+
+        if ($user->notify_secret_retrieved) {
+            $user->updateQuietly([
+                'notify_secret_retrieved' => false,
             ]);
         }
     }
