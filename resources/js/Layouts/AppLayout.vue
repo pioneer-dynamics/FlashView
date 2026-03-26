@@ -61,6 +61,10 @@ const logout = () => {
                                             :active="route().current('secrets.index')">
                                             My Secrets
                                         </NavLink>
+                                        <NavLink :href="route('user.notification-settings.index')"
+                                            :active="route().current('user.notification-settings.index')">
+                                            Notification Settings
+                                        </NavLink>
                                     </template>
                                     <template v-else>
                                         <NavLink :href="route('welcome')" :active="route().current('welcome')">
@@ -193,6 +197,10 @@ const logout = () => {
                                                 Profile
                                             </DropdownLink>
 
+                                            <DropdownLink :href="route('user.notification-settings.index')">
+                                                Notification Settings
+                                            </DropdownLink>
+
                                             <DropdownLink v-if="$page.props.jetstream.hasApiFeatures && $page.props.auth?.hasApiAccess"
                                                 :href="route('api-tokens.index')">
                                                 API Tokens
@@ -261,6 +269,10 @@ const logout = () => {
                                     :active="route().current('secrets.index')">
                                     My Secrets
                                 </ResponsiveNavLink>
+                                <ResponsiveNavLink :href="route('user.notification-settings.index')"
+                                    :active="route().current('user.notification-settings.index')">
+                                    Notification Settings
+                                </ResponsiveNavLink>
                             </template>
                             <template v-else>
                                 <ResponsiveNavLink :href="route('welcome')" :active="route().current('welcome')">
@@ -303,6 +315,11 @@ const logout = () => {
                                 <ResponsiveNavLink :href="route('profile.show')"
                                     :active="route().current('profile.show')">
                                     Profile
+                                </ResponsiveNavLink>
+
+                                <ResponsiveNavLink :href="route('user.notification-settings.index')"
+                                    :active="route().current('user.notification-settings.index')">
+                                    Notification Settings
                                 </ResponsiveNavLink>
 
                                 <ResponsiveNavLink v-if="$page.props.jetstream.hasApiFeatures && $page.props.auth?.hasApiAccess"
