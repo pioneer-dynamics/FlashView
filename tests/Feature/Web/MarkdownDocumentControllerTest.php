@@ -73,6 +73,14 @@ class MarkdownDocumentControllerTest extends TestCase
         $response->assertInertia(fn ($page) => $page->component('Doc/Page'));
     }
 
+    public function test_webhooks_page_renders_successfully(): void
+    {
+        $response = $this->get(route('webhooks.index'));
+
+        $response->assertOk();
+        $response->assertInertia(fn ($page) => $page->component('Doc/Page'));
+    }
+
     public function test_markdown_pages_replace_config_variables(): void
     {
         $response = $this->get(route('terms.show'));
