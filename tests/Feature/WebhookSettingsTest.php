@@ -2,9 +2,11 @@
 
 namespace Tests\Feature;
 
+use App\Jobs\SendWebhookNotification;
 use App\Models\Plan;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
 class WebhookSettingsTest extends TestCase
@@ -303,5 +305,152 @@ class WebhookSettingsTest extends TestCase
         $this->user->refresh();
         $this->assertNull($this->user->webhook_url);
         $this->assertNull($this->user->webhook_secret);
+    }
+
+    public function test_user_can_delete_webhook(): void
+    {
+        $this->subscribeUserToPlan($this->user, $this->primePlan);
+        $this->user->updateQuietly([
+            'webhook_url' => 'https://example.com/webhook',
+            'webhook_secret' => bin2hex(random_bytes(32)),
+        ]);
+        $this->actingAs($this->user);
+
+        $response = $this->withSession(['auth.password_confirmed_at' => time()])
+            ->delete('/user/webhook-settings');
+
+        $response->assertRedirect();
+
+        $this->user->refresh();
+        $this->assertNull($this->user->webhook_url);
+        $this->assertNull($this->user->webhook_secret);
+    }
+
+    public function test_delete_webhook_requires_api_plan(): void
+    {
+        $freePlan = Plan::factory()->create([
+            'name' => 'Free',
+            'stripe_monthly_price_id' => 'price_monthly_free_del',
+            'stripe_yearly_price_id' => 'price_yearly_free_del',
+            'stripe_product_id' => 'prod_free_del',
+            'price_per_month' => 0,
+            'price_per_year' => 0,
+            'features' => [
+                'api' => ['order' => 6, 'label' => 'API', 'config' => [], 'type' => 'missing'],
+            ],
+        ]);
+
+        $this->subscribeUserToPlan($this->user, $freePlan);
+        $this->actingAs($this->user);
+
+        $response = $this->withSession(['auth.password_confirmed_at' => time()])
+            ->delete('/user/webhook-settings');
+
+        $response->assertStatus(403);
+    }
+
+    public function test_delete_webhook_requires_password_confirmation(): void
+    {
+        $this->subscribeUserToPlan($this->user, $this->primePlan);
+        $this->user->updateQuietly([
+            'webhook_url' => 'https://example.com/webhook',
+            'webhook_secret' => bin2hex(random_bytes(32)),
+        ]);
+        $this->actingAs($this->user);
+
+        $response = $this->delete('/user/webhook-settings');
+
+        $response->assertRedirect();
+        $this->assertNotNull($this->user->fresh()->webhook_url);
+    }
+
+    public function test_delete_webhook_when_none_configured(): void
+    {
+        $this->subscribeUserToPlan($this->user, $this->primePlan);
+        $this->actingAs($this->user);
+
+        $response = $this->withSession(['auth.password_confirmed_at' => time()])
+            ->delete('/user/webhook-settings');
+
+        $response->assertRedirect();
+
+        $this->user->refresh();
+        $this->assertNull($this->user->webhook_url);
+        $this->assertNull($this->user->webhook_secret);
+    }
+
+    public function test_user_can_send_test_webhook(): void
+    {
+        Queue::fake();
+
+        $this->subscribeUserToPlan($this->user, $this->primePlan);
+        $this->user->updateQuietly([
+            'webhook_url' => 'https://example.com/webhook',
+            'webhook_secret' => bin2hex(random_bytes(32)),
+        ]);
+        $this->actingAs($this->user);
+
+        $response = $this->withSession(['auth.password_confirmed_at' => time()])
+            ->post('/user/webhook-settings/test');
+
+        $response->assertRedirect();
+
+        Queue::assertPushed(SendWebhookNotification::class, function ($job) {
+            return $job->event === 'ping'
+                && str_starts_with($job->hashId, 'test-')
+                && $job->webhookUrl === 'https://example.com/webhook';
+        });
+    }
+
+    public function test_test_webhook_requires_password_confirmation(): void
+    {
+        $this->subscribeUserToPlan($this->user, $this->primePlan);
+        $this->user->updateQuietly([
+            'webhook_url' => 'https://example.com/webhook',
+            'webhook_secret' => bin2hex(random_bytes(32)),
+        ]);
+        $this->actingAs($this->user);
+
+        $response = $this->post('/user/webhook-settings/test');
+
+        $response->assertRedirect();
+    }
+
+    public function test_test_webhook_requires_webhook_configured(): void
+    {
+        $this->subscribeUserToPlan($this->user, $this->primePlan);
+        $this->actingAs($this->user);
+
+        $response = $this->withSession(['auth.password_confirmed_at' => time()])
+            ->post('/user/webhook-settings/test');
+
+        $response->assertStatus(422);
+    }
+
+    public function test_test_webhook_requires_api_plan(): void
+    {
+        $freePlan = Plan::factory()->create([
+            'name' => 'Free',
+            'stripe_monthly_price_id' => 'price_monthly_free_test',
+            'stripe_yearly_price_id' => 'price_yearly_free_test',
+            'stripe_product_id' => 'prod_free_test',
+            'price_per_month' => 0,
+            'price_per_year' => 0,
+            'features' => [
+                'api' => ['order' => 6, 'label' => 'API', 'config' => [], 'type' => 'missing'],
+            ],
+        ]);
+
+        $this->subscribeUserToPlan($this->user, $freePlan);
+        $this->user->updateQuietly([
+            'webhook_url' => 'https://example.com/webhook',
+            'webhook_secret' => bin2hex(random_bytes(32)),
+        ]);
+        $this->actingAs($this->user);
+
+        $response = $this->withSession(['auth.password_confirmed_at' => time()])
+            ->post('/user/webhook-settings/test');
+
+        $response->assertStatus(403);
     }
 }
