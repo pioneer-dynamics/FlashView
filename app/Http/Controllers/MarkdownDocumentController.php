@@ -179,4 +179,9 @@ class MarkdownDocumentController extends Controller
     {
         return $this->baseMarkdownRender('markdown/cli.md', 'CLI Tool', false);
     }
+
+    public function webhooks()
+    {
+        return $this->baseMarkdownRender('markdown/webhooks.md', 'Webhooks', false);
+    }
 }

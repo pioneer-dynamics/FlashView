@@ -437,6 +437,9 @@ const logout = () => {
                                     <li>
                                         <Link :href="route('cli.index')" class="hover:underline">CLI Tool</Link>
                                     </li>
+                                    <li>
+                                        <Link :href="route('webhooks.index')" class="hover:underline">Webhooks</Link>
+                                    </li>
                                 </ul>
                             </div>
                             <div>

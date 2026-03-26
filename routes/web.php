@@ -39,6 +39,7 @@ Route::controller(MarkdownDocumentController::class)->group(function () {
     Route::get('/about', 'about')->name('about.index');
     Route::get('/use-cases', 'useCases')->name('useCases.index');
     Route::get('/cli', 'cli')->name('cli.index');
+    Route::get('/webhooks', 'webhooks')->name('webhooks.index');
 });
 
 Route::middleware(config('fortify.middleware', ['web']))->group(function () {
