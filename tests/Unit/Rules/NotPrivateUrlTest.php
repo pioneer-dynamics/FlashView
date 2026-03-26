@@ -81,4 +81,32 @@ class NotPrivateUrlTest extends TestCase
 
         $this->assertFalse($this->failed);
     }
+
+    public function test_rejects_192_168_range(): void
+    {
+        $this->validate('https://192.168.1.1/webhook');
+
+        $this->assertTrue($this->failed);
+    }
+
+    public function test_rejects_10_range(): void
+    {
+        $this->validate('https://10.0.0.1/webhook');
+
+        $this->assertTrue($this->failed);
+    }
+
+    public function test_rejects_172_16_to_31_range(): void
+    {
+        $this->validate('https://172.16.0.1/webhook');
+
+        $this->assertTrue($this->failed);
+    }
+
+    public function test_rejects_169_254_link_local(): void
+    {
+        $this->validate('https://169.254.1.1/webhook');
+
+        $this->assertTrue($this->failed);
+    }
 }
