@@ -193,6 +193,10 @@ const logout = () => {
                                                 Profile
                                             </DropdownLink>
 
+                                            <DropdownLink :href="route('user.notification-settings.index')">
+                                                Notification Settings
+                                            </DropdownLink>
+
                                             <DropdownLink v-if="$page.props.jetstream.hasApiFeatures && $page.props.auth?.hasApiAccess"
                                                 :href="route('api-tokens.index')">
                                                 API Tokens
@@ -303,6 +307,11 @@ const logout = () => {
                                 <ResponsiveNavLink :href="route('profile.show')"
                                     :active="route().current('profile.show')">
                                     Profile
+                                </ResponsiveNavLink>
+
+                                <ResponsiveNavLink :href="route('user.notification-settings.index')"
+                                    :active="route().current('user.notification-settings.index')">
+                                    Notification Settings
                                 </ResponsiveNavLink>
 
                                 <ResponsiveNavLink v-if="$page.props.jetstream.hasApiFeatures && $page.props.auth?.hasApiAccess"
@@ -419,6 +428,9 @@ const logout = () => {
                                     </li>
                                     <li>
                                         <Link :href="route('cli.index')" class="hover:underline">CLI Tool</Link>
+                                    </li>
+                                    <li>
+                                        <Link :href="route('webhooks.index')" class="hover:underline">Webhooks</Link>
                                     </li>
                                 </ul>
                             </div>

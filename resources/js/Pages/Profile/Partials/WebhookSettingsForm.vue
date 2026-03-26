@@ -19,8 +19,12 @@ const webhook = computed(() => page.props.auth?.webhook);
 
 const revealedSecret = ref(null);
 const confirmingSecretRegeneration = ref(false);
+const confirmingWebhookDeletion = ref(false);
 const revealing = ref(false);
 const regenerating = ref(false);
+const deleting = ref(false);
+const testing = ref(false);
+const testDispatched = ref(false);
 const secretCopied = ref(false);
 
 const form = useForm({
@@ -76,6 +80,37 @@ const regenerateSecret = () => {
         },
     });
 };
+
+const deleteWebhook = () => {
+    deleting.value = true;
+
+    router.delete(route('user.webhook-settings.destroy'), {
+        preserveScroll: true,
+        onSuccess: () => {
+            confirmingWebhookDeletion.value = false;
+            form.webhook_url = '';
+            revealedSecret.value = null;
+        },
+        onFinish: () => {
+            deleting.value = false;
+        },
+    });
+};
+
+const testWebhook = () => {
+    testing.value = true;
+
+    router.post(route('user.webhook-settings.test'), {}, {
+        preserveScroll: true,
+        onSuccess: () => {
+            testDispatched.value = true;
+            setTimeout(() => { testDispatched.value = false; }, 5000);
+        },
+        onFinish: () => {
+            testing.value = false;
+        },
+    });
+};
 </script>
 
 <template>
@@ -101,6 +136,9 @@ const regenerateSecret = () => {
                 <InputError :message="form.errors.webhook_url" class="mt-2" />
                 <p class="mt-2 text-xs text-gray-500 dark:text-gray-500">
                     We will send a signed HTTP POST to this URL when your secrets are retrieved. Must be HTTPS.
+                    <Link :href="route('webhooks.index')" class="text-indigo-600 dark:text-indigo-400 hover:underline">
+                        Learn more
+                    </Link>
                 </p>
             </div>
 
@@ -131,10 +169,21 @@ const regenerateSecret = () => {
                     Use this secret to verify webhook signatures via the <code class="text-xs">X-Signature-256</code> header.
                 </p>
 
-                <div class="mt-4">
+                <div class="mt-4 flex items-center gap-3">
                     <DangerButton type="button" :class="{ 'opacity-25': regenerating }" :disabled="regenerating" @click="confirmingSecretRegeneration = true">
                         Regenerate Secret
                     </DangerButton>
+                    <DangerButton type="button" @click="confirmingWebhookDeletion = true">
+                        Delete Webhook
+                    </DangerButton>
+                    <ConfirmsPasswordOrPasskey @confirmed="testWebhook">
+                        <SecondaryButton type="button" :class="{ 'opacity-25': testing }" :disabled="testing">
+                            Send Test
+                        </SecondaryButton>
+                    </ConfirmsPasswordOrPasskey>
+                    <ActionMessage :on="testDispatched">
+                        Test webhook sent — check your endpoint to confirm it was received.
+                    </ActionMessage>
                 </div>
             </div>
         </template>
@@ -186,6 +235,28 @@ const regenerateSecret = () => {
             <ConfirmsPasswordOrPasskey @confirmed="regenerateSecret">
                 <DangerButton class="ms-3">
                     Regenerate Secret
+                </DangerButton>
+            </ConfirmsPasswordOrPasskey>
+        </template>
+    </ConfirmationModal>
+
+    <ConfirmationModal :show="confirmingWebhookDeletion" @close="confirmingWebhookDeletion = false">
+        <template #title>
+            Delete Webhook
+        </template>
+
+        <template #content>
+            Are you sure you want to delete your webhook configuration? You will stop receiving HTTP notifications for secret retrievals.
+        </template>
+
+        <template #footer>
+            <SecondaryButton @click="confirmingWebhookDeletion = false">
+                Cancel
+            </SecondaryButton>
+
+            <ConfirmsPasswordOrPasskey @confirmed="deleteWebhook">
+                <DangerButton class="ms-3" :class="{ 'opacity-25': deleting }" :disabled="deleting">
+                    Delete Webhook
                 </DangerButton>
             </ConfirmsPasswordOrPasskey>
         </template>

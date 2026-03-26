@@ -95,7 +95,7 @@ class MarkdownDocumentController extends Controller
 
     private function getRoutePatternToMatch()
     {
-        return "/{ROUTE:([\w.]+)}/";
+        return "/{ROUTE:([\w.\-]+)}/";
     }
 
     /**
@@ -178,5 +178,10 @@ class MarkdownDocumentController extends Controller
     public function cli()
     {
         return $this->baseMarkdownRender('markdown/cli.md', 'CLI Tool', false);
+    }
+
+    public function webhooks()
+    {
+        return $this->baseMarkdownRender('markdown/webhooks.md', 'Webhooks', false);
     }
 }
