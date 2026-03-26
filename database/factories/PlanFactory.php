@@ -2,10 +2,11 @@
 
 namespace Database\Factories;
 
+use App\Models\Plan;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Plan>
+ * @extends Factory<Plan>
  */
 class PlanFactory extends Factory
 {
@@ -17,7 +18,130 @@ class PlanFactory extends Factory
     public function definition(): array
     {
         return [
-            //
+            'name' => fake()->unique()->word(),
+            'stripe_product_id' => 'prod_'.fake()->unique()->bothify('??????????????'),
+            'stripe_monthly_price_id' => 'price_'.fake()->unique()->bothify('??????????????'),
+            'stripe_yearly_price_id' => 'price_'.fake()->unique()->bothify('??????????????'),
+            'price_per_month' => 25,
+            'price_per_year' => 250,
+            'features' => $this->defaultFeatures(),
+        ];
+    }
+
+    /**
+     * A free plan without API, notifications, or support.
+     */
+    public function free(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'name' => 'Free',
+            'price_per_month' => 0,
+            'price_per_year' => 0,
+            'stripe_product_id' => '',
+            'stripe_monthly_price_id' => '',
+            'stripe_yearly_price_id' => '',
+            'features' => $this->defaultFeatures(
+                apiType: 'missing',
+                notificationEmail: false,
+                notificationWebhook: false,
+                notificationType: 'missing',
+            ),
+        ]);
+    }
+
+    /**
+     * A plan with email notifications but no API or webhook.
+     */
+    public function withEmailNotifications(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'features' => $this->defaultFeatures(
+                apiType: 'missing',
+                notificationEmail: true,
+                notificationWebhook: false,
+            ),
+        ]);
+    }
+
+    /**
+     * A plan with full API access and all notifications.
+     */
+    public function withApiAccess(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'features' => $this->defaultFeatures(
+                apiType: 'feature',
+                notificationEmail: true,
+                notificationWebhook: true,
+            ),
+        ]);
+    }
+
+    /**
+     * Build the default features array with configurable options.
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    private function defaultFeatures(
+        int $messageLength = 100000,
+        int $expiryMinutes = 43200,
+        string $expiryLabel = '30 days',
+        string $apiType = 'feature',
+        bool $notificationEmail = true,
+        bool $notificationWebhook = true,
+        string $notificationType = 'feature',
+    ): array {
+        return [
+            'untracked' => [
+                'order' => 1,
+                'label' => 'Unlimited messages',
+                'config' => [],
+                'type' => 'feature',
+            ],
+            'messages' => [
+                'order' => 2,
+                'label' => ':message_length character limit per message',
+                'config' => [
+                    'message_length' => $messageLength,
+                ],
+                'type' => 'feature',
+            ],
+            'expiry' => [
+                'order' => 3,
+                'label' => 'Maximum expiry of :expiry_label',
+                'config' => [
+                    'expiry_label' => $expiryLabel,
+                    'expiry_minutes' => $expiryMinutes,
+                ],
+                'type' => 'feature',
+            ],
+            'throttling' => [
+                'order' => 4,
+                'label' => 'No rate limits',
+                'config' => [],
+                'type' => 'feature',
+            ],
+            'notification' => [
+                'order' => 4.5,
+                'label' => 'Get notified when a message is retrieved',
+                'config' => [
+                    'email' => $notificationEmail,
+                    'webhook' => $notificationWebhook,
+                ],
+                'type' => $notificationType,
+            ],
+            'support' => [
+                'order' => 5,
+                'label' => 'Support',
+                'config' => [],
+                'type' => 'feature',
+            ],
+            'api' => [
+                'order' => 6,
+                'label' => 'API Access',
+                'config' => [],
+                'type' => $apiType,
+            ],
         ];
     }
 }
