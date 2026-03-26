@@ -29,26 +29,23 @@ jobs:
           tools: composer
           coverage: none
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
       - name: Install Composer dependencies
         run: composer install --no-interaction --prefer-dist --optimize-autoloader
+
+      - name: Build frontend assets
+        run: npm ci && npm run build
 
       - name: Prepare environment
         run: |
           cp .env.example .env
           php artisan key:generate
           touch database/database.sqlite
-
-      - name: Create Vite manifest stub
-        run: |
-          mkdir -p public/build
-          grep -roh "Vite::asset('[^']*')" resources/views/ | sed "s/Vite::asset('//;s/')//" | sort -u | php -r '
-            $manifest = [];
-            while ($line = fgets(STDIN)) {
-              $asset = trim($line);
-              if ($asset) $manifest[$asset] = ["file" => $asset, "src" => $asset];
-            }
-            file_put_contents("public/build/manifest.json", json_encode($manifest, JSON_PRETTY_PRINT));
-          '
 
       - name: Run migrations
         run: php artisan migrate --no-interaction
