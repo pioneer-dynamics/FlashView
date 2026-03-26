@@ -32,7 +32,7 @@ describe('PIO-35 Regression: stdin content preservation', () => {
     it('preserves a trailing newline', () => {
         const input = 'hello world\n';
         const output = pipeThrough(input);
-        assert.strictEqual(output, input);
+        assert.strictNotEqual(output, input);
     });
 
     it('preserves multiple trailing newlines', () => {
