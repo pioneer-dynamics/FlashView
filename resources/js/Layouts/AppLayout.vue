@@ -61,10 +61,6 @@ const logout = () => {
                                             :active="route().current('secrets.index')">
                                             My Secrets
                                         </NavLink>
-                                        <NavLink :href="route('user.notification-settings.index')"
-                                            :active="route().current('user.notification-settings.index')">
-                                            Notification Settings
-                                        </NavLink>
                                     </template>
                                     <template v-else>
                                         <NavLink :href="route('welcome')" :active="route().current('welcome')">
@@ -268,10 +264,6 @@ const logout = () => {
                                 <ResponsiveNavLink :href="route('secrets.index')"
                                     :active="route().current('secrets.index')">
                                     My Secrets
-                                </ResponsiveNavLink>
-                                <ResponsiveNavLink :href="route('user.notification-settings.index')"
-                                    :active="route().current('user.notification-settings.index')">
-                                    Notification Settings
                                 </ResponsiveNavLink>
                             </template>
                             <template v-else>
