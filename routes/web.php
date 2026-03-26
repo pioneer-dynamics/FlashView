@@ -102,6 +102,12 @@ Route::middleware([
         Route::post('/user/webhook-settings/regenerate-secret', [WebhookSettingsController::class, 'regenerateSecret'])
             ->middleware('password.confirm')
             ->name('user.webhook-settings.regenerate-secret');
+        Route::delete('/user/webhook-settings', [WebhookSettingsController::class, 'destroy'])
+            ->middleware('password.confirm')
+            ->name('user.webhook-settings.destroy');
+        Route::post('/user/webhook-settings/test', [WebhookSettingsController::class, 'test'])
+            ->middleware('password.confirm')
+            ->name('user.webhook-settings.test');
     });
 
     Route::get('/billing', function (Request $request) {

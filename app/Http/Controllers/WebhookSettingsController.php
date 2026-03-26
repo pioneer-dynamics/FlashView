@@ -3,8 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\UpdateWebhookSettingsRequest;
+use App\Jobs\SendWebhookNotification;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
 class WebhookSettingsController extends Controller
 {
@@ -52,5 +54,38 @@ class WebhookSettingsController extends Controller
         return back()->with('flash', [
             'webhookSecret' => $user->fresh()->webhook_secret,
         ]);
+    }
+
+    public function destroy(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+
+        abort_unless($user->planSupportsWebhook(), 403);
+
+        $user->updateQuietly([
+            'webhook_url' => null,
+            'webhook_secret' => null,
+        ]);
+
+        return back();
+    }
+
+    public function test(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+
+        abort_unless($user->planSupportsWebhook(), 403);
+        abort_unless($user->hasWebhookConfigured(), 422);
+
+        SendWebhookNotification::dispatch(
+            webhookUrl: $user->webhook_url,
+            webhookSecret: $user->webhook_secret,
+            hashId: 'test-'.Str::random(5),
+            createdAt: now()->toIso8601String(),
+            retrievedAt: now()->toIso8601String(),
+            event: 'ping',
+        );
+
+        return back();
     }
 }
