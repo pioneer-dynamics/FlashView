@@ -95,7 +95,7 @@ class MarkdownDocumentController extends Controller
 
     private function getRoutePatternToMatch()
     {
-        return "/{ROUTE:([\w.]+)}/";
+        return "/{ROUTE:([\w.\-]+)}/";
     }
 
     /**
