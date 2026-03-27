@@ -73,7 +73,7 @@ function submit(action) {
                 The FlashView CLI is requesting access to create an API token
                 for your account ({{ page.props.auth.user.email }}).
             </p>
-            <p class="mt-1 text-xs text-gray-500 dark:text-gray-500 text-center">
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400 text-center">
                 This will create a new CLI installation. Your existing CLI connections will not be affected.
             </p>
 
@@ -86,7 +86,7 @@ function submit(action) {
                     class="mt-1 block w-full"
                     placeholder="e.g., Work Laptop, CI Server"
                 />
-                <p class="mt-1 text-xs text-gray-500 dark:text-gray-500">
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
                     Give this device a name so you can identify it later.
                 </p>
             </div>

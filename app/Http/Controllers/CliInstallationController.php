@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\UpdateCliInstallationRequest;
+use App\Http\Resources\CliInstallationResource;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -13,20 +14,13 @@ class CliInstallationController extends Controller
 {
     public function index(Request $request): Response
     {
-        $installations = $request->user()
+        $tokens = $request->user()
             ->tokens()
             ->where('type', 'cli')
             ->latest()
-            ->get()
-            ->map(fn ($token) => [
-                'id' => $token->id,
-                'name' => $token->name,
-                'abilities' => $token->abilities,
-                'last_used_at' => $token->last_used_at,
-                'last_used_ago' => $token->last_used_at?->diffForHumans(),
-                'created_at' => $token->created_at,
-                'created_ago' => $token->created_at->diffForHumans(),
-            ]);
+            ->get();
+
+        $installations = CliInstallationResource::collection($tokens)->resolve();
 
         return Inertia::render('CliInstallations/Index', [
             'installations' => $installations,
