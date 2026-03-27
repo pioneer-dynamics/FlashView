@@ -103,7 +103,7 @@ const logout = () => {
                                         <template #content>
                                             <div class="w-60">
                                                 <!-- Team Management -->
-                                                <div class="block px-4 py-2 text-xs text-gray-400">
+                                                <div class="block px-4 py-2 text-xs text-gray-600 dark:text-gray-400">
                                                     Manage Team
                                                 </div>
 
@@ -122,7 +122,7 @@ const logout = () => {
                                                 <template v-if="$page.props?.auth?.user?.all_teams.length > 1">
                                                     <div class="border-t border-gray-200 dark:border-gray-600" />
 
-                                                    <div class="block px-4 py-2 text-xs text-gray-400">
+                                                    <div class="block px-4 py-2 text-xs text-gray-600 dark:text-gray-400">
                                                         Switch Teams
                                                     </div>
 
@@ -184,7 +184,7 @@ const logout = () => {
 
                                         <template #content>
                                             <!-- Account Management -->
-                                            <div class="block px-4 py-2 text-xs text-gray-400">
+                                            <div class="block px-4 py-2 text-xs text-gray-600 dark:text-gray-400">
                                                 Manage Account
                                             </div>
 
@@ -235,7 +235,7 @@ const logout = () => {
                             <!-- Hamburger -->
                             <div class="-me-2 flex items-center sm:hidden">
                                 <button
-                                    class="inline-flex items-center justify-center p-2 rounded-md text-gray-400 dark:text-gray-500 hover:text-gray-500 dark:hover:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-900 focus:outline-none focus:bg-gray-100 dark:focus:bg-gray-900 focus:text-gray-500 dark:focus:text-gray-400 transition duration-150 ease-in-out"
+                                    class="inline-flex items-center justify-center p-2 rounded-md text-gray-600 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900 focus:outline-none focus:bg-gray-100 dark:focus:bg-gray-900 focus:text-gray-700 dark:focus:text-gray-300 transition duration-150 ease-in-out"
                                     @click="showingNavigationDropdown = !showingNavigationDropdown">
                                     <svg class="size-6" stroke="currentColor" fill="none" viewBox="0 0 24 24">
                                         <path
@@ -296,7 +296,7 @@ const logout = () => {
                                     <div class="font-medium text-base text-gray-800 dark:text-gray-200">
                                         {{ $page.props?.auth?.user?.name }}
                                     </div>
-                                    <div class="font-medium text-sm text-gray-500">
+                                    <div class="font-medium text-sm text-gray-600 dark:text-gray-400">
                                         {{ $page.props?.auth?.user?.email }}
                                     </div>
                                 </div>
@@ -329,7 +329,7 @@ const logout = () => {
                                 <template v-if="$page.props.jetstream.hasTeamFeatures">
                                     <div class="border-t border-gray-200 dark:border-gray-600" />
 
-                                    <div class="block px-4 py-2 text-xs text-gray-400">
+                                    <div class="block px-4 py-2 text-xs text-gray-600 dark:text-gray-400">
                                         Manage Team
                                     </div>
 
@@ -349,7 +349,7 @@ const logout = () => {
                                     <template v-if="$page.props?.auth?.user?.all_teams.length > 1">
                                         <div class="border-t border-gray-200 dark:border-gray-600" />
 
-                                        <div class="block px-4 py-2 text-xs text-gray-400">
+                                        <div class="block px-4 py-2 text-xs text-gray-600 dark:text-gray-400">
                                             Switch Teams
                                         </div>
 
@@ -412,7 +412,7 @@ const logout = () => {
                         <div class="grid grid-cols-2 gap-8 sm:gap-6 sm:grid-cols-4">
                             <div>
                                 <h2 class="mb-6 text-sm font-semibold text-gray-900 uppercase dark:text-white">Resources</h2>
-                                <ul class="text-gray-500 dark:text-gray-400 font-medium space-y-4">
+                                <ul class="text-gray-700 dark:text-gray-400 font-medium space-y-4">
                                     <li>
                                         <Link :href="route('faq.index')" class="hover:underline">F.A.Q</Link>
                                     </li>
@@ -435,7 +435,7 @@ const logout = () => {
                             </div>
                             <div>
                                 <h2 class="mb-6 text-sm font-semibold text-gray-900 uppercase dark:text-white">Follow us</h2>
-                                <ul class="text-gray-500 dark:text-gray-400 font-medium">
+                                <ul class="text-gray-700 dark:text-gray-400 font-medium">
                                     <li class="mb-4">
                                         <a target="_blank" href="https://github.com/pioneer-dynamics/FlashView" class="hover:underline ">Github</a>
                                     </li>
@@ -446,7 +446,7 @@ const logout = () => {
                             </div>
                             <div>
                                 <h2 class="mb-6 text-sm font-semibold text-gray-900 uppercase dark:text-white">Legal</h2>
-                                <ul class="text-gray-500 dark:text-gray-400 font-medium space-y-4">
+                                <ul class="text-gray-700 dark:text-gray-400 font-medium space-y-4">
                                     <li>
                                         <Link :href="route('policy.show')" class="hover:underline">Privacy Policy</Link>
                                     </li>
@@ -465,7 +465,7 @@ const logout = () => {
                     </div>
                     <hr class="my-6 border-gray-200 sm:mx-auto dark:border-gray-700 lg:my-8" />
                     <div class="sm:flex sm:items-center sm:justify-between">
-                        <span class="text-sm text-gray-500 sm:text-center dark:text-gray-400 flex flex-wrap gap-1 space-x-2">
+                        <span class="text-sm text-gray-700 sm:text-center dark:text-gray-400 flex flex-wrap gap-1 space-x-2">
                             <div>© {{ new Date().getFullYear() }} <a href="https://flashview.link/" class="hover:underline text-gamboge-500 dark:text-gamboge-200">FlashView™</a>.</div>
                             <div>All Rights Reserved.</div>
                             <!-- <div>Made with ❤️ by <a target="_blank" href="https://www.linkedin.com/in/mathew-paret-b6b96041" class="hover:underline text-gamboge-500 dark:text-gamboge-200">Mathew Paret</a>.</div> -->
