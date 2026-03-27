@@ -24,7 +24,7 @@ class CliAuthController extends Controller
 
         $latestCliToken = $user->tokens()
             ->where('type', 'cli')
-            ->latest()
+            ->latest('id')
             ->first();
 
         $defaultPermissions = $latestCliToken
