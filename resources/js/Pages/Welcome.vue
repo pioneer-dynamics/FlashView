@@ -1,12 +1,8 @@
 <script setup>
-    import { Head, Link, router } from '@inertiajs/vue3';
-    import { computed, ref } from 'vue';
-    import Background from '../../images/bg.png';
+    import { Link } from '@inertiajs/vue3';
     import Logo from '../../images/logo.png';
     import Typewriter from '@/Components/Typewriter.vue';
     import SecretForm from '@/Pages/Secret/SecretForm.vue';
-    import Dropdown from '@/Components/Dropdown.vue';
-    import DropdownLink from '@/Components/DropdownLink.vue';
     import AppLayout from '@/Layouts/AppLayout.vue';
     import Page from './Page.vue';
         
@@ -29,14 +25,12 @@
         }
     });
 
-    const bgImageClass = computed(() => "bg-gray-50 text-black/50 dark:bg-black dark:text-white/50 bg-cover ");
 
 </script>
 
 <template>
     <AppLayout title="Welcome">
         <Page>
-        <!-- <img id="background" class="absolute -left-20 top-0 w-full" :src="Background" /> -->
         <div class="relative min-h-screen flex flex-col items-center justify-center">
             <div class="relative w-full max-w-2xl px-6 lg:max-w-7xl">
                 <header class="grid grid-cols-2 items-center gap-2 py-10 lg:grid-cols-3">
