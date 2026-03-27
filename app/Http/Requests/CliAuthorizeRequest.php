@@ -20,6 +20,7 @@ class CliAuthorizeRequest extends FormRequest
         return [
             'port' => ['required', 'integer', 'min:1024', 'max:65535'],
             'state' => ['required', 'string', 'min:16'],
+            'name' => ['nullable', 'string', 'max:255'],
         ];
     }
 }

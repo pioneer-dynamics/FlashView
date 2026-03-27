@@ -265,7 +265,7 @@ class CliAuthTest extends TestCase
         ])->assertOk();
 
         $token = $user->fresh()->tokens->first();
-        $this->assertEquals('FlashView CLI', $token->name);
+        $this->assertEquals('cli', $token->type);
 
         foreach (Jetstream::$defaultPermissions as $permission) {
             $this->assertTrue($token->can($permission));
@@ -295,11 +295,12 @@ class CliAuthTest extends TestCase
         $this->assertFalse($token->can('secrets:delete'));
     }
 
-    public function test_exchange_token_revokes_existing_cli_tokens(): void
+    public function test_exchange_token_preserves_existing_cli_tokens(): void
     {
         $user = $this->createUserWithApiAccess();
 
-        $user->createToken('FlashView CLI', ['secrets:create']);
+        $existingCliToken = $user->createToken('My Laptop', ['secrets:create']);
+        $existingCliToken->accessToken->update(['type' => 'cli']);
         $user->createToken('Other Token', ['secrets:create']);
         $this->assertCount(2, $user->fresh()->tokens);
 
@@ -310,6 +311,7 @@ class CliAuthTest extends TestCase
             'user_id' => $user->id,
             'state' => $state,
             'permissions' => ['secrets:create', 'secrets:list'],
+            'name' => 'Work Desktop',
         ], now()->addSeconds(60));
 
         $this->postJson('/cli/token', [
@@ -318,12 +320,16 @@ class CliAuthTest extends TestCase
         ])->assertOk();
 
         $tokens = $user->fresh()->tokens;
-        $this->assertCount(2, $tokens);
-        $this->assertEquals('Other Token', $tokens->where('name', 'Other Token')->first()->name);
+        $this->assertCount(3, $tokens);
 
-        $cliToken = $tokens->where('name', 'FlashView CLI')->first();
-        $this->assertTrue($cliToken->can('secrets:create'));
-        $this->assertTrue($cliToken->can('secrets:list'));
+        $this->assertNotNull($tokens->where('name', 'My Laptop')->first());
+        $this->assertNotNull($tokens->where('name', 'Other Token')->first());
+
+        $newCliToken = $tokens->where('name', 'Work Desktop')->first();
+        $this->assertNotNull($newCliToken);
+        $this->assertEquals('cli', $newCliToken->type);
+        $this->assertTrue($newCliToken->can('secrets:create'));
+        $this->assertTrue($newCliToken->can('secrets:list'));
     }
 
     public function test_exchange_token_validates_required_fields(): void
@@ -337,7 +343,8 @@ class CliAuthTest extends TestCase
     {
         $user = $this->createUserWithApiAccess();
 
-        $user->createToken('FlashView CLI', ['secrets:create', 'secrets:list']);
+        $token = $user->createToken('My Laptop', ['secrets:create', 'secrets:list']);
+        $token->accessToken->update(['type' => 'cli']);
 
         $response = $this->actingAs($user)
             ->get('/cli/authorize?port=12345&state=abcdef1234567890');
