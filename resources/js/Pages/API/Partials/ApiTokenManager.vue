@@ -82,6 +82,7 @@ const deleteApiToken = () => {
                     You can also create and manage secrets from your terminal using the
                     <Link :href="route('cli.index')" class="underline font-semibold">FlashView CLI</Link>.
                     Learn more and get started.
+                    <Link :href="route('cli-installations.index')" class="underline font-semibold ml-1">Manage CLI Installations</Link>
                 </span>
             </Alert>
         </div>
@@ -154,8 +155,20 @@ const deleteApiToken = () => {
                     <template #content>
                         <div class="space-y-6">
                             <div v-for="token in tokens" :key="token.id" class="flex items-center justify-between">
-                                <div class="break-all dark:text-white">
+                                <div class="break-all dark:text-white flex items-center gap-2">
                                     {{ token.name }}
+                                    <span
+                                        v-if="token.type === 'cli'"
+                                        class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300"
+                                    >
+                                        CLI
+                                    </span>
+                                    <span
+                                        v-else
+                                        class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300"
+                                    >
+                                        API
+                                    </span>
                                 </div>
 
                                 <div class="flex items-center ms-2">
