@@ -2,6 +2,7 @@ import { Command } from 'commander';
 import crypto from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { createServer } from 'node:http';
+import { hostname } from 'node:os';
 import { dirname, join } from 'node:path';
 import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
@@ -459,7 +460,7 @@ program
 
         const { server, port } = await startCallbackServer();
 
-        const authorizeUrl = `${serverUrl}/cli/authorize?port=${port}&state=${state}`;
+        const authorizeUrl = `${serverUrl}/cli/authorize?port=${port}&state=${state}&name=${encodeURIComponent(hostname())}`;
 
         const opened = await openBrowser(authorizeUrl);
         if (opened) {

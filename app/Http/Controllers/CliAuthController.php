@@ -22,15 +22,19 @@ class CliAuthController extends Controller
     {
         $user = $request->user();
 
-        $existingToken = $user->tokens()->where('name', 'FlashView CLI')->first();
+        $latestCliToken = $user->tokens()
+            ->where('type', 'cli')
+            ->latest()
+            ->first();
 
-        $defaultPermissions = $existingToken
-            ? $existingToken->abilities
+        $defaultPermissions = $latestCliToken
+            ? $latestCliToken->abilities
             : Jetstream::$defaultPermissions;
 
         return Inertia::render('Cli/Authorize', [
             'port' => (int) $request->validated('port'),
             'state' => $request->validated('state'),
+            'name' => $request->validated('name'),
             'hasApiAccess' => $user->hasApiAccess(),
             'availablePermissions' => Jetstream::$permissions,
             'defaultPermissions' => $defaultPermissions,
@@ -71,6 +75,7 @@ class CliAuthController extends Controller
             'user_id' => $user->id,
             'state' => $request->validated('state'),
             'permissions' => $permissions,
+            'name' => $request->validated('name'),
         ], now()->addSeconds(60));
 
         return Inertia::location($baseCallback.'?'.http_build_query([
@@ -101,13 +106,21 @@ class CliAuthController extends Controller
 
         $user = User::findOrFail($data['user_id']);
 
-        $user->tokens()->where('name', 'FlashView CLI')->delete();
-
-        $token = $user->createToken('FlashView CLI', $data['permissions'] ?? Jetstream::$defaultPermissions);
+        $tokenName = $data['name'] ?? $this->generateDefaultInstallationName($user);
+        $token = $user->createToken($tokenName, $data['permissions'] ?? Jetstream::$defaultPermissions);
+        $token->accessToken->update(['type' => 'cli']);
 
         return new CliTokenResource([
             'token' => $token->plainTextToken,
             'user' => $user,
+            'installation_name' => $tokenName,
         ]);
+    }
+
+    private function generateDefaultInstallationName(User $user): string
+    {
+        $count = $user->tokens()->where('type', 'cli')->count() + 1;
+
+        return "CLI Installation #{$count}";
     }
 }

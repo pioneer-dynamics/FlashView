@@ -20,6 +20,7 @@ class CliTokenResource extends JsonResource
                 'name' => $this->resource['user']->name,
                 'email' => $this->resource['user']->email,
             ],
+            'installation_name' => $this->resource['installation_name'] ?? null,
         ];
     }
 }
