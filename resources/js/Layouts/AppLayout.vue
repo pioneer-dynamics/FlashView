@@ -202,11 +202,6 @@ const logout = () => {
                                                 API Tokens
                                             </DropdownLink>
 
-                                            <DropdownLink v-if="$page.props.jetstream.hasApiFeatures && $page.props.auth?.hasApiAccess"
-                                                :href="route('cli-installations.index')">
-                                                CLI Installations
-                                            </DropdownLink>
-
                                             <span v-if="$page.props?.auth?.user?.subscription">
                                                 <div class="border-t border-gray-200 dark:border-gray-600" />
                                                 <DropdownLink as="a" :href="route('billing')">
@@ -322,11 +317,6 @@ const logout = () => {
                                 <ResponsiveNavLink v-if="$page.props.jetstream.hasApiFeatures && $page.props.auth?.hasApiAccess"
                                     :href="route('api-tokens.index')" :active="route().current('api-tokens.index')">
                                     API Tokens
-                                </ResponsiveNavLink>
-
-                                <ResponsiveNavLink v-if="$page.props.jetstream.hasApiFeatures && $page.props.auth?.hasApiAccess"
-                                    :href="route('cli-installations.index')" :active="route().current('cli-installations.index')">
-                                    CLI Installations
                                 </ResponsiveNavLink>
 
                                 <!-- Authentication -->

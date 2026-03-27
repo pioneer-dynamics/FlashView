@@ -129,7 +129,7 @@ class CliMultipleInstallationsTest extends TestCase
         $this->assertEquals('Cached Name', $token->name);
     }
 
-    public function test_user_can_list_cli_installations(): void
+    public function test_cli_tokens_visible_on_api_tokens_page(): void
     {
         $user = $this->createUserWithApiAccess();
 
@@ -138,13 +138,12 @@ class CliMultipleInstallationsTest extends TestCase
         $user->createToken('API Token', ['secrets:create']);
 
         $response = $this->actingAs($user)
-            ->get('/user/cli-installations');
+            ->get('/user/api-tokens');
 
         $response->assertStatus(200);
         $response->assertInertia(fn ($page) => $page
-            ->component('CliInstallations/Index')
-            ->has('installations', 2)
-            ->has('availablePermissions')
+            ->component('API/Index')
+            ->has('tokens', 3)
         );
     }
 

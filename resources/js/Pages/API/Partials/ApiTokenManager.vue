@@ -31,11 +31,16 @@ const updateApiTokenForm = useForm({
     permissions: [],
 });
 
+const renameForm = useForm({
+    name: '',
+});
+
 const deleteApiTokenForm = useForm({});
 
 const displayingToken = ref(false);
 const managingPermissionsFor = ref(null);
 const apiTokenBeingDeleted = ref(null);
+const tokenBeingRenamed = ref(null);
 
 const createApiToken = () => {
     createApiTokenForm.post(route('api-tokens.store'), {
@@ -65,10 +70,28 @@ const confirmApiTokenDeletion = (token) => {
 };
 
 const deleteApiToken = () => {
-    deleteApiTokenForm.delete(route('api-tokens.destroy', apiTokenBeingDeleted.value), {
+    const token = apiTokenBeingDeleted.value;
+    const deleteRoute = token.type === 'cli'
+        ? route('cli-installations.destroy', token)
+        : route('api-tokens.destroy', token);
+
+    deleteApiTokenForm.delete(deleteRoute, {
         preserveScroll: true,
         preserveState: true,
         onSuccess: () => (apiTokenBeingDeleted.value = null),
+    });
+};
+
+const startRename = (token) => {
+    renameForm.name = token.name;
+    tokenBeingRenamed.value = token;
+};
+
+const renameToken = () => {
+    renameForm.put(route('cli-installations.update', tokenBeingRenamed.value), {
+        preserveScroll: true,
+        preserveState: true,
+        onSuccess: () => (tokenBeingRenamed.value = null),
     });
 };
 </script>
@@ -82,7 +105,6 @@ const deleteApiToken = () => {
                     You can also create and manage secrets from your terminal using the
                     <Link :href="route('cli.index')" class="underline font-semibold">FlashView CLI</Link>.
                     Learn more and get started.
-                    <Link :href="route('cli-installations.index')" class="underline font-semibold ml-1">Manage CLI Installations</Link>
                 </span>
             </Alert>
         </div>
@@ -177,6 +199,14 @@ const deleteApiToken = () => {
                                     </div>
 
                                     <button
+                                        v-if="token.type === 'cli'"
+                                        class="cursor-pointer ms-6 text-sm text-gray-400 underline"
+                                        @click="startRename(token)"
+                                    >
+                                        Rename
+                                    </button>
+
+                                    <button
                                         v-if="availablePermissions.length > 0"
                                         class="cursor-pointer ms-6 text-sm text-gray-400 underline"
                                         @click="manageApiTokenPermissions(token)"
@@ -251,14 +281,55 @@ const deleteApiToken = () => {
             </template>
         </DialogModal>
 
-        <!-- Delete Token Confirmation Modal -->
-        <ConfirmationModal :show="apiTokenBeingDeleted != null" @close="apiTokenBeingDeleted = null">
+        <!-- Rename CLI Installation Modal -->
+        <DialogModal :show="tokenBeingRenamed != null" @close="tokenBeingRenamed = null">
             <template #title>
-                Delete API Token
+                Rename CLI Installation
             </template>
 
             <template #content>
-                Are you sure you would like to delete this API token?
+                <div>
+                    <InputLabel for="rename-name" value="Installation Name" />
+                    <TextInput
+                        id="rename-name"
+                        v-model="renameForm.name"
+                        type="text"
+                        class="mt-1 block w-full"
+                        @keyup.enter="renameToken"
+                    />
+                    <InputError :message="renameForm.errors.name" class="mt-2" />
+                </div>
+            </template>
+
+            <template #footer>
+                <SecondaryButton @click="tokenBeingRenamed = null">
+                    Cancel
+                </SecondaryButton>
+
+                <PrimaryButton
+                    class="ms-3"
+                    :class="{ 'opacity-25': renameForm.processing }"
+                    :disabled="renameForm.processing"
+                    @click="renameToken"
+                >
+                    Save
+                </PrimaryButton>
+            </template>
+        </DialogModal>
+
+        <!-- Delete Token Confirmation Modal -->
+        <ConfirmationModal :show="apiTokenBeingDeleted != null" @close="apiTokenBeingDeleted = null">
+            <template #title>
+                Delete {{ apiTokenBeingDeleted?.type === 'cli' ? 'CLI Installation' : 'API Token' }}
+            </template>
+
+            <template #content>
+                <template v-if="apiTokenBeingDeleted?.type === 'cli'">
+                    Are you sure you would like to revoke access for this CLI installation? The device will no longer be able to access your account.
+                </template>
+                <template v-else>
+                    Are you sure you would like to delete this API token?
+                </template>
             </template>
 
             <template #footer>
