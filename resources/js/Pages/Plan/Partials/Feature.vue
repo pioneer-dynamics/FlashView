@@ -25,7 +25,7 @@
                 d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5Zm3.707 8.207-4 4a1 1 0 0 1-1.414 0l-2-2a1 1 0 0 1 1.414-1.414L9 10.586l3.293-3.293a1 1 0 0 1 1.414 1.414Z" />
         </svg>
         <span class="flex flex-wrap">
-            <span class="text-base font-normal leading-tight text-gray-700 ms-3">{{ feature.label }}</span>
+            <span class="text-base font-normal leading-tight text-gray-700 dark:text-gray-400 ms-3">{{ feature.label }}</span>
         </span>
     </li>
     <li class="flex decoration-gray-500 relative" v-else-if="feature.type == 'limit'">
@@ -33,7 +33,7 @@
             <path fill-rule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12ZM12 8.25a.75.75 0 0 1 .75.75v3.75a.75.75 0 0 1-1.5 0V9a.75.75 0 0 1 .75-.75Zm0 8.25a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Z" clip-rule="evenodd" />
         </svg>
         <span class="flex flex-wrap">
-            <span class="text-base font-normal leading-tight text-gray-700 ms-3">{{ feature.label }}</span>
+            <span class="text-base font-normal leading-tight text-gray-700 dark:text-gray-400 ms-3">{{ feature.label }}</span>
         </span>
     </li>
 </template>
