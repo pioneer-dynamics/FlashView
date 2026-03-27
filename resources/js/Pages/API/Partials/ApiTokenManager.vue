@@ -31,16 +31,11 @@ const updateApiTokenForm = useForm({
     permissions: [],
 });
 
-const renameForm = useForm({
-    name: '',
-});
-
 const deleteApiTokenForm = useForm({});
 
 const displayingToken = ref(false);
 const managingPermissionsFor = ref(null);
 const apiTokenBeingDeleted = ref(null);
-const tokenBeingRenamed = ref(null);
 
 const createApiToken = () => {
     createApiTokenForm.post(route('api-tokens.store'), {
@@ -82,18 +77,6 @@ const deleteApiToken = () => {
     });
 };
 
-const startRename = (token) => {
-    renameForm.name = token.name;
-    tokenBeingRenamed.value = token;
-};
-
-const renameToken = () => {
-    renameForm.put(route('cli-installations.update', tokenBeingRenamed.value), {
-        preserveScroll: true,
-        preserveState: true,
-        onSuccess: () => (tokenBeingRenamed.value = null),
-    });
-};
 </script>
 
 <template>
@@ -177,34 +160,37 @@ const renameToken = () => {
                     <template #content>
                         <div class="space-y-6">
                             <div v-for="token in tokens" :key="token.id" class="flex items-center justify-between">
-                                <div class="break-all dark:text-white flex items-center gap-2">
-                                    {{ token.name }}
-                                    <span
-                                        v-if="token.type === 'cli'"
-                                        class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300"
-                                    >
-                                        CLI
-                                    </span>
-                                    <span
-                                        v-else
-                                        class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300"
-                                    >
-                                        API
-                                    </span>
+                                <div>
+                                    <div class="break-all dark:text-white flex items-center gap-2">
+                                        {{ token.name }}
+                                        <span
+                                            v-if="token.type === 'cli'"
+                                            class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300"
+                                        >
+                                            CLI
+                                        </span>
+                                        <span
+                                            v-else
+                                            class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300"
+                                        >
+                                            API
+                                        </span>
+                                    </div>
+                                    <div v-if="token.abilities?.length" class="mt-1 flex flex-wrap gap-1">
+                                        <span
+                                            v-for="ability in token.abilities"
+                                            :key="ability"
+                                            class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300"
+                                        >
+                                            {{ ability }}
+                                        </span>
+                                    </div>
                                 </div>
 
                                 <div class="flex items-center ms-2">
                                     <div v-if="token.last_used_ago" class="text-sm text-gray-400">
                                         Last used {{ token.last_used_ago }}
                                     </div>
-
-                                    <button
-                                        v-if="token.type === 'cli'"
-                                        class="cursor-pointer ms-6 text-sm text-gray-400 underline"
-                                        @click="startRename(token)"
-                                    >
-                                        Rename
-                                    </button>
 
                                     <button
                                         v-if="availablePermissions.length > 0"
@@ -275,42 +261,6 @@ const renameToken = () => {
                     :class="{ 'opacity-25': updateApiTokenForm.processing }"
                     :disabled="updateApiTokenForm.processing"
                     @click="updateApiToken"
-                >
-                    Save
-                </PrimaryButton>
-            </template>
-        </DialogModal>
-
-        <!-- Rename CLI Installation Modal -->
-        <DialogModal :show="tokenBeingRenamed != null" @close="tokenBeingRenamed = null">
-            <template #title>
-                Rename CLI Installation
-            </template>
-
-            <template #content>
-                <div>
-                    <InputLabel for="rename-name" value="Installation Name" />
-                    <TextInput
-                        id="rename-name"
-                        v-model="renameForm.name"
-                        type="text"
-                        class="mt-1 block w-full"
-                        @keyup.enter="renameToken"
-                    />
-                    <InputError :message="renameForm.errors.name" class="mt-2" />
-                </div>
-            </template>
-
-            <template #footer>
-                <SecondaryButton @click="tokenBeingRenamed = null">
-                    Cancel
-                </SecondaryButton>
-
-                <PrimaryButton
-                    class="ms-3"
-                    :class="{ 'opacity-25': renameForm.processing }"
-                    :disabled="renameForm.processing"
-                    @click="renameToken"
                 >
                     Save
                 </PrimaryButton>

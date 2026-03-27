@@ -147,22 +147,6 @@ class CliMultipleInstallationsTest extends TestCase
         );
     }
 
-    public function test_user_can_rename_cli_installation(): void
-    {
-        $user = $this->createUserWithApiAccess();
-
-        $this->createCliToken($user, 'Old Name');
-        $token = $user->fresh()->tokens()->where('type', 'cli')->first();
-
-        $response = $this->actingAs($user)
-            ->put("/user/cli-installations/{$token->id}", [
-                'name' => 'New Name',
-            ]);
-
-        $response->assertRedirect();
-        $this->assertEquals('New Name', $token->fresh()->name);
-    }
-
     public function test_user_can_revoke_specific_cli_installation(): void
     {
         $user = $this->createUserWithApiAccess();
@@ -183,7 +167,7 @@ class CliMultipleInstallationsTest extends TestCase
         $this->assertEquals('Keep This', $remainingTokens->first()->name);
     }
 
-    public function test_user_cannot_manage_other_users_cli_installation(): void
+    public function test_user_cannot_revoke_other_users_cli_installation(): void
     {
         $user1 = $this->createUserWithApiAccess();
         $user2 = $this->createUserWithApiAccess();
@@ -192,25 +176,17 @@ class CliMultipleInstallationsTest extends TestCase
         $token = $user1->fresh()->tokens()->where('type', 'cli')->first();
 
         $this->actingAs($user2)
-            ->put("/user/cli-installations/{$token->id}", ['name' => 'Hijacked'])
-            ->assertNotFound();
-
-        $this->actingAs($user2)
             ->delete("/user/cli-installations/{$token->id}")
             ->assertNotFound();
 
-        $this->assertEquals('User1 Device', $token->fresh()->name);
+        $this->assertNotNull($token->fresh());
     }
 
-    public function test_user_cannot_manage_api_token_via_cli_installation_routes(): void
+    public function test_user_cannot_revoke_api_token_via_cli_installation_route(): void
     {
         $user = $this->createUserWithApiAccess();
 
         $apiToken = $user->createToken('API Token', ['secrets:create']);
-
-        $this->actingAs($user)
-            ->put("/user/cli-installations/{$apiToken->accessToken->id}", ['name' => 'Hijacked'])
-            ->assertNotFound();
 
         $this->actingAs($user)
             ->delete("/user/cli-installations/{$apiToken->accessToken->id}")
@@ -286,17 +262,5 @@ class CliMultipleInstallationsTest extends TestCase
 
         $cachedData = Cache::get("cli_auth:{$query['code']}");
         $this->assertEquals('Work Laptop', $cachedData['name']);
-    }
-
-    public function test_rename_validation_requires_name(): void
-    {
-        $user = $this->createUserWithApiAccess();
-
-        $this->createCliToken($user, 'My Device');
-        $token = $user->fresh()->tokens()->where('type', 'cli')->first();
-
-        $this->actingAs($user)
-            ->put("/user/cli-installations/{$token->id}", ['name' => ''])
-            ->assertSessionHasErrors('name');
     }
 }

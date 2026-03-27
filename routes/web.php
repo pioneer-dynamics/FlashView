@@ -96,7 +96,6 @@ Route::middleware([
         Route::put('/user/api-tokens/{token}', [ApiTokenController::class, 'update'])->name('api-tokens.update');
         Route::delete('/user/api-tokens/{token}', [ApiTokenController::class, 'destroy'])->name('api-tokens.destroy');
 
-        Route::put('/user/cli-installations/{token}', [CliInstallationController::class, 'update'])->name('cli-installations.update');
         Route::delete('/user/cli-installations/{token}', [CliInstallationController::class, 'destroy'])->name('cli-installations.destroy');
 
         Route::put('/user/webhook-settings', [WebhookSettingsController::class, 'update'])
