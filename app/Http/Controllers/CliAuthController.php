@@ -107,6 +107,12 @@ class CliAuthController extends Controller
         $user = User::findOrFail($data['user_id']);
 
         $tokenName = $data['name'] ?? $this->generateDefaultInstallationName($user);
+
+        $user->tokens()
+            ->where('type', 'cli')
+            ->where('name', $tokenName)
+            ->delete();
+
         $token = $user->createToken($tokenName, $data['permissions'] ?? Jetstream::$defaultPermissions);
         $token->accessToken->update(['type' => 'cli']);
 

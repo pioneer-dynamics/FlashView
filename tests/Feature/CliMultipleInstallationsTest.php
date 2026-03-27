@@ -84,6 +84,55 @@ class CliMultipleInstallationsTest extends TestCase
         );
     }
 
+    public function test_re_login_from_same_device_replaces_existing_token(): void
+    {
+        $user = $this->createUserWithApiAccess();
+
+        $this->exchangeTokenWithName($user, 'Work Laptop')->assertOk();
+        $this->exchangeTokenWithName($user, 'Home Desktop')->assertOk();
+        $this->assertCount(2, $user->fresh()->tokens()->where('type', 'cli')->get());
+
+        $response = $this->exchangeTokenWithName($user, 'Work Laptop');
+        $response->assertOk();
+
+        $cliTokens = $user->fresh()->tokens()->where('type', 'cli')->get();
+        $this->assertCount(2, $cliTokens);
+        $this->assertEqualsCanonicalizing(
+            ['Work Laptop', 'Home Desktop'],
+            $cliTokens->pluck('name')->toArray()
+        );
+    }
+
+    public function test_re_login_does_not_affect_other_device_tokens(): void
+    {
+        $user = $this->createUserWithApiAccess();
+
+        $this->exchangeTokenWithName($user, 'Work Laptop')->assertOk();
+        $this->exchangeTokenWithName($user, 'Home Desktop')->assertOk();
+
+        $homeToken = $user->fresh()->tokens()->where('type', 'cli')->where('name', 'Home Desktop')->first();
+        $homeTokenId = $homeToken->id;
+
+        $this->exchangeTokenWithName($user, 'Work Laptop')->assertOk();
+
+        $this->assertNotNull($user->fresh()->tokens()->find($homeTokenId));
+    }
+
+    public function test_re_login_does_not_affect_api_tokens(): void
+    {
+        $user = $this->createUserWithApiAccess();
+
+        $user->createToken('My API Token', ['secrets:create']);
+        $this->exchangeTokenWithName($user, 'Work Laptop')->assertOk();
+        $this->assertCount(2, $user->fresh()->tokens);
+
+        $this->exchangeTokenWithName($user, 'Work Laptop')->assertOk();
+
+        $tokens = $user->fresh()->tokens;
+        $this->assertCount(2, $tokens);
+        $this->assertNotNull($tokens->where('name', 'My API Token')->first());
+    }
+
     public function test_cli_token_gets_type_cli(): void
     {
         $user = $this->createUserWithApiAccess();
