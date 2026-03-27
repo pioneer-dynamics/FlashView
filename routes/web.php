@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\CliAuthController;
+use App\Http\Controllers\CliInstallationController;
 use App\Http\Controllers\MarkdownDocumentController;
 use App\Http\Controllers\NotificationPreferencesController;
 use App\Http\Controllers\NotificationSettingsController;
@@ -94,6 +95,10 @@ Route::middleware([
         Route::post('/user/api-tokens', [ApiTokenController::class, 'store'])->name('api-tokens.store');
         Route::put('/user/api-tokens/{token}', [ApiTokenController::class, 'update'])->name('api-tokens.update');
         Route::delete('/user/api-tokens/{token}', [ApiTokenController::class, 'destroy'])->name('api-tokens.destroy');
+
+        Route::get('/user/cli-installations', [CliInstallationController::class, 'index'])->name('cli-installations.index');
+        Route::put('/user/cli-installations/{token}', [CliInstallationController::class, 'update'])->name('cli-installations.update');
+        Route::delete('/user/cli-installations/{token}', [CliInstallationController::class, 'destroy'])->name('cli-installations.destroy');
 
         Route::put('/user/webhook-settings', [WebhookSettingsController::class, 'update'])
             ->name('user.webhook-settings.update');
