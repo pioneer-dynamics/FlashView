@@ -4,12 +4,15 @@ import { Head, Link, router, usePage } from '@inertiajs/vue3'
 import AuthenticationCard from '@/Components/AuthenticationCard.vue'
 import AuthenticationCardLogo from '@/Components/AuthenticationCardLogo.vue'
 import Checkbox from '@/Components/Checkbox.vue'
+import InputLabel from '@/Components/InputLabel.vue'
+import TextInput from '@/Components/TextInput.vue'
 import PrimaryButton from '@/Components/PrimaryButton.vue'
 import SecondaryButton from '@/Components/SecondaryButton.vue'
 
 const props = defineProps({
     port: Number,
     state: String,
+    name: String,
     hasApiAccess: Boolean,
     availablePermissions: Array,
     defaultPermissions: Array,
@@ -18,6 +21,7 @@ const props = defineProps({
 const page = usePage()
 const processing = ref(false)
 const selectedPermissions = ref([...props.defaultPermissions])
+const installationName = ref(props.name || '')
 
 function submit(action) {
     processing.value = true
@@ -26,6 +30,7 @@ function submit(action) {
         state: props.state,
         action: action,
         permissions: selectedPermissions.value,
+        name: installationName.value || null,
     })
 }
 </script>
@@ -68,6 +73,23 @@ function submit(action) {
                 The FlashView CLI is requesting access to create an API token
                 for your account ({{ page.props.auth.user.email }}).
             </p>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400 text-center">
+                This will create a new CLI installation. Your existing CLI connections will not be affected.
+            </p>
+
+            <div class="mt-4">
+                <InputLabel for="installation-name" value="Installation Name" />
+                <TextInput
+                    id="installation-name"
+                    v-model="installationName"
+                    type="text"
+                    class="mt-1 block w-full"
+                    placeholder="e.g., Work Laptop, CI Server"
+                />
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    Give this device a name so you can identify it later.
+                </p>
+            </div>
 
             <div v-if="availablePermissions?.length" class="mt-4 rounded-md bg-gray-50 dark:bg-gray-800 p-3">
                 <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">

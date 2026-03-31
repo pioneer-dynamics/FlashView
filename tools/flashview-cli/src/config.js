@@ -9,6 +9,8 @@ const config = new Conf({
         token: { type: 'string' },
         serverConfig: { type: 'object' },
         serverConfigFetchedAt: { type: 'number' },
+        latestVersion: { type: 'string' },
+        latestVersionCheckedAt: { type: 'number' },
     },
 });
 
@@ -103,4 +105,32 @@ export function setConfig({ url, token }) {
  */
 export function clearConfig() {
     config.clear();
+}
+
+const VERSION_CHECK_TTL = 60 * 60 * 1000; // 1 hour in milliseconds
+
+/**
+ * Get cached latest version if still valid.
+ *
+ * @returns {string|null}
+ */
+export function getCachedLatestVersion() {
+    const checkedAt = config.get('latestVersionCheckedAt');
+    const version = config.get('latestVersion');
+
+    if (version && checkedAt && (Date.now() - checkedAt) < VERSION_CHECK_TTL) {
+        return version;
+    }
+
+    return null;
+}
+
+/**
+ * Store latest version in cache.
+ *
+ * @param {string} version
+ */
+export function setCachedLatestVersion(version) {
+    config.set('latestVersion', version);
+    config.set('latestVersionCheckedAt', Date.now());
 }

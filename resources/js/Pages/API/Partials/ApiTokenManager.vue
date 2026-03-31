@@ -65,12 +65,18 @@ const confirmApiTokenDeletion = (token) => {
 };
 
 const deleteApiToken = () => {
-    deleteApiTokenForm.delete(route('api-tokens.destroy', apiTokenBeingDeleted.value), {
+    const token = apiTokenBeingDeleted.value;
+    const deleteRoute = token.type === 'cli'
+        ? route('cli-installations.destroy', token)
+        : route('api-tokens.destroy', token);
+
+    deleteApiTokenForm.delete(deleteRoute, {
         preserveScroll: true,
         preserveState: true,
         onSuccess: () => (apiTokenBeingDeleted.value = null),
     });
 };
+
 </script>
 
 <template>
@@ -154,8 +160,31 @@ const deleteApiToken = () => {
                     <template #content>
                         <div class="space-y-6">
                             <div v-for="token in tokens" :key="token.id" class="flex items-center justify-between">
-                                <div class="break-all dark:text-white">
-                                    {{ token.name }}
+                                <div>
+                                    <div class="break-all dark:text-white flex items-center gap-2">
+                                        {{ token.name }}
+                                        <span
+                                            v-if="token.type === 'cli'"
+                                            class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300"
+                                        >
+                                            CLI
+                                        </span>
+                                        <span
+                                            v-else
+                                            class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300"
+                                        >
+                                            API
+                                        </span>
+                                    </div>
+                                    <div v-if="token.abilities?.length" class="mt-1 flex flex-wrap gap-1">
+                                        <span
+                                            v-for="ability in token.abilities"
+                                            :key="ability"
+                                            class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300"
+                                        >
+                                            {{ ability }}
+                                        </span>
+                                    </div>
                                 </div>
 
                                 <div class="flex items-center ms-2">
@@ -241,11 +270,16 @@ const deleteApiToken = () => {
         <!-- Delete Token Confirmation Modal -->
         <ConfirmationModal :show="apiTokenBeingDeleted != null" @close="apiTokenBeingDeleted = null">
             <template #title>
-                Delete API Token
+                Delete {{ apiTokenBeingDeleted?.type === 'cli' ? 'CLI Installation' : 'API Token' }}
             </template>
 
             <template #content>
-                Are you sure you would like to delete this API token?
+                <template v-if="apiTokenBeingDeleted?.type === 'cli'">
+                    Are you sure you would like to revoke access for this CLI installation? The device will no longer be able to access your account.
+                </template>
+                <template v-else>
+                    Are you sure you would like to delete this API token?
+                </template>
             </template>
 
             <template #footer>
