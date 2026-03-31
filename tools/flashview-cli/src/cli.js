@@ -1,5 +1,6 @@
 import { Command } from 'commander';
 import crypto from 'node:crypto';
+import { execSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { hostname } from 'node:os';
@@ -8,9 +9,10 @@ import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
 import { encryptMessage, decryptMessage } from './crypto.js';
 import { FlashViewClient, ApiError } from './api.js';
-import { getConfig, getConfigInfo, setConfig, clearConfig } from './config.js';
+import { getConfig, getConfigInfo, setConfig, clearConfig, getCachedLatestVersion } from './config.js';
 import { parseExpiry, getServerConfig, FALLBACK_EXPIRY_OPTIONS } from './expiry.js';
 import { renameHashIdKey } from './transform.js';
+import { fetchLatestVersion, isNewerVersion, refreshVersionCache } from './version.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -496,6 +498,105 @@ program
             server.close();
         }
     });
+// --- Update ---
+
+program
+    .command('update')
+    .description('Update FlashView CLI to the latest version')
+    .option('--json', 'Output as JSON (for scripting)')
+    .action(async (options) => {
+        const currentVersion = pkg.version;
+
+        const latestVersion = await fetchLatestVersion();
+
+        if (!latestVersion) {
+            if (options.json) {
+                console.log(JSON.stringify({ error: 'Could not check for updates. Check your network connection.' }));
+            } else {
+                console.error('Could not check for updates. Check your network connection.');
+            }
+            process.exit(1);
+        }
+
+        if (!isNewerVersion(currentVersion, latestVersion)) {
+            if (options.json) {
+                console.log(JSON.stringify({ message: 'Already up to date.', version: currentVersion }));
+            } else {
+                console.log(`Already up to date (v${currentVersion}).`);
+            }
+            return;
+        }
+
+        if (!options.json) {
+            console.log(`Updating FlashView CLI: v${currentVersion} → v${latestVersion}...`);
+        }
+
+        try {
+            execSync('npm install -g @pioneer-dynamics/flashview-cli@latest', {
+                stdio: options.json ? 'pipe' : 'inherit',
+            });
+        } catch (err) {
+            const stderr = err.stderr?.toString() || '';
+            let message;
+            if (process.platform === 'win32' && (stderr.includes('EPERM') || stderr.includes('Access is denied'))) {
+                message = 'Permission denied. Try running as Administrator or use a Node version manager (nvm-windows, fnm).';
+            } else if (stderr.includes('EACCES')) {
+                message = 'Permission denied. Try running with sudo or use a Node version manager (nvm, fnm).';
+            } else {
+                message = 'Update failed. Try manually: npm install -g @pioneer-dynamics/flashview-cli@latest';
+            }
+
+            if (options.json) {
+                console.log(JSON.stringify({ error: message }));
+            } else {
+                console.error(message);
+            }
+            process.exit(1);
+        }
+
+        let newVersion;
+        try {
+            newVersion = execSync('flashview --version', { encoding: 'utf-8' }).trim();
+        } catch {
+            newVersion = latestVersion;
+        }
+
+        if (options.json) {
+            console.log(JSON.stringify({
+                message: 'Updated successfully.',
+                previous_version: currentVersion,
+                current_version: newVersion,
+            }));
+        } else {
+            console.log(`\nUpdated successfully: v${currentVersion} → v${newVersion}`);
+        }
+    });
+
+// --- Update Notice (post-action hook) ---
+
+program.hook('postAction', async (thisCommand) => {
+    if (thisCommand.name() === 'update') return;
+
+    const opts = thisCommand.opts?.() || {};
+    if (opts.json) return;
+
+    try {
+        const cached = getCachedLatestVersion();
+
+        if (cached && isNewerVersion(pkg.version, cached)) {
+            process.stderr.write(
+                `\nUpdate available: v${pkg.version} → v${cached}. Run \`flashview update\` to upgrade.\n`
+            );
+        }
+
+        if (!cached) {
+            refreshVersionCache();
+        }
+    } catch {
+        // Never block on version check errors
+    }
+});
+
 export function run() {
     program.parse();
 }
