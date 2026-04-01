@@ -8,7 +8,7 @@
         "src/",
         "README.md"
     ],
-    "version": "1.4.1",
+    "version": "1.5.0",
     "description": "CLI tool for FlashView — create and manage encrypted secrets",
     "repository": {
         "type": "git",
@@ -20,10 +20,13 @@
         "flashview": "./bin/flashview.js"
     },
     "engines": {
-        "node": ">=18.0.0"
+        "node": ">=20.0.0"
     },
     "scripts": {
-        "test": "node --test tests/*.test.js"
+        "test": "node --test tests/*.test.js",
+        "build:bundle": "node scripts/build.js",
+        "build:binary": "node scripts/build-binary.js",
+        "build": "npm run build:bundle && npm run build:binary"
     },
     "dependencies": {
         "commander": "^12.0.0",
