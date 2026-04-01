@@ -2,6 +2,7 @@ import { Command } from 'commander';
 import crypto from 'node:crypto';
 import { execSync } from 'node:child_process';
 import { createServer } from 'node:http';
+import { createRequire } from 'node:module';
 import { hostname } from 'node:os';
 import { createInterface } from 'node:readline';
 import { encryptMessage, decryptMessage } from './crypto.js';
@@ -9,7 +10,6 @@ import { FlashViewClient, ApiError } from './api.js';
 import { getConfig, getConfigInfo, setConfig, clearConfig, getCachedLatestVersion } from './config.js';
 import { parseExpiry, getServerConfig, FALLBACK_EXPIRY_OPTIONS } from './expiry.js';
 import { renameHashIdKey } from './transform.js';
-import { createRequire } from 'node:module';
 import { fetchLatestVersion, isNewerVersion, refreshVersionCache } from './version.js';
 
 /* eslint-disable no-undef */
