@@ -9,10 +9,13 @@ import { FlashViewClient, ApiError } from './api.js';
 import { getConfig, getConfigInfo, setConfig, clearConfig, getCachedLatestVersion } from './config.js';
 import { parseExpiry, getServerConfig, FALLBACK_EXPIRY_OPTIONS } from './expiry.js';
 import { renameHashIdKey } from './transform.js';
+import { createRequire } from 'node:module';
 import { fetchLatestVersion, isNewerVersion, refreshVersionCache } from './version.js';
 
 /* eslint-disable no-undef */
-const VERSION = typeof __VERSION__ !== 'undefined' ? __VERSION__ : '0.0.0-dev';
+const VERSION = typeof __VERSION__ !== 'undefined'
+    ? __VERSION__
+    : createRequire(import.meta.url)('../package.json').version;
 /* eslint-enable no-undef */
 
 let isSea = false;
