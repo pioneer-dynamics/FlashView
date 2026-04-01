@@ -1,0 +1,159 @@
+name: Build CLI Binaries
+
+on:
+  pull_request:
+    paths:
+      - 'tools/flashview-cli/**'
+  push:
+    branches:
+      - master
+    paths:
+      - 'tools/flashview-cli/**'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-cli-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            os: linux
+            arch: x64
+          - runner: ubuntu-24.04-arm
+            os: linux
+            arch: arm64
+          - runner: macos-13
+            os: darwin
+            arch: x64
+          - runner: macos-14
+            os: darwin
+            arch: arm64
+          - runner: windows-latest
+            os: windows
+            arch: x64
+
+    runs-on: ${{ matrix.runner }}
+    defaults:
+      run:
+        working-directory: tools/flashview-cli
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - run: npm ci
+
+      - run: npm test
+
+      - run: npm run build:bundle
+
+      - run: npm run build:binary
+
+      - name: Smoke test binary
+        shell: bash
+        run: |
+          if [ "${{ matrix.os }}" = "windows" ]; then
+            BINARY="dist/flashview-windows-x64.exe"
+          else
+            chmod +x dist/flashview-${{ matrix.os }}-${{ matrix.arch }}
+            BINARY="dist/flashview-${{ matrix.os }}-${{ matrix.arch }}"
+          fi
+          echo "Testing $BINARY..."
+          $BINARY --version
+          $BINARY config show || true
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: flashview-${{ matrix.os }}-${{ matrix.arch }}
+          path: tools/flashview-cli/dist/flashview-*
+          retention-days: 30
+
+  release:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get CLI version
+        id: version
+        run: |
+          VERSION=$(node -p "require('./tools/flashview-cli/package.json').version")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "CLI version: $VERSION"
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Prepare release assets
+        run: |
+          mkdir -p release
+          find artifacts -type f -name 'flashview-*' -exec cp {} release/ \;
+          cd release
+          sha256sum flashview-* > checksums-sha256.txt
+          echo "Release assets:"
+          ls -la
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: cli-v${{ steps.version.outputs.version }}
+          name: FlashView CLI v${{ steps.version.outputs.version }}
+          body: |
+            ## FlashView CLI v${{ steps.version.outputs.version }}
+
+            ### Installation
+
+            Download the binary for your platform, make it executable, and move it to a directory on your PATH.
+
+            **macOS (Apple Silicon):**
+            ```bash
+            chmod +x flashview-darwin-arm64
+            sudo mv flashview-darwin-arm64 /usr/local/bin/flashview
+            ```
+
+            **macOS (Intel):**
+            ```bash
+            chmod +x flashview-darwin-x64
+            sudo mv flashview-darwin-x64 /usr/local/bin/flashview
+            ```
+
+            **Linux (x64):**
+            ```bash
+            chmod +x flashview-linux-x64
+            sudo mv flashview-linux-x64 /usr/local/bin/flashview
+            ```
+
+            **Linux (arm64):**
+            ```bash
+            chmod +x flashview-linux-arm64
+            sudo mv flashview-linux-arm64 /usr/local/bin/flashview
+            ```
+
+            **Windows:**
+            Rename `flashview-windows-x64.exe` to `flashview.exe` and add its directory to your PATH.
+
+            ### Verify download integrity
+            ```bash
+            sha256sum --check checksums-sha256.txt
+            ```
+
+            ### Alternative: Install via npm
+            ```bash
+            npm install -g @pioneer-dynamics/flashview-cli
+            ```
+          files: release/*
+          fail_on_unmatched_files: true
