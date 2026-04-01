@@ -27,7 +27,7 @@
     },
     "dependencies": {
         "commander": "^12.0.0",
-        "conf": "^13.0.0",
+
         "random-words": "^2.0.0"
     },
     "devDependencies": {}
