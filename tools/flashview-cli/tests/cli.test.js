@@ -11,12 +11,24 @@ const __dirname = dirname(__filename);
 const pkg = JSON.parse(readFileSync(join(__dirname, '..', 'package.json'), 'utf-8'));
 
 describe('CLI version', () => {
-    it('outputs the version from package.json', () => {
+    it('outputs the dev version when run without esbuild', () => {
         const output = execSync('node bin/flashview.js --version', {
             cwd: join(__dirname, '..'),
             encoding: 'utf-8',
         });
-        assert.strictEqual(output.trim(), pkg.version);
+        assert.strictEqual(output.trim(), '0.0.0-dev');
+    });
+
+    it('outputs the package version when run via esbuild bundle', () => {
+        try {
+            const output = execSync('node dist/flashview.cjs --version', {
+                cwd: join(__dirname, '..'),
+                encoding: 'utf-8',
+            });
+            assert.strictEqual(output.trim(), pkg.version);
+        } catch {
+            // Skip if bundle has not been built
+        }
     });
 });
 

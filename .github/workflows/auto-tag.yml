@@ -1,0 +1,56 @@
+name: Auto-tag on release/hotfix merge
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [master]
+
+permissions:
+  contents: write
+
+jobs:
+  tag:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract version from branch name
+        id: extract
+        env:
+          BRANCH: ${{ github.event.pull_request.head.ref }}
+        run: |
+          if [[ "$BRANCH" =~ ^(release|hotfix)/(v.+)$ ]]; then
+            VERSION="${BASH_REMATCH[2]}"
+            # Normalize: strip extra dot after v (e.g., v.4.6.0 -> v4.6.0)
+            VERSION="${VERSION/#v./v}"
+            # Validate: must start with v followed by a digit
+            if [[ "$VERSION" =~ ^v[0-9] ]]; then
+              echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+              echo "Detected version: $VERSION from branch: $BRANCH"
+            else
+              echo "::warning::Version '$VERSION' from branch '$BRANCH' does not match expected format vX.Y.Z. Skipping."
+              echo "version=" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "Branch '$BRANCH' is not a release or hotfix branch. Skipping."
+            echo "version=" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create and push tag
+        if: steps.extract.outputs.version != ''
+        env:
+          TAG: ${{ steps.extract.outputs.version }}
+          MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
+        run: |
+          echo "Tagging commit $MERGE_SHA as $TAG"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if git tag "$TAG" "$MERGE_SHA" 2>/dev/null; then
+            git push origin "$TAG"
+            echo "Successfully created and pushed tag: $TAG"
+          else
+            echo "::warning::Tag '$TAG' already exists. Skipping."
+          fi
