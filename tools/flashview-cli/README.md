@@ -2,14 +2,61 @@
 
 A command-line tool for creating and managing encrypted secrets via the FlashView API. Secrets are encrypted locally on your machine before being sent to the server — your plaintext never leaves your device.
 
-## Requirements
-
-- Node.js 18 or later
-
 ## Installation
+
+### Option 1: Download pre-built binary (recommended if you don't have Node.js)
+
+Download the latest binary for your platform from the [GitHub Releases](https://github.com/pioneer-dynamics/FlashView/releases) page.
+
+The binary includes a bundled Node.js runtime and is approximately 70-90MB depending on your platform.
+
+**macOS (Apple Silicon):**
+```bash
+chmod +x flashview-darwin-arm64
+sudo mv flashview-darwin-arm64 /usr/local/bin/flashview
+```
+
+**Linux (x64):**
+```bash
+chmod +x flashview-linux-x64
+sudo mv flashview-linux-x64 /usr/local/bin/flashview
+```
+
+**Linux (arm64):**
+```bash
+chmod +x flashview-linux-arm64
+sudo mv flashview-linux-arm64 /usr/local/bin/flashview
+```
+
+**Windows:**
+Rename `flashview-windows-x64.exe` to `flashview.exe` and add its directory to your PATH.
+
+**Verify download integrity:**
+Each release includes a `checksums-sha256.txt` file. Verify your download:
+```bash
+sha256sum --check checksums-sha256.txt
+```
+
+**macOS Gatekeeper:** If you see "this app is from an unidentified developer", right-click the binary and select "Open", or run:
+```bash
+xattr -d com.apple.quarantine /usr/local/bin/flashview
+```
+
+**Windows SmartScreen:** If Windows Defender SmartScreen blocks the binary, click "More info" then "Run anyway". The binary is a modified Node.js executable which may trigger false positives.
+
+### Option 2: Install via npm (requires Node.js 20+)
 
 ```bash
 npm install -g @pioneer-dynamics/flashview-cli
+```
+
+### How to upgrade
+
+**Binary users:** Download the latest release from the [Releases](https://github.com/pioneer-dynamics/FlashView/releases) page and replace your existing binary. Run `flashview --version` to check your current version, or run `flashview update` to see if a newer version is available.
+
+**npm users:**
+```bash
+flashview update
 ```
 
 ## Setup
