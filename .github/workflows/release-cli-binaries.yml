@@ -28,9 +28,6 @@ jobs:
           - runner: ubuntu-24.04-arm
             os: linux
             arch: arm64
-          - runner: macos-13
-            os: darwin
-            arch: x64
           - runner: macos-14
             os: darwin
             arch: arm64
@@ -123,12 +120,6 @@ jobs:
             ```bash
             chmod +x flashview-darwin-arm64
             sudo mv flashview-darwin-arm64 /usr/local/bin/flashview
-            ```
-
-            **macOS (Intel):**
-            ```bash
-            chmod +x flashview-darwin-x64
-            sudo mv flashview-darwin-x64 /usr/local/bin/flashview
             ```
 
             **Linux (x64):**

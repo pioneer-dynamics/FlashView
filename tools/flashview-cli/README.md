@@ -16,12 +16,6 @@ chmod +x flashview-darwin-arm64
 sudo mv flashview-darwin-arm64 /usr/local/bin/flashview
 ```
 
-**macOS (Intel):**
-```bash
-chmod +x flashview-darwin-x64
-sudo mv flashview-darwin-x64 /usr/local/bin/flashview
-```
-
 **Linux (x64):**
 ```bash
 chmod +x flashview-linux-x64
