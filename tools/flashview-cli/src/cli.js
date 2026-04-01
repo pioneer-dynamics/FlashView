@@ -1,12 +1,9 @@
 import { Command } from 'commander';
 import crypto from 'node:crypto';
 import { execSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { hostname } from 'node:os';
-import { dirname, join } from 'node:path';
 import { createInterface } from 'node:readline';
-import { fileURLToPath } from 'node:url';
 import { encryptMessage, decryptMessage } from './crypto.js';
 import { FlashViewClient, ApiError } from './api.js';
 import { getConfig, getConfigInfo, setConfig, clearConfig, getCachedLatestVersion } from './config.js';
@@ -14,9 +11,12 @@ import { parseExpiry, getServerConfig, FALLBACK_EXPIRY_OPTIONS } from './expiry.
 import { renameHashIdKey } from './transform.js';
 import { fetchLatestVersion, isNewerVersion, refreshVersionCache } from './version.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-const pkg = JSON.parse(readFileSync(join(__dirname, '..', 'package.json'), 'utf-8'));
+/* eslint-disable no-undef */
+const VERSION = typeof __VERSION__ !== 'undefined' ? __VERSION__ : '0.0.0-dev';
+/* eslint-enable no-undef */
+
+let isSea = false;
+try { isSea = require('node:sea').isSea(); } catch {}
 
 /**
  * Read all data from stdin.
@@ -95,7 +95,7 @@ const program = new Command();
 program
     .name('flashview')
     .description('FlashView CLI — Create and manage encrypted secrets')
-    .version(pkg.version);
+    .version(VERSION);
 
 // --- Config ---
 
@@ -505,7 +505,24 @@ program
     .description('Update FlashView CLI to the latest version')
     .option('--json', 'Output as JSON (for scripting)')
     .action(async (options) => {
-        const currentVersion = pkg.version;
+        const currentVersion = VERSION;
+
+        if (isSea) {
+            const cached = getCachedLatestVersion();
+            if (options.json) {
+                const result = { version: currentVersion, binary: true, download: 'https://github.com/pioneer-dynamics/FlashView/releases' };
+                if (cached) result.latest_version = cached;
+                console.log(JSON.stringify(result));
+            } else {
+                console.log(`Current version: v${currentVersion}`);
+                if (cached && isNewerVersion(currentVersion, cached)) {
+                    console.log(`Latest available: v${cached}`);
+                }
+                console.log('To update, download the latest binary from:');
+                console.log('  https://github.com/pioneer-dynamics/FlashView/releases');
+            }
+            return;
+        }
 
         const latestVersion = await fetchLatestVersion();
 
@@ -585,9 +602,9 @@ program.hook('postAction', async (thisCommand, actionCommand) => {
     try {
         const cached = getCachedLatestVersion();
 
-        if (cached && isNewerVersion(pkg.version, cached)) {
+        if (cached && isNewerVersion(VERSION, cached)) {
             process.stderr.write(
-                `\nUpdate available: v${pkg.version} → v${cached}. Run \`flashview update\` to upgrade.\n`
+                `\nUpdate available: v${VERSION} → v${cached}. Run \`flashview update\` to upgrade.\n`
             );
         }
 
