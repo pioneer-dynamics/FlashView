@@ -2,6 +2,7 @@ import { Command } from 'commander';
 import crypto from 'node:crypto';
 import { execSync } from 'node:child_process';
 import { createServer } from 'node:http';
+import { createRequire } from 'node:module';
 import { hostname } from 'node:os';
 import { createInterface } from 'node:readline';
 import { encryptMessage, decryptMessage } from './crypto.js';
@@ -12,7 +13,9 @@ import { renameHashIdKey } from './transform.js';
 import { fetchLatestVersion, isNewerVersion, refreshVersionCache } from './version.js';
 
 /* eslint-disable no-undef */
-const VERSION = typeof __VERSION__ !== 'undefined' ? __VERSION__ : '0.0.0-dev';
+const VERSION = typeof __VERSION__ !== 'undefined'
+    ? __VERSION__
+    : createRequire(import.meta.url)('../package.json').version;
 /* eslint-enable no-undef */
 
 let isSea = false;
