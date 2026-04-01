@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import Conf from 'conf';
+import { readFileSync, writeFileSync } from 'node:fs';
+import { setCachedLatestVersion, setCachedServerConfig, getConfigInfo, clearCachedServerConfig } from '../src/config.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const cli = join(__dirname, '..', 'bin', 'flashview.js');
@@ -19,40 +20,33 @@ const cli = join(__dirname, '..', 'bin', 'flashview.js');
 describe('PIO-39 Regression: --json suppresses version update notice', () => {
     const UPDATE_NOTICE_PATTERN = /Update available:.*Run.*flashview update/;
 
-    const config = new Conf({ projectName: 'flashview-cli' });
-    const savedKeys = [
-        'latestVersion',
-        'latestVersionCheckedAt',
-        'serverConfig',
-        'serverConfigFetchedAt',
-    ];
-    const originalValues = {};
+    let originalConfig = null;
 
     before(() => {
-        for (const key of savedKeys) {
-            originalValues[key] = config.get(key);
+        // Save original config state
+        const { path } = getConfigInfo();
+        try {
+            originalConfig = readFileSync(path, 'utf8');
+        } catch {
+            originalConfig = null;
         }
 
         // Set a fake newer version so the update notice would trigger
-        config.set('latestVersion', '99.0.0');
-        config.set('latestVersionCheckedAt', Date.now());
+        setCachedLatestVersion('99.0.0');
 
         // Ensure server config is cached so the CLI doesn't try to fetch it
-        config.set('serverConfig', {
+        setCachedServerConfig({
             expiry_options: [{ label: '5 minutes', value: 5 }],
             max_expiry: 5,
             max_message_length: 10000,
         });
-        config.set('serverConfigFetchedAt', Date.now());
     });
 
     after(() => {
-        for (const key of savedKeys) {
-            if (originalValues[key] !== undefined) {
-                config.set(key, originalValues[key]);
-            } else {
-                config.delete(key);
-            }
+        // Restore original config state
+        const { path } = getConfigInfo();
+        if (originalConfig !== null) {
+            writeFileSync(path, originalConfig, 'utf8');
         }
     });
 
