@@ -574,10 +574,12 @@ program
 
 // --- Update Notice (post-action hook) ---
 
-program.hook('postAction', async (thisCommand) => {
-    if (thisCommand.name() === 'update') return;
+// thisCommand = command the hook is registered on (root program)
+// actionCommand = the subcommand that actually executed
+program.hook('postAction', async (thisCommand, actionCommand) => {
+    if (actionCommand.name() === 'update') return;
 
-    const opts = thisCommand.opts?.() || {};
+    const opts = actionCommand.opts?.() || {};
     if (opts.json) return;
 
     try {
