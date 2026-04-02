@@ -465,7 +465,16 @@ program
 
         const { server, port } = await startCallbackServer();
 
-        const authorizeUrl = `${serverUrl}/cli/authorize?port=${port}&state=${state}&name=${encodeURIComponent(hostname())}`;
+        let authorizeUrl = `${serverUrl}/cli/authorize?port=${port}&state=${state}&name=${encodeURIComponent(hostname())}`;
+
+        // If we have an existing token, send its ID so the server can identify the device
+        const { token: existingToken } = getConfigInfo();
+        if (existingToken) {
+            const tokenId = existingToken.split('|')[0];
+            if (tokenId) {
+                authorizeUrl += `&token_id=${encodeURIComponent(tokenId)}`;
+            }
+        }
 
         const opened = await openBrowser(authorizeUrl);
         if (opened) {

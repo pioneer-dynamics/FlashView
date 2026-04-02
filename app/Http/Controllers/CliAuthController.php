@@ -22,7 +22,16 @@ class CliAuthController extends Controller
     {
         $user = $request->user();
 
-        $latestCliToken = $user->tokens()
+        $tokenId = $request->validated('token_id');
+
+        $existingToken = $tokenId
+            ? $user->tokens()
+                ->where('type', 'cli')
+                ->where('id', $tokenId)
+                ->first()
+            : null;
+
+        $latestCliToken = $existingToken ?? $user->tokens()
             ->where('type', 'cli')
             ->latest('id')
             ->first();
@@ -38,6 +47,7 @@ class CliAuthController extends Controller
             'hasApiAccess' => $user->hasApiAccess(),
             'availablePermissions' => Jetstream::$permissions,
             'defaultPermissions' => $defaultPermissions,
+            'existingDeviceName' => $existingToken?->name,
         ]);
     }
 
