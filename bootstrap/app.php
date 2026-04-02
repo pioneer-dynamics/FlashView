@@ -1,7 +1,7 @@
 <?php
 
 use App\Http\Middleware\HandleInertiaRequests;
-use App\Http\Middleware\XFrameHeadersMiddleware;
+use App\Http\Middleware\SecurityHeadersMiddleware;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -26,10 +26,11 @@ return Application::configure(basePath: dirname(__DIR__))
             App\Http\Middleware\TrustProxies::class,
         );
 
+        $middleware->append(SecurityHeadersMiddleware::class);
+
         $middleware->web(append: [
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
-            XFrameHeadersMiddleware::class,
         ]);
 
         $middleware->validateCsrfTokens(except: [
