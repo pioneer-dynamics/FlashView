@@ -16,7 +16,7 @@
         <meta property="og:title" content="{{ config('app.name') }}" />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="{{ config('app.url') }}" />
-        <meta property="og:image" content="{{ Vite::asset('resources/images/logo-og.png') }}" />
+        <meta property="og:image" content="/logo-og.png" />
         <meta property="og:description" content="Keep sensitive information out of your chat or email logs and send via time-sensitive, one-time-use links." />
 
         <!-- Scripts -->
