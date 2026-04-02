@@ -27,8 +27,8 @@ class DuplicateRegistrationAttemptNotification extends Notification implements S
             ->subject('Already Have an Account?')
             ->line('It looks like you (or someone else) tried to create an account with this email address. You already have an account with us.')
             ->line('If you were trying to sign up again, you can log in instead.')
-            ->action('Log In', url('/login'))
-            ->line('Forgot your password? [Reset it here]('.url('/forgot-password').').')
+            ->action('Log In', route('login'))
+            ->line('Forgot your password? [Reset it here]('.route('password.request').').')
             ->line('If this was not you, no action is needed — your account is secure.');
     }
 }
