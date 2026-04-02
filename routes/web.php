@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\CliAuthController;
 use App\Http\Controllers\CliInstallationController;
 use App\Http\Controllers\MarkdownDocumentController;
@@ -13,7 +14,6 @@ use Illuminate\Foundation\Application;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
-use Laravel\Fortify\Http\Controllers\RegisteredUserController;
 use Laravel\Fortify\RoutePath;
 use Laravel\Jetstream\Http\Controllers\Inertia\ApiTokenController;
 
@@ -43,10 +43,32 @@ Route::controller(MarkdownDocumentController::class)->group(function () {
     Route::get('/webhooks', 'webhooks')->name('webhooks.index');
 });
 
+// Intentional override of Fortify's registration routes to prevent email enumeration (PIO-45).
+// Two-step registration: email verification first, then complete registration via signed URL.
+// Fortify registers its own routes via routes/routes.php; these take precedence because
+// they are registered later. Do NOT remove without also addressing the email enumeration vulnerability.
 Route::middleware(config('fortify.middleware', ['web']))->group(function () {
-    Route::post(RoutePath::for('register', '/register'), [RegisteredUserController::class, 'store'])
+    // Step 1: Email collection
+    Route::get(RoutePath::for('register', '/register'), [RegisterController::class, 'create'])
+        ->middleware(['guest:'.config('fortify.guard')])
+        ->name('register');
+
+    Route::post(RoutePath::for('register', '/register'), [RegisterController::class, 'store'])
         ->middleware(['guest:'.config('fortify.guard'), 'throttle:signup'])
         ->name('register.store');
+
+    Route::get('/register/success', [RegisterController::class, 'success'])
+        ->middleware(['guest:'.config('fortify.guard')])
+        ->name('register.success');
+
+    // Step 2: Complete registration (signed URL from verification email)
+    Route::get('/register/complete', [RegisterController::class, 'complete'])
+        ->middleware(['guest:'.config('fortify.guard'), 'signed'])
+        ->name('register.complete');
+
+    Route::post('/register/complete', [RegisterController::class, 'storeComplete'])
+        ->middleware(['guest:'.config('fortify.guard'), 'signed', 'throttle:signup'])
+        ->name('register.complete.store');
 });
 
 // CLI Authorization Flow (auth required — Fortify handles redirect-to-login automatically)
