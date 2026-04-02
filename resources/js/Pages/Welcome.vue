@@ -1,6 +1,6 @@
 <script setup>
     import { Link } from '@inertiajs/vue3';
-    import Logo from '../../images/logo.png';
+    import Logo from '../../images/logo.svg';
     import Typewriter from '@/Components/Typewriter.vue';
     import SecretForm from '@/Pages/Secret/SecretForm.vue';
     import AppLayout from '@/Layouts/AppLayout.vue';
