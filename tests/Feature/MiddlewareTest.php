@@ -17,7 +17,22 @@ class MiddlewareTest extends TestCase
     {
         $response = $this->get('/');
 
-        $response->assertHeader('X-Frame-Options', 'SAMEORIGIN');
+        $response->assertHeader('X-Frame-Options', 'DENY');
+    }
+
+    public function test_content_security_policy_frame_ancestors_header_is_set(): void
+    {
+        $response = $this->get('/');
+
+        $response->assertHeader('Content-Security-Policy', "frame-ancestors 'none'");
+    }
+
+    public function test_security_headers_are_set_on_api_routes(): void
+    {
+        $response = $this->getJson('/api/user');
+
+        $response->assertHeader('X-Frame-Options', 'DENY');
+        $response->assertHeader('Content-Security-Policy', "frame-ancestors 'none'");
     }
 
     public function test_subscribed_middleware_redirects_unsubscribed_user(): void
