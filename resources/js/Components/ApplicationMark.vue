@@ -1,6 +1,5 @@
 <script setup>
-import { Link } from '@inertiajs/vue3';
-import Logo from '../../images/logo.png';
+import Logo from '../../images/logo.svg';
 </script>
 
 <template>
