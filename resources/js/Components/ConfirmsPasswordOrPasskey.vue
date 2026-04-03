@@ -1,5 +1,6 @@
 <script setup>
-import { ref, reactive, nextTick } from 'vue';
+import { ref, reactive, computed, nextTick } from 'vue';
+import { usePage } from '@inertiajs/vue3';
 import DialogModal from './DialogModal.vue';
 import InputError from './InputError.vue';
 import PrimaryButton from './PrimaryButton.vue';
@@ -33,8 +34,14 @@ const props = defineProps({
 });
 
 const confirmingPassword = ref(false);
+const showingAuthChoice = ref(false);
 
 const passkeyConfirmation = ref(null);
+
+const userHasPasskeys = computed(() => {
+    const user = usePage().props.auth?.user;
+    return user?.passkeys?.length > 0;
+});
 
 const form = reactive({
     password: '',
@@ -54,10 +61,26 @@ const startConfirmingPassword = () => {
     axios.get(route('password.confirmation', props.seconds > 0 ? {seconds: props.seconds} : {})).then(response => {
         if (response.data.confirmed && !props.mandatory) {
             emit('confirmed');
+        } else if (userHasPasskeys.value) {
+            showingAuthChoice.value = true;
         } else {
-            passkeyConfirmation.value.start();
+            askForPassword();
         }
     });
+};
+
+const usePasskey = () => {
+    showingAuthChoice.value = false;
+    passkeyConfirmation.value.start();
+};
+
+const usePassword = () => {
+    showingAuthChoice.value = false;
+    askForPassword();
+};
+
+const closeAuthChoice = () => {
+    showingAuthChoice.value = false;
 };
 
 const confirmPassword = () => {
@@ -92,6 +115,26 @@ const closeModal = () => {
         </span>
 
         <ConfirmsPasskey :email="$page.props.auth.user.email" ref="passkeyConfirmation" @confirmed="emit('confirmed')" @cancelled="askForPassword"/>
+
+        <DialogModal :show="showingAuthChoice" @close="closeAuthChoice">
+            <template #title>
+                {{ title }}
+            </template>
+
+            <template #content>
+                {{ content }}
+            </template>
+
+            <template #footer>
+                <SecondaryButton @click="usePassword">
+                    Use Password
+                </SecondaryButton>
+
+                <PrimaryButton class="ms-3" @click="usePasskey">
+                    Use Passkey
+                </PrimaryButton>
+            </template>
+        </DialogModal>
 
         <DialogModal :show="confirmingPassword" @close="closeModal" ref="password">
             <template #title>
