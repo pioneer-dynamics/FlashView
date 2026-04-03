@@ -3,7 +3,6 @@ import { ref, reactive, computed, nextTick } from 'vue';
 import { usePage } from '@inertiajs/vue3';
 import DialogModal from './DialogModal.vue';
 import InputError from './InputError.vue';
-import PrimaryButton from './PrimaryButton.vue';
 import SecondaryButton from './SecondaryButton.vue';
 import TextInput from './TextInput.vue';
 import ConfirmsPasskey from './ConfirmsPasskey.vue';
@@ -176,42 +175,50 @@ const closeModal = () => {
             </template>
         </DialogModal>
 
-        <DialogModal :show="confirmingPassword" @close="closeModal" ref="password">
+        <DialogModal :show="confirmingPassword" @close="closeModal" ref="password" max-width="sm">
             <template #title>
-                {{ title }}
+                <div class="flex flex-col items-center text-center">
+                    <svg class="w-12 h-12 text-gray-400 dark:text-gray-500 mb-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
+                    </svg>
+                    <span class="text-xl">{{ title }}</span>
+                </div>
             </template>
 
             <template #content>
-                {{ content }}
+                <div class="text-center">
+                    <p>{{ content }}</p>
 
-                <div class="mt-4">
-                    <TextInput
-                        ref="passwordInput"
-                        v-model="form.password"
-                        type="password"
-                        class="mt-1 block w-3/4"
-                        placeholder="Password"
-                        autocomplete="current-password"
-                        @keyup.enter="confirmPassword"
-                    />
+                    <div class="mt-4">
+                        <TextInput
+                            ref="passwordInput"
+                            v-model="form.password"
+                            type="password"
+                            class="w-full"
+                            placeholder="Password"
+                            autocomplete="current-password"
+                            @keyup.enter="confirmPassword"
+                        />
 
-                    <InputError :message="form.error" class="mt-2" />
+                        <InputError :message="form.error" class="mt-2" />
+                    </div>
+
+                    <button
+                        @click="confirmPassword"
+                        :disabled="form.processing"
+                        class="mt-4 w-full rounded-md bg-green-600 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-green-500 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                    >
+                        {{ form.processing ? 'Confirming...' : button }}
+                    </button>
                 </div>
             </template>
 
             <template #footer>
-                <SecondaryButton @click="closeModal">
-                    Cancel
-                </SecondaryButton>
-
-                <PrimaryButton
-                    class="ms-3"
-                    :class="{ 'opacity-25': form.processing }"
-                    :disabled="form.processing"
-                    @click="confirmPassword"
-                >
-                    {{ button }}
-                </PrimaryButton>
+                <div class="w-full text-center">
+                    <SecondaryButton @click="closeModal">
+                        Cancel
+                    </SecondaryButton>
+                </div>
             </template>
         </DialogModal>
     </span>
