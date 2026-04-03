@@ -60,7 +60,7 @@ class PlanSeederProd extends Seeder
                         'type' => 'missing',
                     ],
                     'webhook_notification' => [
-                        'order' => 4.6,
+                        'order' => 5.5,
                         'label' => 'Webhook Notifications',
                         'config' => [
                             'webhook' => false,
@@ -128,7 +128,7 @@ class PlanSeederProd extends Seeder
                         'type' => 'feature',
                     ],
                     'webhook_notification' => [
-                        'order' => 4.6,
+                        'order' => 5.5,
                         'label' => 'Webhook Notifications',
                         'config' => [
                             'webhook' => false,
@@ -196,7 +196,7 @@ class PlanSeederProd extends Seeder
                         'type' => 'feature',
                     ],
                     'webhook_notification' => [
-                        'order' => 4.6,
+                        'order' => 5.5,
                         'label' => 'Webhook Notifications',
                         'config' => [
                             'webhook' => true,
