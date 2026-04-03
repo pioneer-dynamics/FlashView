@@ -51,11 +51,18 @@ class PlanSeederLocal extends Seeder
                         ],
                         'type' => 'limit',
                     ],
-                    'notification' => [
+                    'email_notification' => [
                         'order' => 4.5,
-                        'label' => 'Get notified when a message is retrieved',
+                        'label' => 'Email Notifications',
                         'config' => [
                             'email' => false,
+                        ],
+                        'type' => 'missing',
+                    ],
+                    'webhook_notification' => [
+                        'order' => 4.6,
+                        'label' => 'Webhook Notifications',
+                        'config' => [
                             'webhook' => false,
                         ],
                         'type' => 'missing',
@@ -112,14 +119,21 @@ class PlanSeederLocal extends Seeder
                         'config' => [],
                         'type' => 'feature',
                     ],
-                    'notification' => [
+                    'email_notification' => [
                         'order' => 4.5,
-                        'label' => 'Get notified via email when a message is retrieved',
+                        'label' => 'Email Notifications',
                         'config' => [
                             'email' => true,
-                            'webhook' => false,
                         ],
                         'type' => 'feature',
+                    ],
+                    'webhook_notification' => [
+                        'order' => 4.6,
+                        'label' => 'Webhook Notifications',
+                        'config' => [
+                            'webhook' => false,
+                        ],
+                        'type' => 'missing',
                     ],
                     'support' => [
                         'order' => 5,
@@ -173,11 +187,18 @@ class PlanSeederLocal extends Seeder
                         'config' => [],
                         'type' => 'feature',
                     ],
-                    'notification' => [
+                    'email_notification' => [
                         'order' => 4.5,
-                        'label' => 'Get notified via email or webhook when a message is retrieved',
+                        'label' => 'Email Notifications',
                         'config' => [
                             'email' => true,
+                        ],
+                        'type' => 'feature',
+                    ],
+                    'webhook_notification' => [
+                        'order' => 4.6,
+                        'label' => 'Webhook Notifications',
+                        'config' => [
                             'webhook' => true,
                         ],
                         'type' => 'feature',
