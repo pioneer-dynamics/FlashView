@@ -3,6 +3,7 @@ import { ref, reactive, computed, nextTick } from 'vue';
 import { usePage } from '@inertiajs/vue3';
 import DialogModal from './DialogModal.vue';
 import InputError from './InputError.vue';
+import PrimaryButton from './PrimaryButton.vue';
 import TextInput from './TextInput.vue';
 import ConfirmsPasskey from './ConfirmsPasskey.vue';
 
@@ -154,13 +155,13 @@ const closeModal = () => {
                         Authentication failed.
                     </div>
 
-                    <button
+                    <PrimaryButton
                         @click="usePasskey"
                         :disabled="passkeyVerifying"
-                        class="mt-4 w-full rounded-md bg-green-600 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-green-500 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                        class="mt-4 w-full justify-center py-3"
                     >
                         {{ passkeyVerifying ? 'Verifying...' : (passkeyFailed ? 'Retry passkey or security key' : 'Use passkey or security key') }}
-                    </button>
+                    </PrimaryButton>
                 </div>
             </template>
 
@@ -202,13 +203,13 @@ const closeModal = () => {
                         <InputError :message="form.error" class="mt-2" />
                     </div>
 
-                    <button
+                    <PrimaryButton
                         @click="confirmPassword"
                         :disabled="form.processing"
-                        class="mt-4 w-full rounded-md bg-green-600 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-green-500 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                        class="mt-4 w-full justify-center py-3"
                     >
                         {{ form.processing ? 'Confirming...' : button }}
-                    </button>
+                    </PrimaryButton>
 
                 </div>
             </template>
