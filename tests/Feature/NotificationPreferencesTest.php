@@ -25,11 +25,17 @@ class NotificationPreferencesTest extends TestCase
             'price_per_month' => 25,
             'price_per_year' => 250,
             'features' => [
-                'notification' => [
+                'email_notification' => [
                     'order' => 4.5,
-                    'label' => 'Notifications',
-                    'config' => ['email' => true, 'webhook' => false],
+                    'label' => 'Email Notifications',
+                    'config' => ['email' => true],
                     'type' => 'feature',
+                ],
+                'webhook_notification' => [
+                    'order' => 4.6,
+                    'label' => 'Webhook Notifications',
+                    'config' => ['webhook' => false],
+                    'type' => 'missing',
                 ],
             ],
         ]);
@@ -106,10 +112,16 @@ class NotificationPreferencesTest extends TestCase
             'price_per_month' => 0,
             'price_per_year' => 0,
             'features' => [
-                'notification' => [
+                'email_notification' => [
                     'order' => 4.5,
-                    'label' => 'Notifications',
-                    'config' => ['email' => false, 'webhook' => false],
+                    'label' => 'Email Notifications',
+                    'config' => ['email' => false],
+                    'type' => 'missing',
+                ],
+                'webhook_notification' => [
+                    'order' => 4.6,
+                    'label' => 'Webhook Notifications',
+                    'config' => ['webhook' => false],
                     'type' => 'missing',
                 ],
             ],
@@ -141,10 +153,16 @@ class NotificationPreferencesTest extends TestCase
             'price_per_month' => 0,
             'price_per_year' => 0,
             'features' => [
-                'notification' => [
+                'email_notification' => [
                     'order' => 4.5,
-                    'label' => 'Notifications',
-                    'config' => ['email' => false, 'webhook' => false],
+                    'label' => 'Email Notifications',
+                    'config' => ['email' => false],
+                    'type' => 'missing',
+                ],
+                'webhook_notification' => [
+                    'order' => 4.6,
+                    'label' => 'Webhook Notifications',
+                    'config' => ['webhook' => false],
                     'type' => 'missing',
                 ],
             ],
