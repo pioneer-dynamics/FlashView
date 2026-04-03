@@ -36,6 +36,7 @@ const props = defineProps({
 const confirmingPassword = ref(false);
 const showingAuthChoice = ref(false);
 const passkeyFailed = ref(false);
+const passkeyVerifying = ref(false);
 
 const passkeyConfirmation = ref(null);
 
@@ -73,17 +74,20 @@ const startConfirmingPassword = () => {
 
 const usePasskey = () => {
     passkeyFailed.value = false;
+    passkeyVerifying.value = true;
     passkeyConfirmation.value.start();
 };
 
 const onPasskeyConfirmed = () => {
     showingAuthChoice.value = false;
     passkeyFailed.value = false;
+    passkeyVerifying.value = false;
     emit('confirmed');
 };
 
 const onPasskeyCancelled = () => {
     passkeyFailed.value = true;
+    passkeyVerifying.value = false;
 };
 
 const usePassword = () => {
@@ -95,6 +99,7 @@ const usePassword = () => {
 const closeAuthChoice = () => {
     showingAuthChoice.value = false;
     passkeyFailed.value = false;
+    passkeyVerifying.value = false;
 };
 
 const confirmPassword = () => {
@@ -153,23 +158,20 @@ const closeModal = () => {
 
                     <button
                         @click="usePasskey"
-                        class="mt-4 w-full rounded-md bg-green-600 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-green-500 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition"
+                        :disabled="passkeyVerifying"
+                        class="mt-4 w-full rounded-md bg-green-600 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-green-500 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition"
                     >
-                        {{ passkeyFailed ? 'Retry passkey or security key' : 'Use passkey or security key' }}
+                        {{ passkeyVerifying ? 'Verifying...' : (passkeyFailed ? 'Retry passkey or security key' : 'Use passkey or security key') }}
                     </button>
                 </div>
             </template>
 
             <template #footer>
-                <div class="w-full">
-                    <p class="font-semibold text-sm text-gray-900 dark:text-gray-100 mb-2">Having problems?</p>
-                    <ul class="list-disc list-inside text-sm">
-                        <li>
-                            <button @click="usePassword" class="text-blue-600 dark:text-blue-400 hover:underline">
-                                Use your password
-                            </button>
-                        </li>
-                    </ul>
+                <div class="w-full text-sm text-gray-600 dark:text-gray-400">
+                    Having problems?
+                    <button @click="usePassword" class="text-blue-600 dark:text-blue-400 hover:underline">
+                        Use your password
+                    </button>
                 </div>
             </template>
         </DialogModal>
