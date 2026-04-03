@@ -210,13 +210,15 @@ const closeModal = () => {
                         {{ form.processing ? 'Confirming...' : button }}
                     </button>
 
-                    <button @click="closeModal" class="mt-3 text-sm text-gray-500 dark:text-gray-400 hover:underline">
-                        Cancel
-                    </button>
                 </div>
             </template>
 
             <template #footer>
+                <div class="w-full text-center">
+                    <button @click="closeModal" class="text-sm text-gray-500 dark:text-gray-400 hover:underline">
+                        Cancel
+                    </button>
+                </div>
             </template>
         </DialogModal>
     </span>
