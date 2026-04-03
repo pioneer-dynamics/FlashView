@@ -59,18 +59,18 @@ class PlanSeederProd extends Seeder
                         ],
                         'type' => 'missing',
                     ],
-                    'support' => [
-                        'order' => 5,
-                        'label' => 'Support',
-                        'config' => [],
-                        'type' => 'missing',
-                    ],
                     'webhook_notification' => [
                         'order' => 4.6,
                         'label' => 'Webhook Notifications',
                         'config' => [
                             'webhook' => false,
                         ],
+                        'type' => 'missing',
+                    ],
+                    'support' => [
+                        'order' => 5,
+                        'label' => 'Support',
+                        'config' => [],
                         'type' => 'missing',
                     ],
                     'api' => [
@@ -127,12 +127,6 @@ class PlanSeederProd extends Seeder
                         ],
                         'type' => 'feature',
                     ],
-                    'support' => [
-                        'order' => 5,
-                        'label' => 'Standard Support',
-                        'config' => [],
-                        'type' => 'feature',
-                    ],
                     'webhook_notification' => [
                         'order' => 4.6,
                         'label' => 'Webhook Notifications',
@@ -140,6 +134,12 @@ class PlanSeederProd extends Seeder
                             'webhook' => false,
                         ],
                         'type' => 'missing',
+                    ],
+                    'support' => [
+                        'order' => 5,
+                        'label' => 'Standard Support',
+                        'config' => [],
+                        'type' => 'feature',
                     ],
                     'api' => [
                         'order' => 6,
@@ -195,18 +195,18 @@ class PlanSeederProd extends Seeder
                         ],
                         'type' => 'feature',
                     ],
-                    'support' => [
-                        'order' => 5,
-                        'label' => 'Premium Support',
-                        'config' => [],
-                        'type' => 'feature',
-                    ],
                     'webhook_notification' => [
                         'order' => 4.6,
                         'label' => 'Webhook Notifications',
                         'config' => [
                             'webhook' => true,
                         ],
+                        'type' => 'feature',
+                    ],
+                    'support' => [
+                        'order' => 5,
+                        'label' => 'Premium Support',
+                        'config' => [],
                         'type' => 'feature',
                     ],
                     'api' => [
