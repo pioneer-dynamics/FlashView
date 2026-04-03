@@ -3,7 +3,6 @@ import { ref, reactive, computed, nextTick } from 'vue';
 import { usePage } from '@inertiajs/vue3';
 import DialogModal from './DialogModal.vue';
 import InputError from './InputError.vue';
-import SecondaryButton from './SecondaryButton.vue';
 import TextInput from './TextInput.vue';
 import ConfirmsPasskey from './ConfirmsPasskey.vue';
 
@@ -210,15 +209,14 @@ const closeModal = () => {
                     >
                         {{ form.processing ? 'Confirming...' : button }}
                     </button>
+
+                    <button @click="closeModal" class="mt-3 text-sm text-gray-500 dark:text-gray-400 hover:underline">
+                        Cancel
+                    </button>
                 </div>
             </template>
 
             <template #footer>
-                <div class="w-full text-center">
-                    <SecondaryButton @click="closeModal">
-                        Cancel
-                    </SecondaryButton>
-                </div>
             </template>
         </DialogModal>
     </span>
