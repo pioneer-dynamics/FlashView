@@ -128,14 +128,21 @@ class WebhookNotificationTest extends TestCase
         return Plan::factory()->create([
             'name' => $webhookEnabled ? 'Prime' : 'Basic',
             'features' => [
-                'notification' => [
+                'email_notification' => [
                     'order' => 4.5,
-                    'label' => 'Notifications',
+                    'label' => 'Email Notifications',
                     'config' => [
                         'email' => true,
-                        'webhook' => $webhookEnabled,
                     ],
                     'type' => 'feature',
+                ],
+                'webhook_notification' => [
+                    'order' => 4.6,
+                    'label' => 'Webhook Notifications',
+                    'config' => [
+                        'webhook' => $webhookEnabled,
+                    ],
+                    'type' => $webhookEnabled ? 'feature' : 'missing',
                 ],
                 'api' => [
                     'order' => 6,

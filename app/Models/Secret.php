@@ -100,11 +100,11 @@ class Secret extends Model
                      * @var User $user
                      */
                     if (isset($plan['id'])) {
-                        if (($plan['settings']['notification']['email'] ?? false) && $user->notify_secret_retrieved) {
+                        if (($plan['settings']['email_notification']['email'] ?? false) && $user->notify_secret_retrieved) {
                             $user->notify(new SecretRetrievedNotification($secret));
                         }
 
-                        $planSupportsWebhook = ($plan['settings']['notification']['webhook'] ?? false);
+                        $planSupportsWebhook = ($plan['settings']['webhook_notification']['webhook'] ?? false);
                         if ($planSupportsWebhook && $user->hasWebhookConfigured()) {
                             dispatch(new SendWebhookNotification(
                                 webhookUrl: $user->webhook_url,
