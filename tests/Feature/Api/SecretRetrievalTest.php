@@ -45,11 +45,17 @@ class SecretRetrievalTest extends TestCase
                     'config' => ['expiry_label' => '30 days', 'expiry_minutes' => 43200],
                     'type' => 'feature',
                 ],
-                'notification' => [
+                'email_notification' => [
                     'order' => 4.5,
-                    'label' => 'Get notified when a message is retrieved',
+                    'label' => 'Email Notifications',
                     'config' => ['email' => true],
                     'type' => 'feature',
+                ],
+                'webhook_notification' => [
+                    'order' => 4.6,
+                    'label' => 'Webhook Notifications',
+                    'config' => ['webhook' => false],
+                    'type' => 'missing',
                 ],
                 'api' => [
                     'order' => 6,

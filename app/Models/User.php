@@ -121,7 +121,7 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
 
         $plan = $this->resolvePlan();
 
-        return $plan && ($plan->features['notification']['config']['email'] ?? false);
+        return $plan && ($plan->features['email_notification']['config']['email'] ?? false);
     }
 
     /**
@@ -135,7 +135,7 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
 
         $plan = $this->resolvePlan();
 
-        return $plan && ($plan->features['notification']['config']['webhook'] ?? false);
+        return $plan && ($plan->features['webhook_notification']['config']['webhook'] ?? false);
     }
 
     public function getPlanAttribute(): PlanResource

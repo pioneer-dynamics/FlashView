@@ -44,7 +44,6 @@ class PlanFactory extends Factory
                 apiType: 'missing',
                 notificationEmail: false,
                 notificationWebhook: false,
-                notificationType: 'missing',
             ),
         ]);
     }
@@ -89,7 +88,6 @@ class PlanFactory extends Factory
         string $apiType = 'feature',
         bool $notificationEmail = true,
         bool $notificationWebhook = true,
-        string $notificationType = 'feature',
     ): array {
         return [
             'untracked' => [
@@ -121,14 +119,21 @@ class PlanFactory extends Factory
                 'config' => [],
                 'type' => 'feature',
             ],
-            'notification' => [
+            'email_notification' => [
                 'order' => 4.5,
-                'label' => 'Get notified when a message is retrieved',
+                'label' => 'Email Notifications',
                 'config' => [
                     'email' => $notificationEmail,
+                ],
+                'type' => $notificationEmail ? 'feature' : 'missing',
+            ],
+            'webhook_notification' => [
+                'order' => 4.6,
+                'label' => 'Webhook Notifications',
+                'config' => [
                     'webhook' => $notificationWebhook,
                 ],
-                'type' => $notificationType,
+                'type' => $notificationWebhook ? 'feature' : 'missing',
             ],
             'support' => [
                 'order' => 5,

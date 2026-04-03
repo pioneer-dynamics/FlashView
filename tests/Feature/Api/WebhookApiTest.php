@@ -28,10 +28,16 @@ class WebhookApiTest extends TestCase
             'price_per_month' => 50,
             'price_per_year' => 500,
             'features' => [
-                'notification' => [
+                'email_notification' => [
                     'order' => 4.5,
-                    'label' => 'Notifications',
-                    'config' => ['email' => true, 'webhook' => true],
+                    'label' => 'Email Notifications',
+                    'config' => ['email' => true],
+                    'type' => 'feature',
+                ],
+                'webhook_notification' => [
+                    'order' => 4.6,
+                    'label' => 'Webhook Notifications',
+                    'config' => ['webhook' => true],
                     'type' => 'feature',
                 ],
                 'api' => [

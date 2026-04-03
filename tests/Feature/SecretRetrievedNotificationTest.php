@@ -103,11 +103,17 @@ class SecretRetrievedNotificationTest extends TestCase
         return Plan::factory()->create([
             'name' => $enabled ? 'Pro' : 'Free',
             'features' => [
-                'notification' => [
+                'email_notification' => [
                     'order' => 4.5,
-                    'label' => 'Get notified when a message is retrieved',
+                    'label' => 'Email Notifications',
                     'config' => ['email' => $enabled],
                     'type' => $enabled ? 'feature' : 'missing',
+                ],
+                'webhook_notification' => [
+                    'order' => 4.6,
+                    'label' => 'Webhook Notifications',
+                    'config' => ['webhook' => false],
+                    'type' => 'missing',
                 ],
             ],
             'stripe_product_id' => 'prod_test',
