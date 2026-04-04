@@ -38,17 +38,53 @@ class CreateApiTokenTest extends TestCase
             'quantity' => 1,
         ]);
 
-        $this->post('/user/api-tokens', [
-            'name' => 'Test Token',
-            'permissions' => [
-                'secrets:create',
-                'secrets:list',
-            ],
-        ]);
+        $this->withSession(['auth.password_confirmed_at' => time()])
+            ->post('/user/api-tokens', [
+                'name' => 'Test Token',
+                'permissions' => [
+                    'secrets:create',
+                    'secrets:list',
+                ],
+            ]);
 
         $this->assertCount(1, $user->fresh()->tokens);
         $this->assertEquals('Test Token', $user->fresh()->tokens->first()->name);
         $this->assertTrue($user->fresh()->tokens->first()->can('secrets:create'));
         $this->assertFalse($user->fresh()->tokens->first()->can('secrets:delete'));
+    }
+
+    public function test_creating_api_token_requires_password_confirmation(): void
+    {
+        if (! Features::hasApiFeatures()) {
+            $this->markTestSkipped('API support is not enabled.');
+        }
+
+        $this->actingAs($user = User::factory()->withPersonalTeam()->create());
+
+        $plan = Plan::factory()->create([
+            'name' => 'Prime',
+            'stripe_monthly_price_id' => 'price_monthly_prime',
+            'stripe_yearly_price_id' => 'price_yearly_prime',
+            'stripe_product_id' => 'prod_prime',
+            'price_per_month' => 50,
+            'price_per_year' => 500,
+            'features' => ['api' => ['order' => 6, 'label' => 'API Access', 'config' => [], 'type' => 'feature']],
+        ]);
+
+        $user->subscriptions()->create([
+            'type' => 'default',
+            'stripe_id' => 'sub_test_create_confirm',
+            'stripe_status' => 'active',
+            'stripe_price' => $plan->stripe_monthly_price_id,
+            'quantity' => 1,
+        ]);
+
+        $response = $this->post('/user/api-tokens', [
+            'name' => 'Test Token',
+            'permissions' => ['secrets:create'],
+        ]);
+
+        $response->assertRedirect();
+        $this->assertCount(0, $user->fresh()->tokens);
     }
 }

@@ -114,11 +114,19 @@ Route::middleware([
 
     Route::middleware([EnsurePlanHasApiAccess::class])->group(function () {
         Route::get('/user/api-tokens', [ApiTokenController::class, 'index'])->name('api-tokens.index');
-        Route::post('/user/api-tokens', [ApiTokenController::class, 'store'])->name('api-tokens.store');
-        Route::put('/user/api-tokens/{token}', [ApiTokenController::class, 'update'])->name('api-tokens.update');
-        Route::delete('/user/api-tokens/{token}', [ApiTokenController::class, 'destroy'])->name('api-tokens.destroy');
+        Route::post('/user/api-tokens', [ApiTokenController::class, 'store'])
+            ->middleware('password.confirm')
+            ->name('api-tokens.store');
+        Route::put('/user/api-tokens/{token}', [ApiTokenController::class, 'update'])
+            ->middleware('password.confirm')
+            ->name('api-tokens.update');
+        Route::delete('/user/api-tokens/{token}', [ApiTokenController::class, 'destroy'])
+            ->middleware('password.confirm')
+            ->name('api-tokens.destroy');
 
-        Route::delete('/user/cli-installations/{token}', [CliInstallationController::class, 'destroy'])->name('cli-installations.destroy');
+        Route::delete('/user/cli-installations/{token}', [CliInstallationController::class, 'destroy'])
+            ->middleware('password.confirm')
+            ->name('cli-installations.destroy');
 
         Route::put('/user/webhook-settings', [WebhookSettingsController::class, 'update'])
             ->name('user.webhook-settings.update');

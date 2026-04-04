@@ -45,16 +45,59 @@ class ApiTokenPermissionsTest extends TestCase
             'abilities' => ['secrets:create', 'secrets:list'],
         ]);
 
-        $this->put('/user/api-tokens/'.$token->id, [
-            'name' => $token->name,
-            'permissions' => [
-                'secrets:delete',
-                'missing-permission',
-            ],
-        ]);
+        $this->withSession(['auth.password_confirmed_at' => time()])
+            ->put('/user/api-tokens/'.$token->id, [
+                'name' => $token->name,
+                'permissions' => [
+                    'secrets:delete',
+                    'missing-permission',
+                ],
+            ]);
 
         $this->assertTrue($user->fresh()->tokens->first()->can('secrets:delete'));
         $this->assertFalse($user->fresh()->tokens->first()->can('secrets:list'));
         $this->assertFalse($user->fresh()->tokens->first()->can('missing-permission'));
+    }
+
+    public function test_updating_api_token_permissions_requires_password_confirmation(): void
+    {
+        if (! Features::hasApiFeatures()) {
+            $this->markTestSkipped('API support is not enabled.');
+        }
+
+        $this->actingAs($user = User::factory()->withPersonalTeam()->create());
+
+        $plan = Plan::factory()->create([
+            'name' => 'Prime',
+            'stripe_monthly_price_id' => 'price_monthly_prime',
+            'stripe_yearly_price_id' => 'price_yearly_prime',
+            'stripe_product_id' => 'prod_prime',
+            'price_per_month' => 50,
+            'price_per_year' => 500,
+            'features' => ['api' => ['order' => 6, 'label' => 'API Access', 'config' => [], 'type' => 'feature']],
+        ]);
+
+        $user->subscriptions()->create([
+            'type' => 'default',
+            'stripe_id' => 'sub_test_perms_confirm',
+            'stripe_status' => 'active',
+            'stripe_price' => $plan->stripe_monthly_price_id,
+            'quantity' => 1,
+        ]);
+
+        $token = $user->tokens()->create([
+            'name' => 'Test Token',
+            'token' => Str::random(40),
+            'abilities' => ['secrets:create', 'secrets:list'],
+        ]);
+
+        $response = $this->put('/user/api-tokens/'.$token->id, [
+            'name' => $token->name,
+            'permissions' => ['secrets:delete'],
+        ]);
+
+        $response->assertRedirect();
+        $this->assertFalse($user->fresh()->tokens->first()->can('secrets:delete'));
+        $this->assertTrue($user->fresh()->tokens->first()->can('secrets:create'));
     }
 }
