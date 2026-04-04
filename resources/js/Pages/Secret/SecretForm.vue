@@ -236,7 +236,8 @@
                     <CodeBlock v-if="stage=='generated'" :value="$page.props.jetstream.flash?.secret?.url" class="break-words mt-1"/>
                 </span>
                 <span v-else>
-                    <TextAreaInput :autofocus="props.secret == null" id="message" rows="7" v-model="form.message" type="text" :class="messageClass" placeholder="Your secret message..." :max-length="$page.props.jetstream.flash?.secret?.message ? 0 : maxLength"/>
+                    <CodeBlock v-if="decryptionSuccess && props.secret != null" :value="form.message" class="mt-1" />
+                    <TextAreaInput v-else :autofocus="props.secret == null" id="message" rows="7" v-model="form.message" type="text" :class="messageClass" placeholder="Your secret message..." :max-length="$page.props.jetstream.flash?.secret?.message ? 0 : maxLength"/>
                     <div class="flex flex-wrap mt-2 relative text-sm gap-2">
                         <div class="flex flex-wrap">
                             <svg xmlns="https://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-4">

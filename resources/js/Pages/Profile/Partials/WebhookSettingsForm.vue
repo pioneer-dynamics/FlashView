@@ -3,6 +3,7 @@ import { computed, ref } from 'vue';
 import { Link, useForm, usePage, router } from '@inertiajs/vue3';
 import ActionMessage from '@/Components/ActionMessage.vue';
 import ActionSection from '@/Components/ActionSection.vue';
+import CodeBlock from '@/Components/CodeBlock.vue';
 import ConfirmationModal from '@/Components/ConfirmationModal.vue';
 import ConfirmsPasswordOrPasskey from '@/Components/ConfirmsPasswordOrPasskey.vue';
 import DangerButton from '@/Components/DangerButton.vue';
@@ -25,7 +26,6 @@ const regenerating = ref(false);
 const deleting = ref(false);
 const testing = ref(false);
 const testDispatched = ref(false);
-const secretCopied = ref(false);
 
 const form = useForm({
     webhook_url: webhook.value?.webhook_url ?? '',
@@ -56,14 +56,6 @@ const revealSecret = () => {
 
 const hideSecret = () => {
     revealedSecret.value = null;
-};
-
-const copySecret = () => {
-    if (revealedSecret.value) {
-        navigator.clipboard.writeText(revealedSecret.value);
-        secretCopied.value = true;
-        setTimeout(() => { secretCopied.value = false; }, 2000);
-    }
 };
 
 const regenerateSecret = () => {
@@ -145,9 +137,7 @@ const testWebhook = () => {
             <div v-if="webhook?.webhook_url" class="col-span-6">
                 <InputLabel value="Webhook Secret" />
                 <div class="mt-1 flex items-center gap-3">
-                    <code class="flex-1 rounded-md border border-gray-300 bg-gray-50 px-3 py-2 font-mono text-sm text-gray-800 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200">
-                        {{ revealedSecret ?? '••••••••••••••••••••••••••••••••' }}
-                    </code>
+                    <CodeBlock :value="revealedSecret ?? ''" :masked="!revealedSecret" class="flex-1" />
                     <ConfirmsPasswordOrPasskey v-if="!revealedSecret" @confirmed="revealSecret">
                         <SecondaryButton type="button" :class="{ 'opacity-25': revealing }" :disabled="revealing">
                             Show
@@ -155,14 +145,6 @@ const testWebhook = () => {
                     </ConfirmsPasswordOrPasskey>
                     <SecondaryButton v-else type="button" @click="hideSecret">
                         Hide
-                    </SecondaryButton>
-                    <ConfirmsPasswordOrPasskey v-if="!revealedSecret" @confirmed="revealSecret">
-                        <SecondaryButton type="button">
-                            Copy
-                        </SecondaryButton>
-                    </ConfirmsPasswordOrPasskey>
-                    <SecondaryButton v-else type="button" @click="copySecret">
-                        {{ secretCopied ? 'Copied!' : 'Copy' }}
                     </SecondaryButton>
                 </div>
                 <p class="mt-2 text-xs text-gray-500 dark:text-gray-500">
