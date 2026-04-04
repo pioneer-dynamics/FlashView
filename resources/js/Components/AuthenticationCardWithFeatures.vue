@@ -1,6 +1,5 @@
 <script setup>
-import { Link } from '@inertiajs/vue3';
-import Logo from '../../images/logo.svg';
+import AuthenticationCardLogo from '@/Components/AuthenticationCardLogo.vue';
 </script>
 
 <template>
@@ -9,9 +8,7 @@ import Logo from '../../images/logo.svg';
             <!-- Branding Panel -->
             <div class="bg-gray-800 dark:bg-gray-950 px-8 py-10 md:py-16 flex flex-col justify-center">
                 <div class="mb-8">
-                    <Link href="/">
-                        <img :src="Logo" class="h-16 md:h-24 w-auto">
-                    </Link>
+                    <AuthenticationCardLogo />
                 </div>
 
                 <h1 class="text-2xl md:text-3xl font-bold text-white leading-tight">
