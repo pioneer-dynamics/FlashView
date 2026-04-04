@@ -1,15 +1,45 @@
 <script setup>
 import { Head, Link } from '@inertiajs/vue3';
-import AuthenticationCard from '@/Components/AuthenticationCard.vue';
-import AuthenticationCardLogo from '@/Components/AuthenticationCardLogo.vue';
+import AuthenticationCardWithFeatures from '@/Components/AuthenticationCardWithFeatures.vue';
 </script>
 
 <template>
     <Head title="Check Your Email" />
 
-    <AuthenticationCard>
-        <template #logo>
-            <AuthenticationCardLogo />
+    <AuthenticationCardWithFeatures>
+        <template #heading>
+            You're almost there
+        </template>
+
+        <template #subtitle>
+            Here's what you'll get with your FlashView account
+        </template>
+
+        <template #features>
+            <li class="flex items-start gap-3">
+                <svg class="flex-shrink-0 w-4 h-4 text-gamboge-700 dark:text-gamboge-200 mt-1" aria-hidden="true" xmlns="https://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5Zm3.707 8.207-4 4a1 1 0 0 1-1.414 0l-2-2a1 1 0 0 1 1.414-1.414L9 10.586l3.293-3.293a1 1 0 0 1 1.414 1.414Z" />
+                </svg>
+                <span class="text-sm text-gray-300">End-to-end encrypted secret sharing</span>
+            </li>
+            <li class="flex items-start gap-3">
+                <svg class="flex-shrink-0 w-4 h-4 text-gamboge-700 dark:text-gamboge-200 mt-1" aria-hidden="true" xmlns="https://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5Zm3.707 8.207-4 4a1 1 0 0 1-1.414 0l-2-2a1 1 0 0 1 1.414-1.414L9 10.586l3.293-3.293a1 1 0 0 1 1.414 1.414Z" />
+                </svg>
+                <span class="text-sm text-gray-300">Extended expiry options and higher limits</span>
+            </li>
+            <li class="flex items-start gap-3">
+                <svg class="flex-shrink-0 w-4 h-4 text-gamboge-700 dark:text-gamboge-200 mt-1" aria-hidden="true" xmlns="https://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5Zm3.707 8.207-4 4a1 1 0 0 1-1.414 0l-2-2a1 1 0 0 1 1.414-1.414L9 10.586l3.293-3.293a1 1 0 0 1 1.414 1.414Z" />
+                </svg>
+                <span class="text-sm text-gray-300">Personal dashboard to track your secrets</span>
+            </li>
+            <li class="flex items-start gap-3">
+                <svg class="flex-shrink-0 w-4 h-4 text-gamboge-700 dark:text-gamboge-200 mt-1" aria-hidden="true" xmlns="https://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5Zm3.707 8.207-4 4a1 1 0 0 1-1.414 0l-2-2a1 1 0 0 1 1.414-1.414L9 10.586l3.293-3.293a1 1 0 0 1 1.414 1.414Z" />
+                </svg>
+                <span class="text-sm text-gray-300">Webhook notifications for secret access</span>
+            </li>
         </template>
 
         <div class="text-center">
@@ -36,5 +66,5 @@ import AuthenticationCardLogo from '@/Components/AuthenticationCardLogo.vue';
                 </Link>
             </div>
         </div>
-    </AuthenticationCard>
+    </AuthenticationCardWithFeatures>
 </template>

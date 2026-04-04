@@ -89,6 +89,16 @@ class SecretControllerTest extends TestCase
         $response->assertOk();
     }
 
+    public function test_show_passes_secret_prop_to_inertia(): void
+    {
+        $secret = Secret::factory()->create();
+        $signedUrl = URL::temporarySignedRoute('secret.show', now()->addHour(), ['secret' => $secret->hash_id]);
+
+        $response = $this->get($signedUrl);
+
+        $response->assertInertia(fn ($page) => $page->has('secret'));
+    }
+
     public function test_show_rejects_invalid_signature(): void
     {
         $secret = Secret::factory()->create();

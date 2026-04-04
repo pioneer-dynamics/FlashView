@@ -207,6 +207,7 @@ class CliMultipleInstallationsTest extends TestCase
         $tokenToDelete = $tokens->where('name', 'Delete This')->first();
 
         $response = $this->actingAs($user)
+            ->withSession(['auth.password_confirmed_at' => time()])
             ->delete("/user/cli-installations/{$tokenToDelete->id}");
 
         $response->assertRedirect();
@@ -225,6 +226,7 @@ class CliMultipleInstallationsTest extends TestCase
         $token = $user1->fresh()->tokens()->where('type', 'cli')->first();
 
         $this->actingAs($user2)
+            ->withSession(['auth.password_confirmed_at' => time()])
             ->delete("/user/cli-installations/{$token->id}")
             ->assertNotFound();
 
@@ -238,6 +240,7 @@ class CliMultipleInstallationsTest extends TestCase
         $apiToken = $user->createToken('API Token', ['secrets:create']);
 
         $this->actingAs($user)
+            ->withSession(['auth.password_confirmed_at' => time()])
             ->delete("/user/cli-installations/{$apiToken->accessToken->id}")
             ->assertNotFound();
     }
