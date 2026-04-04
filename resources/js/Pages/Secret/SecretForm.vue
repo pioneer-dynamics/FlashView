@@ -200,28 +200,6 @@
         
     }
 </script>
-<style>
-    .underline-svg {
-      position: absolute;
-      bottom: -12px; /* Adjust for spacing */
-      left: 0;
-      width: 100%;
-      height: 20px; /* Adjust SVG height */
-      fill: none;
-      /* stroke: #3b82f6; Tailwind's blue-500 */
-      @apply stroke-gamboge-500;
-      stroke-width: 8; /* Double thickness */
-      stroke-dasharray: 400; /* Total length of the path */
-      stroke-dashoffset: 400; /* Initially hidden */
-      animation: draw 1s cubic-bezier(0.25, 1, 0.5, 1) forwards;
-    }
-
-    @keyframes draw {
-      to {
-        stroke-dashoffset: 0;
-      }
-    }
-</style>
 <template>
     <FlatFormSection>
         <template #title>
@@ -231,20 +209,17 @@
         <template #form>
             <div class="col-span-12">
                 <Alert v-if="props.secret != null" type="Warning" hide-title>
-                    <div class="mb-2">
-                        You can attempt to retrieve this message 
-                        <span class="relative inline-block">
-                            ONLY ONCE
-                            <svg class="underline-svg" xmlns="https://www.w3.org/2000/svg" viewBox="0 0 300 20">
-                                <path d="M0 15 Q150 -10 300 15" />
-                            </svg>
-                        </span>.
+                    <div class="space-y-2">
+                        <p class="font-semibold">
+                            This message will self-destruct after one retrieval attempt &mdash; even if you enter the wrong password.
+                        </p>
+                        <p>
+                            Please double-check your password before submitting &mdash; this cannot be undone.
+                        </p>
+                        <p class="text-xs opacity-75">
+                            Unretrieved messages are also deleted after expiration.
+                        </p>
                     </div>
-                    <ol class="space-y-1 list-decimal list-inside">
-                        <li>Wrong password will result in the message being deleted.</li>
-                        <li>Correct password will show the message, and the message will be deleted.</li>
-                        <li>Message will be deleted after the expiration time.</li>
-                    </ol>
                 </Alert>
                 <Alert hide-title v-if="$page.props.jetstream.flash.error?.code == 404" type="Error">
                     This message has expired or has already been retrieved.
