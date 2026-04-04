@@ -4,7 +4,6 @@
     import { computed, ref } from 'vue';
     import TextAreaInput from '@/Components/TextAreaInput.vue';
     import PrimaryButton from '@/Components/PrimaryButton.vue';
-    import SecondaryButton from '@/Components/SecondaryButton.vue';
     import TextInput from '@/Components/TextInput.vue';
     import InputError from '@/Components/InputError.vue';
     import FlatFormSection from '@/Components/FlatFormSection.vue';
@@ -38,13 +37,6 @@
     });
 
     const decryptionSuccess = ref(false)
-    const messageCopied = ref(false)
-
-    const copyMessage = () => {
-        navigator.clipboard.writeText(form.message);
-        messageCopied.value = true;
-        setTimeout(() => { messageCopied.value = false; }, 2000);
-    }
 
     const messageClass = computed(() => {
         if(props.secret) {
@@ -244,12 +236,8 @@
                     <CodeBlock v-if="stage=='generated'" :value="$page.props.jetstream.flash?.secret?.url" class="break-words mt-1"/>
                 </span>
                 <span v-else>
-                    <TextAreaInput :autofocus="props.secret == null" id="message" rows="7" v-model="form.message" type="text" :class="messageClass" placeholder="Your secret message..." :max-length="$page.props.jetstream.flash?.secret?.message ? 0 : maxLength"/>
-                    <div v-if="decryptionSuccess && props.secret != null" class="mt-2 flex justify-end">
-                        <SecondaryButton type="button" @click="copyMessage">
-                            {{ messageCopied ? 'Copied!' : 'Copy Message' }}
-                        </SecondaryButton>
-                    </div>
+                    <CodeBlock v-if="decryptionSuccess && props.secret != null" :value="form.message" class="mt-1" />
+                    <TextAreaInput v-else :autofocus="props.secret == null" id="message" rows="7" v-model="form.message" type="text" :class="messageClass" placeholder="Your secret message..." :max-length="$page.props.jetstream.flash?.secret?.message ? 0 : maxLength"/>
                     <div class="flex flex-wrap mt-2 relative text-sm gap-2">
                         <div class="flex flex-wrap">
                             <svg xmlns="https://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-4">
