@@ -28,7 +28,7 @@ const updateNotificationPreferences = () => {
 <template>
     <FormSection v-if="planSupportsNotifications" @submitted="updateNotificationPreferences">
         <template #title>
-            Notification Preferences
+            Email Notifications
         </template>
 
         <template #description>
@@ -64,7 +64,7 @@ const updateNotificationPreferences = () => {
 
     <ActionSection v-else>
         <template #title>
-            Notification Preferences
+            Email Notifications
         </template>
 
         <template #description>
