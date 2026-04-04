@@ -15,6 +15,7 @@ import SecondaryButton from '@/Components/SecondaryButton.vue';
 import SectionBorder from '@/Components/SectionBorder.vue';
 import TextInput from '@/Components/TextInput.vue';
 import Alert from '@/Components/Alert.vue';
+import ConfirmsPasswordOrPasskey from '@/Components/ConfirmsPasswordOrPasskey.vue';
 
 const props = defineProps({
     tokens: Array,
@@ -93,7 +94,7 @@ const deleteApiToken = () => {
         </div>
 
         <!-- Generate API Token -->
-        <FormSection @submitted="createApiToken">
+        <FormSection>
             <template #title>
                 Create API Token
             </template>
@@ -136,9 +137,11 @@ const deleteApiToken = () => {
                     Created.
                 </ActionMessage>
 
-                <PrimaryButton :class="{ 'opacity-25': createApiTokenForm.processing }" :disabled="createApiTokenForm.processing">
-                    Create
-                </PrimaryButton>
+                <ConfirmsPasswordOrPasskey @confirmed="createApiToken">
+                    <PrimaryButton type="button" :class="{ 'opacity-25': createApiTokenForm.processing }" :disabled="createApiTokenForm.processing">
+                        Create
+                    </PrimaryButton>
+                </ConfirmsPasswordOrPasskey>
             </template>
         </FormSection>
 
@@ -200,9 +203,11 @@ const deleteApiToken = () => {
                                         Permissions
                                     </button>
 
-                                    <button class="cursor-pointer ms-6 text-sm text-red-500" @click="confirmApiTokenDeletion(token)">
-                                        Delete
-                                    </button>
+                                    <ConfirmsPasswordOrPasskey @confirmed="confirmApiTokenDeletion(token)" title="Confirm Token Deletion" content="Please verify your identity before deleting this API token.">
+                                        <button class="cursor-pointer ms-6 text-sm text-red-500">
+                                            Delete
+                                        </button>
+                                    </ConfirmsPasswordOrPasskey>
                                 </div>
                             </div>
                         </div>
@@ -256,14 +261,16 @@ const deleteApiToken = () => {
                     Cancel
                 </SecondaryButton>
 
-                <PrimaryButton
-                    class="ms-3"
-                    :class="{ 'opacity-25': updateApiTokenForm.processing }"
-                    :disabled="updateApiTokenForm.processing"
-                    @click="updateApiToken"
-                >
-                    Save
-                </PrimaryButton>
+                <ConfirmsPasswordOrPasskey @confirmed="updateApiToken">
+                    <PrimaryButton
+                        type="button"
+                        class="ms-3"
+                        :class="{ 'opacity-25': updateApiTokenForm.processing }"
+                        :disabled="updateApiTokenForm.processing"
+                    >
+                        Save
+                    </PrimaryButton>
+                </ConfirmsPasswordOrPasskey>
             </template>
         </DialogModal>
 
