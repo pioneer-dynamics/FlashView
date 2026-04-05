@@ -77,6 +77,23 @@ class PlanFactory extends Factory
     }
 
     /**
+     * A plan with Sender Identity feature enabled.
+     */
+    public function withSenderIdentity(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'features' => array_merge($attributes['features'] ?? $this->defaultFeatures(), [
+                'sender_identity' => [
+                    'order' => 7,
+                    'label' => 'Verified Sender Identity',
+                    'config' => [],
+                    'type' => 'feature',
+                ],
+            ]),
+        ]);
+    }
+
+    /**
      * Build the default features array with configurable options.
      *
      * @return array<string, array<string, mixed>>

@@ -44,9 +44,19 @@ class SecretController extends Controller implements HasMiddleware
     public function store(StoreSecretRequest $request): RedirectResponse
     {
         $maskedRecipientEmail = null;
+        $senderCompanyName = null;
+        $senderDomain = null;
+        $senderEmail = null;
 
         if ($request->user()?->store_masked_recipient_email && $email = $request->safe()->email) {
             $maskedRecipientEmail = $this->emailMaskingService->mask($email);
+        }
+
+        if ($request->user()?->hasVerifiedSenderIdentity()) {
+            $identity = $request->user()->senderIdentity;
+            $senderCompanyName = $identity->isDomainType() ? $identity->company_name : null;
+            $senderDomain = $identity->isDomainType() ? $identity->domain : null;
+            $senderEmail = $identity->isEmailType() ? $identity->email : null;
         }
 
         $result = $this->secretService->createSecret(
@@ -54,6 +64,9 @@ class SecretController extends Controller implements HasMiddleware
             (int) $request->expires_in,
             $request->user()?->id,
             $maskedRecipientEmail,
+            $senderCompanyName,
+            $senderDomain,
+            $senderEmail,
         );
 
         if ($request->user() && $email = $request->safe()->email) {
@@ -72,7 +85,15 @@ class SecretController extends Controller implements HasMiddleware
      */
     public function show(string $secret): Response
     {
-        return Inertia::render('Welcome', ['secret' => $secret, 'decryptUrl' => URL::temporarySignedRoute('secret.decrypt', now()->addMinutes(5), ['secret' => $secret])]);
+        $secretRecord = Secret::withoutEvents(fn () => Secret::withoutGlobalScopes()->find(Secret::decodeHashId($secret)));
+
+        return Inertia::render('Welcome', [
+            'secret' => $secret,
+            'decryptUrl' => URL::temporarySignedRoute('secret.decrypt', now()->addMinutes(5), ['secret' => $secret]),
+            'senderCompanyName' => $secretRecord?->sender_company_name,
+            'senderDomain' => $secretRecord?->sender_domain,
+            'senderEmail' => $secretRecord?->sender_email,
+        ]);
     }
 
     public function decrypt(Secret $secret): RedirectResponse
