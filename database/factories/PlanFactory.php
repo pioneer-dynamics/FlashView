@@ -82,14 +82,7 @@ class PlanFactory extends Factory
     public function withSenderIdentity(): static
     {
         return $this->state(fn (array $attributes) => [
-            'features' => array_merge($attributes['features'] ?? $this->defaultFeatures(), [
-                'sender_identity' => [
-                    'order' => 7,
-                    'label' => 'Verified Sender Identity',
-                    'config' => [],
-                    'type' => 'feature',
-                ],
-            ]),
+            'features' => $this->defaultFeatures(senderIdentityType: 'feature'),
         ]);
     }
 
@@ -105,6 +98,7 @@ class PlanFactory extends Factory
         string $apiType = 'feature',
         bool $notificationEmail = true,
         bool $notificationWebhook = true,
+        string $senderIdentityType = 'missing',
     ): array {
         return [
             'untracked' => [
@@ -163,6 +157,12 @@ class PlanFactory extends Factory
                 'label' => 'API Access',
                 'config' => [],
                 'type' => $apiType,
+            ],
+            'sender_identity' => [
+                'order' => 7,
+                'label' => 'Verified Sender Identity',
+                'config' => [],
+                'type' => $senderIdentityType,
             ],
         ];
     }
