@@ -32,6 +32,7 @@ class Secret extends Model
         'filename',
         'user_id',
         'expires_at',
+        'masked_recipient_email',
     ];
 
     protected $hidden = [
@@ -51,6 +52,7 @@ class Secret extends Model
             'message' => 'encrypted',
             'ip_address_sent' => 'encrypted',
             'ip_address_retrieved' => 'encrypted',
+            'masked_recipient_email' => 'encrypted',
         ];
     }
 

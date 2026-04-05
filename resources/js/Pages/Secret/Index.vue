@@ -4,14 +4,18 @@ import Page from '../Page.vue';
 import { DateTime } from 'luxon';
 import { useForm } from '@inertiajs/vue3';
 import ConfirmationModal from '@/Components/ConfirmationModal.vue';
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
 import DangerButton from '@/Components/DangerButton.vue';
 import Paginator from '@/Components/Paginator.vue';
 
-defineProps({
+const props = defineProps({
     secrets: Array
 })
+
+const hasAnyRecipient = computed(() =>
+    props.secrets.data?.some(s => s.masked_recipient_email)
+);
 
 const form = useForm({})
 
@@ -41,6 +45,9 @@ const burn = () => {
                             <th scope="col" class="px-6 py-3">
                                 Message ID
                             </th>
+                            <th v-if="hasAnyRecipient" scope="col" class="px-6 py-3 text-center">
+                                Recipient
+                            </th>
                             <th scope="col" class="px-6 py-3 text-center">
                                 Created At
                             </th>
@@ -57,6 +64,10 @@ const burn = () => {
                             <th scope="row" class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">
                                 {{ secret.hash_id }}
                             </th>
+                            <td v-if="hasAnyRecipient" class="px-6 py-4 text-center">
+                                <span v-if="secret.masked_recipient_email" class="font-mono text-xs">{{ secret.masked_recipient_email }}</span>
+                                <span v-else class="text-gray-400 dark:text-gray-600">—</span>
+                            </td>
                             <td class="px-6 py-4 text-center">
                                 {{ DateTime.fromISO(secret.created_at).toLocaleString(DateTime.DATETIME_MED) }}
                             </td>
@@ -69,7 +80,7 @@ const burn = () => {
                             </td>
                         </tr>
                         <tr class="odd:bg-white odd:dark:bg-gray-900 even:bg-gray-50 even:dark:bg-gray-800 border-b dark:border-gray-700">
-                            <td colspan="4" class="text-center">
+                            <td :colspan="hasAnyRecipient ? 5 : 4" class="text-center">
                                 <Paginator :links="secrets.meta.links" />
                             </td>
                         </tr>

@@ -11,6 +11,7 @@ use App\Http\Requests\StoreSecretRequest;
 use App\Http\Resources\SecretMessageResource;
 use App\Http\Resources\SecretResource;
 use App\Models\Secret;
+use App\Services\EmailMaskingService;
 use App\Services\SecretService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controllers\HasMiddleware;
@@ -18,7 +19,10 @@ use Illuminate\Routing\Controllers\Middleware;
 
 class SecretController extends Controller implements HasMiddleware
 {
-    public function __construct(private SecretService $secretService) {}
+    public function __construct(
+        private SecretService $secretService,
+        private EmailMaskingService $emailMaskingService,
+    ) {}
 
     public static function middleware(): array
     {
@@ -42,10 +46,17 @@ class SecretController extends Controller implements HasMiddleware
      */
     public function store(StoreSecretRequest $request): JsonResponse
     {
+        $maskedRecipientEmail = null;
+
+        if ($request->user()->store_masked_recipient_email && $email = $request->safe()->email) {
+            $maskedRecipientEmail = $this->emailMaskingService->mask($email);
+        }
+
         $result = $this->secretService->createSecret(
             $request->message,
             (int) $request->expires_in,
             $request->user()->id,
+            $maskedRecipientEmail,
         );
 
         if ($email = $request->safe()->email) {

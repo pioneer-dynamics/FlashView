@@ -6,6 +6,7 @@ use App\Http\Requests\BurnSecretRequest;
 use App\Http\Requests\StoreSecretRequest;
 use App\Http\Resources\SecretResourceCollection;
 use App\Models\Secret;
+use App\Services\EmailMaskingService;
 use App\Services\SecretService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -17,7 +18,10 @@ use Inertia\Response;
 
 class SecretController extends Controller implements HasMiddleware
 {
-    public function __construct(private SecretService $secretService) {}
+    public function __construct(
+        private SecretService $secretService,
+        private EmailMaskingService $emailMaskingService,
+    ) {}
 
     public static function middleware(): array
     {
@@ -39,10 +43,17 @@ class SecretController extends Controller implements HasMiddleware
      */
     public function store(StoreSecretRequest $request): RedirectResponse
     {
+        $maskedRecipientEmail = null;
+
+        if ($request->user()?->store_masked_recipient_email && $email = $request->safe()->email) {
+            $maskedRecipientEmail = $this->emailMaskingService->mask($email);
+        }
+
         $result = $this->secretService->createSecret(
             $request->message,
             (int) $request->expires_in,
             $request->user()?->id,
+            $maskedRecipientEmail,
         );
 
         if ($request->user() && $email = $request->safe()->email) {

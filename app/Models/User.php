@@ -43,6 +43,7 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
         'notify_secret_retrieved',
         'webhook_url',
         'webhook_secret',
+        'store_masked_recipient_email',
     ];
 
     /**
@@ -167,6 +168,7 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
             'password' => 'hashed',
             'notify_secret_retrieved' => 'boolean',
             'webhook_secret' => 'encrypted',
+            'store_masked_recipient_email' => 'boolean',
         ];
     }
 
