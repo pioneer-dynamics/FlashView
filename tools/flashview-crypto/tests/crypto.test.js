@@ -1,6 +1,31 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { encryptMessage, decryptMessage, generatePassphrase } from '../src/crypto.js';
+import { encryptMessage, decryptMessage, generatePassphrase } from '../src/index.js';
+
+// Known vectors generated from the pre-migration CLI implementation (tools/flashview-cli/src/crypto.js)
+// using Node.js `node:crypto` (pbkdf2Sync + createCipheriv AES-256-GCM).
+// These prove that the new crypto.subtle implementation is backward-compatible with
+// secrets encrypted before this migration.
+const KNOWN_VECTORS = [
+    {
+        description: 'ASCII message',
+        passphrase: 'known-vector-test-passphrase',
+        message: 'Hello, FlashView!',
+        secret: '5eda762c4276f47dv8wVoOefRcB/5dbyX8NP0SeKd9ktm0u/AZOp4CdspI9ORmzSKIhlXuAvE/em',
+    },
+    {
+        description: 'empty string',
+        passphrase: 'known-vector-test-passphrase',
+        message: '',
+        secret: '5c20fd84285f08ceP+KjColRPnuCkPD9fkT/YSIZlM3QgrkMU92xCw==',
+    },
+    {
+        description: 'unicode characters',
+        passphrase: 'known-vector-test-passphrase',
+        message: 'Hello 🚀 World éèê 你好',
+        secret: 'ec66b0a45c4ddb69goJSVO8USRcnFg9h0AmHi7BbwGq0gtzX5kLKrRuzSxBm4Tw5SEOQpR745ML73U2IS9GlYqSAI/m6Og==',
+    },
+];
 
 describe('generatePassphrase', () => {
     it('generates an 8-word hyphenated passphrase', () => {
@@ -43,15 +68,12 @@ describe('encryptMessage', () => {
         const saltHex = result.secret.substring(0, 16);
         const base64Part = result.secret.substring(16);
 
-        // Salt should be valid hex (16 chars = 8 bytes)
         assert.match(saltHex, /^[0-9a-f]{16}$/, 'Salt should be 16 hex characters');
 
-        // Base64 part should decode without error
         const decoded = Buffer.from(base64Part, 'base64');
         assert.ok(decoded.length > 0, 'Base64 should decode to non-empty buffer');
 
-        // Decoded buffer should contain: 12 (IV) + plaintext length + 16 (auth tag) bytes
-        // "Test message" = 12 bytes, so total = 12 + 12 + 16 = 40
+        // "Test message" = 12 bytes, so total = 12 (IV) + 12 (plaintext) + 16 (authTag) = 40
         assert.equal(decoded.length, 40, 'Decoded ciphertext should be IV + encrypted + authTag');
     });
 
@@ -116,7 +138,34 @@ describe('decryptMessage', () => {
     });
 });
 
-describe('ciphertext format compatibility', () => {
+describe('known-vector compatibility (backward compatibility with pre-migration CLI)', () => {
+    for (const vector of KNOWN_VECTORS) {
+        it(`decrypts known vector: ${vector.description}`, async () => {
+            const decrypted = await decryptMessage(vector.secret, vector.passphrase);
+            assert.equal(
+                decrypted,
+                vector.message,
+                `Should decrypt known vector (${vector.description}) to expected plaintext`
+            );
+        });
+    }
+
+    it('new encrypted secrets can be decrypted by the same implementation', async () => {
+        // Encrypts with the new crypto.subtle implementation and decrypts — confirms
+        // the new format is self-consistent and matches the known vector format.
+        const message = 'cross-compat test';
+        const passphrase = 'cross-compat-passphrase';
+        const { secret } = await encryptMessage(message, passphrase);
+
+        // Verify format matches expected structure
+        assert.match(secret.substring(0, 16), /^[0-9a-f]{16}$/);
+
+        const decrypted = await decryptMessage(secret, passphrase);
+        assert.equal(decrypted, message);
+    });
+});
+
+describe('ciphertext format compatibility (MessageLength validation)', () => {
     it('matches expected overhead for MessageLength validation', async () => {
         // The MessageLength rule subtracts 28 bytes (12 IV + 16 auth tag) from the
         // decoded base64 length to estimate plaintext length.
@@ -129,7 +178,6 @@ describe('ciphertext format compatibility', () => {
         // decoded length = IV (12) + plaintext (5) + authTag (16) = 33
         assert.equal(decoded.length, 33);
 
-        // The estimated plaintext length (what MessageLength calculates)
         const estimatedPlaintext = decoded.length - 28;
         assert.equal(estimatedPlaintext, 5, 'Estimated plaintext length should match actual');
     });

@@ -1,11 +1,10 @@
-import OpenCrypto from 'opencrypto'
-import { generate, count } from "random-words";
+import { encryptMessage as sharedEncrypt, decryptMessage as sharedDecrypt, generatePassphrase } from '@pioneer-dynamics/flashview-crypto';
 
 export class encryption {
 
     validatePassphrase(passphrase) {
-        if(passphrase != null) {
-            if(passphrase.length < 8) {
+        if (passphrase != null) {
+            if (passphrase.length < 8) {
                 throw new Error('Passphrase must be at least 8 characters');
             }
         }
@@ -24,121 +23,31 @@ export class encryption {
     }
 
     async generateRandomString(length) {
-        const crypt = new OpenCrypto();
-
-        const bytes =  await crypt.getRandomBytes(length);
-
-        const string = this.arrayBufferToHex(bytes);
-
-        return string;
+        const bytes = new Uint8Array(length);
+        globalThis.crypto.getRandomValues(bytes);
+        return this.arrayBufferToHex(bytes.buffer);
     }
 
-    generatePasssphrase() { 
-        return generate({ exactly: 8, join: '-' });
+    generatePasssphrase() {
+        return generatePassphrase();
     }
 
-    async encryptMessage(message, passphrase = null)
-    {
+    async encryptMessage(message, passphrase = null) {
         this.validatePassphrase(passphrase);
-
-        const crypt = new OpenCrypto();
-
-        passphrase = passphrase ? passphrase : this.generatePasssphrase();
-
-        const salt = await crypt.getRandomBytes(8);
-
-        const derivedKey = await crypt.derivePassphraseKey(passphrase, salt, 64000);
-
-        var enc = new TextEncoder();
-
-        const ciphertext = await crypt.encrypt(derivedKey, enc.encode(message));
-
-        const secret = this.arrayBufferToHex(salt) + ciphertext;
-
-        return({passphrase, secret});
+        return sharedEncrypt(message, passphrase);
     }
 
-    async decryptMessage(ciphertext, passphrase)
-    {
+    async decryptMessage(ciphertext, passphrase) {
         try {
             this.validatePassphrase(passphrase);
-     
-            const crypt = new OpenCrypto()
-
-            const salt = this.hexToArrayBuffer(ciphertext.slice(0, 16));
-
-            ciphertext = ciphertext.slice(16);
-
-            const derivedKey = await crypt.derivePassphraseKey(passphrase, salt, 64000);
-
-            var enc = new TextDecoder();
-
-            const message = await crypt.decrypt(derivedKey, ciphertext);
-
-            const decodedMessage = enc.decode(message);
-
-            if(decodedMessage?.length > 0)
-                return decodedMessage;
-            else
+            const decoded = await sharedDecrypt(ciphertext, passphrase);
+            if (decoded?.length > 0) {
+                return decoded;
+            } else {
                 throw new Error();
-        }
-        catch (error) {
+            }
+        } catch (error) {
             throw new Error('Could not decrypt message. Password might be wrong. Message destroyed.');
         }
     }
-
-    // async encryptFile(file, passphrase = null)
-    // {
-    //     this.validatePassphrase(passphrase);
-        
-    //     const crypt = new OpenCrypto()
-
-    //     passphrase = passphrase ? passphrase : this.generatePasssphrase();
-
-    //     const salt = await crypt.getRandomBytes(8);
-
-    //     const derivedKey = await crypt.derivePassphraseKey(passphrase, salt, 64000);
-
-    //     var plaintextbytes = await readfile(file)
-    //                         .catch(function(err){
-    //                             console.error(err);
-    //                         });	
-
-	// 	var plaintextbytes = new Uint8Array(plaintextbytes);
-
-    //     const cypherBytes = await crypt.encrypt(derivedKey, plaintextbytes);
-
-    //     cyphertext = new Uint8Array(cypherBytes);
-
-	// 	var resultbytes=new Uint8Array(cyphertext.length+16);
-		
-    //     resultbytes.set(new TextEncoder("utf-8").encode('Salted__'));
-
-	// 	resultbytes.set(await crypt.getRandomBytes(8), 8);
-
-	// 	resultbytes.set(cyphertext, 16);
-
-    //     var blob=new Blob([resultbytes], {type: 'application/download'});
-		
-    //     var blobUrl = URL.createObjectURL(blob);
-
-    //     const saltEncoded = this.arrayBufferToHex(salt);
-
-    //     return({passphrase, saltEncoded + blobUrl});
-    // }
-
-    // async decryptFile(file, passphrase)
-    // {
-    //     this.validatePassphrase(passphrase);
-        
-    //     const crypt = new OpenCrypto()
-
-    //     const derivedKey = await crypt.derivePassphraseKey(passphrase, salt, 64000);
-
-    //     var enc = new TextDecoder();
-
-    //     const message = await crypt.decrypt(derivedKey, file);
-
-    //     return enc.decode(message);
-    // }
 }

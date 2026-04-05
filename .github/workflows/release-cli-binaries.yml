@@ -47,7 +47,12 @@ jobs:
         with:
           node-version: '22'
 
-      - run: npm ci
+      - name: Install crypto package dependencies
+        working-directory: tools/flashview-crypto
+        run: npm ci
+
+      - name: Install CLI dependencies
+        run: npm ci
 
       - run: npm test
 
