@@ -2,12 +2,16 @@
 
 namespace Tests\Feature;
 
+use App\Jobs\RetryDomainVerification;
 use App\Models\Plan;
 use App\Models\SenderIdentity;
 use App\Models\User;
+use App\Notifications\DomainVerifiedNotification;
 use App\Services\DomainVerificationService;
 use Database\Factories\SecretFactory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
 class SenderIdentityTest extends TestCase
@@ -220,6 +224,7 @@ class SenderIdentityTest extends TestCase
             'domain' => 'acme.com',
             'verification_token' => 'old-token',
             'verified_at' => now(),
+            'verification_retry_dispatched_at' => now(),
         ]);
 
         $this->actingAs($user)
@@ -233,6 +238,7 @@ class SenderIdentityTest extends TestCase
         $this->assertEquals('new-acme.com', $identity->domain);
         $this->assertNull($identity->verified_at);
         $this->assertNotEquals('old-token', $identity->verification_token);
+        $this->assertNull($identity->verification_retry_dispatched_at);
     }
 
     public function test_updating_domain_without_change_keeps_verification(): void
@@ -308,6 +314,9 @@ class SenderIdentityTest extends TestCase
 
     public function test_domain_verification_succeeds_when_dns_record_found(): void
     {
+        Notification::fake();
+        Queue::fake();
+
         $user = $this->createPrimeUser();
         $identity = SenderIdentity::factory()->for($user)->create([
             'type' => 'domain',
@@ -327,10 +336,14 @@ class SenderIdentityTest extends TestCase
 
         $this->assertNotNull($identity->fresh()->verified_at);
         $this->assertTrue($user->fresh()->hasVerifiedSenderIdentity());
+        Notification::assertSentTo($user, DomainVerifiedNotification::class);
+        Queue::assertNotPushed(RetryDomainVerification::class);
     }
 
     public function test_domain_verification_fails_when_dns_record_not_found(): void
     {
+        Queue::fake();
+
         $user = $this->createPrimeUser();
         $identity = SenderIdentity::factory()->for($user)->create([
             'type' => 'domain',
@@ -349,6 +362,8 @@ class SenderIdentityTest extends TestCase
             ->assertSessionHasErrors('domain');
 
         $this->assertNull($identity->fresh()->verified_at);
+        Queue::assertPushed(RetryDomainVerification::class);
+        $this->assertNotNull($identity->fresh()->verification_retry_dispatched_at);
     }
 
     public function test_verify_fails_when_no_domain_identity_configured(): void
