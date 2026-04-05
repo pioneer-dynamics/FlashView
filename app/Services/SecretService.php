@@ -16,8 +16,15 @@ class SecretService
      *
      * @return array{secret: Secret, url: string}
      */
-    public function createSecret(string $message, int $expiresInMinutes, ?int $userId = null, ?string $maskedRecipientEmail = null): array
-    {
+    public function createSecret(
+        string $message,
+        int $expiresInMinutes,
+        ?int $userId = null,
+        ?string $maskedRecipientEmail = null,
+        ?string $senderCompanyName = null,
+        ?string $senderDomain = null,
+        ?string $senderEmail = null,
+    ): array {
         $expiresAt = now()->addMinutes($expiresInMinutes);
 
         $secret = Secret::create([
@@ -25,6 +32,9 @@ class SecretService
             'expires_at' => $expiresAt,
             'user_id' => $userId,
             'masked_recipient_email' => $maskedRecipientEmail,
+            'sender_company_name' => $senderCompanyName,
+            'sender_domain' => $senderDomain,
+            'sender_email' => $senderEmail,
         ]);
 
         $url = URL::temporarySignedRoute('secret.show', $expiresAt, ['secret' => $secret->hash_id]);

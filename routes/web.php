@@ -9,8 +9,10 @@ use App\Http\Controllers\NotificationPreferencesController;
 use App\Http\Controllers\NotificationSettingsController;
 use App\Http\Controllers\PlanController;
 use App\Http\Controllers\SecretController;
+use App\Http\Controllers\SenderIdentityController;
 use App\Http\Controllers\WebhookSettingsController;
 use App\Http\Middleware\EnsurePlanHasApiAccess;
+use App\Http\Middleware\EnsurePlanHasSenderIdentity;
 use Illuminate\Foundation\Application;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -150,6 +152,17 @@ Route::middleware([
         Route::post('/user/webhook-settings/test', [WebhookSettingsController::class, 'test'])
             ->middleware('password.confirm')
             ->name('user.webhook-settings.test');
+    });
+
+    Route::middleware([EnsurePlanHasSenderIdentity::class])->group(function () {
+        Route::post('/user/sender-identity', [SenderIdentityController::class, 'store'])
+            ->name('user.sender-identity.store');
+        Route::post('/user/sender-identity/verify', [SenderIdentityController::class, 'verify'])
+            ->middleware('throttle:5,1')
+            ->name('user.sender-identity.verify');
+        Route::delete('/user/sender-identity', [SenderIdentityController::class, 'destroy'])
+            ->middleware('password.confirm')
+            ->name('user.sender-identity.destroy');
     });
 
     Route::get('/billing', function (Request $request) {

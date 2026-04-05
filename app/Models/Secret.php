@@ -33,6 +33,9 @@ class Secret extends Model
         'user_id',
         'expires_at',
         'masked_recipient_email',
+        'sender_company_name',
+        'sender_domain',
+        'sender_email',
     ];
 
     protected $hidden = [
@@ -53,6 +56,9 @@ class Secret extends Model
             'ip_address_sent' => 'encrypted',
             'ip_address_retrieved' => 'encrypted',
             'masked_recipient_email' => 'encrypted',
+            'sender_company_name' => 'encrypted',
+            'sender_domain' => 'encrypted',
+            'sender_email' => 'encrypted',
         ];
     }
 
