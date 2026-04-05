@@ -77,7 +77,7 @@ const removeIdentity = () => {
 </script>
 
 <template>
-    <FormSection>
+    <FormSection @submitted="save">
         <template #title>
             Verified Sender Identity
         </template>
