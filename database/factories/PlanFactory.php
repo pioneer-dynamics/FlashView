@@ -160,7 +160,7 @@ class PlanFactory extends Factory
             ],
             'sender_identity' => [
                 'order' => 7,
-                'label' => 'Verified Sender Identity',
+                'label' => 'Verified Sender Identity (optional)',
                 'config' => [],
                 'type' => $senderIdentityType,
             ],

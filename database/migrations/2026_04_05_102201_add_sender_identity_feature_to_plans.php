@@ -14,7 +14,7 @@ return new class extends Migration
 
             $features['sender_identity'] = [
                 'order' => 7,
-                'label' => 'Verified Sender Identity',
+                'label' => 'Verified Sender Identity (optional)',
                 'config' => [],
                 'type' => $type,
             ];

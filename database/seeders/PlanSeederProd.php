@@ -81,7 +81,7 @@ class PlanSeederProd extends Seeder
                     ],
                     'sender_identity' => [
                         'order' => 7,
-                        'label' => 'Verified Sender Identity',
+                        'label' => 'Verified Sender Identity (optional)',
                         'config' => [],
                         'type' => 'missing',
                     ],
@@ -155,7 +155,7 @@ class PlanSeederProd extends Seeder
                     ],
                     'sender_identity' => [
                         'order' => 7,
-                        'label' => 'Verified Sender Identity',
+                        'label' => 'Verified Sender Identity (optional)',
                         'config' => [],
                         'type' => 'missing',
                     ],
@@ -229,7 +229,7 @@ class PlanSeederProd extends Seeder
                     ],
                     'sender_identity' => [
                         'order' => 7,
-                        'label' => 'Verified Sender Identity',
+                        'label' => 'Verified Sender Identity (optional)',
                         'config' => [],
                         'type' => 'feature',
                     ],
