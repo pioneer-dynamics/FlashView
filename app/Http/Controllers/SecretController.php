@@ -52,7 +52,7 @@ class SecretController extends Controller implements HasMiddleware
             $maskedRecipientEmail = $this->emailMaskingService->mask($email);
         }
 
-        if ($request->user()?->hasVerifiedSenderIdentity()) {
+        if ($request->user()?->planSupportsSenderIdentity() && $request->user()?->hasVerifiedSenderIdentity()) {
             $identity = $request->user()->senderIdentity;
             $senderCompanyName = $identity->isDomainType() ? $identity->company_name : null;
             $senderDomain = $identity->isDomainType() ? $identity->domain : null;

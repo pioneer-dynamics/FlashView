@@ -128,6 +128,25 @@ class SenderIdentitySecretSnapshotTest extends TestCase
         $this->assertNull($secret->sender_email);
     }
 
+    public function test_expired_plan_user_with_verified_identity_gets_no_snapshot(): void
+    {
+        $user = $this->createBasicUser();
+        SenderIdentity::factory()->for($user)->create([
+            'type' => 'email',
+            'email' => $user->email,
+            'verified_at' => now(),
+        ]);
+
+        $this->actingAs($user)
+            ->post(route('secret.store'), $this->validSecretPayload())
+            ->assertSessionHasNoErrors();
+
+        $secret = $user->secrets()->first();
+        $this->assertNull($secret->sender_company_name);
+        $this->assertNull($secret->sender_domain);
+        $this->assertNull($secret->sender_email);
+    }
+
     public function test_removing_identity_does_not_affect_existing_secrets(): void
     {
         $user = $this->createPrimeUser();
