@@ -19,12 +19,14 @@ class SenderIdentity extends Model
         'email',
         'verification_token',
         'verified_at',
+        'verification_retry_dispatched_at',
     ];
 
     protected function casts(): array
     {
         return [
             'verified_at' => 'datetime',
+            'verification_retry_dispatched_at' => 'datetime',
         ];
     }
 
@@ -46,5 +48,10 @@ class SenderIdentity extends Model
     public function isEmailType(): bool
     {
         return $this->type === 'email';
+    }
+
+    public function hasActiveRetry(): bool
+    {
+        return $this->verification_retry_dispatched_at !== null;
     }
 }
