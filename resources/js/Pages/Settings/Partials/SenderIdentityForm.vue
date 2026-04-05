@@ -133,7 +133,7 @@ const removeIdentity = () => {
                     </span>
                 </div>
                 <div v-else class="flex items-center gap-2">
-                    <span class="text-sm text-gray-400 dark:text-gray-500">
+                    <span class="text-sm text-red-400 dark:text-red-500">
                         No badge active — click Save to enable your Verified Sender badge.
                     </span>
                 </div>
