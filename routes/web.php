@@ -3,6 +3,7 @@
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\CliAuthController;
 use App\Http\Controllers\CliInstallationController;
+use App\Http\Controllers\ConfigurationController;
 use App\Http\Controllers\MarkdownDocumentController;
 use App\Http\Controllers\NotificationPreferencesController;
 use App\Http\Controllers\NotificationSettingsController;
@@ -103,6 +104,13 @@ Route::middleware([
 
     Route::get('/user/notification-settings', [NotificationSettingsController::class, 'index'])
         ->name('user.notification-settings.index');
+
+    Route::get('/user/settings', [ConfigurationController::class, 'index'])
+        ->name('user.settings.index');
+
+    Route::put('/user/settings', [ConfigurationController::class, 'update'])
+        ->middleware('password.confirm')
+        ->name('user.settings.update');
 
     Route::put('/user/notification-preferences', [NotificationPreferencesController::class, 'update'])
         ->name('user.notification-preferences.update');
