@@ -81,10 +81,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
 
-    defaults:
-      run:
-        working-directory: tools/flashview-cli
-
     steps:
       - uses: actions/checkout@v4
 
@@ -97,8 +93,14 @@ jobs:
             tools/flashview-cli/package-lock.json
             tools/flashview-crypto/package-lock.json
 
-      - name: Install dependencies
+      - name: Install crypto package dependencies
+        working-directory: tools/flashview-crypto
         run: npm ci
 
-      - name: Run tests
+      - name: Install CLI dependencies
+        working-directory: tools/flashview-cli
+        run: npm ci
+
+      - name: Run CLI tests
+        working-directory: tools/flashview-cli
         run: npm test

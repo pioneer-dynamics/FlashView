@@ -12,9 +12,6 @@ on:
 jobs:
   crypto-tests:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: tools/flashview-crypto
 
     steps:
       - uses: actions/checkout@v4
@@ -23,15 +20,16 @@ jobs:
         with:
           node-version: '22'
 
-      - run: npm ci
+      - name: Install dependencies
+        working-directory: tools/flashview-crypto
+        run: npm ci
 
-      - run: npm test
+      - name: Run tests
+        working-directory: tools/flashview-crypto
+        run: npm test
 
   test:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: tools/flashview-cli
 
     steps:
       - uses: actions/checkout@v4
@@ -40,6 +38,14 @@ jobs:
         with:
           node-version: '22'
 
-      - run: npm ci
+      - name: Install crypto package dependencies
+        working-directory: tools/flashview-crypto
+        run: npm ci
 
-      - run: npm test
+      - name: Install CLI dependencies
+        working-directory: tools/flashview-cli
+        run: npm ci
+
+      - name: Run tests
+        working-directory: tools/flashview-cli
+        run: npm test
