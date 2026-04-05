@@ -3,7 +3,7 @@
     "publishConfig": {
         "access": "public"
     },
-    "version": "1.0.0",
+    "version": "1.0.1",
     "description": "Isomorphic encryption package for FlashView — browser and Node.js",
     "repository": {
         "type": "git",
