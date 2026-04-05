@@ -30,7 +30,7 @@ class DomainLapsedNotification extends Notification implements ShouldQueue
             ->line(__('Your sender badge has been paused until the domain is re-verified.'))
             ->line(__('Links you have already shared will continue to display your verified badge — only new links are affected.'))
             ->line(__('Please ensure your DNS TXT record is still correctly published, then click "Verify Domain" from your settings.'))
-            ->action(__('View Settings'), url(route('profile.show')))
+            ->action(__('View Settings'), url(route('user.settings.index')))
             ->line(__('Thank you for using :app', ['app' => config('app.name')]));
     }
 
