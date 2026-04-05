@@ -23,6 +23,7 @@ class SenderIdentityResource extends JsonResource
             'email' => $this->email,
             'verification_token' => $this->verification_token,
             'is_verified' => $this->isVerified(),
+            'has_active_retry' => $this->hasActiveRetry(),
         ];
     }
 }

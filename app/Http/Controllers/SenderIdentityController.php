@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreSenderIdentityRequest;
+use App\Jobs\RetryDomainVerification;
+use App\Notifications\DomainVerifiedNotification;
 use App\Services\DomainVerificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -25,6 +27,7 @@ class SenderIdentityController extends Controller
                 'email' => $user->email,
                 'verification_token' => null,
                 'verified_at' => now(),
+                'verification_retry_dispatched_at' => null, // cancel any in-flight domain retry
             ];
 
             if (! $identity) {
@@ -52,6 +55,7 @@ class SenderIdentityController extends Controller
             if ($domainChanged || $identity->isEmailType()) {
                 $data['verification_token'] = $this->verificationService->generateToken();
                 $data['verified_at'] = null;
+                $data['verification_retry_dispatched_at'] = null;
             }
             $identity->update($data);
         }
@@ -68,10 +72,21 @@ class SenderIdentityController extends Controller
         }
 
         if ($this->verificationService->verify($identity)) {
-            $identity->update(['verified_at' => now()]);
+            $identity->update([
+                'verified_at' => now(),
+                'verification_retry_dispatched_at' => null,
+            ]);
+            $request->user()->notify(new DomainVerifiedNotification($identity));
 
             return back()->with('status', 'domain-verified');
         }
+
+        if ($identity->hasActiveRetry()) {
+            return back()->withErrors(['domain' => "We're already working on verifying your domain in the background. You'll receive an email once it's done."]);
+        }
+
+        $identity->update(['verification_retry_dispatched_at' => now()]);
+        RetryDomainVerification::dispatch($identity, $identity->verification_token, now()->addHours(24));
 
         return back()->withErrors(['domain' => 'DNS TXT record not found. Please check the record is published and try again in a few minutes.']);
     }

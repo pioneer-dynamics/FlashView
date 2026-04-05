@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\SenderIdentity;
+use App\Notifications\DomainLapsedNotification;
 use App\Services\DomainVerificationService;
 use Illuminate\Console\Command;
 
@@ -32,6 +33,7 @@ class ReverifyDomainIdentities extends Command
                     $passed++;
                 } else {
                     $identity->update(['verified_at' => null]);
+                    $identity->user->notify(new DomainLapsedNotification($identity));
                     $failed++;
                 }
             });

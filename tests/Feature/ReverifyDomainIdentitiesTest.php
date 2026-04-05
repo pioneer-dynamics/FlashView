@@ -4,8 +4,10 @@ namespace Tests\Feature;
 
 use App\Models\SenderIdentity;
 use App\Models\User;
+use App\Notifications\DomainLapsedNotification;
 use App\Services\DomainVerificationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
 
 class ReverifyDomainIdentitiesTest extends TestCase
@@ -37,6 +39,8 @@ class ReverifyDomainIdentitiesTest extends TestCase
 
     public function test_verified_identity_older_than_3_months_with_failing_dns_is_nulled(): void
     {
+        Notification::fake();
+
         $user = User::factory()->create();
         $identity = SenderIdentity::factory()->for($user)->create([
             'type' => 'domain',
@@ -53,6 +57,7 @@ class ReverifyDomainIdentitiesTest extends TestCase
         $this->artisan('sender-identity:reverify')->assertSuccessful();
 
         $this->assertNull($identity->fresh()->verified_at);
+        Notification::assertSentTo($user, DomainLapsedNotification::class);
     }
 
     public function test_verified_identity_younger_than_3_months_is_skipped(): void

@@ -39,6 +39,8 @@ const hasVerificationToken = computed(() => !!props.senderIdentity?.verification
 
 const verificationToken = computed(() => props.senderIdentity?.verification_token ?? '');
 
+const hasActiveRetry = computed(() => props.senderIdentity?.has_active_retry ?? false);
+
 const verificationStatus = computed(() => {
     if (!props.senderIdentity) {
         return null;
@@ -181,8 +183,15 @@ const removeIdentity = () => {
                     </div>
 
                     <div v-else class="space-y-4">
+                        <!-- Active retry in progress -->
+                        <div v-if="hasActiveRetry" class="rounded-md bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 p-3">
+                            <p class="text-sm text-blue-700 dark:text-blue-400">
+                                We're checking your domain in the background — you'll get an email when it's verified.
+                            </p>
+                        </div>
+
                         <!-- Not yet verified or lapsed -->
-                        <div class="rounded-md bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 p-3">
+                        <div v-else class="rounded-md bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 p-3">
                             <p class="text-sm text-amber-700 dark:text-amber-400">
                                 <template v-if="hasVerificationToken">
                                     Domain not yet verified — add the TXT record below to activate your badge.
