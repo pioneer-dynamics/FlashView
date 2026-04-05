@@ -3,7 +3,7 @@ name: CI
 # After merging, configure branch protection in GitHub repo settings:
 # Settings > Branches > Add rule for master and develop:
 #   - Enable "Require status checks to pass before merging"
-#   - Add "php-tests" and "cli-tests" as required checks
+#   - Add "php-tests", "cli-tests", and "crypto-tests" as required checks
 
 on:
   pull_request:
