@@ -6,6 +6,7 @@ on:
       - master
     paths:
       - 'tools/flashview-cli/**'
+      - 'tools/flashview-crypto/**'
 
 permissions:
   contents: read
@@ -18,9 +19,6 @@ concurrency:
 jobs:
   publish:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: tools/flashview-cli
 
     steps:
       - uses: actions/checkout@v4
@@ -30,12 +28,42 @@ jobs:
           node-version: '22'
           registry-url: 'https://registry.npmjs.org'
 
-      - run: npm ci
+      - name: Install crypto dependencies
+        working-directory: tools/flashview-crypto
+        run: npm ci
 
-      - run: npm test
+      - name: Check if crypto version already published
+        id: crypto-version-check
+        working-directory: tools/flashview-crypto
+        run: |
+          LOCAL_VERSION=$(node -p "require('./package.json').version")
+          NPM_VERSION=$(npm view @pioneer-dynamics/flashview-crypto version 2>/dev/null || echo "0.0.0")
+          if [ "$LOCAL_VERSION" = "$NPM_VERSION" ]; then
+            echo "Version $LOCAL_VERSION already published. Skipping."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Publishing version $LOCAL_VERSION (current npm: $NPM_VERSION)"
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
 
-      - name: Check if version already published
-        id: version-check
+      - name: Publish crypto to npm
+        if: steps.crypto-version-check.outputs.skip != 'true'
+        working-directory: tools/flashview-crypto
+        run: npm publish --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Install CLI dependencies
+        working-directory: tools/flashview-cli
+        run: npm ci
+
+      - name: Run CLI tests
+        working-directory: tools/flashview-cli
+        run: npm test
+
+      - name: Check if CLI version already published
+        id: cli-version-check
+        working-directory: tools/flashview-cli
         run: |
           LOCAL_VERSION=$(node -p "require('./package.json').version")
           NPM_VERSION=$(npm view @pioneer-dynamics/flashview-cli version 2>/dev/null || echo "0.0.0")
@@ -47,8 +75,16 @@ jobs:
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Publish to npm
-        if: steps.version-check.outputs.skip != 'true'
+      - name: Pin crypto dependency to published npm version
+        if: steps.cli-version-check.outputs.skip != 'true'
+        working-directory: tools/flashview-cli
+        run: |
+          CRYPTO_VERSION=$(node -p "require('../flashview-crypto/package.json').version")
+          npm pkg set dependencies["@pioneer-dynamics/flashview-crypto"]="^$CRYPTO_VERSION"
+
+      - name: Publish CLI to npm
+        if: steps.cli-version-check.outputs.skip != 'true'
+        working-directory: tools/flashview-cli
         run: npm publish --access public --provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
