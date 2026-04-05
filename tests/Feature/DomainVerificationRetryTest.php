@@ -78,7 +78,9 @@ class DomainVerificationRetryTest extends TestCase
             $mock->shouldReceive('verify')->once()->andReturn(false);
         });
 
-        $this->actingAs($user)->post(route('user.sender-identity.verify'));
+        $this->actingAs($user)
+            ->post(route('user.sender-identity.verify'))
+            ->assertSessionHasErrors(['domain' => "We're already working on verifying your domain in the background. You'll receive an email once it's done."]);
 
         Queue::assertNotPushed(RetryDomainVerification::class);
     }

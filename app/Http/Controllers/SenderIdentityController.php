@@ -81,10 +81,12 @@ class SenderIdentityController extends Controller
             return back()->with('status', 'domain-verified');
         }
 
-        if (! $identity->hasActiveRetry()) {
-            $identity->update(['verification_retry_dispatched_at' => now()]);
-            RetryDomainVerification::dispatch($identity, $identity->verification_token, now()->addHours(24));
+        if ($identity->hasActiveRetry()) {
+            return back()->withErrors(['domain' => "We're already working on verifying your domain in the background. You'll receive an email once it's done."]);
         }
+
+        $identity->update(['verification_retry_dispatched_at' => now()]);
+        RetryDomainVerification::dispatch($identity, $identity->verification_token, now()->addHours(24));
 
         return back()->withErrors(['domain' => 'DNS TXT record not found. Please check the record is published and try again in a few minutes.']);
     }
