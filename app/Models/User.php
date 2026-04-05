@@ -74,6 +74,7 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
 
     protected $with = [
         'passkeys',
+        'senderIdentity',
     ];
 
     public function getSubscriptionAttribute()

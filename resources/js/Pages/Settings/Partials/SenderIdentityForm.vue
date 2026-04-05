@@ -31,9 +31,7 @@ const form = useForm({
 
 const verifyForm = useForm({});
 
-const identityType = computed(() => selectedType.value);
-
-const isDomainType = computed(() => identityType.value === 'domain');
+const isDomainType = computed(() => selectedType.value === 'domain');
 
 const isVerified = computed(() => props.senderIdentity?.is_verified ?? false);
 
@@ -97,7 +95,7 @@ const removeIdentity = () => {
                             type="radio"
                             name="identity_type"
                             value="email"
-                            :checked="identityType === 'email'"
+                            :checked="selectedType === 'email'"
                             @change="selectType('email')"
                             class="text-gray-600 dark:text-gray-400 border-gray-300 dark:border-gray-700 focus:ring-gray-500"
                         >
@@ -108,7 +106,7 @@ const removeIdentity = () => {
                             type="radio"
                             name="identity_type"
                             value="domain"
-                            :checked="identityType === 'domain'"
+                            :checked="selectedType === 'domain'"
                             @change="selectType('domain')"
                             class="text-gray-600 dark:text-gray-400 border-gray-300 dark:border-gray-700 focus:ring-gray-500"
                         >

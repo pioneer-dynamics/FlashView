@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Models\SenderIdentity;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -18,6 +19,7 @@ class SenderIdentityFactory extends Factory
     public function definition(): array
     {
         return [
+            'user_id' => User::factory(),
             'type' => 'email',
             'company_name' => null,
             'domain' => null,
