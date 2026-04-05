@@ -22,7 +22,19 @@
         decryptUrl: {
             type: String,
             default: null
-        }
+        },
+        senderCompanyName: {
+            type: String,
+            default: null,
+        },
+        senderDomain: {
+            type: String,
+            default: null,
+        },
+        senderEmail: {
+            type: String,
+            default: null,
+        },
     });
 
 
@@ -48,7 +60,13 @@
                                 Keep sensitive information out of your email and chat logs with links that are
                             </template>
                         </Typewriter>   
-                        <SecretForm :secret="secret" :decrypt-url="decryptUrl"/>
+                        <SecretForm
+                            :secret="secret"
+                            :decrypt-url="decryptUrl"
+                            :sender-company-name="senderCompanyName"
+                            :sender-domain="senderDomain"
+                            :sender-email="senderEmail"
+                        />
                     <!-- </div> -->
                 </main>
 
