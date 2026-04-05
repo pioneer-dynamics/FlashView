@@ -13,34 +13,6 @@ class SecretMaskedEmailTest extends TestCase
 {
     use RefreshDatabase;
 
-    private function createApiPlan(string $monthlyPriceId, string $yearlyPriceId, string $productId): Plan
-    {
-        return Plan::factory()->create([
-            'name' => 'Prime',
-            'stripe_monthly_price_id' => $monthlyPriceId,
-            'stripe_yearly_price_id' => $yearlyPriceId,
-            'stripe_product_id' => $productId,
-            'price_per_month' => 50,
-            'price_per_year' => 500,
-            'features' => [
-                'messages' => ['order' => 2, 'label' => 'Messages', 'config' => ['message_length' => 100000], 'type' => 'feature'],
-                'expiry' => ['order' => 3, 'label' => 'Expiry', 'config' => ['expiry_label' => '30 days', 'expiry_minutes' => 43200], 'type' => 'feature'],
-                'api' => ['order' => 6, 'label' => 'API Access', 'config' => [], 'type' => 'feature'],
-            ],
-        ]);
-    }
-
-    private function subscribeUserToPlan(User $user, Plan $plan): void
-    {
-        $user->subscriptions()->create([
-            'type' => 'default',
-            'stripe_id' => 'sub_'.fake()->unique()->word(),
-            'stripe_status' => 'active',
-            'stripe_price' => $plan->stripe_monthly_price_id,
-            'quantity' => 1,
-        ]);
-    }
-
     private function validSecretPayload(int $plaintextLength = 50, int $expiresIn = 5): array
     {
         return [
@@ -138,13 +110,19 @@ class SecretMaskedEmailTest extends TestCase
 
     public function test_api_stores_masked_email_when_setting_enabled(): void
     {
-        $primePlan = $this->createApiPlan('price_monthly_prime_mask', 'price_yearly_prime_mask', 'prod_prime_mask');
+        $plan = Plan::factory()->withApiAccess()->create();
 
         $user = User::factory()->withPersonalTeam()->create([
             'store_masked_recipient_email' => true,
         ]);
 
-        $this->subscribeUserToPlan($user, $primePlan);
+        $user->subscriptions()->create([
+            'type' => 'default',
+            'stripe_id' => 'sub_mask_enabled',
+            'stripe_status' => 'active',
+            'stripe_price' => $plan->stripe_monthly_price_id,
+            'quantity' => 1,
+        ]);
 
         Sanctum::actingAs($user, ['secrets:create']);
 
@@ -163,13 +141,19 @@ class SecretMaskedEmailTest extends TestCase
 
     public function test_api_does_not_store_masked_email_when_setting_disabled(): void
     {
-        $primePlan = $this->createApiPlan('price_monthly_prime_mask2', 'price_yearly_prime_mask2', 'prod_prime_mask2');
+        $plan = Plan::factory()->withApiAccess()->create();
 
         $user = User::factory()->withPersonalTeam()->create([
             'store_masked_recipient_email' => false,
         ]);
 
-        $this->subscribeUserToPlan($user, $primePlan);
+        $user->subscriptions()->create([
+            'type' => 'default',
+            'stripe_id' => 'sub_mask_disabled',
+            'stripe_status' => 'active',
+            'stripe_price' => $plan->stripe_monthly_price_id,
+            'quantity' => 1,
+        ]);
 
         Sanctum::actingAs($user, ['secrets:create']);
 
