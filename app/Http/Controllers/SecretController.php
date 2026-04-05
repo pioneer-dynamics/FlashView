@@ -18,7 +18,10 @@ use Inertia\Response;
 
 class SecretController extends Controller implements HasMiddleware
 {
-    public function __construct(private SecretService $secretService) {}
+    public function __construct(
+        private SecretService $secretService,
+        private EmailMaskingService $emailMaskingService,
+    ) {}
 
     public static function middleware(): array
     {
@@ -43,7 +46,7 @@ class SecretController extends Controller implements HasMiddleware
         $maskedRecipientEmail = null;
 
         if ($request->user()?->store_masked_recipient_email && $email = $request->safe()->email) {
-            $maskedRecipientEmail = app(EmailMaskingService::class)->mask($email);
+            $maskedRecipientEmail = $this->emailMaskingService->mask($email);
         }
 
         $result = $this->secretService->createSecret(
