@@ -25,6 +25,18 @@
             type: String,
             default: null,
         },
+        senderCompanyName: {
+            type: String,
+            default: null,
+        },
+        senderDomain: {
+            type: String,
+            default: null,
+        },
+        senderEmail: {
+            type: String,
+            default: null,
+        },
     })
 
     const passwordInput = ref(null);
@@ -207,6 +219,23 @@
         </template>
 
         <template #form>
+            <!-- Verified Sender badge (on reveal page when secret has sender identity) -->
+            <div class="col-span-12" v-if="props.secret != null && (senderCompanyName || senderEmail)">
+                <Alert type="Success" hide-title>
+                    <div class="flex items-start gap-2">
+                        <div>
+                            <p class="font-semibold">&#10003; Verified Sender</p>
+                            <p v-if="senderCompanyName" class="mt-1">
+                                This secret was sent by <strong>{{ senderCompanyName }}</strong> (verified domain: {{ senderDomain }})
+                            </p>
+                            <p v-else-if="senderEmail" class="mt-1">
+                                This secret was sent by <strong>{{ senderEmail }}</strong>
+                            </p>
+                        </div>
+                    </div>
+                </Alert>
+            </div>
+
             <div class="col-span-12">
                 <Alert v-if="props.secret != null" type="Warning" hide-title>
                     <div class="space-y-2">
@@ -228,6 +257,16 @@
             <div class="col-span-12" v-if="stage=='generated'">
                 <Alert hide-title type="Success">
                     Please share the link and password separately to the recipient. The message can be retrieved only once and only with both the link and the password. If you wish to prematurely delete the message, you may visit the link and enter any random password and click retrieve.
+                </Alert>
+            </div>
+            <div class="col-span-12" v-if="props.secret == null && stage == 'generated' && $page.props.auth.senderIdentity">
+                <Alert hide-title type="Info">
+                    <span v-if="$page.props.auth.senderIdentity.type === 'domain'">
+                        Your Verified Sender badge (<strong>{{ $page.props.auth.senderIdentity.company_name }}</strong>) is included in this link.
+                    </span>
+                    <span v-else>
+                        Your Verified Sender badge (<strong>{{ $page.props.auth.senderIdentity.email }}</strong>) is included in this link.
+                    </span>
                 </Alert>
             </div>
             <div class="col-span-12">

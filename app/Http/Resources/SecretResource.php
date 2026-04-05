@@ -21,6 +21,7 @@ class SecretResource extends JsonResource
             'is_expired' => $this->expires_at->isPast(),
             'is_retrieved' => $this->retrieved_at !== null,
             'retrieved_at' => $this->retrieved_at,
+            'masked_recipient_email' => $this->masked_recipient_email,
         ];
     }
 }

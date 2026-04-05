@@ -7,6 +7,7 @@ use Database\Factories\UserFactory;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Cashier\Billable;
@@ -43,6 +44,7 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
         'notify_secret_retrieved',
         'webhook_url',
         'webhook_secret',
+        'store_masked_recipient_email',
     ];
 
     /**
@@ -72,6 +74,7 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
 
     protected $with = [
         'passkeys',
+        'senderIdentity',
     ];
 
     public function getSubscriptionAttribute()
@@ -167,12 +170,34 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
             'password' => 'hashed',
             'notify_secret_retrieved' => 'boolean',
             'webhook_secret' => 'encrypted',
+            'store_masked_recipient_email' => 'boolean',
         ];
     }
 
     public function hasWebhookConfigured(): bool
     {
         return filled($this->webhook_url) && filled($this->webhook_secret);
+    }
+
+    public function senderIdentity(): HasOne
+    {
+        return $this->hasOne(SenderIdentity::class);
+    }
+
+    public function hasVerifiedSenderIdentity(): bool
+    {
+        return $this->senderIdentity?->isVerified() ?? false;
+    }
+
+    public function planSupportsSenderIdentity(): bool
+    {
+        if (! $this->subscribed()) {
+            return false;
+        }
+
+        $plan = $this->resolvePlan();
+
+        return $plan && ($plan->features['sender_identity']['type'] ?? 'missing') === 'feature';
     }
 
     public function secrets(): HasMany

@@ -1,0 +1,184 @@
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { encryptMessage, decryptMessage, generatePassphrase } from '../src/index.js';
+
+// Known vectors generated from the pre-migration CLI implementation (tools/flashview-cli/src/crypto.js)
+// using Node.js `node:crypto` (pbkdf2Sync + createCipheriv AES-256-GCM).
+// These prove that the new crypto.subtle implementation is backward-compatible with
+// secrets encrypted before this migration.
+const KNOWN_VECTORS = [
+    {
+        description: 'ASCII message',
+        passphrase: 'known-vector-test-passphrase',
+        message: 'Hello, FlashView!',
+        secret: '5eda762c4276f47dv8wVoOefRcB/5dbyX8NP0SeKd9ktm0u/AZOp4CdspI9ORmzSKIhlXuAvE/em',
+    },
+    {
+        description: 'empty string',
+        passphrase: 'known-vector-test-passphrase',
+        message: '',
+        secret: '5c20fd84285f08ceP+KjColRPnuCkPD9fkT/YSIZlM3QgrkMU92xCw==',
+    },
+    {
+        description: 'unicode characters',
+        passphrase: 'known-vector-test-passphrase',
+        message: 'Hello 🚀 World éèê 你好',
+        secret: 'ec66b0a45c4ddb69goJSVO8USRcnFg9h0AmHi7BbwGq0gtzX5kLKrRuzSxBm4Tw5SEOQpR745ML73U2IS9GlYqSAI/m6Og==',
+    },
+];
+
+describe('generatePassphrase', () => {
+    it('generates an 8-word hyphenated passphrase', () => {
+        const passphrase = generatePassphrase();
+        const words = passphrase.split('-');
+        assert.equal(words.length, 8, 'Passphrase should have 8 words');
+        for (const word of words) {
+            assert.ok(word.length > 0, 'Each word should be non-empty');
+        }
+    });
+
+    it('generates unique passphrases', () => {
+        const a = generatePassphrase();
+        const b = generatePassphrase();
+        assert.notEqual(a, b, 'Two generated passphrases should differ');
+    });
+});
+
+describe('encryptMessage', () => {
+    it('returns passphrase and encrypted secret', async () => {
+        const result = await encryptMessage('Hello, World!');
+        assert.ok(result.passphrase, 'Should return a passphrase');
+        assert.ok(result.secret, 'Should return an encrypted secret');
+    });
+
+    it('uses provided passphrase when given', async () => {
+        const passphrase = 'my-custom-passphrase';
+        const result = await encryptMessage('Hello', passphrase);
+        assert.equal(result.passphrase, passphrase);
+    });
+
+    it('auto-generates passphrase when not provided', async () => {
+        const result = await encryptMessage('Hello');
+        const words = result.passphrase.split('-');
+        assert.equal(words.length, 8);
+    });
+
+    it('produces format: 16 hex chars + base64 data', async () => {
+        const result = await encryptMessage('Test message');
+        const saltHex = result.secret.substring(0, 16);
+        const base64Part = result.secret.substring(16);
+
+        assert.match(saltHex, /^[0-9a-f]{16}$/, 'Salt should be 16 hex characters');
+
+        const decoded = Buffer.from(base64Part, 'base64');
+        assert.ok(decoded.length > 0, 'Base64 should decode to non-empty buffer');
+
+        // "Test message" = 12 bytes, so total = 12 (IV) + 12 (plaintext) + 16 (authTag) = 40
+        assert.equal(decoded.length, 40, 'Decoded ciphertext should be IV + encrypted + authTag');
+    });
+
+    it('produces different ciphertext for same plaintext (random salt/IV)', async () => {
+        const a = await encryptMessage('Same message', 'same-passphrase');
+        const b = await encryptMessage('Same message', 'same-passphrase');
+        assert.notEqual(a.secret, b.secret, 'Different salt/IV should produce different ciphertext');
+    });
+});
+
+describe('decryptMessage', () => {
+    it('round-trips encryption and decryption', async () => {
+        const plaintext = 'Hello, World!';
+        const { passphrase, secret } = await encryptMessage(plaintext);
+        const decrypted = await decryptMessage(secret, passphrase);
+        assert.equal(decrypted, plaintext);
+    });
+
+    it('round-trips with custom passphrase', async () => {
+        const plaintext = 'Secret data 123!@#';
+        const passphrase = 'my-test-passphrase';
+        const { secret } = await encryptMessage(plaintext, passphrase);
+        const decrypted = await decryptMessage(secret, passphrase);
+        assert.equal(decrypted, plaintext);
+    });
+
+    it('round-trips with empty string', async () => {
+        const { passphrase, secret } = await encryptMessage('');
+        const decrypted = await decryptMessage(secret, passphrase);
+        assert.equal(decrypted, '');
+    });
+
+    it('round-trips with unicode characters', async () => {
+        const plaintext = 'Hello \u{1F680} World \u00E9\u00E8\u00EA \u4F60\u597D';
+        const { passphrase, secret } = await encryptMessage(plaintext);
+        const decrypted = await decryptMessage(secret, passphrase);
+        assert.equal(decrypted, plaintext);
+    });
+
+    it('round-trips with long message', async () => {
+        const plaintext = 'A'.repeat(10000);
+        const { passphrase, secret } = await encryptMessage(plaintext);
+        const decrypted = await decryptMessage(secret, passphrase);
+        assert.equal(decrypted, plaintext);
+    });
+
+    it('fails with wrong passphrase', async () => {
+        const { secret } = await encryptMessage('Hello', 'correct-passphrase');
+        await assert.rejects(
+            () => decryptMessage(secret, 'wrong-passphrase'),
+            'Should reject with wrong passphrase'
+        );
+    });
+
+    it('fails with corrupted ciphertext', async () => {
+        const { passphrase, secret } = await encryptMessage('Hello');
+        const corrupted = secret.substring(0, 16) + 'AAAA' + secret.substring(20);
+        await assert.rejects(
+            () => decryptMessage(corrupted, passphrase),
+            'Should reject with corrupted ciphertext'
+        );
+    });
+});
+
+describe('known-vector compatibility (backward compatibility with pre-migration CLI)', () => {
+    for (const vector of KNOWN_VECTORS) {
+        it(`decrypts known vector: ${vector.description}`, async () => {
+            const decrypted = await decryptMessage(vector.secret, vector.passphrase);
+            assert.equal(
+                decrypted,
+                vector.message,
+                `Should decrypt known vector (${vector.description}) to expected plaintext`
+            );
+        });
+    }
+
+    it('new encrypted secrets can be decrypted by the same implementation', async () => {
+        // Encrypts with the new crypto.subtle implementation and decrypts — confirms
+        // the new format is self-consistent and matches the known vector format.
+        const message = 'cross-compat test';
+        const passphrase = 'cross-compat-passphrase';
+        const { secret } = await encryptMessage(message, passphrase);
+
+        // Verify format matches expected structure
+        assert.match(secret.substring(0, 16), /^[0-9a-f]{16}$/);
+
+        const decrypted = await decryptMessage(secret, passphrase);
+        assert.equal(decrypted, message);
+    });
+});
+
+describe('ciphertext format compatibility (MessageLength validation)', () => {
+    it('matches expected overhead for MessageLength validation', async () => {
+        // The MessageLength rule subtracts 28 bytes (12 IV + 16 auth tag) from the
+        // decoded base64 length to estimate plaintext length.
+        const plaintext = 'Hello'; // 5 bytes
+        const { secret } = await encryptMessage(plaintext, 'test-passphrase');
+
+        const base64Part = secret.substring(16);
+        const decoded = Buffer.from(base64Part, 'base64');
+
+        // decoded length = IV (12) + plaintext (5) + authTag (16) = 33
+        assert.equal(decoded.length, 33);
+
+        const estimatedPlaintext = decoded.length - 28;
+        assert.equal(estimatedPlaintext, 5, 'Estimated plaintext length should match actual');
+    });
+});

@@ -171,7 +171,7 @@ program
             message = await readStdin();
         }
 
-        const { passphrase, secret } = encryptMessage(message, options.passphrase);
+        const { passphrase, secret } = await encryptMessage(message, options.passphrase);
 
         const result = await client.createSecret(secret, expiresIn, options.email);
 
@@ -220,7 +220,7 @@ program
 
         let plaintext;
         try {
-            plaintext = decryptMessage(encryptedMessage, options.passphrase);
+            plaintext = await decryptMessage(encryptedMessage, options.passphrase);
         } catch {
             console.error('Decryption failed. The password may be incorrect.');
             console.error('Warning: The secret has been consumed from the server and cannot be retrieved again.');
