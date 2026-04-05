@@ -9,7 +9,7 @@ class DomainVerificationService
 {
     public function generateToken(): string
     {
-        return 'flashview-verification-'.Str::uuid();
+        return 'flashview-verification-'.Str::lower(app()->environment()).'-'.Str::uuid();
     }
 
     public function verify(SenderIdentity $identity): bool
