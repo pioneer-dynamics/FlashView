@@ -97,7 +97,7 @@ const program = new Command();
 
 program
     .name('flashview')
-    .description('FlashView CLI — Create and manage encrypted secrets')
+    .description('FlashView CLI — Manage encrypted secrets')
     .version(VERSION);
 
 // --- Config ---
