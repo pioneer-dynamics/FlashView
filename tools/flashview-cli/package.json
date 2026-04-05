@@ -29,8 +29,8 @@
         "build": "npm run build:bundle && npm run build:binary"
     },
     "dependencies": {
-        "commander": "^12.0.0",
-        "random-words": "^2.0.0"
+        "@pioneer-dynamics/flashview-crypto": "file:../flashview-crypto",
+        "commander": "^12.0.0"
     },
     "devDependencies": {
         "esbuild": "^0.25.0",

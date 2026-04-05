@@ -20,26 +20,26 @@ describe('generatePassphrase', () => {
 });
 
 describe('encryptMessage', () => {
-    it('returns passphrase and encrypted secret', () => {
-        const result = encryptMessage('Hello, World!');
+    it('returns passphrase and encrypted secret', async () => {
+        const result = await encryptMessage('Hello, World!');
         assert.ok(result.passphrase, 'Should return a passphrase');
         assert.ok(result.secret, 'Should return an encrypted secret');
     });
 
-    it('uses provided passphrase when given', () => {
+    it('uses provided passphrase when given', async () => {
         const passphrase = 'my-custom-passphrase';
-        const result = encryptMessage('Hello', passphrase);
+        const result = await encryptMessage('Hello', passphrase);
         assert.equal(result.passphrase, passphrase);
     });
 
-    it('auto-generates passphrase when not provided', () => {
-        const result = encryptMessage('Hello');
+    it('auto-generates passphrase when not provided', async () => {
+        const result = await encryptMessage('Hello');
         const words = result.passphrase.split('-');
         assert.equal(words.length, 8);
     });
 
-    it('produces format: 16 hex chars + base64 data', () => {
-        const result = encryptMessage('Test message');
+    it('produces format: 16 hex chars + base64 data', async () => {
+        const result = await encryptMessage('Test message');
         const saltHex = result.secret.substring(0, 16);
         const base64Part = result.secret.substring(16);
 
@@ -55,71 +55,73 @@ describe('encryptMessage', () => {
         assert.equal(decoded.length, 40, 'Decoded ciphertext should be IV + encrypted + authTag');
     });
 
-    it('produces different ciphertext for same plaintext (random salt/IV)', () => {
-        const a = encryptMessage('Same message', 'same-passphrase');
-        const b = encryptMessage('Same message', 'same-passphrase');
+    it('produces different ciphertext for same plaintext (random salt/IV)', async () => {
+        const a = await encryptMessage('Same message', 'same-passphrase');
+        const b = await encryptMessage('Same message', 'same-passphrase');
         assert.notEqual(a.secret, b.secret, 'Different salt/IV should produce different ciphertext');
     });
 });
 
 describe('decryptMessage', () => {
-    it('round-trips encryption and decryption', () => {
+    it('round-trips encryption and decryption', async () => {
         const plaintext = 'Hello, World!';
-        const { passphrase, secret } = encryptMessage(plaintext);
-        const decrypted = decryptMessage(secret, passphrase);
+        const { passphrase, secret } = await encryptMessage(plaintext);
+        const decrypted = await decryptMessage(secret, passphrase);
         assert.equal(decrypted, plaintext);
     });
 
-    it('round-trips with custom passphrase', () => {
+    it('round-trips with custom passphrase', async () => {
         const plaintext = 'Secret data 123!@#';
         const passphrase = 'my-test-passphrase';
-        const { secret } = encryptMessage(plaintext, passphrase);
-        const decrypted = decryptMessage(secret, passphrase);
+        const { secret } = await encryptMessage(plaintext, passphrase);
+        const decrypted = await decryptMessage(secret, passphrase);
         assert.equal(decrypted, plaintext);
     });
 
-    it('round-trips with empty string', () => {
-        const { passphrase, secret } = encryptMessage('');
-        const decrypted = decryptMessage(secret, passphrase);
+    it('round-trips with empty string', async () => {
+        const { passphrase, secret } = await encryptMessage('');
+        const decrypted = await decryptMessage(secret, passphrase);
         assert.equal(decrypted, '');
     });
 
-    it('round-trips with unicode characters', () => {
+    it('round-trips with unicode characters', async () => {
         const plaintext = 'Hello \u{1F680} World \u00E9\u00E8\u00EA \u4F60\u597D';
-        const { passphrase, secret } = encryptMessage(plaintext);
-        const decrypted = decryptMessage(secret, passphrase);
+        const { passphrase, secret } = await encryptMessage(plaintext);
+        const decrypted = await decryptMessage(secret, passphrase);
         assert.equal(decrypted, plaintext);
     });
 
-    it('round-trips with long message', () => {
+    it('round-trips with long message', async () => {
         const plaintext = 'A'.repeat(10000);
-        const { passphrase, secret } = encryptMessage(plaintext);
-        const decrypted = decryptMessage(secret, passphrase);
+        const { passphrase, secret } = await encryptMessage(plaintext);
+        const decrypted = await decryptMessage(secret, passphrase);
         assert.equal(decrypted, plaintext);
     });
 
-    it('fails with wrong passphrase', () => {
-        const { secret } = encryptMessage('Hello', 'correct-passphrase');
-        assert.throws(() => {
-            decryptMessage(secret, 'wrong-passphrase');
-        }, 'Should throw with wrong passphrase');
+    it('fails with wrong passphrase', async () => {
+        const { secret } = await encryptMessage('Hello', 'correct-passphrase');
+        await assert.rejects(
+            () => decryptMessage(secret, 'wrong-passphrase'),
+            'Should reject with wrong passphrase'
+        );
     });
 
-    it('fails with corrupted ciphertext', () => {
-        const { passphrase, secret } = encryptMessage('Hello');
+    it('fails with corrupted ciphertext', async () => {
+        const { passphrase, secret } = await encryptMessage('Hello');
         const corrupted = secret.substring(0, 16) + 'AAAA' + secret.substring(20);
-        assert.throws(() => {
-            decryptMessage(corrupted, passphrase);
-        }, 'Should throw with corrupted ciphertext');
+        await assert.rejects(
+            () => decryptMessage(corrupted, passphrase),
+            'Should reject with corrupted ciphertext'
+        );
     });
 });
 
 describe('ciphertext format compatibility', () => {
-    it('matches expected overhead for MessageLength validation', () => {
+    it('matches expected overhead for MessageLength validation', async () => {
         // The MessageLength rule subtracts 28 bytes (12 IV + 16 auth tag) from the
         // decoded base64 length to estimate plaintext length.
         const plaintext = 'Hello'; // 5 bytes
-        const { secret } = encryptMessage(plaintext, 'test-passphrase');
+        const { secret } = await encryptMessage(plaintext, 'test-passphrase');
 
         const base64Part = secret.substring(16);
         const decoded = Buffer.from(base64Part, 'base64');
