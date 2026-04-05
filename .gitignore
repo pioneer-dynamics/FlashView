@@ -1,5 +1,7 @@
 /.phpunit.cache
 /node_modules
+/tools/*/node_modules
+/tools/*/package-lock.json
 /public/build
 /public/hot
 /public/storage
