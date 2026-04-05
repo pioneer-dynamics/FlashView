@@ -118,7 +118,7 @@ const removeIdentity = () => {
             <!-- Email type -->
             <div v-if="!isDomainType" class="col-span-6 space-y-3">
                 <div>
-                    <InputLabel value="Verified Email" />
+                    <InputLabel value="Email" />
                     <p class="mt-1 text-sm text-gray-600 dark:text-gray-400 font-medium">{{ page.props.auth.user.email }}</p>
                     <p class="mt-1 text-xs text-gray-500 dark:text-gray-500">
                         Your account email is already verified — no extra steps needed. The badge will reflect your email address at the time you save.
