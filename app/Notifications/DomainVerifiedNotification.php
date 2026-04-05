@@ -28,7 +28,7 @@ class DomainVerifiedNotification extends Notification implements ShouldQueue
             ->subject(__('Your domain :domain has been verified', ['domain' => $this->identity->domain]))
             ->line(__('Your domain :domain has been successfully verified.', ['domain' => $this->identity->domain]))
             ->line(__('Your :company sender badge is now active on shared links.', ['company' => $this->identity->company_name]))
-            ->action(__('View Settings'), url(route('user.settings.index)))
+            ->action(__('View Settings'), url(route('user.settings.index')))
             ->line(__('Thank you for using :app', ['app' => config('app.name')]));
     }
 
