@@ -234,6 +234,25 @@ const removeIdentity = () => {
                 </div>
             </template>
 
+            <!-- Recipient preview -->
+            <div class="col-span-6">
+                <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Preview — what recipients will see:</p>
+                <div class="flex items-start gap-3 p-3 text-sm text-green-800 rounded-lg bg-green-50 dark:bg-gray-800 dark:text-green-400 border border-green-200 dark:border-green-800">
+                    <svg class="w-4 h-4 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                    </svg>
+                    <div>
+                        <p class="font-semibold">Verified Sender</p>
+                        <p v-if="isDomainType" class="mt-0.5">
+                            This secret was sent by <strong>{{ form.company_name || 'Example Corp' }}</strong> (verified domain: {{ form.domain || 'example.com' }})
+                        </p>
+                        <p v-else class="mt-0.5">
+                            This secret was sent by <strong>{{ page.props.auth.user.email }}</strong>
+                        </p>
+                    </div>
+                </div>
+            </div>
+
             <!-- Snapshot persistence note -->
             <div v-if="senderIdentity" class="col-span-6">
                 <p class="text-xs text-gray-500 dark:text-gray-500">
