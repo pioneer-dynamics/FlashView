@@ -35,6 +35,10 @@ Additional information we collect include:
 3. Payment related information that helps us communicate with [Stripe](/https://stripe.com) and process payments.
 4. IP Addresses, browser user agents, and cookies used to make sure the website works as expected.
 
+## Recipient Email Addresses
+
+When the **"Store Masked Email"** privacy setting is enabled by an authenticated user, only a masked version of the recipient's email address (e.g. `j***@e***.com`) is stored alongside the secret. The original, unmasked email address is never stored on our servers. This setting is disabled by default, and enabling or disabling it requires password or passkey confirmation.
+
 ## Third Parties
 
 Where reasonable and practicable to do so, we will collect your Personal Information only from you. However, in some circumstances we may be provided with information by third parties (such as sharing your personal information with Stripe to help with payment processing). In such a case we will take reasonable steps to ensure that you are made aware of the information provided to us by the third party.

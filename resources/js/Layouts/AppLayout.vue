@@ -196,6 +196,10 @@ const logout = () => {
                                                 Notification Settings
                                             </DropdownLink>
 
+                                            <DropdownLink :href="route('user.settings.index')">
+                                                Settings
+                                            </DropdownLink>
+
                                             <DropdownLink v-if="$page.props.jetstream.hasApiFeatures && $page.props.auth?.hasApiAccess"
                                                 :href="route('api-tokens.index')">
                                                 API Tokens
@@ -311,6 +315,11 @@ const logout = () => {
                                 <ResponsiveNavLink :href="route('user.notification-settings.index')"
                                     :active="route().current('user.notification-settings.index')">
                                     Notification Settings
+                                </ResponsiveNavLink>
+
+                                <ResponsiveNavLink :href="route('user.settings.index')"
+                                    :active="route().current('user.settings.index')">
+                                    Settings
                                 </ResponsiveNavLink>
 
                                 <ResponsiveNavLink v-if="$page.props.jetstream.hasApiFeatures && $page.props.auth?.hasApiAccess"
