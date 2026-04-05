@@ -32,6 +32,7 @@ class Secret extends Model
         'filename',
         'user_id',
         'expires_at',
+        'masked_recipient_email',
     ];
 
     protected $hidden = [
