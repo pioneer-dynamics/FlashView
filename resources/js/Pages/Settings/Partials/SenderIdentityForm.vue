@@ -258,12 +258,7 @@ const removeIdentity = () => {
                         Saved.
                     </ActionMessage>
 
-                    <PrimaryButton
-                        type="button"
-                        :class="{ 'opacity-25': form.processing }"
-                        :disabled="form.processing"
-                        @click="save"
-                    >
+                    <PrimaryButton :class="{ 'opacity-25': form.processing }" :disabled="form.processing">
                         Save
                     </PrimaryButton>
                 </div>
