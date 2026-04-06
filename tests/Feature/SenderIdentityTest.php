@@ -256,7 +256,7 @@ class SenderIdentityTest extends TestCase
         $this->actingAs($user)
             ->post(route('user.sender-identity.store'), [
                 'type' => 'domain',
-                'company_name' => 'Acme Corp Updated',
+                'company_name' => 'Acme Corp',
                 'domain' => 'acme.com',
             ]);
 
@@ -418,5 +418,56 @@ class SenderIdentityTest extends TestCase
             ->withSession(['auth.password_confirmed_at' => time()])
             ->delete(route('user.sender-identity.destroy'))
             ->assertRedirect();
+    }
+
+    // -----------------------------------------------------------------------
+    // Company name change — security tests
+    // -----------------------------------------------------------------------
+
+    public function test_changing_company_name_on_verified_identity_resets_verification(): void
+    {
+        $user = $this->createPrimeUser();
+        SenderIdentity::factory()->for($user)->create([
+            'type' => 'domain',
+            'company_name' => 'Acme Corp',
+            'domain' => 'acme.com',
+            'verification_token' => 'old-token',
+            'verified_at' => now(),
+            'verification_retry_dispatched_at' => null,
+        ]);
+
+        $this->actingAs($user)
+            ->post(route('user.sender-identity.store'), [
+                'type' => 'domain',
+                'company_name' => 'Microsoft Corporation',
+                'domain' => 'acme.com',
+            ]);
+
+        $identity = $user->fresh()->senderIdentity;
+        $this->assertNull($identity->verified_at);
+        $this->assertNotEquals('old-token', $identity->verification_token);
+    }
+
+    public function test_changing_company_name_on_unverified_identity_does_not_change_token(): void
+    {
+        $user = $this->createPrimeUser();
+        SenderIdentity::factory()->for($user)->create([
+            'type' => 'domain',
+            'company_name' => 'Acme Corp',
+            'domain' => 'acme.com',
+            'verification_token' => 'existing-token',
+            'verified_at' => null,
+        ]);
+
+        $this->actingAs($user)
+            ->post(route('user.sender-identity.store'), [
+                'type' => 'domain',
+                'company_name' => 'Acme Corp Updated',
+                'domain' => 'acme.com',
+            ]);
+
+        $identity = $user->fresh()->senderIdentity;
+        $this->assertNull($identity->verified_at);
+        $this->assertEquals('existing-token', $identity->verification_token);
     }
 }

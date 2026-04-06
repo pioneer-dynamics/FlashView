@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Exceptions\DnsVerificationPendingException;
 use App\Jobs\RetryDomainVerification;
 use App\Models\Plan;
 use App\Models\SenderIdentity;
@@ -161,7 +162,7 @@ class DomainVerificationRetryTest extends TestCase
             $mock->shouldReceive('verify')->once()->andReturn(false);
         });
 
-        $this->expectException(\RuntimeException::class);
+        $this->expectException(DnsVerificationPendingException::class);
 
         $job = new RetryDomainVerification($identity, $identity->verification_token, now()->addHours(24));
         $job->handle($service);
