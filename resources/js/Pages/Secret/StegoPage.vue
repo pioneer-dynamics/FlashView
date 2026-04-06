@@ -274,14 +274,14 @@
                             </div>
 
                             <div class="col-span-6">
-                                <InputLabel value="Cover image (optional — PNG only)" />
+                                <InputLabel value="Cover image (optional)" />
                                 <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 mb-2">
-                                    Upload your own PNG image, or leave blank to use the default. The larger the image, the more text it can carry.
+                                    Upload any image (PNG, JPEG, WebP, etc.), or leave blank to use the default. The larger the image, the more text it can carry. The output will always be a PNG.
                                 </p>
                                 <input
                                     ref="coverFileInput"
                                     type="file"
-                                    accept="image/png"
+                                    accept="image/*"
                                     class="block w-full text-sm text-gray-700 dark:text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-gamboge-800 file:text-white dark:file:bg-gamboge-200 dark:file:text-gamboge-800 hover:file:bg-gamboge-700"
                                     @change="onCoverFileChange"
                                 />
