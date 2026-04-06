@@ -20,9 +20,9 @@ class EnsureEnvironmentSubscriptionAllowed
             abort(403, 'Subscription upgrades are restricted on this environment.');
         }
 
-        $allowedEmails = config('access.allowed_emails', []);
+        $allowedEmails = array_map('strtolower', config('access.allowed_emails', []));
 
-        if (! empty($allowedEmails) && in_array($user->email, $allowedEmails)) {
+        if (! empty($allowedEmails) && in_array(strtolower($user->email), $allowedEmails)) {
             return $next($request);
         }
 
