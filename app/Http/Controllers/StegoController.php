@@ -2,18 +2,16 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
+use App\Http\Requests\StegoPageRequest;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class StegoController extends Controller
 {
-    public function index(Request $request): Response
+    public function index(StegoPageRequest $request): Response
     {
-        $user = $request->user();
-
         return Inertia::render('Secret/StegoPage', [
-            'canUseStego' => $user && $user->planSupportsStego(),
+            'canUseStego' => $request->canEmbed(),
         ]);
     }
 }
