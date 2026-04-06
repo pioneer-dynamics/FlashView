@@ -12,6 +12,7 @@ return [
         'app.name',
         'secrets',
         'support',
+        'access.enabled',
     ],
 
     /**
