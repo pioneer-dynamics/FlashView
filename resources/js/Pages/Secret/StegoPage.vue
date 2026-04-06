@@ -182,35 +182,34 @@
         </template>
 
         <Page>
-            <div class="max-w-2xl mx-auto">
+            <!-- Guest / plan gate -->
+            <template v-if="!canUseStego">
+                <FlatFormSection>
+                    <template #form>
+                        <div class="col-span-6">
+                            <Alert type="Info" hide-title>
+                                <strong>Login required.</strong>
+                                Steganography mode is available to logged-in users only.
+                                <div class="mt-2 flex flex-wrap gap-2 text-sm">
+                                    <Link :href="route('login')" class="underline">Log in</Link>
+                                    <span>or</span>
+                                    <Link :href="route('register')" class="underline">create a free account</Link>
+                                    <span>to hide secrets inside images.</span>
+                                </div>
+                            </Alert>
+                        </div>
+                    </template>
+                </FlatFormSection>
+            </template>
 
-                <!-- Guest / plan gate -->
-                <template v-if="!canUseStego">
-                    <FlatFormSection>
-                        <template #form>
-                            <div class="col-span-6">
-                                <Alert type="Info" hide-title>
-                                    <strong>Login required.</strong>
-                                    Steganography mode is available to logged-in users only.
-                                    <div class="mt-2 flex flex-wrap gap-2 text-sm">
-                                        <Link :href="route('login')" class="underline">Log in</Link>
-                                        <span>or</span>
-                                        <Link :href="route('register')" class="underline">create a free account</Link>
-                                        <span>to hide secrets inside images.</span>
-                                    </div>
-                                </Alert>
-                            </div>
-                        </template>
-                    </FlatFormSection>
-                </template>
-
-                <!-- Authorised content -->
-                <template v-else>
-                    <ToggleButton
-                        :model-value="mode"
-                        :options="modeOptions"
-                        @update:model-value="switchMode"
-                    />
+            <!-- Authorised content -->
+            <template v-else>
+                <ToggleButton
+                    :model-value="mode"
+                    :options="modeOptions"
+                    @update:model-value="switchMode"
+                    class="mb-4"
+                />
 
                     <!-- Embed mode -->
                     <FlatFormSection v-if="mode === 'embed'">
@@ -374,15 +373,14 @@
                             </PrimaryButton>
                         </template>
                     </FlatFormSection>
-                </template>
+            </template>
 
-                <div class="mt-4 text-center text-sm text-gray-500 dark:text-gray-400">
-                    <Link :href="route('welcome')" class="underline hover:text-gray-700 dark:hover:text-gray-200">
-                        Back to regular secret links
-                    </Link>
-                </div>
-
+            <div class="mt-4 text-center text-sm text-gray-500 dark:text-gray-400">
+                <Link :href="route('dashboard')" class="underline hover:text-gray-700 dark:hover:text-gray-200">
+                    Back to regular secret links
+                </Link>
             </div>
+
         </Page>
     </AppLayout>
 </template>
