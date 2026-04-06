@@ -343,6 +343,13 @@
                     Generate link
                 </PrimaryButton>
             </span>
+            <Link
+                v-if="props.secret == null && !$page.props.jetstream.flash?.secret?.url && $page.props.auth.user"
+                :href="route('stego.index')"
+                class="text-sm underline text-gamboge-600 dark:text-gamboge-400 hover:text-gamboge-800 dark:hover:text-gamboge-200"
+            >
+                Hide inside an image instead
+            </Link>
             <span v-else>
                 <PrimaryButton @click.prevent="decryptData" v-if="!$page.props.jetstream.flash?.secret?.message" :class="{ 'opacity-25': decryptForm.processing || (other.password?.length == 0 || other.password == null) }" :disabled="decryptForm.processing || (other.password?.length == 0 || other.password == null)">
                     Retrieve Message
