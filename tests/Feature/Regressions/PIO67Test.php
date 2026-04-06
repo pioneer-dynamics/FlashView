@@ -26,10 +26,10 @@ class PIO67Test extends TestCase
     public function test_non_allowlisted_user_cannot_subscribe_on_non_production(): void
     {
         Config::set('access.enabled', true);
-        Config::set('access.allowed_emails', ['allowed@example.com']);
+        Config::set('access.allowed_emails', ['allowed@gmail.com']);
 
         $plan = Plan::factory()->create();
-        $user = User::factory()->create(['email' => 'blocked@example.com']);
+        $user = User::factory()->create(['email' => 'blocked@gmail.com']);
 
         $response = $this->actingAs($user)->get(route('plans.subscribe', [$plan, 'monthly']));
 
@@ -39,12 +39,12 @@ class PIO67Test extends TestCase
     public function test_allowlisted_user_can_initiate_subscription_on_non_production(): void
     {
         Config::set('access.enabled', true);
-        Config::set('access.allowed_emails', ['allowed@example.com']);
+        Config::set('access.allowed_emails', ['allowed@gmail.com']);
 
         Route::middleware(['web', 'auth', EnsureEnvironmentSubscriptionAllowed::class])
             ->get('/test-env-subscription', fn () => 'ok');
 
-        $user = User::factory()->create(['email' => 'allowed@example.com']);
+        $user = User::factory()->create(['email' => 'allowed@gmail.com']);
 
         $response = $this->actingAs($user)->get('/test-env-subscription');
 
@@ -59,7 +59,7 @@ class PIO67Test extends TestCase
         Route::middleware(['web', 'auth', EnsureEnvironmentSubscriptionAllowed::class])
             ->get('/test-env-subscription-prod', fn () => 'ok');
 
-        $user = User::factory()->create(['email' => 'anyone@example.com']);
+        $user = User::factory()->create(['email' => 'anyone@gmail.com']);
 
         $response = $this->actingAs($user)->get('/test-env-subscription-prod');
 
@@ -70,10 +70,10 @@ class PIO67Test extends TestCase
     public function test_non_allowlisted_email_cannot_register_on_non_production(): void
     {
         Config::set('access.enabled', true);
-        Config::set('access.allowed_emails', ['allowed@example.com']);
+        Config::set('access.allowed_emails', ['allowed@gmail.com']);
 
         $response = $this->post('/register', [
-            'email' => 'blocked@example.com',
+            'email' => 'blocked@gmail.com',
         ]);
 
         $response->assertSessionHasErrors(['email']);
@@ -82,10 +82,10 @@ class PIO67Test extends TestCase
     public function test_allowlisted_email_can_register_on_non_production(): void
     {
         Config::set('access.enabled', true);
-        Config::set('access.allowed_emails', ['allowed@example.com']);
+        Config::set('access.allowed_emails', ['allowed@gmail.com']);
 
         $response = $this->post('/register', [
-            'email' => 'allowed@example.com',
+            'email' => 'allowed@gmail.com',
         ]);
 
         $response->assertSessionHasNoErrors();
@@ -96,7 +96,7 @@ class PIO67Test extends TestCase
         Config::set('access.enabled', false);
 
         $response = $this->post('/register', [
-            'email' => 'anyone@example.com',
+            'email' => 'anyone@gmail.com',
         ]);
 
         $response->assertSessionHasNoErrors();
@@ -108,7 +108,7 @@ class PIO67Test extends TestCase
         Config::set('access.allowed_emails', []);
 
         $response = $this->post('/register', [
-            'email' => 'anyone@example.com',
+            'email' => 'anyone@gmail.com',
         ]);
 
         $response->assertSessionHasErrors(['email']);
@@ -117,10 +117,10 @@ class PIO67Test extends TestCase
     public function test_allowlist_check_is_case_insensitive(): void
     {
         Config::set('access.enabled', true);
-        Config::set('access.allowed_emails', ['allowed@example.com']);
+        Config::set('access.allowed_emails', ['allowed@gmail.com']);
 
         $response = $this->post('/register', [
-            'email' => 'Allowed@example.com',
+            'email' => 'Allowed@gmail.com',
         ]);
 
         $response->assertSessionHasNoErrors();

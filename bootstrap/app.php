@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsureEnvironmentSubscriptionAllowed;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\SecurityHeadersMiddleware;
 use Illuminate\Foundation\Application;
@@ -41,6 +42,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'ability' => CheckForAnyAbility::class,
             'abilities' => CheckAbilities::class,
+            'environment.subscription' => EnsureEnvironmentSubscriptionAllowed::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

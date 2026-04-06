@@ -36,6 +36,13 @@ const logout = () => {
 
         <Banner />
 
+        <!-- Non-production Environment Banner -->
+        <div v-if="$page.props.config.access?.enabled"
+            class="bg-amber-400 dark:bg-amber-600 text-amber-900 dark:text-amber-100 text-center text-sm font-semibold py-2 px-4">
+            This is a non-production environment. Test payments are enabled. Do not enter real card data.
+            Need access? Contact the team.
+        </div>
+
         <div class="bg-white text-black/80 dark:bg-gray-900 dark:text-white/80 h-full min-h-screen">
             <div>
                 <nav class="bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700">
