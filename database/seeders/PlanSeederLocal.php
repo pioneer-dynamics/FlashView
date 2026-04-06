@@ -166,7 +166,7 @@ class PlanSeederLocal extends Seeder
                         'type' => 'missing',
                     ],
                     'steganography' => [
-                        'order' => 5.2,
+                        'order' => 2.5,
                         'label' => 'Hide secrets inside images (steganography)',
                         'config' => [],
                         'type' => 'feature',
@@ -246,7 +246,7 @@ class PlanSeederLocal extends Seeder
                         'type' => 'feature',
                     ],
                     'steganography' => [
-                        'order' => 8,
+                        'order' => 2.5,
                         'label' => 'Hide secrets inside images (steganography)',
                         'config' => [],
                         'type' => 'feature',
