@@ -335,23 +335,23 @@
         </template>
 
         <template #actions>
-            <div class="flex items-center gap-4">
-                <Link
-                    v-if="props.secret == null && !$page.props.jetstream.flash?.secret?.url && $page.props.auth.user"
-                    :href="route('stego.index')"
-                    class="text-sm underline text-gamboge-600 dark:text-gamboge-400 hover:text-gamboge-800 dark:hover:text-gamboge-200"
-                >
-                    Hide inside an image instead
-                </Link>
-                <span v-if="props.secret == null">
+            <span v-if="props.secret == null">
+                <div class="flex items-center gap-4">
+                    <Link
+                        v-if="!$page.props.jetstream.flash?.secret?.url && $page.props.auth.user"
+                        :href="route('stego.index')"
+                        class="text-sm underline text-gamboge-600 dark:text-gamboge-400 hover:text-gamboge-800 dark:hover:text-gamboge-200"
+                    >
+                        Hide inside an image instead
+                    </Link>
                     <PrimaryButton @click.prevent="letsDoAnotherOne" v-if="$page.props.jetstream.flash?.secret?.url" :class="{ 'opacity-25': form.processing }" :disabled="form.processing">
                         Let's do another one
                     </PrimaryButton>
                     <PrimaryButton @click.prevent="encryptData" v-else :class="{ 'opacity-25': form.processing }" :disabled="form.processing">
                         Generate link
                     </PrimaryButton>
-                </span>
-            </div>
+                </div>
+            </span>
             <span v-else>
                 <PrimaryButton @click.prevent="decryptData" v-if="!$page.props.jetstream.flash?.secret?.message" :class="{ 'opacity-25': decryptForm.processing || (other.password?.length == 0 || other.password == null) }" :disabled="decryptForm.processing || (other.password?.length == 0 || other.password == null)">
                     Retrieve Message
