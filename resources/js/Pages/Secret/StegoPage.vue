@@ -14,7 +14,7 @@
     import Alert from '@/Components/Alert.vue';
     import { encryption } from '../../encryption';
     import { embedText, extractText, getImageCapacityBytes } from '../../steganography';
-    import defaultCoverUrl from '../../images/stego-default.png';
+    import defaultCoverUrl from '../../../images/stego-default.png';
 
     const mode = ref('embed');
 
