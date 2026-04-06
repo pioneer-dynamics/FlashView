@@ -71,10 +71,16 @@
                 </main>
 
                 <div class="mt-4 text-center text-sm text-gray-500 dark:text-gray-400">
-                    <Link :href="route('stego.index')" class="underline hover:text-gray-700 dark:hover:text-gray-200">
-                        Hide a secret inside an image
-                    </Link>
-                    <span class="ml-1 text-xs opacity-60">(steganography mode)</span>
+                    <template v-if="$page.props.auth?.user">
+                        <Link :href="route('stego.index')" class="underline hover:text-gray-700 dark:hover:text-gray-200">
+                            Hide a secret inside an image
+                        </Link>
+                        <span class="ml-1 text-xs opacity-60">(steganography mode)</span>
+                    </template>
+                    <template v-else>
+                        <Link :href="route('login')" class="underline hover:text-gray-700 dark:hover:text-gray-200">Log in</Link>
+                        to hide secrets inside images (steganography mode)
+                    </template>
                 </div>
 
                 <footer class="py-16 text-center text-sm text-black dark:text-white/70">

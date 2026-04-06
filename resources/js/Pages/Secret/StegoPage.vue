@@ -1,22 +1,28 @@
 <script setup>
     import { ref } from 'vue';
-    import { Head, Link } from '@inertiajs/vue3';
+    import { Head, Link, usePage } from '@inertiajs/vue3';
     import AppLayout from '@/Layouts/AppLayout.vue';
     import Page from '@/Pages/Page.vue';
     import FlatFormSection from '@/Components/FlatFormSection.vue';
     import TextAreaInput from '@/Components/TextAreaInput.vue';
     import TextInput from '@/Components/TextInput.vue';
     import PrimaryButton from '@/Components/PrimaryButton.vue';
-    import SecondaryButton from '@/Components/SecondaryButton.vue';
     import InputLabel from '@/Components/InputLabel.vue';
     import InputError from '@/Components/InputError.vue';
     import CodeBlock from '@/Components/CodeBlock.vue';
     import Alert from '@/Components/Alert.vue';
+    import ToggleButton from '@/Components/ToggleButton.vue';
     import { encryption } from '../../encryption';
-    import { embedText, extractText, getImageCapacityBytes } from '../../steganography';
-    import defaultCoverUrl from '../../../images/stego-default.png';
+    import { embedText, extractText } from '../../steganography';
+
+    const isLoggedIn = () => !! usePage().props.auth?.user;
 
     const mode = ref('embed');
+
+    const modeOptions = [
+        { value: 'embed', label: 'Embed a secret' },
+        { value: 'extract', label: 'Extract from image' },
+    ];
 
     // Embed state
     const embedMessage = ref('');
@@ -57,6 +63,7 @@
         if (file) {
             embedCoverFile.value = file;
             embedCoverFileName.value = file.name;
+            embedError.value = '';
         }
     };
 
@@ -65,16 +72,7 @@
         if (file) {
             extractStegoFile.value = file;
             extractStegoFileName.value = file.name;
-        }
-    };
-
-    const loadDefaultCover = async () => {
-        try {
-            const response = await fetch(defaultCoverUrl);
-            const blob = await response.blob();
-            return new File([blob], 'cover.png', { type: 'image/png' });
-        } catch {
-            throw new Error('Failed to load the default cover image. Please upload your own PNG image.');
+            extractError.value = '';
         }
     };
 
@@ -87,18 +85,17 @@
             return;
         }
 
+        if (!embedCoverFile.value) {
+            embedError.value = 'Please upload a cover image (PNG).';
+            return;
+        }
+
         embedProcessing.value = true;
 
         try {
             const e = new encryption();
-
-            let password = embedPassword.value || null;
-            const result = await e.encryptMessage(embedMessage.value, password);
-            const ciphertext = result.secret;
-            const passphrase = result.passphrase;
-
-            const coverFile = embedCoverFile.value ?? await loadDefaultCover();
-            const stegoPngBlob = await embedText(coverFile, ciphertext);
+            const result = await e.encryptMessage(embedMessage.value, embedPassword.value || null);
+            const stegoPngBlob = await embedText(embedCoverFile.value, result.secret);
 
             const url = URL.createObjectURL(stegoPngBlob);
             const a = document.createElement('a');
@@ -107,7 +104,7 @@
             a.click();
             URL.revokeObjectURL(url);
 
-            embedPassphrase.value = passphrase ?? embedPassword.value;
+            embedPassphrase.value = result.passphrase ?? embedPassword.value;
             embedStegoUrl.value = route('stego.index');
             embedSuccess.value = true;
         } catch (err) {
@@ -182,195 +179,197 @@
         <Page>
             <div class="max-w-2xl mx-auto">
 
-                <!-- Mode tabs -->
-                <div class="flex gap-2 mb-4">
-                    <button
-                        type="button"
-                        @click.prevent="switchMode('embed')"
-                        :class="mode === 'embed'
-                            ? 'bg-gamboge-800 dark:bg-gamboge-200 text-white dark:text-gamboge-800'
-                            : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600'"
-                        class="px-4 py-2 rounded-md text-sm font-semibold transition"
-                    >
-                        Embed a secret
-                    </button>
-                    <button
-                        type="button"
-                        @click.prevent="switchMode('extract')"
-                        :class="mode === 'extract'
-                            ? 'bg-gamboge-800 dark:bg-gamboge-200 text-white dark:text-gamboge-800'
-                            : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600'"
-                        class="px-4 py-2 rounded-md text-sm font-semibold transition"
-                    >
-                        Extract from image
-                    </button>
-                </div>
-
-                <!-- Embed mode -->
-                <FlatFormSection v-if="mode === 'embed'">
-                    <template #form>
-
-                        <!-- Success screen -->
-                        <template v-if="embedSuccess">
-                            <div class="col-span-6">
-                                <Alert type="Success" hide-title>
-                                    Your secret has been embedded and downloaded as <strong>flashview-secret.png</strong>.
-                                </Alert>
-                            </div>
-
-                            <div class="col-span-6">
-                                <Alert type="Warning" hide-title>
-                                    <strong>Send the image and this password through separate channels.</strong>
-                                    If you send both together (e.g. in the same email), the hidden layer provides no protection.
-                                </Alert>
-                            </div>
-
-                            <div class="col-span-6">
-                                <InputLabel value="Password — share this separately" />
-                                <CodeBlock :value="embedPassphrase" class="mt-1" />
-                            </div>
-
-                            <div class="col-span-6">
-                                <InputLabel value="Recipient instructions — copy and send separately" />
-                                <CodeBlock class="mt-1">
-                                    To read this message: visit {{ embedStegoUrl }}, click "Extract from image", upload the PNG I sent you, and enter the password above.
-                                </CodeBlock>
-                            </div>
-                        </template>
-
-                        <!-- Embed form -->
-                        <template v-else>
+                <!-- Guest gate -->
+                <template v-if="!isLoggedIn()">
+                    <FlatFormSection>
+                        <template #form>
                             <div class="col-span-6">
                                 <Alert type="Info" hide-title>
-                                    Your message will be encrypted end-to-end, then hidden inside a PNG image using steganography. The image looks completely normal to anyone without the password.
-                                    <br><br>
-                                    <strong>Note:</strong> Unlike a normal secret link, this image can be forwarded and read multiple times — there is no server-enforced one-time read or expiry.
+                                    <strong>Login required.</strong>
+                                    Steganography mode is available to logged-in users only.
+                                    <div class="mt-2 flex flex-wrap gap-2 text-sm">
+                                        <Link :href="route('login')" class="underline">Log in</Link>
+                                        <span>or</span>
+                                        <Link :href="route('register')" class="underline">create a free account</Link>
+                                        <span>to hide secrets inside images.</span>
+                                    </div>
+                                </Alert>
+                            </div>
+                        </template>
+                    </FlatFormSection>
+                </template>
+
+                <!-- Authenticated content -->
+                <template v-else>
+                    <ToggleButton
+                        :model-value="mode"
+                        :options="modeOptions"
+                        @update:model-value="switchMode"
+                    />
+
+                    <!-- Embed mode -->
+                    <FlatFormSection v-if="mode === 'embed'">
+                        <template #form>
+
+                            <!-- Success screen -->
+                            <template v-if="embedSuccess">
+                                <div class="col-span-6">
+                                    <Alert type="Success" hide-title>
+                                        Your secret has been embedded and downloaded as <strong>flashview-secret.png</strong>.
+                                    </Alert>
+                                </div>
+
+                                <div class="col-span-6">
+                                    <Alert type="Warning" hide-title>
+                                        <strong>Send the image and this password through separate channels.</strong>
+                                        If you send both together (e.g. in the same email), the hidden layer provides no protection.
+                                    </Alert>
+                                </div>
+
+                                <div class="col-span-6">
+                                    <InputLabel value="Password — share this separately" />
+                                    <CodeBlock :value="embedPassphrase" class="mt-1" />
+                                </div>
+
+                                <div class="col-span-6">
+                                    <InputLabel value="Recipient instructions — copy and send separately" />
+                                    <CodeBlock class="mt-1">To read this message: visit {{ embedStegoUrl }}, click "Extract from image", upload the PNG I sent you, and enter the password above.</CodeBlock>
+                                </div>
+                            </template>
+
+                            <!-- Embed form -->
+                            <template v-else>
+                                <div class="col-span-6">
+                                    <Alert type="Info" hide-title>
+                                        Your message will be encrypted end-to-end, then hidden inside a PNG image using steganography. The image looks completely normal to anyone without the password.
+                                        Unlike a normal secret link, this image can be forwarded and read multiple times — there is no server-enforced one-time read or expiry.
+                                    </Alert>
+                                </div>
+
+                                <div class="col-span-6">
+                                    <InputLabel for="embed-message" value="Secret message" />
+                                    <TextAreaInput
+                                        id="embed-message"
+                                        v-model="embedMessage"
+                                        rows="7"
+                                        class="mt-1 block w-full"
+                                        placeholder="Your secret message..."
+                                        :autofocus="true"
+                                    />
+                                    <InputError :message="embedError" class="mt-2" />
+                                </div>
+
+                                <div class="col-span-6">
+                                    <InputLabel for="embed-password" value="Password" />
+                                    <TextInput
+                                        id="embed-password"
+                                        v-model="embedPassword"
+                                        type="text"
+                                        class="mt-1 block w-full"
+                                        placeholder="Enter a password, or leave blank to auto-generate one."
+                                    />
+                                    <InputError :message="embedPasswordError" class="mt-2" />
+                                </div>
+
+                                <div class="col-span-6">
+                                    <InputLabel value="Cover image (PNG)" />
+                                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 mb-2">
+                                        Upload a PNG image to hide your message in. The larger the image, the more text it can carry.
+                                    </p>
+                                    <input
+                                        ref="coverFileInput"
+                                        type="file"
+                                        accept="image/png"
+                                        class="block w-full text-sm text-gray-700 dark:text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-gamboge-800 file:text-white dark:file:bg-gamboge-200 dark:file:text-gamboge-800 hover:file:bg-gamboge-700"
+                                        @change="onCoverFileChange"
+                                    />
+                                    <p v-if="embedCoverFileName" class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                        Selected: {{ embedCoverFileName }}
+                                    </p>
+                                </div>
+                            </template>
+
+                        </template>
+
+                        <template #actions>
+                            <PrimaryButton
+                                v-if="embedSuccess"
+                                type="button"
+                                @click.prevent="hideAnother"
+                            >
+                                Hide another secret
+                            </PrimaryButton>
+                            <PrimaryButton
+                                v-else
+                                type="button"
+                                @click.prevent="embedAndDownload"
+                                :class="{ 'opacity-25': embedProcessing }"
+                                :disabled="embedProcessing"
+                            >
+                                {{ embedProcessing ? 'Processing…' : 'Embed & Download' }}
+                            </PrimaryButton>
+                        </template>
+                    </FlatFormSection>
+
+                    <!-- Extract mode -->
+                    <FlatFormSection v-else>
+                        <template #form>
+
+                            <div class="col-span-6">
+                                <Alert type="Info" hide-title>
+                                    Upload the PNG image you received. Only PNG images are supported — if the image was re-saved as JPEG, the hidden message will be lost.
                                 </Alert>
                             </div>
 
                             <div class="col-span-6">
-                                <InputLabel for="embed-message" value="Secret message" />
-                                <TextAreaInput
-                                    id="embed-message"
-                                    v-model="embedMessage"
-                                    rows="6"
-                                    class="mt-1 block w-full"
-                                    placeholder="Your secret message..."
-                                    :autofocus="true"
-                                />
-                                <InputError :message="embedError" class="mt-2" />
-                            </div>
-
-                            <div class="col-span-6">
-                                <InputLabel for="embed-password" value="Password" />
-                                <TextInput
-                                    id="embed-password"
-                                    v-model="embedPassword"
-                                    type="text"
-                                    class="mt-1 block w-full"
-                                    placeholder="Enter a password, or leave blank to auto-generate one."
-                                />
-                                <InputError :message="embedPasswordError" class="mt-2" />
-                            </div>
-
-                            <div class="col-span-6">
-                                <InputLabel value="Cover image (optional — PNG only)" />
-                                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 mb-2">
-                                    Upload your own PNG image, or leave blank to use the default. The larger the image, the more text it can carry.
-                                </p>
+                                <InputLabel value="Stego image (PNG only)" />
                                 <input
-                                    ref="coverFileInput"
+                                    ref="stegoFileInput"
                                     type="file"
                                     accept="image/png"
-                                    class="block w-full text-sm text-gray-700 dark:text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-gamboge-800 file:text-white dark:file:bg-gamboge-200 dark:file:text-gamboge-800 hover:file:bg-gamboge-700"
-                                    @change="onCoverFileChange"
+                                    class="mt-1 block w-full text-sm text-gray-700 dark:text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-gamboge-800 file:text-white dark:file:bg-gamboge-200 dark:file:text-gamboge-800 hover:file:bg-gamboge-700"
+                                    @change="onStegoFileChange"
                                 />
-                                <p v-if="embedCoverFileName" class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                    Selected: {{ embedCoverFileName }}
+                                <p v-if="extractStegoFileName" class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                    Selected: {{ extractStegoFileName }}
                                 </p>
+                                <InputError :message="extractError" class="mt-2" />
                             </div>
+
+                            <div class="col-span-6">
+                                <InputLabel for="extract-password" value="Password" />
+                                <TextInput
+                                    id="extract-password"
+                                    v-model="extractPassword"
+                                    type="text"
+                                    class="mt-1 block w-full"
+                                    placeholder="Enter the password to decrypt the hidden message."
+                                />
+                                <InputError :message="extractPasswordError" class="mt-2" />
+                            </div>
+
+                            <div v-if="extractedMessage" class="col-span-6">
+                                <Alert type="Success" hide-title>
+                                    Message extracted and decrypted successfully.
+                                </Alert>
+                                <InputLabel value="Decrypted message" class="mt-3" />
+                                <CodeBlock :value="extractedMessage" class="mt-1" />
+                            </div>
+
                         </template>
 
-                    </template>
-
-                    <template #actions>
-                        <PrimaryButton
-                            v-if="embedSuccess"
-                            type="button"
-                            @click.prevent="hideAnother"
-                        >
-                            Hide another secret
-                        </PrimaryButton>
-                        <PrimaryButton
-                            v-else
-                            type="button"
-                            @click.prevent="embedAndDownload"
-                            :class="{ 'opacity-25': embedProcessing }"
-                            :disabled="embedProcessing"
-                        >
-                            {{ embedProcessing ? 'Processing…' : 'Embed & Download' }}
-                        </PrimaryButton>
-                    </template>
-                </FlatFormSection>
-
-                <!-- Extract mode -->
-                <FlatFormSection v-else>
-                    <template #form>
-
-                        <div class="col-span-6">
-                            <Alert type="Info" hide-title>
-                                Upload the PNG image you received. Only PNG images are supported — if the image was re-saved as JPEG, the hidden message will be lost.
-                            </Alert>
-                        </div>
-
-                        <div class="col-span-6">
-                            <InputLabel value="Stego image (PNG only)" />
-                            <input
-                                ref="stegoFileInput"
-                                type="file"
-                                accept="image/png"
-                                class="mt-1 block w-full text-sm text-gray-700 dark:text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-gamboge-800 file:text-white dark:file:bg-gamboge-200 dark:file:text-gamboge-800 hover:file:bg-gamboge-700"
-                                @change="onStegoFileChange"
-                            />
-                            <p v-if="extractStegoFileName" class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                Selected: {{ extractStegoFileName }}
-                            </p>
-                            <InputError :message="extractError" class="mt-2" />
-                        </div>
-
-                        <div class="col-span-6">
-                            <InputLabel for="extract-password" value="Password" />
-                            <TextInput
-                                id="extract-password"
-                                v-model="extractPassword"
-                                type="text"
-                                class="mt-1 block w-full"
-                                placeholder="Enter the password to decrypt the hidden message."
-                            />
-                            <InputError :message="extractPasswordError" class="mt-2" />
-                        </div>
-
-                        <div v-if="extractedMessage" class="col-span-6">
-                            <Alert type="Success" hide-title>
-                                Message extracted and decrypted successfully.
-                            </Alert>
-                            <InputLabel value="Decrypted message" class="mt-3" />
-                            <CodeBlock :value="extractedMessage" class="mt-1" />
-                        </div>
-
-                    </template>
-
-                    <template #actions>
-                        <PrimaryButton
-                            type="button"
-                            @click.prevent="extractAndDecrypt"
-                            :class="{ 'opacity-25': extractProcessing || !extractStegoFile || !extractPassword }"
-                            :disabled="extractProcessing || !extractStegoFile || !extractPassword"
-                        >
-                            {{ extractProcessing ? 'Extracting…' : 'Extract & Decrypt' }}
-                        </PrimaryButton>
-                    </template>
-                </FlatFormSection>
+                        <template #actions>
+                            <PrimaryButton
+                                type="button"
+                                @click.prevent="extractAndDecrypt"
+                                :class="{ 'opacity-25': extractProcessing || !extractStegoFile || !extractPassword }"
+                                :disabled="extractProcessing || !extractStegoFile || !extractPassword"
+                            >
+                                {{ extractProcessing ? 'Extracting…' : 'Extract & Decrypt' }}
+                            </PrimaryButton>
+                        </template>
+                    </FlatFormSection>
+                </template>
 
                 <div class="mt-4 text-center text-sm text-gray-500 dark:text-gray-400">
                     <Link :href="route('welcome')" class="underline hover:text-gray-700 dark:hover:text-gray-200">
