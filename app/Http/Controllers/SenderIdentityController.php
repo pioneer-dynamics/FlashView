@@ -40,6 +40,7 @@ class SenderIdentityController extends Controller
         }
 
         $domainChanged = $identity && $identity->domain !== $request->input('domain');
+        $companyNameChanged = $identity && $identity->isVerified() && $identity->company_name !== $request->input('company_name');
 
         $data = [
             'type' => 'domain',
@@ -52,7 +53,7 @@ class SenderIdentityController extends Controller
             $data['verification_token'] = $this->verificationService->generateToken();
             $user->senderIdentity()->create($data);
         } else {
-            if ($domainChanged || $identity->isEmailType()) {
+            if ($domainChanged || $companyNameChanged || $identity->isEmailType()) {
                 $data['verification_token'] = $this->verificationService->generateToken();
                 $data['verified_at'] = null;
                 $data['verification_retry_dispatched_at'] = null;
