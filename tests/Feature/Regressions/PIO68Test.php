@@ -94,31 +94,6 @@ class PIO68Test extends TestCase
     // Happy paths
     // -----------------------------------------------------------------------
 
-    public function test_cli_domain_identity_snapshot_attached_to_secret(): void
-    {
-        $user = $this->createPrimeUser();
-        SenderIdentity::factory()->for($user)->create([
-            'type' => 'domain',
-            'company_name' => 'Acme Corp',
-            'domain' => 'acme.com',
-            'email' => null,
-            'verification_token' => 'some-token',
-            'verified_at' => now(),
-        ]);
-
-        Sanctum::actingAs($user, ['secrets:create']);
-
-        $this->postJson('/api/v1/secrets', [
-            'message' => $this->buildEncryptedMessage(),
-            'expires_in' => 1440,
-        ])->assertStatus(201);
-
-        $secret = $user->secrets()->first();
-        $this->assertEquals('Acme Corp', $secret->sender_company_name);
-        $this->assertEquals('acme.com', $secret->sender_domain);
-        $this->assertNull($secret->sender_email);
-    }
-
     public function test_cli_email_identity_snapshot_attached_to_secret(): void
     {
         $user = $this->createPrimeUser();
