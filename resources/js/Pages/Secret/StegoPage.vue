@@ -1,6 +1,6 @@
 <script setup>
     import { ref } from 'vue';
-    import { Head, Link, usePage } from '@inertiajs/vue3';
+    import { Head, Link } from '@inertiajs/vue3';
     import AppLayout from '@/Layouts/AppLayout.vue';
     import Page from '@/Pages/Page.vue';
     import FlatFormSection from '@/Components/FlatFormSection.vue';
@@ -15,7 +15,12 @@
     import { encryption } from '../../encryption';
     import { embedText, extractText } from '../../steganography';
 
-    const isLoggedIn = () => !! usePage().props.auth?.user;
+    const props = defineProps({
+        canUseStego: {
+            type: Boolean,
+            default: false,
+        },
+    });
 
     const mode = ref('embed');
 
@@ -179,8 +184,8 @@
         <Page>
             <div class="max-w-2xl mx-auto">
 
-                <!-- Guest gate -->
-                <template v-if="!isLoggedIn()">
+                <!-- Guest / plan gate -->
+                <template v-if="!canUseStego">
                     <FlatFormSection>
                         <template #form>
                             <div class="col-span-6">
@@ -199,7 +204,7 @@
                     </FlatFormSection>
                 </template>
 
-                <!-- Authenticated content -->
+                <!-- Authorised content -->
                 <template v-else>
                     <ToggleButton
                         :model-value="mode"

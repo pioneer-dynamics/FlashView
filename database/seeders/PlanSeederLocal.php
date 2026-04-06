@@ -85,6 +85,12 @@ class PlanSeederLocal extends Seeder
                         'config' => [],
                         'type' => 'missing',
                     ],
+                    'steganography' => [
+                        'order' => 8,
+                        'label' => 'Hide secrets inside images (steganography)',
+                        'config' => [],
+                        'type' => 'feature',
+                    ],
                 ],
             ]);
 
@@ -158,6 +164,12 @@ class PlanSeederLocal extends Seeder
                         'label' => 'Verified Sender Identity (optional)',
                         'config' => [],
                         'type' => 'missing',
+                    ],
+                    'steganography' => [
+                        'order' => 8,
+                        'label' => 'Hide secrets inside images (steganography)',
+                        'config' => [],
+                        'type' => 'feature',
                     ],
                 ],
             ]);
