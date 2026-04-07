@@ -231,19 +231,16 @@
 
                 <!-- Embed form -->
                 <template v-else>
-                    <div class="col-span-6">
-                        <Alert type="Info" hide-title>
+                    <div class="col-span-12">
+                        <Alert type="Info" hide-title class="mb-4">
                             Your message will be encrypted end-to-end, then hidden inside a PNG image using steganography. The image looks completely normal to anyone without the password.
                             Unlike a normal secret link, this image can be forwarded and read multiple times — there is no server-enforced one-time read or expiry.
                         </Alert>
-                    </div>
-
-                    <div class="col-span-6">
                         <TextAreaInput
                             id="embed-message"
                             v-model="embedMessage"
                             rows="7"
-                            :class="'mt-1 block w-full'"
+                            class="mt-1 block w-full"
                             placeholder="Your secret message..."
                             :autofocus="true"
                         />
