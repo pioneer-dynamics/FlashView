@@ -236,14 +236,15 @@
                             Your message will be encrypted end-to-end, then hidden inside a PNG image using steganography. The image looks completely normal to anyone without the password.
                             Unlike a normal secret link, this image can be forwarded and read multiple times — there is no server-enforced one-time read or expiry.
                         </Alert>
-                        <TextAreaInput
-                            id="embed-message"
-                            v-model="embedMessage"
-                            rows="7"
-                            class="mt-1 block w-full"
-                            placeholder="Your secret message..."
-                            :autofocus="true"
-                        />
+                        <span>
+                            <TextAreaInput
+                                v-model="embedMessage"
+                                rows="7"
+                                class="mt-1 p-3 block w-full"
+                                placeholder="Your secret message..."
+                                :autofocus="true"
+                            />
+                        </span>
                         <div class="flex flex-wrap mt-2 relative text-sm gap-2">
                             <div class="flex flex-wrap">
                                 <svg xmlns="https://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-4">
@@ -255,7 +256,7 @@
                         <InputError :message="embedError" class="mt-2" />
                     </div>
 
-                    <div class="col-span-6">
+                    <div class="col-span-12">
                         <TextInput
                             id="embed-password"
                             v-model="embedPassword"
@@ -266,7 +267,7 @@
                         <InputError :message="embedPasswordError" class="mt-2" />
                     </div>
 
-                    <div class="col-span-6">
+                    <div class="col-span-12">
                         <InputLabel value="Cover image (PNG)" />
                         <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 mb-2">
                             Upload a PNG image to hide your message in. The larger the image, the more text it can carry.
