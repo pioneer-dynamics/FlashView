@@ -1,6 +1,7 @@
 <script setup>
     import { ref } from 'vue';
-    import { Link } from '@inertiajs/vue3';
+    import { Link, usePage } from '@inertiajs/vue3';
+    import axios from 'axios';
     import TextAreaInput from '@/Components/TextAreaInput.vue';
     import PrimaryButton from '@/Components/PrimaryButton.vue';
     import TextInput from '@/Components/TextInput.vue';
@@ -20,6 +21,8 @@
         },
     });
 
+    const page = usePage();
+
     const mode = ref('embed');
 
     const modeOptions = [
@@ -38,6 +41,7 @@
     const embedSuccess = ref(false);
     const embedPassphrase = ref('');
     const embedStegoUrl = ref('');
+    const includeIdentity = ref(false);
 
     // Extract state
     const extractStegoFile = ref(null);
@@ -47,6 +51,7 @@
     const extractError = ref('');
     const extractPasswordError = ref('');
     const extractedMessage = ref('');
+    const verifiedIdentity = ref(null);
 
     const coverFileInput = ref(null);
     const stegoFileInput = ref(null);
@@ -59,6 +64,7 @@
         extractPasswordError.value = '';
         extractedMessage.value = '';
         embedSuccess.value = false;
+        verifiedIdentity.value = null;
     };
 
     const onCoverFileChange = (event) => {
@@ -98,7 +104,21 @@
         try {
             const e = new encryption();
             const result = await e.encryptMessage(embedMessage.value, embedPassword.value || null);
-            const stegoPngBlob = await embedText(embedCoverFile.value, result.secret);
+
+            let textToEmbed = result.secret;
+
+            if (includeIdentity.value && page.props.auth.senderIdentity) {
+                const signResponse = await axios.post(route('stego.sign'), {
+                    ciphertext: result.secret,
+                });
+                textToEmbed = JSON.stringify({
+                    ciphertext: result.secret,
+                    verified_identity: signResponse.data.verified_identity,
+                    signature: signResponse.data.signature,
+                });
+            }
+
+            const stegoPngBlob = await embedText(embedCoverFile.value, textToEmbed);
 
             const url = URL.createObjectURL(stegoPngBlob);
             const a = document.createElement('a');
@@ -111,7 +131,9 @@
             embedStegoUrl.value = route('stego.index');
             embedSuccess.value = true;
         } catch (err) {
-            if (err.message?.toLowerCase().includes('passphrase')) {
+            if (err.response?.status === 403) {
+                embedError.value = 'Your verified sender identity is no longer active. Uncheck "Include identity" to embed without it.';
+            } else if (err.message?.toLowerCase().includes('passphrase')) {
                 embedPasswordError.value = err.message;
             } else {
                 embedError.value = err.message ?? 'Something went wrong. Please try again.';
@@ -130,6 +152,7 @@
         embedPassphrase.value = '';
         embedStegoUrl.value = '';
         embedError.value = '';
+        includeIdentity.value = false;
         if (coverFileInput.value) {
             coverFileInput.value.value = '';
         }
@@ -139,6 +162,7 @@
         extractError.value = '';
         extractPasswordError.value = '';
         extractedMessage.value = '';
+        verifiedIdentity.value = null;
 
         if (!extractStegoFile.value) {
             extractError.value = 'Please select the PNG image to extract from.';
@@ -153,7 +177,32 @@
         extractProcessing.value = true;
 
         try {
-            const ciphertext = await extractText(extractStegoFile.value);
+            const rawText = await extractText(extractStegoFile.value);
+
+            let ciphertext = rawText;
+
+            // Try to parse as signed JSON payload (new format introduced in PIO-70).
+            // Legacy images embed a raw ciphertext string — JSON.parse will throw and we fall back.
+            try {
+                const parsed = JSON.parse(rawText);
+                if (parsed && typeof parsed.ciphertext === 'string') {
+                    ciphertext = parsed.ciphertext;
+
+                    if (parsed.verified_identity && parsed.signature) {
+                        const verifyResponse = await axios.post(route('stego.verify'), {
+                            ciphertext: parsed.ciphertext,
+                            verified_identity: parsed.verified_identity,
+                            signature: parsed.signature,
+                        });
+                        if (verifyResponse.data.verified) {
+                            verifiedIdentity.value = parsed.verified_identity;
+                        }
+                    }
+                }
+            } catch {
+                // Not JSON — legacy plain-ciphertext image, use rawText as-is
+            }
+
             const e = new encryption();
             const message = await e.decryptMessage(ciphertext, extractPassword.value);
             extractedMessage.value = message;
@@ -280,6 +329,17 @@
                             @change="onCoverFileChange"
                         />
                     </div>
+
+                    <!-- Verified sender identity opt-in (only for users with a verified identity) -->
+                    <div v-if="page.props.auth.senderIdentity" class="col-span-12">
+                        <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+                            <input type="checkbox" v-model="includeIdentity" class="rounded border-gray-300 dark:border-gray-600 text-gamboge-600 focus:ring-gamboge-500" />
+                            Include my verified sender identity
+                            <span class="text-gray-500 dark:text-gray-400">
+                                ({{ page.props.auth.senderIdentity.company_name ?? page.props.auth.senderIdentity.email }})
+                            </span>
+                        </label>
+                    </div>
                 </template>
 
             </template>
@@ -336,13 +396,33 @@
                     <InputError :message="extractPasswordError" class="mt-2" />
                 </div>
 
-                <div v-if="extractedMessage" class="col-span-6">
-                    <Alert type="Success" hide-title>
-                        Message extracted and decrypted successfully.
-                    </Alert>
-                    <InputLabel value="Decrypted message" class="mt-3" />
-                    <CodeBlock :value="extractedMessage" class="mt-1" />
-                </div>
+                <template v-if="extractedMessage">
+                    <!-- Verified Sender badge (consistent with SecretForm.vue) -->
+                    <div v-if="verifiedIdentity" class="col-span-6">
+                        <Alert type="Success" hide-title>
+                            <div class="flex items-start gap-2">
+                                <div>
+                                    <p class="font-semibold">&#10003; Verified Sender</p>
+                                    <p v-if="verifiedIdentity.company_name" class="mt-1">
+                                        This image was created by <strong>{{ verifiedIdentity.company_name }}</strong>
+                                        (verified domain: {{ verifiedIdentity.domain }})
+                                    </p>
+                                    <p v-else-if="verifiedIdentity.email" class="mt-1">
+                                        This image was created by <strong>{{ verifiedIdentity.email }}</strong>
+                                    </p>
+                                </div>
+                            </div>
+                        </Alert>
+                    </div>
+
+                    <div class="col-span-6">
+                        <Alert type="Success" hide-title>
+                            Message extracted and decrypted successfully.
+                        </Alert>
+                        <InputLabel value="Decrypted message" class="mt-3" />
+                        <CodeBlock :value="extractedMessage" class="mt-1" />
+                    </div>
+                </template>
 
             </template>
 
