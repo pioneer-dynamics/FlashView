@@ -18,13 +18,17 @@ class StegoController extends Controller
         ]);
     }
 
+    /**
+     * Sign the stego payload with the authenticated user's verified sender identity.
+     *
+     * Mirrors the double-gate from SecretController: a downgraded user retains their identity
+     * record, so checking only hasVerifiedSenderIdentity() is insufficient — the plan must also
+     * support sender identity.
+     */
     public function sign(StegoSignRequest $request): JsonResponse
     {
         $user = $request->user();
 
-        // Mirror the double-gate used in SecretController: plan must support sender identity AND
-        // identity must be verified. A downgraded user retains their identity record, so checking
-        // only hasVerifiedSenderIdentity() is insufficient.
         if (! $user->planSupportsSenderIdentity() || ! $user->hasVerifiedSenderIdentity()) {
             return response()->json(['message' => 'No verified sender identity.'], 403);
         }

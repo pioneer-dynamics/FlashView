@@ -36,7 +36,7 @@ Route::get('secret/{secret}/decrypt', [SecretController::class, 'decrypt'])->nam
 Route::get('plans', [PlanController::class, 'index'])->name('plans.index');
 
 Route::get('/stego', [StegoController::class, 'index'])->name('stego.index');
-Route::post('/stego/sign', [StegoController::class, 'sign'])->name('stego.sign')->middleware('auth')->middleware('throttle:10,1');
+Route::post('/stego/sign', [StegoController::class, 'sign'])->name('stego.sign')->middleware(['auth', 'throttle:10,1']);
 Route::post('/stego/verify', [StegoController::class, 'verify'])->name('stego.verify')->middleware('throttle:10,1');
 
 Route::controller(MarkdownDocumentController::class)->group(function () {
