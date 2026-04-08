@@ -58,7 +58,12 @@
     const coverFileInput = ref(null);
     const stegoFileInput = ref(null);
 
+    // Cancellation counter for previewStegoIdentity — incremented on new file select or mode
+    // switch to discard results from any in-flight request.
+    let previewId = 0;
+
     const switchMode = (newMode) => {
+        previewId++; // invalidate any in-flight previewStegoIdentity
         mode.value = newMode;
         embedError.value = '';
         embedPasswordError.value = '';
@@ -68,6 +73,7 @@
         extractedCiphertext.value = '';
         embedSuccess.value = false;
         verifiedIdentity.value = null;
+        extractIdentityProcessing.value = false;
     };
 
     const onCoverFileChange = (event) => {
@@ -80,12 +86,17 @@
     };
 
     const previewStegoIdentity = async (file) => {
+        previewId++;
+        const myId = previewId;
+
         verifiedIdentity.value = null;
         extractedCiphertext.value = '';
         extractIdentityProcessing.value = true;
 
         try {
             const rawText = await extractText(file);
+            if (previewId !== myId) { return; }
+
             let ciphertext = rawText;
 
             try {
@@ -99,21 +110,27 @@
                             verified_identity: parsed.verified_identity,
                             signature: parsed.signature,
                         });
+                        if (previewId !== myId) { return; }
                         if (verifyResponse.data.verified) {
                             verifiedIdentity.value = parsed.verified_identity;
                         }
                     }
                 }
-            } catch {
-                // Not JSON — legacy plain-ciphertext image
+            } catch (err) {
+                if (err.response?.status === 429) {
+                    // Rate limit hit — badge simply won't show; extraction still works
+                } // else: not JSON — legacy plain-ciphertext image
             }
 
+            if (previewId !== myId) { return; }
             extractedCiphertext.value = ciphertext;
         } catch {
             // Not a stego image or no hidden message — user may have picked the wrong file;
             // don't show an error here as they haven't attempted extraction yet.
         } finally {
-            extractIdentityProcessing.value = false;
+            if (previewId === myId) {
+                extractIdentityProcessing.value = false;
+            }
         }
     };
 
@@ -448,8 +465,8 @@
                 <PrimaryButton
                     type="button"
                     @click.prevent="extractAndDecrypt"
-                    :class="{ 'opacity-25': extractProcessing || !extractStegoFile || !extractPassword }"
-                    :disabled="extractProcessing || !extractStegoFile || !extractPassword"
+                    :class="{ 'opacity-25': extractProcessing || extractIdentityProcessing || !extractStegoFile || !extractPassword }"
+                    :disabled="extractProcessing || extractIdentityProcessing || !extractStegoFile || !extractPassword"
                 >
                     {{ extractProcessing ? 'Extracting…' : 'Extract & Decrypt' }}
                 </PrimaryButton>
