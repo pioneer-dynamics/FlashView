@@ -48,9 +48,11 @@
     const extractStegoFileName = ref('');
     const extractPassword = ref('');
     const extractProcessing = ref(false);
+    const extractIdentityProcessing = ref(false);
     const extractError = ref('');
     const extractPasswordError = ref('');
     const extractedMessage = ref('');
+    const extractedCiphertext = ref('');
     const verifiedIdentity = ref(null);
 
     const coverFileInput = ref(null);
@@ -63,6 +65,7 @@
         extractError.value = '';
         extractPasswordError.value = '';
         extractedMessage.value = '';
+        extractedCiphertext.value = '';
         embedSuccess.value = false;
         verifiedIdentity.value = null;
     };
@@ -76,12 +79,52 @@
         }
     };
 
+    const previewStegoIdentity = async (file) => {
+        verifiedIdentity.value = null;
+        extractedCiphertext.value = '';
+        extractIdentityProcessing.value = true;
+
+        try {
+            const rawText = await extractText(file);
+            let ciphertext = rawText;
+
+            try {
+                const parsed = JSON.parse(rawText);
+                if (parsed && typeof parsed.ciphertext === 'string') {
+                    ciphertext = parsed.ciphertext;
+
+                    if (parsed.verified_identity && parsed.signature) {
+                        const verifyResponse = await axios.post(route('stego.verify'), {
+                            ciphertext: parsed.ciphertext,
+                            verified_identity: parsed.verified_identity,
+                            signature: parsed.signature,
+                        });
+                        if (verifyResponse.data.verified) {
+                            verifiedIdentity.value = parsed.verified_identity;
+                        }
+                    }
+                }
+            } catch {
+                // Not JSON — legacy plain-ciphertext image
+            }
+
+            extractedCiphertext.value = ciphertext;
+        } catch {
+            // Not a stego image or no hidden message — user may have picked the wrong file;
+            // don't show an error here as they haven't attempted extraction yet.
+        } finally {
+            extractIdentityProcessing.value = false;
+        }
+    };
+
     const onStegoFileChange = (event) => {
         const file = event.target.files[0];
         if (file) {
             extractStegoFile.value = file;
             extractStegoFileName.value = file.name;
             extractError.value = '';
+            extractedMessage.value = '';
+            previewStegoIdentity(file);
         }
     };
 
@@ -162,7 +205,6 @@
         extractError.value = '';
         extractPasswordError.value = '';
         extractedMessage.value = '';
-        verifiedIdentity.value = null;
 
         if (!extractStegoFile.value) {
             extractError.value = 'Please select the PNG image to extract from.';
@@ -177,31 +219,9 @@
         extractProcessing.value = true;
 
         try {
-            const rawText = await extractText(extractStegoFile.value);
-
-            let ciphertext = rawText;
-
-            // Try to parse as signed JSON payload (new format introduced in PIO-70).
-            // Legacy images embed a raw ciphertext string — JSON.parse will throw and we fall back.
-            try {
-                const parsed = JSON.parse(rawText);
-                if (parsed && typeof parsed.ciphertext === 'string') {
-                    ciphertext = parsed.ciphertext;
-
-                    if (parsed.verified_identity && parsed.signature) {
-                        const verifyResponse = await axios.post(route('stego.verify'), {
-                            ciphertext: parsed.ciphertext,
-                            verified_identity: parsed.verified_identity,
-                            signature: parsed.signature,
-                        });
-                        if (verifyResponse.data.verified) {
-                            verifiedIdentity.value = parsed.verified_identity;
-                        }
-                    }
-                }
-            } catch {
-                // Not JSON — legacy plain-ciphertext image, use rawText as-is
-            }
+            // Use the ciphertext cached by previewStegoIdentity on image upload.
+            // Fall back to re-extracting if the cache is empty (e.g. identity check is still in flight).
+            const ciphertext = extractedCiphertext.value || await extractText(extractStegoFile.value);
 
             const e = new encryption();
             const message = await e.decryptMessage(ciphertext, extractPassword.value);
@@ -396,33 +416,31 @@
                     <InputError :message="extractPasswordError" class="mt-2" />
                 </div>
 
-                <template v-if="extractedMessage">
-                    <!-- Verified Sender badge (consistent with SecretForm.vue) -->
-                    <div v-if="verifiedIdentity" class="col-span-6">
-                        <Alert type="Success" hide-title>
-                            <div class="flex items-start gap-2">
-                                <div>
-                                    <p class="font-semibold">&#10003; Verified Sender</p>
-                                    <p v-if="verifiedIdentity.company_name" class="mt-1">
-                                        This image was created by <strong>{{ verifiedIdentity.company_name }}</strong>
-                                        (verified domain: {{ verifiedIdentity.domain }})
-                                    </p>
-                                    <p v-else-if="verifiedIdentity.email" class="mt-1">
-                                        This image was created by <strong>{{ verifiedIdentity.email }}</strong>
-                                    </p>
-                                </div>
+                <!-- Verified Sender badge — shown as soon as the image is loaded, before decryption -->
+                <div v-if="verifiedIdentity" class="col-span-6">
+                    <Alert type="Success" hide-title>
+                        <div class="flex items-start gap-2">
+                            <div>
+                                <p class="font-semibold">&#10003; Verified Sender</p>
+                                <p v-if="verifiedIdentity.company_name" class="mt-1">
+                                    This image was created by <strong>{{ verifiedIdentity.company_name }}</strong>
+                                    (verified domain: {{ verifiedIdentity.domain }})
+                                </p>
+                                <p v-else-if="verifiedIdentity.email" class="mt-1">
+                                    This image was created by <strong>{{ verifiedIdentity.email }}</strong>
+                                </p>
                             </div>
-                        </Alert>
-                    </div>
+                        </div>
+                    </Alert>
+                </div>
 
-                    <div class="col-span-6">
-                        <Alert type="Success" hide-title>
-                            Message extracted and decrypted successfully.
-                        </Alert>
-                        <InputLabel value="Decrypted message" class="mt-3" />
-                        <CodeBlock :value="extractedMessage" class="mt-1" />
-                    </div>
-                </template>
+                <div v-if="extractedMessage" class="col-span-6">
+                    <Alert type="Success" hide-title>
+                        Message extracted and decrypted successfully.
+                    </Alert>
+                    <InputLabel value="Decrypted message" class="mt-3" />
+                    <CodeBlock :value="extractedMessage" class="mt-1" />
+                </div>
 
             </template>
 
