@@ -422,17 +422,6 @@
                     <InputError :message="extractError" class="mt-2" />
                 </div>
 
-                <div class="col-span-6">
-                    <TextInput
-                        id="extract-password"
-                        v-model="extractPassword"
-                        type="text"
-                        class="mt-1 block w-full"
-                        placeholder="Enter the password to decrypt the hidden message."
-                    />
-                    <InputError :message="extractPasswordError" class="mt-2" />
-                </div>
-
                 <!-- Verified Sender badge — shown as soon as the image is loaded, before decryption -->
                 <div v-if="verifiedIdentity" class="col-span-6">
                     <Alert type="Success" hide-title>
@@ -449,6 +438,17 @@
                             </div>
                         </div>
                     </Alert>
+                </div>
+
+                <div class="col-span-6">
+                    <TextInput
+                        id="extract-password"
+                        v-model="extractPassword"
+                        type="text"
+                        class="mt-1 block w-full"
+                        placeholder="Enter the password to decrypt the hidden message."
+                    />
+                    <InputError :message="extractPasswordError" class="mt-2" />
                 </div>
 
                 <div v-if="extractedMessage" class="col-span-6">
