@@ -4,10 +4,8 @@ namespace App\Providers;
 
 use App\Models\PersonalAccessToken;
 use App\Observers\SubscriptionObserver;
-use App\Policies\StegoPolicy;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
@@ -37,18 +35,12 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->defineRateLimits();
-        $this->definePolicies();
 
         $this->forceHttps();
 
         Subscription::observe(SubscriptionObserver::class);
 
         Sanctum::usePersonalAccessTokenModel(PersonalAccessToken::class);
-    }
-
-    private function definePolicies(): void
-    {
-        Gate::define('embed-stego', [StegoPolicy::class, 'embed']);
     }
 
     private function defineRateLimits(): void

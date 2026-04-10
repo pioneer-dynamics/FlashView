@@ -257,7 +257,7 @@ const removeIdentity = () => {
                     Include my verified sender identity by default in new secret links
                 </label>
                 <p class="mt-1 text-xs text-gray-500 dark:text-gray-500">
-                    When enabled, the "Include my verified sender identity" checkbox will be pre-checked on the secret link and stego forms.
+                    When enabled, the "Include my verified sender identity" checkbox will be pre-checked on new secret links.
                 </p>
             </div>
 

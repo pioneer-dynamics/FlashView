@@ -200,22 +200,6 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
         return $plan && ($plan->features['sender_identity']['type'] ?? 'missing') === 'feature';
     }
 
-    /**
-     * Check if the user's plan supports steganography mode.
-     * Available on all plans, including Free (non-subscription).
-     */
-    public function planSupportsStego(): bool
-    {
-        $plan = $this->resolvePlan();
-
-        if (! $plan) {
-            // Free plan (no Stripe subscription) — steganography is included
-            return true;
-        }
-
-        return ($plan->features['steganography']['type'] ?? 'missing') === 'feature';
-    }
-
     public function secrets(): HasMany
     {
         return $this->hasMany(Secret::class);

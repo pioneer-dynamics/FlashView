@@ -10,7 +10,6 @@ use App\Http\Controllers\NotificationSettingsController;
 use App\Http\Controllers\PlanController;
 use App\Http\Controllers\SecretController;
 use App\Http\Controllers\SenderIdentityController;
-use App\Http\Controllers\StegoController;
 use App\Http\Controllers\WebhookSettingsController;
 use App\Http\Middleware\EnsurePlanHasApiAccess;
 use App\Http\Middleware\EnsurePlanHasSenderIdentity;
@@ -34,10 +33,6 @@ Route::resource('secret', SecretController::class)->only(['store', 'show']);
 Route::get('secret/{secret}/decrypt', [SecretController::class, 'decrypt'])->name('secret.decrypt');
 
 Route::get('plans', [PlanController::class, 'index'])->name('plans.index');
-
-Route::get('/stego', [StegoController::class, 'index'])->name('stego.index');
-Route::post('/stego/sign', [StegoController::class, 'sign'])->name('stego.sign')->middleware(['auth', 'throttle:10,1']);
-Route::post('/stego/verify', [StegoController::class, 'verify'])->name('stego.verify')->middleware('throttle:10,1');
 
 Route::controller(MarkdownDocumentController::class)->group(function () {
     Route::get('/terms-of-service', 'terms')->name('terms.show');
