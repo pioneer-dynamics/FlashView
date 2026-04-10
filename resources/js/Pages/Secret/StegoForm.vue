@@ -41,7 +41,7 @@
     const embedSuccess = ref(false);
     const embedPassphrase = ref('');
     const embedStegoUrl = ref('');
-    const includeIdentity = ref(false);
+    const includeIdentity = ref(page.props.auth.senderIdentity?.include_by_default ?? false);
 
     // Extract state
     const extractStegoFile = ref(null);

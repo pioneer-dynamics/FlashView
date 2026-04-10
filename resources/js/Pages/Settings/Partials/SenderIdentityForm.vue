@@ -27,6 +27,7 @@ const form = useForm({
     type: props.senderIdentity?.type ?? 'email',
     company_name: props.senderIdentity?.company_name ?? '',
     domain: props.senderIdentity?.domain ?? '',
+    include_by_default: props.senderIdentity?.include_by_default ?? false,
 });
 
 const verifyForm = useForm({});
@@ -242,6 +243,21 @@ const removeIdentity = () => {
                     </div>
                 </div>
             </template>
+
+            <!-- Default inclusion preference -->
+            <div class="col-span-6">
+                <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+                    <input
+                        type="checkbox"
+                        v-model="form.include_by_default"
+                        class="rounded border-gray-300 dark:border-gray-600 text-gamboge-600 focus:ring-gamboge-500"
+                    />
+                    Include my verified sender identity by default in new secret links
+                </label>
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-500">
+                    When enabled, the "Include my verified sender identity" checkbox will be pre-checked on the secret link and stego forms.
+                </p>
+            </div>
 
             <!-- Snapshot persistence note -->
             <div v-if="senderIdentity" class="col-span-6">

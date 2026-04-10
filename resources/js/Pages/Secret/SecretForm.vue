@@ -163,7 +163,7 @@
         message: props.secret ? 'This isn’t the actual message—it’s just a placeholder. To view the message, please click the button below.' : '',
         email: '',
         expires_in: expiryOptions.value[expiryOptions.value.length-1].value,
-        include_sender_identity: false,
+        include_sender_identity: usePage().props.auth.senderIdentity?.include_by_default ?? false,
     });
 
     const letsDoAnotherOne = () => {

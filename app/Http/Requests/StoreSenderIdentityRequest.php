@@ -31,6 +31,7 @@ class StoreSenderIdentityRequest extends FormRequest
                 ? ['required', 'string', 'max:255', 'regex:/^([a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/']
                 : ['prohibited'],
             'email' => ['prohibited'],
+            'include_by_default' => ['boolean', 'nullable'],
         ];
     }
 }

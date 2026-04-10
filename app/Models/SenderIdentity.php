@@ -20,6 +20,7 @@ class SenderIdentity extends Model
         'verification_token',
         'verified_at',
         'verification_retry_dispatched_at',
+        'include_by_default',
     ];
 
     protected function casts(): array
@@ -27,6 +28,7 @@ class SenderIdentity extends Model
         return [
             'verified_at' => 'datetime',
             'verification_retry_dispatched_at' => 'datetime',
+            'include_by_default' => 'boolean',
         ];
     }
 
