@@ -59,6 +59,10 @@ const verificationStatus = computed(() => {
 const selectType = (type) => {
     selectedType.value = type;
     form.type = type;
+    if (type === 'email') {
+        form.company_name = '';
+        form.domain = '';
+    }
 };
 
 const save = () => {
