@@ -92,7 +92,7 @@ const removeIdentity = () => {
 
         <template #form>
             <!-- Type selector -->
-            <div class="col-span-6">
+            <div v-if="!senderIdentity" class="col-span-6">
                 <div class="flex gap-4">
                     <label class="flex items-center gap-2 cursor-pointer">
                         <input
@@ -101,10 +101,9 @@ const removeIdentity = () => {
                             value="email"
                             :checked="selectedType === 'email'"
                             @change="selectType('email')"
-                            :disabled="!!senderIdentity"
-                            class="text-gray-600 dark:text-gray-400 border-gray-300 dark:border-gray-700 focus:ring-gray-500 disabled:opacity-50"
+                            class="text-gray-600 dark:text-gray-400 border-gray-300 dark:border-gray-700 focus:ring-gray-500"
                         >
-                        <span class="text-sm text-gray-700 dark:text-gray-300" :class="{ 'opacity-50': !!senderIdentity }">Use my email</span>
+                        <span class="text-sm text-gray-700 dark:text-gray-300">Use my email</span>
                     </label>
                     <label class="flex items-center gap-2 cursor-pointer">
                         <input
@@ -113,10 +112,9 @@ const removeIdentity = () => {
                             value="domain"
                             :checked="selectedType === 'domain'"
                             @change="selectType('domain')"
-                            :disabled="!!senderIdentity"
-                            class="text-gray-600 dark:text-gray-400 border-gray-300 dark:border-gray-700 focus:ring-gray-500 disabled:opacity-50"
+                            class="text-gray-600 dark:text-gray-400 border-gray-300 dark:border-gray-700 focus:ring-gray-500"
                         >
-                        <span class="text-sm text-gray-700 dark:text-gray-300" :class="{ 'opacity-50': !!senderIdentity }">Use a domain</span>
+                        <span class="text-sm text-gray-700 dark:text-gray-300">Use a domain</span>
                     </label>
                 </div>
             </div>
