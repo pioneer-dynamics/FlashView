@@ -82,6 +82,7 @@ class PIO68Test extends TestCase
         $this->postJson('/api/v1/secrets', [
             'message' => $this->buildEncryptedMessage(),
             'expires_in' => 1440,
+            'include_sender_identity' => true,
         ])->assertStatus(201);
 
         $secret = $user->secrets()->first();
@@ -110,6 +111,7 @@ class PIO68Test extends TestCase
         $this->postJson('/api/v1/secrets', [
             'message' => $this->buildEncryptedMessage(),
             'expires_in' => 1440,
+            'include_sender_identity' => true,
         ])->assertStatus(201);
 
         $secret = $user->secrets()->first();
