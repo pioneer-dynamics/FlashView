@@ -11,6 +11,7 @@ import InputLabel from '@/Components/InputLabel.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
+import ToggleButton from '@/Components/ToggleButton.vue';
 
 const props = defineProps({
     senderIdentity: {
@@ -22,6 +23,11 @@ const props = defineProps({
 const page = usePage();
 
 const selectedType = ref(props.senderIdentity?.type ?? 'email');
+
+const identityTypeOptions = [
+    { value: 'email', label: 'Use my email' },
+    { value: 'domain', label: 'Use a domain' },
+];
 
 const form = useForm({
     type: props.senderIdentity?.type ?? 'email',
@@ -92,30 +98,11 @@ const removeIdentity = () => {
         <template #form>
             <!-- Type selector -->
             <div class="col-span-6">
-                <div class="flex gap-4">
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input
-                            type="radio"
-                            name="identity_type"
-                            value="email"
-                            :checked="selectedType === 'email'"
-                            @change="selectType('email')"
-                            class="text-gray-600 dark:text-gray-400 border-gray-300 dark:border-gray-700 focus:ring-gray-500"
-                        >
-                        <span class="text-sm text-gray-700 dark:text-gray-300">Use my email</span>
-                    </label>
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input
-                            type="radio"
-                            name="identity_type"
-                            value="domain"
-                            :checked="selectedType === 'domain'"
-                            @change="selectType('domain')"
-                            class="text-gray-600 dark:text-gray-400 border-gray-300 dark:border-gray-700 focus:ring-gray-500"
-                        >
-                        <span class="text-sm text-gray-700 dark:text-gray-300">Use a domain</span>
-                    </label>
-                </div>
+                <ToggleButton
+                    :model-value="selectedType"
+                    :options="identityTypeOptions"
+                    @update:model-value="selectType"
+                />
             </div>
 
             <!-- Email type -->
