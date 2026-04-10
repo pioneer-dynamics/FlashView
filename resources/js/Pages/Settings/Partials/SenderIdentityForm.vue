@@ -9,6 +9,7 @@ import FormSection from '@/Components/FormSection.vue';
 import InputError from '@/Components/InputError.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
+import Checkbox from '@/Components/Checkbox.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
 
@@ -252,11 +253,7 @@ const removeIdentity = () => {
             <!-- Default inclusion preference -->
             <div class="col-span-6">
                 <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
-                    <input
-                        type="checkbox"
-                        v-model="form.include_by_default"
-                        class="rounded border-gray-300 dark:border-gray-600 text-gamboge-600 focus:ring-gamboge-500"
-                    />
+                    <Checkbox :checked="form.include_by_default" @update:checked="val => form.include_by_default = val" />
                     Include my verified sender identity by default in new secret links
                 </label>
                 <p class="mt-1 text-xs text-gray-500 dark:text-gray-500">
