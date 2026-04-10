@@ -51,6 +51,7 @@ class HandleInertiaRequests extends Middleware
                 'company_name' => $identity->company_name,
                 'domain' => $identity->domain,
                 'email' => $identity->email,
+                'include_by_default' => $identity->include_by_default,
             ];
         });
         Inertia::share('auth.webhook', function () use ($request) {

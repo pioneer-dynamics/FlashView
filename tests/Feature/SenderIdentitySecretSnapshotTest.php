@@ -44,11 +44,12 @@ class SenderIdentitySecretSnapshotTest extends TestCase
         return $user;
     }
 
-    private function validSecretPayload(int $expiresIn = 5): array
+    private function validSecretPayload(int $expiresIn = 5, bool $includeSenderIdentity = false): array
     {
         return [
             'message' => (new SecretFactory)->generateEncryptedMessage(50),
             'expires_in' => $expiresIn,
+            'include_sender_identity' => $includeSenderIdentity,
         ];
     }
 
@@ -68,7 +69,7 @@ class SenderIdentitySecretSnapshotTest extends TestCase
         ]);
 
         $this->actingAs($user)
-            ->post(route('secret.store'), $this->validSecretPayload())
+            ->post(route('secret.store'), $this->validSecretPayload(includeSenderIdentity: true))
             ->assertSessionHasNoErrors();
 
         $secret = $user->secrets()->first();
@@ -87,7 +88,7 @@ class SenderIdentitySecretSnapshotTest extends TestCase
         ]);
 
         $this->actingAs($user)
-            ->post(route('secret.store'), $this->validSecretPayload())
+            ->post(route('secret.store'), $this->validSecretPayload(includeSenderIdentity: true))
             ->assertSessionHasNoErrors();
 
         $secret = $user->secrets()->first();
@@ -157,7 +158,7 @@ class SenderIdentitySecretSnapshotTest extends TestCase
         ]);
 
         $this->actingAs($user)
-            ->post(route('secret.store'), $this->validSecretPayload());
+            ->post(route('secret.store'), $this->validSecretPayload(includeSenderIdentity: true));
 
         $secretBefore = $user->secrets()->first();
         $senderEmailBefore = $secretBefore->sender_email;

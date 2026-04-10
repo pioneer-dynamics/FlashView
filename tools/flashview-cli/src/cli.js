@@ -143,6 +143,7 @@ program
     .option('-p, --passphrase <passphrase>', 'Encryption passphrase (auto-generated if omitted)')
     .option('-e, --expires-in <duration>', 'Expiry duration (5m, 30m, 1h, 4h, 12h, 1d, 3d, 7d, 14d, 30d)', '1d')
     .option('--email <address>', 'Recipient email address')
+    .option('--with-verified-badge', 'Include your verified sender identity badge')
     .option('--json', 'Output as JSON (for scripting)')
     .action(withErrorHandling(async (options) => {
         const config = getConfig();
@@ -173,7 +174,7 @@ program
 
         const { passphrase, secret } = await encryptMessage(message, options.passphrase);
 
-        const result = await client.createSecret(secret, expiresIn, options.email);
+        const result = await client.createSecret(secret, expiresIn, options.email, !!options.withVerifiedBadge);
 
         if (options.json) {
             console.log(JSON.stringify({
