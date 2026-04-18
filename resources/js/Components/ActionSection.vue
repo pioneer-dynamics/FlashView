@@ -3,7 +3,7 @@ import SectionTitle from './SectionTitle.vue';
 </script>
 
 <template>
-    <div class="md:grid md:grid-cols-3 mt-2">
+    <div class="md:grid md:grid-cols-3 mt-2 cyber-corners dark:border dark:border-gamboge-800/30 sm:rounded-lg">
         <SectionTitle>
             <template #title>
                 <slot name="title" />
@@ -14,7 +14,7 @@ import SectionTitle from './SectionTitle.vue';
         </SectionTitle>
 
         <div class="mt-5 md:mt-0 md:col-span-2 flex">
-            <div class="px-4 py-5 sm:p-6 bg-white dark:bg-gray-800 shadow sm:rounded-r-lg flex-1">
+            <div class="px-4 py-5 sm:p-6 bg-white dark:bg-gray-800 sm:rounded-r-lg flex-1">
                 <slot name="content" />
             </div>
         </div>

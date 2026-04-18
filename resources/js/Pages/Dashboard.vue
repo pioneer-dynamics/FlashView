@@ -18,7 +18,7 @@
 <template>
     <AppLayout title="Generate a Secret">
         <template #header>
-            <h2 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
+            <h2 class="font-mono font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
                 Generate a Secret
             </h2>
         </template>
