@@ -47,7 +47,7 @@
             <div class="relative w-full max-w-2xl px-6 lg:max-w-7xl">
                 <main class="mt-6 grid-cols-1 gap-6 max-w-4xl mx-auto">
                     <!-- <div class="grid gap-6 lg:grid-cols-1 lg:gap-8 px-40"> -->
-                        <Typewriter class="font-mono text-gray-600 dark:text-gray-300 mb-6 min-h-[10rem]" :phrases="['time-sensitive.', 'one-time use.', 'disposable.']" :speed="100">
+                        <Typewriter class="font-mono text-gray-600 dark:text-gray-300 mb-6 min-h-[8rem]" :phrases="['time-sensitive.', 'one-time use.', 'disposable.']" :speed="100">
                             <template #before>
                                 Keep sensitive information out of your email and chat logs with links that are
                             </template>
