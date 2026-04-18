@@ -37,6 +37,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->validateCsrfTokens(except: [
             'stripe/*',
             'cli/token',
+            'cli/device/initiate',
+            'cli/device/poll',
         ]);
 
         $middleware->alias([
