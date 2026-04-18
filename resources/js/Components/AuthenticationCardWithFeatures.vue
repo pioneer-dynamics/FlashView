@@ -25,7 +25,7 @@ import AuthenticationCardLogo from '@/Components/AuthenticationCardLogo.vue';
             </div>
 
             <!-- Form Panel -->
-            <div class="flex items-center justify-center bg-white dark:bg-gray-800 px-6 py-8 md:py-16">
+            <div class="flex items-center justify-center bg-white dark:bg-gray-800 dark:border-l dark:border-gamboge-800/30 px-6 py-8 md:py-16">
                 <div class="w-full max-w-sm">
                     <slot />
                 </div>
