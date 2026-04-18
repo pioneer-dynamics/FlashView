@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\CliDeviceActivateRequest;
+use App\Http\Requests\CliDeviceInitiateRequest;
+use App\Http\Requests\CliDevicePollRequest;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -14,13 +16,16 @@ use Laravel\Jetstream\Jetstream;
 
 class CliDeviceController extends Controller
 {
-    private const TTL_SECONDS = 900; // 15 minutes
+    private const TTL_SECONDS = 900;
 
-    public function initiate(Request $request): JsonResponse
+    /**
+     * Initiate a device code session and return codes for the CLI to display.
+     */
+    public function initiate(CliDeviceInitiateRequest $request): JsonResponse
     {
         $deviceCode = Str::random(64);
         $userCode = $this->generateUserCode();
-        $name = mb_substr($request->string('name', 'CLI Device')->toString(), 0, 255);
+        $name = mb_substr($request->validated('name') ?? 'CLI Device', 0, 255);
 
         $payload = [
             'user_code' => $userCode,
@@ -39,14 +44,20 @@ class CliDeviceController extends Controller
         ]);
     }
 
-    public function show(): Response
+    /**
+     * Render the device code entry page for authenticated users.
+     */
+    public function show(Request $request): Response
     {
         return Inertia::render('Cli/Device', [
-            'hasApiAccess' => auth()->user()->hasApiAccess(),
+            'hasApiAccess' => $request->user()->hasApiAccess(),
             'availablePermissions' => Jetstream::$defaultPermissions,
         ]);
     }
 
+    /**
+     * Activate a device code: create a CLI token and redirect with success flash.
+     */
     public function activate(CliDeviceActivateRequest $request): \Symfony\Component\HttpFoundation\Response
     {
         $userCode = strtoupper($request->validated('user_code'));
@@ -103,15 +114,12 @@ class CliDeviceController extends Controller
         return redirect()->route('cli.device')->with('success', true);
     }
 
-    public function poll(Request $request): JsonResponse
+    /**
+     * Poll for device code status; returns pending/authorized/denied/expired as JSON.
+     */
+    public function poll(CliDevicePollRequest $request): JsonResponse
     {
-        $deviceCode = $request->string('device_code')->toString();
-
-        // Validate format before using as cache key to prevent key injection
-        if (! preg_match('/^[A-Za-z0-9]{64}$/', $deviceCode)) {
-            return response()->json(['status' => 'expired'], 401);
-        }
-
+        $deviceCode = $request->validated('device_code');
         $data = Cache::get("cli_device:{$deviceCode}");
 
         if (! $data) {
