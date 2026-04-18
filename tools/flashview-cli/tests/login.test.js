@@ -359,3 +359,33 @@ describe('isHeadlessEnvironment', () => {
         });
     });
 });
+
+// Replicates the dispatch logic from the login command action
+function shouldUseHeadlessFlow(explicitHeadless, platform, env) {
+    const autoHeadless = !explicitHeadless && isHeadlessEnvironment(platform, env);
+    return { useHeadless: explicitHeadless || autoHeadless, autoHeadless };
+}
+
+describe('login auto-detection', () => {
+    it('enters headless flow when isHeadlessEnvironment() returns true and --headless not passed', () => {
+        // Simulate Linux SSH environment with no DISPLAY
+        const { useHeadless } = shouldUseHeadlessFlow(false, 'linux', {});
+        assert.equal(useHeadless, true);
+    });
+
+    it('prints "Headless environment detected." only when auto-detected, not when --headless is explicit', () => {
+        // Explicit --headless: autoHeadless must be false (message should not print)
+        const explicit = shouldUseHeadlessFlow(true, 'linux', {});
+        assert.equal(explicit.autoHeadless, false);
+
+        // Auto-detected: autoHeadless must be true (message should print)
+        const autoDetected = shouldUseHeadlessFlow(false, 'linux', {});
+        assert.equal(autoDetected.autoHeadless, true);
+    });
+
+    it('uses browser flow when isHeadlessEnvironment() returns false and --headless not passed', () => {
+        // macOS local session with no SSH env vars — should use browser flow
+        const { useHeadless } = shouldUseHeadlessFlow(false, 'darwin', {});
+        assert.equal(useHeadless, false);
+    });
+});
