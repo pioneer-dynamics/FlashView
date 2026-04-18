@@ -5,3 +5,71 @@
 [x-cloak] {
     display: none;
 }
+
+/* Cyber corner bracket decorations — drawn with multiple gradient backgrounds */
+.dark .cyber-corners {
+    --cc: rgba(0, 212, 245, 0.7);
+    --cs: 12px;
+    background-image:
+        linear-gradient(to right,  var(--cc) 100%, transparent 0),
+        linear-gradient(to bottom, var(--cc) 100%, transparent 0),
+        linear-gradient(to left,   var(--cc) 100%, transparent 0),
+        linear-gradient(to bottom, var(--cc) 100%, transparent 0),
+        linear-gradient(to right,  var(--cc) 100%, transparent 0),
+        linear-gradient(to top,    var(--cc) 100%, transparent 0),
+        linear-gradient(to left,   var(--cc) 100%, transparent 0),
+        linear-gradient(to top,    var(--cc) 100%, transparent 0);
+    background-size:
+        var(--cs) 1px, 1px var(--cs),
+        var(--cs) 1px, 1px var(--cs),
+        var(--cs) 1px, 1px var(--cs),
+        var(--cs) 1px, 1px var(--cs);
+    background-position:
+        top left,    top left,
+        top right,   top right,
+        bottom left, bottom left,
+        bottom right, bottom right;
+    background-repeat: no-repeat;
+}
+
+/* CSS-only toggle switch for Checkbox.vue */
+.cyber-toggle {
+    -webkit-appearance: none;
+    appearance: none;
+    position: relative;
+    width: 36px;
+    height: 20px;
+    border-radius: 10px;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background-color 0.2s ease;
+    background-color: #1e3448;
+    border: 1px solid rgba(0, 212, 245, 0.2);
+    outline: none;
+}
+
+.cyber-toggle::after {
+    content: '';
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #507890;
+    top: 2px;
+    left: 2px;
+    transition: transform 0.2s ease, background-color 0.2s ease;
+}
+
+.cyber-toggle:checked {
+    background-color: #00404f;
+    border-color: rgba(0, 212, 245, 0.5);
+}
+
+.cyber-toggle:checked::after {
+    transform: translateX(16px);
+    background: #00d4f5;
+}
+
+.cyber-toggle:focus {
+    box-shadow: 0 0 0 2px rgba(0, 212, 245, 0.3);
+}
