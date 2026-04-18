@@ -26,20 +26,27 @@ class CliDeviceController extends Controller
         $deviceCode = Str::random(64);
         $userCode = $this->generateUserCode();
         $name = mb_substr($request->validated('name') ?? 'CLI Device', 0, 255);
+        $tokenId = $request->validated('token_id');
 
         $payload = [
             'user_code' => $userCode,
             'status' => 'pending',
             'name' => $name,
+            'token_id' => $tokenId,
         ];
 
         Cache::put("cli_device:{$deviceCode}", $payload, now()->addSeconds(self::TTL_SECONDS));
         Cache::put("cli_device:user:{$userCode}", $deviceCode, now()->addSeconds(self::TTL_SECONDS));
 
+        $deviceUrl = route('cli.device');
+        if ($tokenId) {
+            $deviceUrl .= '?token_id='.$tokenId;
+        }
+
         return response()->json([
             'device_code' => $deviceCode,
             'user_code' => $userCode,
-            'device_url' => route('cli.device'),
+            'device_url' => $deviceUrl,
             'expires_in' => self::TTL_SECONDS,
         ]);
     }
@@ -49,10 +56,23 @@ class CliDeviceController extends Controller
      */
     public function show(Request $request): Response
     {
+        $user = $request->user();
+
+        $existingToken = $request->query('token_id')
+            ? $user->tokens()->where('type', 'cli')->where('id', $request->query('token_id'))->first()
+            : null;
+
+        $latestCliToken = $existingToken ?? $user->tokens()->where('type', 'cli')->latest('id')->first();
+
+        $defaultPermissions = $latestCliToken
+            ? $latestCliToken->abilities
+            : Jetstream::$defaultPermissions;
+
         return Inertia::render('Cli/Device', [
-            'hasApiAccess' => $request->user()->hasApiAccess(),
+            'hasApiAccess' => $user->hasApiAccess(),
             'availablePermissions' => Jetstream::$permissions,
-            'defaultPermissions' => Jetstream::$defaultPermissions,
+            'defaultPermissions' => $defaultPermissions,
+            'existingDeviceName' => $existingToken?->name,
         ]);
     }
 
@@ -90,17 +110,25 @@ class CliDeviceController extends Controller
             return back()->withErrors(['user_code' => 'Your plan does not include API access. Please upgrade to use the CLI.']);
         }
 
-        $installationName = $name ?: ($data['name'] ?? $this->generateDefaultInstallationName($user));
+        $existingToken = isset($data['token_id'])
+            ? $user->tokens()->where('type', 'cli')->where('id', $data['token_id'])->first()
+            : null;
+
+        $installationName = $name
+            ?: $existingToken?->name
+            ?: ($data['name'] ?? $this->generateDefaultInstallationName($user));
+
+        $defaultPermissions = $existingToken?->abilities ?? Jetstream::$defaultPermissions;
+
+        $permissions = array_values(array_intersect(
+            $request->validated('permissions') ?? $defaultPermissions,
+            Jetstream::$permissions,
+        ));
 
         $user->tokens()
             ->where('type', 'cli')
             ->where('name', $installationName)
             ->delete();
-
-        $permissions = array_values(array_intersect(
-            $request->validated('permissions') ?? Jetstream::$defaultPermissions,
-            Jetstream::$permissions,
-        ));
 
         $token = $user->createToken($installationName, $permissions ?: Jetstream::$defaultPermissions);
         $token->accessToken->update(['type' => 'cli']);

@@ -13,6 +13,10 @@ const props = defineProps({
     hasApiAccess: Boolean,
     availablePermissions: Array,
     defaultPermissions: Array,
+    existingDeviceName: {
+        type: String,
+        default: null,
+    },
 })
 
 const page = usePage()
@@ -105,7 +109,13 @@ function cancel() {
                 Authorize FlashView CLI
             </h2>
             <p class="mt-2 text-sm text-gray-600 dark:text-gray-400 text-center">
-                Signed in as {{ page.props.auth.user.email }}. Enter the code shown in your terminal to authenticate the CLI.
+                Signed in as {{ page.props.auth.user.email }}.
+                <span v-if="existingDeviceName">
+                    Re-authorizing your existing CLI installation. Your token will be refreshed with the selected permissions.
+                </span>
+                <span v-else>
+                    Enter the code shown in your terminal to authenticate the CLI.
+                </span>
             </p>
 
             <div class="mt-4">
@@ -124,16 +134,32 @@ function cancel() {
 
             <div class="mt-4">
                 <InputLabel for="installation-name" value="Installation Name" />
-                <TextInput
-                    id="installation-name"
-                    v-model="installationName"
-                    type="text"
-                    class="mt-1 block w-full"
-                    placeholder="e.g., Work Laptop, CI Server"
-                />
-                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    Leave blank to use the device name sent by the CLI.
-                </p>
+
+                <!-- Existing device: read-only -->
+                <div v-if="existingDeviceName">
+                    <p class="mt-1 px-3 py-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md text-sm text-gray-900 dark:text-gray-100">
+                        {{ existingDeviceName }}
+                    </p>
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        This device was previously authorized. To use a different name, remove the existing installation from your
+                        <Link :href="route('api-tokens.index')" class="underline hover:text-gray-700 dark:hover:text-gray-200">API Tokens</Link>
+                        page first.
+                    </p>
+                </div>
+
+                <!-- New device: editable -->
+                <div v-else>
+                    <TextInput
+                        id="installation-name"
+                        v-model="installationName"
+                        type="text"
+                        class="mt-1 block w-full"
+                        placeholder="e.g., Work Laptop, CI Server"
+                    />
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        Leave blank to use the device name sent by the CLI.
+                    </p>
+                </div>
             </div>
 
             <div v-if="availablePermissions?.length" class="mt-4 rounded-md bg-gray-50 dark:bg-gray-800 p-3">
@@ -161,6 +187,7 @@ function cancel() {
                     @click="submit"
                 >
                     <span v-if="processing">Authorizing...</span>
+                    <span v-else-if="existingDeviceName">Re-authorize</span>
                     <span v-else>Authorize</span>
                 </PrimaryButton>
             </div>

@@ -19,6 +19,7 @@ class CliDeviceInitiateRequest extends FormRequest
     {
         return [
             'name' => ['nullable', 'string'],
+            'token_id' => ['nullable', 'integer'],
         ];
     }
 }

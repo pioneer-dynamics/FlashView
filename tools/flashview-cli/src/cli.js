@@ -480,13 +480,14 @@ function isHeadlessEnvironment() {
  *
  * @param {string} serverUrl
  * @param {string} name
+ * @param {string|null} tokenId
  * @returns {Promise<{ token: string, user: { name: string, email: string }, installation_name: string }>}
  */
-async function loginHeadless(serverUrl, name) {
+async function loginHeadless(serverUrl, name, tokenId = null) {
     const initResponse = await fetch(`${serverUrl}/cli/device/initiate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({ name, ...(tokenId ? { token_id: parseInt(tokenId, 10) } : {}) }),
     });
 
     if (!initResponse.ok) {
@@ -549,7 +550,9 @@ program
                 console.log('Headless environment detected. Using device code flow instead of browser.');
             }
             try {
-                const result = await loginHeadless(serverUrl, hostname());
+                const { token: existingTokenHeadless } = getConfigInfo();
+                const headlessTokenId = existingTokenHeadless ? existingTokenHeadless.split('|')[0] : null;
+                const result = await loginHeadless(serverUrl, hostname(), headlessTokenId);
                 setConfig({ url: serverUrl, token: result.token });
                 console.log(`\nAuthenticated as ${result.user.name} (${result.user.email})`);
                 console.log('Token saved. You can now use FlashView CLI commands.');
