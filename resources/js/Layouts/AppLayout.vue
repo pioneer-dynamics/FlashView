@@ -45,7 +45,7 @@ const logout = () => {
 
         <div class="bg-white text-black/80 dark:bg-gray-900 dark:text-white/80 h-full min-h-screen">
             <div>
-                <nav class="bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700">
+                <nav class="bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gamboge-800/40 dark:shadow-[0_1px_0_0_rgba(0,212,245,0.15)]">
                     <!-- Primary Navigation Menu -->
                     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                         <div class="flex justify-between h-16">
