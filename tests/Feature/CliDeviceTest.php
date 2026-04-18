@@ -358,6 +358,48 @@ class CliDeviceTest extends TestCase
             ->assertJsonStructure(['token', 'user' => ['name', 'email']]);
     }
 
+    public function test_reauthorization_via_token_id_preserves_name_and_updates_permissions(): void
+    {
+        $user = $this->createUserWithApiAccess();
+
+        // Create an existing CLI token with specific permissions and a known name
+        $existingToken = $user->createToken('My Laptop', ['secrets:create', 'secrets:list']);
+        $existingToken->accessToken->update(['type' => 'cli']);
+        $tokenId = $existingToken->accessToken->id;
+
+        // Initiate with token_id — server should store it and append it to device_url
+        $initResponse = $this->postJson('/cli/device/initiate', [
+            'name' => 'My Laptop',
+            'token_id' => $tokenId,
+        ]);
+        $initResponse->assertOk();
+        $this->assertStringContainsString("token_id={$tokenId}", $initResponse->json('device_url'));
+
+        // Show page with token_id — should pre-fill existing device name and its permissions
+        $this->actingAs($user)
+            ->get("/cli/device?token_id={$tokenId}")
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('Cli/Device')
+                ->where('existingDeviceName', 'My Laptop')
+                ->where('defaultPermissions', ['secrets:create', 'secrets:list'])
+            );
+
+        // Activate with new permissions — old token replaced, new one created
+        $this->actingAs($user)
+            ->post('/cli/device', [
+                'user_code' => $initResponse->json('user_code'),
+                'permissions' => ['secrets:delete'],
+            ])
+            ->assertRedirect(route('cli.device'));
+
+        $user->refresh();
+        $tokens = $user->tokens()->where('type', 'cli')->get();
+        $this->assertCount(1, $tokens);
+        $this->assertTrue($tokens->first()->can('secrets:delete'));
+        $this->assertFalse($tokens->first()->can('secrets:create'));
+    }
+
     public function test_re_initiating_after_denied_code_succeeds(): void
     {
         $user = User::factory()->withPersonalTeam()->create();
