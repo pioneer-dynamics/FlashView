@@ -52,7 +52,7 @@ import AuthenticationCardWithFeatures from '@/Components/AuthenticationCardWithF
                 Please check your inbox and click the link to continue your registration.
             </p>
 
-            <p class="mt-2 text-sm text-gray-500 dark:text-gray-500">
+            <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
                 Didn't receive it? Check your spam or junk folder, or
                 <Link :href="route('register')" class="underline hover:text-gray-700 dark:hover:text-gray-300">go back and try again</Link>.
             </p>
