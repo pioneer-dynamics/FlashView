@@ -39,10 +39,8 @@ class CliDeviceController extends Controller
         Cache::put("cli_device:{$deviceCode}", $payload, now()->addSeconds(self::TTL_SECONDS));
         Cache::put("cli_device:user:{$userCode}", $deviceCode, now()->addSeconds(self::TTL_SECONDS));
 
-        $deviceUrl = route('cli.device');
-        if ($tokenId) {
-            $deviceUrl .= '?token_id='.$tokenId;
-        }
+        $query = array_filter(['token_id' => $tokenId, 'name' => $name]);
+        $deviceUrl = route('cli.device').(count($query) ? '?'.http_build_query($query) : '');
 
         return response()->json([
             'device_code' => $deviceCode,
@@ -74,6 +72,7 @@ class CliDeviceController extends Controller
             'availablePermissions' => Jetstream::$permissions,
             'defaultPermissions' => $defaultPermissions,
             'existingDeviceName' => $existingToken?->name,
+            'suggestedName' => $existingToken ? null : $request->query('name'),
         ]);
     }
 

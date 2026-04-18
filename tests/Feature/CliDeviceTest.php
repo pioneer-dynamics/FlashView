@@ -56,6 +56,7 @@ class CliDeviceTest extends TestCase
         $response->assertJsonStructure(['device_code', 'user_code', 'device_url', 'expires_in']);
         $this->assertEquals(64, strlen($response->json('device_code')));
         $this->assertEquals(900, $response->json('expires_in'));
+        $this->assertStringContainsString('name=My+CLI', $response->json('device_url'));
     }
 
     public function test_user_code_is_formatted_as_xxxx_xxxx(): void
@@ -93,6 +94,20 @@ class CliDeviceTest extends TestCase
                 ->component('Cli/Device')
                 ->where('hasApiAccess', true)
                 ->has('availablePermissions')
+            );
+    }
+
+    public function test_device_page_passes_suggested_name_from_query_string(): void
+    {
+        $user = $this->createUserWithApiAccess();
+
+        $this->actingAs($user)
+            ->get('/cli/device?name=My+Laptop')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('Cli/Device')
+                ->where('suggestedName', 'My Laptop')
+                ->where('existingDeviceName', null)
             );
     }
 

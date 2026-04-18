@@ -17,12 +17,16 @@ const props = defineProps({
         type: String,
         default: null,
     },
+    suggestedName: {
+        type: String,
+        default: null,
+    },
 })
 
 const page = usePage()
 const processing = ref(false)
 const userCode = ref('')
-const installationName = ref('')
+const installationName = ref(props.suggestedName ?? '')
 const selectedPermissions = ref([...(props.defaultPermissions ?? [])])
 const cancelled = ref(false)
 
