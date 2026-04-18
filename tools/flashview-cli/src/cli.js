@@ -1,5 +1,6 @@
 import { Command } from 'commander';
 import crypto from 'node:crypto';
+import qrcode from 'qrcode-terminal';
 import { execSync } from 'node:child_process';
 import { createServer } from 'node:http';
 import { createRequire } from 'node:module';
@@ -496,8 +497,10 @@ async function loginHeadless(serverUrl, name, tokenId = null) {
 
     const { device_code, user_code, device_url, expires_in } = await initResponse.json();
 
-    console.log(`\nTo authenticate, visit: ${device_url}`);
-    console.log(`Enter code:              ${user_code}\n`);
+    console.log('');
+    qrcode.generate(device_url, { small: true });
+    console.log(`Scan the QR code or visit: ${device_url}`);
+    console.log(`Enter code:                ${user_code}\n`);
     console.log(`Waiting for authentication (expires in ${Math.round(expires_in / 60)} minutes)...`);
 
     // Use server-provided TTL as polling deadline — not --timeout (designed for browser flow)
