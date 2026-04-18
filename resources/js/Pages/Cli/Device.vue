@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import { Head, Link, router, usePage } from '@inertiajs/vue3'
 import AuthenticationCard from '@/Components/AuthenticationCard.vue'
 import AuthenticationCardLogo from '@/Components/AuthenticationCardLogo.vue'
+import Checkbox from '@/Components/Checkbox.vue'
 import TextInput from '@/Components/TextInput.vue'
 import InputLabel from '@/Components/InputLabel.vue'
 import InputError from '@/Components/InputError.vue'
@@ -11,11 +12,14 @@ import PrimaryButton from '@/Components/PrimaryButton.vue'
 const props = defineProps({
     hasApiAccess: Boolean,
     availablePermissions: Array,
+    defaultPermissions: Array,
 })
 
 const page = usePage()
 const processing = ref(false)
 const userCode = ref('')
+const installationName = ref('')
+const selectedPermissions = ref([...(props.defaultPermissions ?? [])])
 const cancelled = ref(false)
 
 const success = computed(() => page.props.flash?.success)
@@ -30,6 +34,8 @@ function submit() {
     cancelled.value = false
     router.post(route('cli.device.activate'), {
         user_code: userCode.value,
+        name: installationName.value || null,
+        permissions: selectedPermissions.value,
     }, {
         onFinish: () => {
             processing.value = false
@@ -116,16 +122,42 @@ function cancel() {
                 <InputError class="mt-2" :message="errors.user_code" />
             </div>
 
-            <div v-if="availablePermissions?.length" class="mt-4 rounded-md bg-gray-50 dark:bg-gray-800 p-3">
-                <p class="text-xs text-gray-500 dark:text-gray-400">
-                    This will create a token with standard CLI permissions:
-                    <span class="font-medium">{{ availablePermissions.join(', ') }}</span>
+            <div class="mt-4">
+                <InputLabel for="installation-name" value="Installation Name" />
+                <TextInput
+                    id="installation-name"
+                    v-model="installationName"
+                    type="text"
+                    class="mt-1 block w-full"
+                    placeholder="e.g., Work Laptop, CI Server"
+                />
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    Leave blank to use the device name sent by the CLI.
                 </p>
+            </div>
+
+            <div v-if="availablePermissions?.length" class="mt-4 rounded-md bg-gray-50 dark:bg-gray-800 p-3">
+                <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
+                    Token permissions:
+                </p>
+                <div class="space-y-2">
+                    <label
+                        v-for="permission in availablePermissions"
+                        :key="permission"
+                        class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer"
+                    >
+                        <Checkbox
+                            :value="permission"
+                            v-model:checked="selectedPermissions"
+                        />
+                        {{ permission }}
+                    </label>
+                </div>
             </div>
 
             <div class="mt-6 flex justify-center">
                 <PrimaryButton
-                    :disabled="processing || !userCode"
+                    :disabled="processing || !userCode || selectedPermissions.length === 0"
                     @click="submit"
                 >
                     <span v-if="processing">Authorizing...</span>

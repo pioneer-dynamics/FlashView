@@ -20,6 +20,8 @@ class CliDeviceActivateRequest extends FormRequest
         return [
             'user_code' => ['required', 'string', 'regex:/^[A-Z0-9]{4}-[A-Z0-9]{4}$/'],
             'name' => ['nullable', 'string', 'max:255'],
+            'permissions' => ['nullable', 'array'],
+            'permissions.*' => ['string'],
         ];
     }
 }

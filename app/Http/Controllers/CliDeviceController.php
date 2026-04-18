@@ -51,7 +51,8 @@ class CliDeviceController extends Controller
     {
         return Inertia::render('Cli/Device', [
             'hasApiAccess' => $request->user()->hasApiAccess(),
-            'availablePermissions' => Jetstream::$defaultPermissions,
+            'availablePermissions' => Jetstream::$permissions,
+            'defaultPermissions' => Jetstream::$defaultPermissions,
         ]);
     }
 
@@ -96,7 +97,12 @@ class CliDeviceController extends Controller
             ->where('name', $installationName)
             ->delete();
 
-        $token = $user->createToken($installationName, Jetstream::$defaultPermissions);
+        $permissions = array_values(array_intersect(
+            $request->validated('permissions') ?? Jetstream::$defaultPermissions,
+            Jetstream::$permissions,
+        ));
+
+        $token = $user->createToken($installationName, $permissions ?: Jetstream::$defaultPermissions);
         $token->accessToken->update(['type' => 'cli']);
 
         Cache::put("cli_device:{$deviceCode}", [

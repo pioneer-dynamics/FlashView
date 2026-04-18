@@ -123,7 +123,8 @@ class CliDeviceTest extends TestCase
             ->assertOk()
             ->assertInertia(fn ($page) => $page
                 ->component('Cli/Device')
-                ->where('availablePermissions', Jetstream::$defaultPermissions)
+                ->where('availablePermissions', Jetstream::$permissions)
+                ->where('defaultPermissions', Jetstream::$defaultPermissions)
             );
     }
 
@@ -173,6 +174,40 @@ class CliDeviceTest extends TestCase
         $response->assertSessionHas('success', true);
 
         $token = $user->fresh()->tokens()->where('type', 'cli')->first();
+        $this->assertNotNull($token);
+    }
+
+    public function test_activate_uses_selected_permissions(): void
+    {
+        $user = $this->createUserWithApiAccess();
+        $data = $this->initiateDevice();
+
+        $this->actingAs($user)
+            ->post('/cli/device', [
+                'user_code' => $data['user_code'],
+                'permissions' => ['secrets:create', 'secrets:list'],
+            ])
+            ->assertRedirect(route('cli.device'));
+
+        $token = $user->fresh()->tokens()->where('type', 'cli')->first();
+        $this->assertTrue($token->can('secrets:create'));
+        $this->assertTrue($token->can('secrets:list'));
+        $this->assertFalse($token->can('secrets:delete'));
+    }
+
+    public function test_activate_uses_custom_installation_name(): void
+    {
+        $user = $this->createUserWithApiAccess();
+        $data = $this->initiateDevice();
+
+        $this->actingAs($user)
+            ->post('/cli/device', [
+                'user_code' => $data['user_code'],
+                'name' => 'My Custom Device',
+            ])
+            ->assertRedirect(route('cli.device'));
+
+        $token = $user->fresh()->tokens()->where('type', 'cli')->where('name', 'My Custom Device')->first();
         $this->assertNotNull($token);
     }
 
