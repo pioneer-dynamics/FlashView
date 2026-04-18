@@ -18,7 +18,7 @@ class CliDeviceInitiateRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => ['nullable', 'string'],
+            'name' => ['nullable', 'string', 'max:255'],
             'token_id' => ['nullable', 'integer'],
         ];
     }

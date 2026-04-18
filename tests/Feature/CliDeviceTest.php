@@ -66,18 +66,13 @@ class CliDeviceTest extends TestCase
         $this->assertMatchesRegularExpression('/^[A-Z0-9]{4}-[A-Z0-9]{4}$/', $response->json('user_code'));
     }
 
-    public function test_initiate_truncates_long_name_to_255_chars(): void
+    public function test_initiate_rejects_name_exceeding_255_chars(): void
     {
         $longName = str_repeat('a', 300);
 
-        $response = $this->postJson('/cli/device/initiate', ['name' => $longName]);
-
-        $response->assertOk();
-
-        $deviceCode = $response->json('device_code');
-        $cached = Cache::get("cli_device:{$deviceCode}");
-        $this->assertNotNull($cached);
-        $this->assertEquals(255, strlen($cached['name']));
+        $this->postJson('/cli/device/initiate', ['name' => $longName])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('name');
     }
 
     // --- show (GET /cli/device) ---

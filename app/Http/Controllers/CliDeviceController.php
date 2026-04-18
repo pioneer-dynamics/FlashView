@@ -13,6 +13,7 @@ use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 use Laravel\Jetstream\Jetstream;
+use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 
 class CliDeviceController extends Controller
 {
@@ -25,7 +26,7 @@ class CliDeviceController extends Controller
     {
         $deviceCode = Str::random(64);
         $userCode = $this->generateUserCode();
-        $name = mb_substr($request->validated('name') ?? 'CLI Device', 0, 255);
+        $name = $request->validated('name') ?? 'CLI Device';
         $tokenId = $request->validated('token_id');
 
         $payload = [
@@ -79,7 +80,7 @@ class CliDeviceController extends Controller
     /**
      * Activate a device code: create a CLI token and redirect with success flash.
      */
-    public function activate(CliDeviceActivateRequest $request): \Symfony\Component\HttpFoundation\Response
+    public function activate(CliDeviceActivateRequest $request): SymfonyResponse
     {
         $userCode = strtoupper($request->validated('user_code'));
         $name = $request->validated('name');
