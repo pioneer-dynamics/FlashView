@@ -45,6 +45,14 @@
         <Page>
         <div class="relative min-h-screen flex flex-col items-center justify-center dark:[background:radial-gradient(ellipse_at_top,rgba(0,212,245,0.06)_0%,transparent_60%)]">
             <div class="relative w-full max-w-2xl px-6 lg:max-w-7xl">
+                <header class="grid grid-cols-2 items-center gap-2 py-10 lg:grid-cols-3">
+                    <div class="flex lg:justify-center lg:col-start-2">
+                        <Link href="/">
+                            <img :src="Logo" class="h-24 w-auto">
+                        </Link>
+                    </div>
+                </header>
+
                 <main class="mt-6 grid-cols-1 gap-6 max-w-4xl mx-auto">
                     <!-- <div class="grid gap-6 lg:grid-cols-1 lg:gap-8 px-40"> -->
                         <Typewriter class="font-mono text-gray-600 dark:text-gray-300 mb-6 min-h-[10rem]" :phrases="['time-sensitive.', 'one-time use.', 'disposable.']" :speed="100">
