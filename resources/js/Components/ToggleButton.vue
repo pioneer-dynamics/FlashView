@@ -11,6 +11,7 @@
         <div class="flex flex-row gap-0 rounded-md bg-gray-200 dark:bg-gray-700">
             <button
                 v-for="option in options"
+                :key="option.value"
                 @click="() => $emit('update:modelValue', option.value)"
                 :class="option.value == modelValue
                     ? 'bg-gamboge-500 text-white dark:bg-gamboge-600 dark:text-white'

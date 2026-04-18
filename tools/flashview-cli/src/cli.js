@@ -1,5 +1,6 @@
 import { Command } from 'commander';
 import crypto from 'node:crypto';
+import qrcode from 'qrcode-terminal';
 import { execSync } from 'node:child_process';
 import { createServer } from 'node:http';
 import { createRequire } from 'node:module';
@@ -143,6 +144,7 @@ program
     .option('-p, --passphrase <passphrase>', 'Encryption passphrase (auto-generated if omitted)')
     .option('-e, --expires-in <duration>', 'Expiry duration (5m, 30m, 1h, 4h, 12h, 1d, 3d, 7d, 14d, 30d)', '1d')
     .option('--email <address>', 'Recipient email address')
+    .option('--with-verified-badge', 'Include your verified sender identity badge')
     .option('--json', 'Output as JSON (for scripting)')
     .action(withErrorHandling(async (options) => {
         const config = getConfig();
@@ -173,7 +175,7 @@ program
 
         const { passphrase, secret } = await encryptMessage(message, options.passphrase);
 
-        const result = await client.createSecret(secret, expiresIn, options.email);
+        const result = await client.createSecret(secret, expiresIn, options.email, !!options.withVerifiedBadge);
 
         if (options.json) {
             console.log(JSON.stringify({
@@ -453,13 +455,123 @@ async function openBrowser(url) {
     }
 }
 
+/**
+ * Detect whether the current environment can open a browser the user will see.
+ * Returns true when the CLI is running in a pure TTY (e.g. SSH session without
+ * a display server), meaning browser-based login is not possible.
+ *
+ * Note: SSH with X11 forwarding (ssh -X/-Y) sets SSH_TTY/SSH_CONNECTION, so
+ * this will return true even though a forwarded browser could technically open.
+ * The device code flow is fully functional in that case, so this is an acceptable
+ * trade-off.
+ *
+ * @returns {boolean}
+ */
+function isHeadlessEnvironment() {
+    if (process.platform === 'linux') {
+        return !process.env.DISPLAY && !process.env.WAYLAND_DISPLAY;
+    }
+    // macOS / Windows: headless only when accessed via SSH; local GUI sessions
+    // can always open a browser. SSH_CONNECTION covers Windows OpenSSH (no SSH_TTY).
+    return !!(process.env.SSH_TTY || process.env.SSH_CONNECTION || process.env.SSH_CLIENT);
+}
+
+/**
+ * Headless device code login flow (OAuth 2.0 Device Authorization Grant).
+ *
+ * @param {string} serverUrl
+ * @param {string} name
+ * @param {string|null} tokenId
+ * @returns {Promise<{ token: string, user: { name: string, email: string }, installation_name: string }>}
+ */
+async function loginHeadless(serverUrl, name, tokenId = null) {
+    const initResponse = await fetch(`${serverUrl}/cli/device/initiate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({ name, ...(tokenId ? { token_id: parseInt(tokenId, 10) } : {}) }),
+    });
+
+    if (!initResponse.ok) {
+        throw new Error(`Failed to initiate device login (HTTP ${initResponse.status})`);
+    }
+
+    const { device_code, user_code, device_url, expires_in } = await initResponse.json();
+
+    console.log('');
+    qrcode.generate(device_url, { small: true });
+    console.log(`Scan the QR code or visit: ${device_url}`);
+    console.log(`Enter code:                ${user_code}\n`);
+    console.log(`Waiting for authentication (expires in ${Math.round(expires_in / 60)} minutes)...`);
+
+    // Use server-provided TTL as polling deadline — not --timeout (designed for browser flow)
+    const deadline = Date.now() + (expires_in * 1000);
+    const pollInterval = 5000;
+
+    while (Date.now() < deadline) {
+        await new Promise(resolve => setTimeout(resolve, pollInterval));
+
+        const pollResponse = await fetch(
+            `${serverUrl}/cli/device/poll?device_code=${encodeURIComponent(device_code)}`,
+            { headers: { 'Accept': 'application/json' } },
+        );
+
+        const result = await pollResponse.json();
+
+        if (result.status === 'authorized') {
+            return result;
+        }
+
+        if (result.status === 'expired') {
+            throw new Error('Code expired. Please run `flashview login --headless` again.');
+        }
+
+        if (result.status === 'denied') {
+            if (result.reason === 'no_api_access') {
+                throw new Error('Your plan does not include API access. Visit your account to upgrade.');
+            }
+            throw new Error('Authorization denied.');
+        }
+
+        // status === 'pending': continue polling
+    }
+
+    throw new Error('TIMEOUT');
+}
+
 program
     .command('login')
     .description('Authenticate with FlashView via your browser')
     .option('--url <url>', 'FlashView server URL (default: https://flashview.link)')
-    .option('--timeout <seconds>', 'Login timeout in seconds', '120')
+    .option('--timeout <seconds>', 'Login timeout in seconds (browser flow only)', '120')
+    .option('--headless', 'Authenticate without a browser using a device code')
     .action(async (options) => {
         const serverUrl = (options.url || getConfigInfo().url || 'https://flashview.link').replace(/\/+$/, '');
+
+        const autoHeadless = !options.headless && isHeadlessEnvironment();
+        if (options.headless || autoHeadless) {
+            if (autoHeadless) {
+                console.log('Headless environment detected. Using device code flow instead of browser.');
+            }
+            try {
+                const { token: existingTokenHeadless } = getConfigInfo();
+                const headlessTokenId = existingTokenHeadless ? existingTokenHeadless.split('|')[0] : null;
+                const result = await loginHeadless(serverUrl, hostname(), headlessTokenId);
+                setConfig({ url: serverUrl, token: result.token });
+                console.log(`\nAuthenticated as ${result.user.name} (${result.user.email})`);
+                console.log('Token saved. You can now use FlashView CLI commands.');
+            } catch (err) {
+                if (err.message === 'TIMEOUT') {
+                    console.error('\nLogin timed out. Please try again.');
+                } else if (err.code === 'ECONNREFUSED' || err.code === 'ENOTFOUND') {
+                    console.error('\nCould not connect to server. Check your URL and network.');
+                } else {
+                    console.error(`\nLogin failed: ${err.message}`);
+                }
+                process.exit(1);
+            }
+            return;
+        }
+
         const timeoutMs = parseInt(options.timeout, 10) * 1000;
         const state = crypto.randomUUID().replace(/-/g, '');
 

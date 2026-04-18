@@ -57,10 +57,13 @@ export class FlashViewClient {
      * @param {string|null} email - Optional recipient email
      * @returns {Promise<Object>}
      */
-    async createSecret(encryptedMessage, expiresIn = 1440, email = null) {
+    async createSecret(encryptedMessage, expiresIn = 1440, email = null, withVerifiedBadge = false) {
         const body = { message: encryptedMessage, expires_in: expiresIn };
         if (email) {
             body.email = email;
+        }
+        if (withVerifiedBadge) {
+            body.include_sender_identity = true;
         }
 
         return this.request('POST', '/api/v1/secrets', body);

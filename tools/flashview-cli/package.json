@@ -8,7 +8,7 @@
         "src/",
         "README.md"
     ],
-    "version": "1.7.1",
+    "version": "1.8.0",
     "description": "CLI tool for FlashView — create and manage encrypted secrets",
     "repository": {
         "type": "git",
@@ -30,7 +30,8 @@
     },
     "dependencies": {
         "@pioneer-dynamics/flashview-crypto": "file:../flashview-crypto",
-        "commander": "^12.0.0"
+        "commander": "^12.0.0",
+        "qrcode-terminal": "^0.12.0"
     },
     "devDependencies": {
         "esbuild": "^0.25.0",

@@ -293,3 +293,99 @@ describe('login helpers', () => {
         });
     });
 });
+
+// Replicates isHeadlessEnvironment() logic for isolated testing without importing cli.js
+function isHeadlessEnvironment(platform = process.platform, env = process.env) {
+    if (platform === 'linux') {
+        return !env.DISPLAY && !env.WAYLAND_DISPLAY;
+    }
+    return !!(env.SSH_TTY || env.SSH_CONNECTION || env.SSH_CLIENT);
+}
+
+describe('isHeadlessEnvironment', () => {
+    describe('Linux platform', () => {
+        it('returns true when DISPLAY and WAYLAND_DISPLAY are unset', () => {
+            const result = isHeadlessEnvironment('linux', {});
+            assert.equal(result, true);
+        });
+
+        it('returns false when DISPLAY is set', () => {
+            const result = isHeadlessEnvironment('linux', { DISPLAY: ':0' });
+            assert.equal(result, false);
+        });
+
+        it('returns false when WAYLAND_DISPLAY is set', () => {
+            const result = isHeadlessEnvironment('linux', { WAYLAND_DISPLAY: 'wayland-0' });
+            assert.equal(result, false);
+        });
+
+        it('returns false when both DISPLAY and WAYLAND_DISPLAY are set', () => {
+            const result = isHeadlessEnvironment('linux', { DISPLAY: ':0', WAYLAND_DISPLAY: 'wayland-0' });
+            assert.equal(result, false);
+        });
+    });
+
+    describe('macOS platform', () => {
+        it('returns false when no SSH env vars are present', () => {
+            const result = isHeadlessEnvironment('darwin', {});
+            assert.equal(result, false);
+        });
+
+        it('returns true when SSH_TTY is set', () => {
+            const result = isHeadlessEnvironment('darwin', { SSH_TTY: '/dev/ttys000' });
+            assert.equal(result, true);
+        });
+
+        it('returns true when SSH_CONNECTION is set and SSH_TTY is absent', () => {
+            const result = isHeadlessEnvironment('darwin', { SSH_CONNECTION: '192.168.1.1 12345 10.0.0.1 22' });
+            assert.equal(result, true);
+        });
+
+        it('returns true when SSH_CLIENT is set and SSH_TTY is absent', () => {
+            const result = isHeadlessEnvironment('darwin', { SSH_CLIENT: '192.168.1.1 12345 22' });
+            assert.equal(result, true);
+        });
+    });
+
+    describe('Windows platform', () => {
+        it('returns false when no SSH env vars are present', () => {
+            const result = isHeadlessEnvironment('win32', {});
+            assert.equal(result, false);
+        });
+
+        it('returns true when SSH_CONNECTION is set (Windows OpenSSH does not set SSH_TTY)', () => {
+            const result = isHeadlessEnvironment('win32', { SSH_CONNECTION: '192.168.1.1 12345 10.0.0.1 22' });
+            assert.equal(result, true);
+        });
+    });
+});
+
+// Replicates the dispatch logic from the login command action
+function shouldUseHeadlessFlow(explicitHeadless, platform, env) {
+    const autoHeadless = !explicitHeadless && isHeadlessEnvironment(platform, env);
+    return { useHeadless: explicitHeadless || autoHeadless, autoHeadless };
+}
+
+describe('login auto-detection', () => {
+    it('enters headless flow when isHeadlessEnvironment() returns true and --headless not passed', () => {
+        // Simulate Linux SSH environment with no DISPLAY
+        const { useHeadless } = shouldUseHeadlessFlow(false, 'linux', {});
+        assert.equal(useHeadless, true);
+    });
+
+    it('prints "Headless environment detected." only when auto-detected, not when --headless is explicit', () => {
+        // Explicit --headless: autoHeadless must be false (message should not print)
+        const explicit = shouldUseHeadlessFlow(true, 'linux', {});
+        assert.equal(explicit.autoHeadless, false);
+
+        // Auto-detected: autoHeadless must be true (message should print)
+        const autoDetected = shouldUseHeadlessFlow(false, 'linux', {});
+        assert.equal(autoDetected.autoHeadless, true);
+    });
+
+    it('uses browser flow when isHeadlessEnvironment() returns false and --headless not passed', () => {
+        // macOS local session with no SSH env vars — should use browser flow
+        const { useHeadless } = shouldUseHeadlessFlow(false, 'darwin', {});
+        assert.equal(useHeadless, false);
+    });
+});

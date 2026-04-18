@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\CliAuthController;
+use App\Http\Controllers\CliDeviceController;
 use App\Http\Controllers\CliInstallationController;
 use App\Http\Controllers\ConfigurationController;
 use App\Http\Controllers\MarkdownDocumentController;
@@ -91,6 +92,27 @@ Route::post('/cli/token', [CliAuthController::class, 'exchangeToken'])
     ->middleware('throttle:6,1')
     ->name('cli.token');
 
+// Device code flow — initiation and polling (no auth needed)
+Route::post('/cli/device/initiate', [CliDeviceController::class, 'initiate'])
+    ->middleware('throttle:6,1')
+    ->name('cli.device.initiate');
+
+Route::get('/cli/device/poll', [CliDeviceController::class, 'poll'])
+    ->middleware('throttle:30,1')
+    ->name('cli.device.poll');
+
+// Device code flow — browser page (auth required)
+Route::middleware([
+    'auth:sanctum',
+    config('jetstream.auth_session'),
+    'verified',
+])->group(function () {
+    Route::get('/cli/device', [CliDeviceController::class, 'show'])->name('cli.device');
+    Route::post('/cli/device', [CliDeviceController::class, 'activate'])
+        ->middleware('throttle:6,1')
+        ->name('cli.device.activate');
+});
+
 Route::middleware([
     'auth:sanctum',
     config('jetstream.auth_session'),
@@ -100,7 +122,9 @@ Route::middleware([
         return Inertia::render('Dashboard');
     })->name('dashboard');
 
-    Route::get('plans/{plan}/{period}', [PlanController::class, 'subscribe'])->name('plans.subscribe');
+    Route::get('plans/{plan}/{period}', [PlanController::class, 'subscribe'])
+        ->middleware('environment.subscription')
+        ->name('plans.subscribe');
     Route::post('plans/cancel', [PlanController::class, 'unsubscribe'])->name('plans.unsubscribe');
     Route::post('plans/resume', [PlanController::class, 'resume'])->name('plans.resume');
 

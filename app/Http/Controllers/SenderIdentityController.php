@@ -28,6 +28,7 @@ class SenderIdentityController extends Controller
                 'verification_token' => null,
                 'verified_at' => now(),
                 'verification_retry_dispatched_at' => null, // cancel any in-flight domain retry
+                'include_by_default' => $request->boolean('include_by_default'),
             ];
 
             if (! $identity) {
@@ -40,19 +41,21 @@ class SenderIdentityController extends Controller
         }
 
         $domainChanged = $identity && $identity->domain !== $request->input('domain');
+        $companyNameChanged = $identity && $identity->isVerified() && $identity->company_name !== $request->input('company_name');
 
         $data = [
             'type' => 'domain',
             'company_name' => $request->input('company_name'),
             'domain' => $request->input('domain'),
             'email' => null,
+            'include_by_default' => $request->boolean('include_by_default'),
         ];
 
         if (! $identity) {
             $data['verification_token'] = $this->verificationService->generateToken();
             $user->senderIdentity()->create($data);
         } else {
-            if ($domainChanged || $identity->isEmailType()) {
+            if ($domainChanged || $companyNameChanged || $identity->isEmailType()) {
                 $data['verification_token'] = $this->verificationService->generateToken();
                 $data['verified_at'] = null;
                 $data['verification_retry_dispatched_at'] = null;

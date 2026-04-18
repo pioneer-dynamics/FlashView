@@ -162,7 +162,8 @@
     const form = useForm({
         message: props.secret ? 'This isn’t the actual message—it’s just a placeholder. To view the message, please click the button below.' : '',
         email: '',
-        expires_in: expiryOptions.value[expiryOptions.value.length-1].value ,
+        expires_in: expiryOptions.value[expiryOptions.value.length-1].value,
+        include_sender_identity: usePage().props.auth.senderIdentity?.include_by_default ?? false,
     });
 
     const letsDoAnotherOne = () => {
@@ -259,7 +260,7 @@
                     Please share the link and password separately to the recipient. The message can be retrieved only once and only with both the link and the password. If you wish to prematurely delete the message, you may visit the link and enter any random password and click retrieve.
                 </Alert>
             </div>
-            <div class="col-span-12" v-if="props.secret == null && stage == 'generated' && $page.props.auth.senderIdentity">
+            <div class="col-span-12" v-if="props.secret == null && stage == 'generated' && $page.props.auth.senderIdentity && form.include_sender_identity">
                 <Alert hide-title type="Info">
                     <span v-if="$page.props.auth.senderIdentity.type === 'domain'">
                         Your Verified Sender badge (<strong>{{ $page.props.auth.senderIdentity.company_name }}</strong>) is included in this link.
@@ -332,16 +333,27 @@
                     <InputError :message="form.errors.email" class="mt-2" />
                 </span>
             </div>
+            <div v-if="!$page.props.jetstream.flash?.secret?.url && props.secret == null && $page.props.auth.senderIdentity" class="col-span-12">
+                <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+                    <input type="checkbox" v-model="form.include_sender_identity" class="rounded border-gray-300 dark:border-gray-600 text-gamboge-600 focus:ring-gamboge-500" />
+                    Include my verified sender identity
+                    <span class="text-gray-500 dark:text-gray-400">
+                        ({{ $page.props.auth.senderIdentity.company_name ?? $page.props.auth.senderIdentity.email }})
+                    </span>
+                </label>
+            </div>
         </template>
 
         <template #actions>
             <span v-if="props.secret == null">
-                <PrimaryButton @click.prevent="letsDoAnotherOne" v-if="$page.props.jetstream.flash?.secret?.url" :class="{ 'opacity-25': form.processing }" :disabled="form.processing">
-                    Let's do another one
-                </PrimaryButton>
-                <PrimaryButton @click.prevent="encryptData" v-else :class="{ 'opacity-25': form.processing }" :disabled="form.processing">
-                    Generate link
-                </PrimaryButton>
+                <div class="flex items-center gap-4">
+<PrimaryButton @click.prevent="letsDoAnotherOne" v-if="$page.props.jetstream.flash?.secret?.url" :class="{ 'opacity-25': form.processing }" :disabled="form.processing">
+                        Let's do another one
+                    </PrimaryButton>
+                    <PrimaryButton @click.prevent="encryptData" v-else :class="{ 'opacity-25': form.processing }" :disabled="form.processing">
+                        Generate link
+                    </PrimaryButton>
+                </div>
             </span>
             <span v-else>
                 <PrimaryButton @click.prevent="decryptData" v-if="!$page.props.jetstream.flash?.secret?.message" :class="{ 'opacity-25': decryptForm.processing || (other.password?.length == 0 || other.password == null) }" :disabled="decryptForm.processing || (other.password?.length == 0 || other.password == null)">

@@ -22,7 +22,7 @@
 <div class="w-full">
     <div class="relative">
         <label for="npm-install-copy-button" class="sr-only">Copyable content</label>
-        <code class="col-span-6 bg-gray-50 border border-gray-300 text-gray-700 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-gray-200 dark:focus:ring-blue-500 dark:focus:border-blue-500" disabled readonly>
+        <code class="col-span-6 bg-gray-50 border border-gray-300 text-gray-700 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-gray-200 dark:focus:ring-blue-500 dark:focus:border-blue-500 whitespace-pre-wrap" disabled readonly>
             <slot>{{ props.masked ? '••••••••••••••••••••••••••••••••' : props.value }}</slot>
         </code>
         <button v-if="!props.masked" type="button" @click.prevent="copyText(props.value)" class="group absolute end-2 bottom-1 translate-y-1 bg-gray-100 hover:bg-gray-200 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-700 dark:text-gray-200 rounded-lg p-1.5 mb-1 inline-flex items-center justify-center transition-colors">

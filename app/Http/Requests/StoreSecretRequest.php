@@ -33,6 +33,7 @@ class StoreSecretRequest extends FormRequest
             'message' => ['required', 'string', 'min:1', new MessageLength($this->getUserType(), $this->getAllowedMessageLength())],
             'expires_in' => ['required', 'numeric', new ValidExpiry($this->getUserType())],
             'email' => $this->user() ? ['nullable', 'email'] : ['prohibited'],
+            'include_sender_identity' => ['boolean', 'nullable'],
         ];
     }
 

@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Exceptions\DnsVerificationPendingException;
 use App\Models\SenderIdentity;
 use App\Notifications\DomainVerificationTimeoutNotification;
 use App\Notifications\DomainVerifiedNotification;
@@ -73,7 +74,7 @@ class RetryDomainVerification implements ShouldQueue
         // Note: on multi-worker setups a concurrent manual verify and this job could both
         // send DomainVerifiedNotification before the other's guard fires. The window is
         // narrow and both emails are identical — accepted trade-off.
-        throw new \RuntimeException('DNS TXT record not found for domain: '.$identity->domain);
+        throw new DnsVerificationPendingException('DNS TXT record not found for domain: '.$identity->domain);
     }
 
     public function failed(\Throwable $exception): void
