@@ -293,3 +293,69 @@ describe('login helpers', () => {
         });
     });
 });
+
+// Replicates isHeadlessEnvironment() logic for isolated testing without importing cli.js
+function isHeadlessEnvironment(platform = process.platform, env = process.env) {
+    if (platform === 'linux') {
+        return !env.DISPLAY && !env.WAYLAND_DISPLAY;
+    }
+    return !!(env.SSH_TTY || env.SSH_CONNECTION || env.SSH_CLIENT);
+}
+
+describe('isHeadlessEnvironment', () => {
+    describe('Linux platform', () => {
+        it('returns true when DISPLAY and WAYLAND_DISPLAY are unset', () => {
+            const result = isHeadlessEnvironment('linux', {});
+            assert.equal(result, true);
+        });
+
+        it('returns false when DISPLAY is set', () => {
+            const result = isHeadlessEnvironment('linux', { DISPLAY: ':0' });
+            assert.equal(result, false);
+        });
+
+        it('returns false when WAYLAND_DISPLAY is set', () => {
+            const result = isHeadlessEnvironment('linux', { WAYLAND_DISPLAY: 'wayland-0' });
+            assert.equal(result, false);
+        });
+
+        it('returns false when both DISPLAY and WAYLAND_DISPLAY are set', () => {
+            const result = isHeadlessEnvironment('linux', { DISPLAY: ':0', WAYLAND_DISPLAY: 'wayland-0' });
+            assert.equal(result, false);
+        });
+    });
+
+    describe('macOS platform', () => {
+        it('returns false when no SSH env vars are present', () => {
+            const result = isHeadlessEnvironment('darwin', {});
+            assert.equal(result, false);
+        });
+
+        it('returns true when SSH_TTY is set', () => {
+            const result = isHeadlessEnvironment('darwin', { SSH_TTY: '/dev/ttys000' });
+            assert.equal(result, true);
+        });
+
+        it('returns true when SSH_CONNECTION is set and SSH_TTY is absent', () => {
+            const result = isHeadlessEnvironment('darwin', { SSH_CONNECTION: '192.168.1.1 12345 10.0.0.1 22' });
+            assert.equal(result, true);
+        });
+
+        it('returns true when SSH_CLIENT is set and SSH_TTY is absent', () => {
+            const result = isHeadlessEnvironment('darwin', { SSH_CLIENT: '192.168.1.1 12345 22' });
+            assert.equal(result, true);
+        });
+    });
+
+    describe('Windows platform', () => {
+        it('returns false when no SSH env vars are present', () => {
+            const result = isHeadlessEnvironment('win32', {});
+            assert.equal(result, false);
+        });
+
+        it('returns true when SSH_CONNECTION is set (Windows OpenSSH does not set SSH_TTY)', () => {
+            const result = isHeadlessEnvironment('win32', { SSH_CONNECTION: '192.168.1.1 12345 10.0.0.1 22' });
+            assert.equal(result, true);
+        });
+    });
+});
