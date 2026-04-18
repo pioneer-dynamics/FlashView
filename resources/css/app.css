@@ -75,7 +75,7 @@
 }
 
 .cyber-toggle:checked {
-    background-color: #00cc6a;
+    background-color: #00d4f5;
     border-color: rgba(0, 204, 106, 0.4);
     background-image: none;
 }
@@ -86,7 +86,12 @@
 }
 
 .cyber-toggle:checked:hover {
-    background-color: #00e676;
+    background-color: #00d4f5;
+    background-image: none;
+}
+
+.cyber-toggle:checked:focus {
+    background-color: #00d4f5;
     background-image: none;
 }
 
