@@ -129,7 +129,7 @@ const removeIdentity = () => {
                 <div>
                     <InputLabel value="Email" />
                     <p class="mt-1 text-sm text-gray-600 dark:text-gray-400 font-medium">{{ page.props.auth.user.email }}</p>
-                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-500">
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
                         Your account email is already verified — no extra steps needed. The badge will reflect your email address at the time you save.
                     </p>
                 </div>
@@ -159,7 +159,7 @@ const removeIdentity = () => {
                         class="mt-1 block w-full"
                         placeholder="Acme Corp"
                     />
-                    <p class="mt-1 text-xs text-gray-400 dark:text-gray-500">Logo upload coming soon</p>
+                    <p class="mt-1 text-xs text-gray-400 dark:text-gray-400">Logo upload coming soon</p>
                     <InputError :message="form.errors.company_name" class="mt-1" />
                 </div>
 
@@ -184,7 +184,7 @@ const removeIdentity = () => {
                             </svg>
                             Verified
                         </span>
-                        <p class="text-xs text-gray-500 dark:text-gray-500">
+                        <p class="text-xs text-gray-500 dark:text-gray-400">
                             Your domain is periodically re-checked to ensure the TXT record is still present. Keep it published to maintain your badge.
                         </p>
                     </div>
@@ -230,7 +230,7 @@ const removeIdentity = () => {
                                 </ul>
                             </div>
 
-                            <p class="text-xs text-gray-500 dark:text-gray-500">
+                            <p class="text-xs text-gray-500 dark:text-gray-400">
                                 Step 3 — Wait a few minutes for DNS to propagate, then click "Verify Domain" below.
                             </p>
 
@@ -256,14 +256,14 @@ const removeIdentity = () => {
                     <Checkbox :checked="form.include_by_default" @update:checked="val => form.include_by_default = val" />
                     Include my verified sender identity by default in new secret links
                 </label>
-                <p class="mt-1 text-xs text-gray-500 dark:text-gray-500">
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
                     When enabled, the "Include my verified sender identity" checkbox will be pre-checked on new secret links.
                 </p>
             </div>
 
             <!-- Snapshot persistence note -->
             <div v-if="senderIdentity" class="col-span-6">
-                <p class="text-xs text-gray-500 dark:text-gray-500">
+                <p class="text-xs text-gray-500 dark:text-gray-400">
                     Links you've already sent will continue to show your verified badge even if you change your plan or remove this identity.
                 </p>
             </div>

@@ -126,7 +126,7 @@ const testWebhook = () => {
                     placeholder="https://example.com/webhook"
                 />
                 <InputError :message="form.errors.webhook_url" class="mt-2" />
-                <p class="mt-2 text-xs text-gray-500 dark:text-gray-500">
+                <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
                     We will send a signed HTTP POST to this URL when your secrets are retrieved. Must be HTTPS.
                     <Link :href="route('webhooks.index')" class="text-indigo-600 dark:text-indigo-400 hover:underline">
                         Learn more
@@ -147,7 +147,7 @@ const testWebhook = () => {
                         Hide
                     </SecondaryButton>
                 </div>
-                <p class="mt-2 text-xs text-gray-500 dark:text-gray-500">
+                <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
                     Use this secret to verify webhook signatures via the <code class="text-xs">X-Signature-256</code> header.
                 </p>
 

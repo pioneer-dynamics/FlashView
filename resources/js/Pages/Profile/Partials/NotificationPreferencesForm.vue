@@ -45,7 +45,7 @@ const updateNotificationPreferences = () => {
                         Notify me via email when my secret is retrieved
                     </span>
                 </label>
-                <p class="mt-2 text-xs text-gray-500 dark:text-gray-500">
+                <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
                     You will receive an email each time any of your secrets is opened by a recipient.
                 </p>
             </div>

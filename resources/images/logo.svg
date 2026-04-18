@@ -1,13 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <style>
-    .logo-fill { fill: #fdbf80; }
-    .logo-border { fill: #f49f1b; }
-    .logo-bolt { fill: #3c2707; }
-    @media (prefers-color-scheme: dark) {
-      .logo-fill { fill: #5d3d0a; }
-      .logo-border { fill: #f49f1b; }
-      .logo-bolt { fill: #fedfc6; }
-    }
+    .logo-fill { fill: #002830; }
+    .logo-border { fill: #00d4f5; }
+    .logo-bolt { fill: #66e3ff; }
   </style>
   <!-- Shield fill (solid background) -->
   <path class="logo-fill" d="M256 28L60 130v152c0 110.6 83.5 214 196 240 112.5-26 196-129.4 196-240V130L256 28z"/>
