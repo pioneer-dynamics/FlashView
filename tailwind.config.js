@@ -35,6 +35,7 @@ export default {
             boxShadow: {
                 'neon-cyan': '0 0 8px 0 rgba(0, 212, 245, 0.4), 0 0 20px 0 rgba(0, 212, 245, 0.15)',
                 'neon-cyan-sm': '0 0 4px 0 rgba(0, 212, 245, 0.3)',
+                'neon-cyan-hairline': '0 1px 0 0 rgba(0, 212, 245, 0.15)',
             },
             colors: {
                 "lime_green": {
