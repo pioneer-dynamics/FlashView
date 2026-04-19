@@ -347,11 +347,14 @@ program
     .description('Retrieve and decrypt a secret')
     .requiredOption('-p, --passphrase <passphrase>', 'Decryption passphrase')
     .option('-o, --output <path>', 'Output file path for file secrets (defaults to original filename in current directory)')
+    .option('--verbose', 'Show step-by-step progress')
     .option('--json', 'Output as JSON (for scripting)')
     .action(withErrorHandling(async (hashId, options) => {
         const config = getConfig();
         const client = new FlashViewClient(config.url, config.token);
+        const verbose = options.verbose && !options.json;
 
+        if (verbose) { process.stderr.write('  Retrieving secret...\n'); }
         let result;
         try {
             result = await client.retrieveSecret(hashId);
@@ -364,6 +367,7 @@ program
         }
 
         if (result.data.type === 'file' || result.data.type === 'combined') {
+            if (verbose) { process.stderr.write(`  Downloading file (${humanBytes(result.data.file_size ?? 0)})...\n`); }
             let encryptedBytes;
             try {
                 encryptedBytes = await client.downloadFile(hashId);
@@ -379,6 +383,7 @@ program
             // The server will clean up automatically after the presigned URL TTL if this fails.
             await client.confirmFileDownloaded(hashId);
 
+            if (verbose) { process.stderr.write('  Decrypting...\n'); }
             let decryptedBytes;
             let originalFilename;
             try {
@@ -391,6 +396,7 @@ program
             }
 
             const outputPath = options.output ? resolve(options.output) : resolve(originalFilename);
+            if (verbose) { process.stderr.write(`  Saving to ${outputPath}...\n`); }
             writeFileSync(outputPath, Buffer.from(decryptedBytes));
 
             if (result.data.type === 'combined' && result.data.message) {
@@ -428,6 +434,7 @@ program
             return;
         }
 
+        if (verbose) { process.stderr.write('  Decrypting message...\n'); }
         const encryptedMessage = result.data.message;
 
         let plaintext;
