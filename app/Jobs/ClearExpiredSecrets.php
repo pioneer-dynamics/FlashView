@@ -33,6 +33,8 @@ class ClearExpiredSecrets implements ShouldQueue
                 DB::table('secrets')->where('id', $secret->id)->update([
                     'filepath' => null,
                     'filename' => null,
+                    'file_size' => null,
+                    'file_mime_type' => null,
                 ]);
             });
 

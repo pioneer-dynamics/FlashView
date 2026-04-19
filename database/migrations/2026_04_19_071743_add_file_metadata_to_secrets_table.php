@@ -24,7 +24,8 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('secrets', function (Blueprint $table) {
-            $table->string('filename')->nullable()->change();
+            // filename is intentionally left as text — reverting to string(255)
+            // would truncate encrypted filename ciphertext values already stored.
             $table->dropColumn(['file_size', 'file_mime_type']);
         });
     }

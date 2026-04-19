@@ -156,6 +156,8 @@ class Secret extends Model
             'message' => null,
             'filepath' => null,
             'filename' => null,
+            'file_size' => null,
+            'file_mime_type' => null,
         ])->save();
     }
 
@@ -168,6 +170,8 @@ class Secret extends Model
             'message' => null,
             'filepath' => null,
             'filename' => null,
+            'file_size' => null,
+            'file_mime_type' => null,
         ]);
     }
 
