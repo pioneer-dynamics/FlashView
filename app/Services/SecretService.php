@@ -7,6 +7,7 @@ use App\Mail\NewSecretNotification;
 use App\Models\Secret;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
@@ -102,14 +103,14 @@ class SecretService
     }
 
     /**
-     * Atomically download and invalidate an encrypted file secret (one-time).
+     * Atomically mark a file secret as retrieved and redirect to a presigned URL (S3).
+     * Falls back to streaming for local disk environments.
      */
-    public function downloadFileSecret(string $hashId): StreamedResponse
+    public function downloadFileSecret(string $hashId): RedirectResponse|StreamedResponse
     {
-        $content = null;
         $filepath = null;
 
-        DB::transaction(function () use ($hashId, &$content, &$filepath) {
+        DB::transaction(function () use ($hashId, &$filepath) {
             $record = Secret::withoutEvents(
                 fn () => Secret::withoutGlobalScopes()
                     ->lockForUpdate()
@@ -121,29 +122,66 @@ class SecretService
             }
 
             $filepath = $record->filepath;
-            $content = Storage::get($filepath);
 
             DB::table($record->getTable())->where('id', $record->id)->update([
                 'retrieved_at' => now(),
                 'ip_address_retrieved' => encrypt(request()->ip(), false),
-                'message' => null,
-                'filepath' => null,
-                'filename' => null,
-                'file_size' => null,
-                'file_mime_type' => null,
             ]);
         });
 
-        if ($filepath) {
+        $ttlHours = config('secrets.file_upload.presigned_url_ttl_hours', 12);
+
+        try {
+            $url = Storage::temporaryUrl($filepath, now()->addHours($ttlHours), [
+                'ResponseContentType' => 'application/octet-stream',
+                'ResponseContentDisposition' => 'attachment; filename="encrypted.bin"',
+            ]);
+
+            return redirect($url);
+        } catch (\RuntimeException) {
+            // Local disk does not support presigned URLs — stream and delete immediately.
+            $content = Storage::get($filepath);
             Storage::delete($filepath);
+
+            DB::table('secrets')
+                ->where('filepath', $filepath)
+                ->update([
+                    'filepath' => null,
+                    'filename' => null,
+                    'file_size' => null,
+                    'file_mime_type' => null,
+                ]);
+
+            return response()->stream(function () use ($content) {
+                echo $content;
+            }, 200, [
+                'Content-Type' => 'application/octet-stream',
+                'Content-Disposition' => 'attachment; filename="encrypted.bin"',
+                'Content-Length' => strlen($content),
+            ]);
+        }
+    }
+
+    /**
+     * Delete the file for a retrieved secret (called after client confirms download).
+     */
+    public function deleteDownloadedFile(string $hashId): void
+    {
+        $record = Secret::withoutEvents(
+            fn () => Secret::withoutGlobalScopes()->find(Secret::decodeHashId($hashId))
+        );
+
+        if (! $record || ! $record->filepath) {
+            return;
         }
 
-        return response()->stream(function () use ($content) {
-            echo $content;
-        }, 200, [
-            'Content-Type' => 'application/octet-stream',
-            'Content-Disposition' => 'attachment; filename="encrypted.bin"',
-            'Content-Length' => strlen($content),
+        $record->deleteFile();
+
+        DB::table($record->getTable())->where('id', $record->id)->update([
+            'filepath' => null,
+            'filename' => null,
+            'file_size' => null,
+            'file_mime_type' => null,
         ]);
     }
 

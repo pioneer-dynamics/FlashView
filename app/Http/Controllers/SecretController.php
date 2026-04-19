@@ -121,6 +121,7 @@ class SecretController extends Controller implements HasMiddleware
                     'file_mime_type' => $secret->file_mime_type,
                     'file_original_name' => $secret->filename,
                     'file_download_url' => URL::temporarySignedRoute('secret.file', now()->addMinutes(5), ['secret' => $secret->hash_id]),
+                    'file_confirm_url' => route('secret.file.downloaded', ['secret' => $secret->hash_id]),
                 ],
             ]);
         }
@@ -133,11 +134,21 @@ class SecretController extends Controller implements HasMiddleware
     }
 
     /**
-     * Stream an encrypted file secret (one-time download, signed URL).
+     * Download an encrypted file secret (one-time, presigned URL or streaming fallback).
      */
-    public function downloadFile(string $secret): StreamedResponse
+    public function downloadFile(string $secret): RedirectResponse|StreamedResponse
     {
         return $this->secretService->downloadFileSecret($secret);
+    }
+
+    /**
+     * Confirm that the client has downloaded the file and the S3 object can be deleted.
+     */
+    public function confirmFileDownloaded(string $secret): RedirectResponse
+    {
+        $this->secretService->deleteDownloadedFile($secret);
+
+        return back();
     }
 
     public function index(Request $request): Response

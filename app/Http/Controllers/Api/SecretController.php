@@ -14,6 +14,7 @@ use App\Models\Secret;
 use App\Services\EmailMaskingService;
 use App\Services\SecretService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -123,11 +124,21 @@ class SecretController extends Controller implements HasMiddleware
     }
 
     /**
-     * Download an encrypted file secret (one-time, Bearer token auth).
+     * Download an encrypted file secret (one-time, presigned URL or streaming fallback).
      */
-    public function downloadFile(string $secret): StreamedResponse
+    public function downloadFile(string $secret): RedirectResponse|StreamedResponse
     {
         return $this->secretService->downloadFileSecret($secret);
+    }
+
+    /**
+     * Confirm that the client has downloaded the file and the S3 object can be deleted.
+     */
+    public function confirmFileDownloaded(string $secret): JsonResponse
+    {
+        $this->secretService->deleteDownloadedFile($secret);
+
+        return response()->json(null, 204);
     }
 
     /**

@@ -26,6 +26,9 @@ Route::prefix('v1')->as('api.v1.')->group(function () {
         Route::get('secrets/{secret}/file', [SecretController::class, 'downloadFile'])
             ->name('secrets.file');
 
+        Route::post('secrets/{secret}/file/downloaded', [SecretController::class, 'confirmFileDownloaded'])
+            ->name('secrets.file.downloaded');
+
         Route::middleware('ability:webhook:manage')->group(function () {
             Route::get('webhook', [WebhookController::class, 'show'])->name('webhook.show');
             Route::put('webhook', [WebhookController::class, 'update'])->name('webhook.update');
