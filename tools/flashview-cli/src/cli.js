@@ -217,8 +217,23 @@ program
                 console.error(`Supported types: ${Object.keys(MIME_TYPES).join(', ')}`);
                 process.exit(1);
             }
-            const result = await client.uploadFile(
-                encrypted,
+            // Step 1: get presigned upload URL (or server fallback URL)
+            const prepare = await client.prepareFileUpload();
+
+            // Step 2: upload encrypted bytes directly (S3 or server fallback)
+            const uploadHeaders = { 'Content-Type': 'application/octet-stream', ...prepare.upload_headers };
+            const uploadResponse = await fetch(prepare.upload_url, {
+                method: prepare.upload_type === 's3_direct' ? 'PUT' : 'POST',
+                headers: uploadHeaders,
+                body: encrypted,
+            });
+            if (!uploadResponse.ok) {
+                throw new Error(`File upload failed (HTTP ${uploadResponse.status})`);
+            }
+
+            // Step 3: create secret with the file token
+            const result = await client.createSecretWithFileToken(
+                prepare.token,
                 encryptedFilename,
                 fileBytes.length,
                 mimeType,

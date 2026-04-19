@@ -110,6 +110,42 @@ export class FlashViewClient {
     }
 
     /**
+     * Request a presigned upload URL for direct client-to-S3 upload.
+     *
+     * @returns {Promise<{upload_type: string, upload_url: string, upload_headers: Object, token: string}>}
+     */
+    async prepareFileUpload() {
+        return this.request('POST', '/api/v1/secrets/file/prepare');
+    }
+
+    /**
+     * Create a file secret using a pre-uploaded file token (presigned flow).
+     *
+     * @param {string} fileToken
+     * @param {string} encryptedFilename
+     * @param {number} fileSize
+     * @param {string} fileMimeType
+     * @param {number} expiresIn
+     * @param {string|null} email
+     * @param {boolean} withVerifiedBadge
+     * @param {string|null} encryptedMessage
+     * @returns {Promise<Object>}
+     */
+    async createSecretWithFileToken(fileToken, encryptedFilename, fileSize, fileMimeType, expiresIn = 1440, email = null, withVerifiedBadge = false, encryptedMessage = null) {
+        const body = {
+            file_token: fileToken,
+            file_original_name: encryptedFilename,
+            file_size: fileSize,
+            file_mime_type: fileMimeType,
+            expires_in: expiresIn,
+        };
+        if (encryptedMessage) { body.message = encryptedMessage; }
+        if (email) { body.email = email; }
+        if (withVerifiedBadge) { body.include_sender_identity = true; }
+        return this.request('POST', '/api/v1/secrets', body);
+    }
+
+    /**
      * Upload an encrypted file as a file secret.
      *
      * @param {Uint8Array} encryptedBuffer

@@ -17,7 +17,9 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class SecretController extends Controller implements HasMiddleware
@@ -65,6 +67,19 @@ class SecretController extends Controller implements HasMiddleware
             $senderEmail = $identity->isEmailType() ? $identity->email : null;
         }
 
+        $preUploadedFilepath = null;
+
+        if ($request->filled('file_token')) {
+            $pending = Cache::pull("pending_file_upload:{$request->file_token}");
+
+            abort_if(! $pending || $pending['user_id'] !== $request->user()->id, 422, 'Invalid or expired file upload session.');
+            abort_if(! Storage::exists($pending['filepath']), 422, 'File upload did not complete.');
+
+            $preUploadedFilepath = $pending['filepath'];
+        }
+
+        $isFileUpload = $preUploadedFilepath !== null || $request->hasFile('file');
+
         $result = $this->secretService->createSecret(
             $request->message,
             (int) $request->expires_in,
@@ -74,9 +89,9 @@ class SecretController extends Controller implements HasMiddleware
             $senderDomain,
             $senderEmail,
             $request->file('file'),
-            null,
+            $preUploadedFilepath,
             $request->file_original_name,
-            $request->filled('file_size') ? (int) $request->file_size : null,
+            $isFileUpload ? (int) $request->file_size : null,
             $request->file_mime_type,
         );
 
