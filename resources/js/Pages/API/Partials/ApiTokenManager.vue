@@ -82,17 +82,6 @@ const deleteApiToken = () => {
 
 <template>
     <div>
-        <!-- CLI Tool Info -->
-        <div class="p-3 m-3">
-            <Alert type="Info" :hideTitle="true">
-                <span class="dark:text-gray-300">
-                    You can also create and manage secrets from your terminal using the
-                    <Link :href="route('cli.index')" class="underline text-sm text-gamboge-300 dark:text-gamboge-200 hover:text-gamboge-200 dark:hover:text-gamboge-100 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gamboge-500 dark:focus:ring-offset-gray-900">FlashView CLI</Link>.
-                    Learn more and get started.
-                </span>
-            </Alert>
-        </div>
-
         <!-- Generate API Token -->
         <FormSection>
             <template #title>

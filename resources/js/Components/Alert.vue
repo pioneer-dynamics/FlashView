@@ -15,10 +15,10 @@
     })
 
     const classes = {
-        'flex items-center p-1 mb-1 text-sm text-green-800 rounded-lg bg-green-50 dark:bg-gray-800 dark:text-green-400': props.type == 'Success',
-        'flex items-center p-1 mb-1 text-sm text-red-800 rounded-lg bg-red-50 dark:bg-gray-800 dark:text-red-400': props.type == 'Error',
-        'flex items-center p-1 mb-1 text-sm text-yellow-800 rounded-lg bg-yellow-50 dark:bg-gray-800 dark:text-yellow-300': props.type == 'Warning',
-        'flex items-center p-1 mb-1 text-sm text-blue-800 rounded-lg bg-blue-50 dark:bg-gray-800 dark:text-blue-400': props.type == 'Info',
+        'flex items-center text-sm text-green-800 rounded-lg bg-green-50 dark:bg-gray-800 dark:text-green-400': props.type == 'Success',
+        'flex items-center text-sm text-red-800 rounded-lg bg-red-50 dark:bg-gray-800 dark:text-red-400': props.type == 'Error',
+        'flex items-center text-sm text-yellow-800 rounded-lg bg-yellow-50 dark:bg-gray-800 dark:text-yellow-300': props.type == 'Warning',
+        'flex items-center text-sm text-blue-800 rounded-lg bg-blue-50 dark:bg-gray-800 dark:text-blue-400': props.type == 'Info',
     }
 </script>
 <template>
