@@ -85,6 +85,12 @@ class PlanSeederLocal extends Seeder
                         'config' => [],
                         'type' => 'missing',
                     ],
+                    'file_upload' => [
+                        'order' => 8,
+                        'label' => 'File uploads up to :max_file_size_mb MB',
+                        'config' => ['max_file_size_mb' => 10],
+                        'type' => 'limit',
+                    ],
                 ],
             ]);
 
@@ -159,6 +165,12 @@ class PlanSeederLocal extends Seeder
                         'config' => [],
                         'type' => 'missing',
                     ],
+                    'file_upload' => [
+                        'order' => 8,
+                        'label' => 'File uploads up to :max_file_size_mb MB',
+                        'config' => ['max_file_size_mb' => 50],
+                        'type' => 'limit',
+                    ],
                 ],
             ]);
 
@@ -231,6 +243,12 @@ class PlanSeederLocal extends Seeder
                         'order' => 7,
                         'label' => 'Verified Sender Identity (optional)',
                         'config' => [],
+                        'type' => 'feature',
+                    ],
+                    'file_upload' => [
+                        'order' => 8,
+                        'label' => 'File uploads up to :max_file_size_mb MB',
+                        'config' => ['max_file_size_mb' => 100],
                         'type' => 'feature',
                     ],
                 ],
