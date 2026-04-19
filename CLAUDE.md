@@ -419,3 +419,41 @@ php artisan migrate
 
 - When committing to git do not mention claude.
 - When raising PR do not mention claude.
+
+## CLI Feature Parity (MANDATORY)
+
+Whenever you add or modify a "secrets" feature (creation, retrieval, new options, new fields), you MUST implement it for **both**:
+1. **Web** — Vue 3 + Inertia.js (`resources/js/`)
+2. **CLI** — flashview-cli (`tools/flashview-cli/`)
+
+The CLI entry point is `tools/flashview-cli/src/index.js`, API client is `tools/flashview-cli/src/api.js`.
+
+- New API endpoint → add a corresponding method to `tools/flashview-cli/src/api.js`
+- New user action → add a corresponding command/flag to `tools/flashview-cli/src/index.js`
+- Never ship a secrets feature that works on web but not in the CLI
+
+## Cyber Visual Design System (MANDATORY)
+
+All new Vue components and pages must follow the FlashView cyber aesthetic:
+
+- **Accent color**: `gamboge-300` (`#00d4f5`, CYAN) — not `yellow-*`, `orange-*`, or `blue-*`
+- **Dark backgrounds**: `gray-900` / `gray-950` / `slate-900` for dark mode surfaces
+- **Neon shadows**: `shadow-neon-cyan-sm`, `shadow-neon-cyan`, `shadow-neon-cyan-lg` on interactive elements in dark mode
+- **Monospace**: `font-mono` for passwords, URLs, hash IDs, code values, data displays
+- **Labels**: `text-xs uppercase tracking-widest text-gamboge-300` pattern
+- **Loading states**: `animate-shimmer` (indeterminate), `animate-pulse` (simple)
+- **Progress bars**: two-phase — shimmer (encrypting/uploading) → `bg-gamboge-300` fill (determinate)
+- **No hardcoded hex values** — always use Tailwind theme classes
+- All components must support dark mode with `dark:` Tailwind variants
+- Reuse `PrimaryButton.vue`, `Alert.vue`, `CodeBlock.vue` before creating new components
+
+## Crypto Architecture (MANDATORY)
+
+All encryption and decryption logic must live in `tools/flashview-crypto/src/index.js` and be consumed — never reimplemented — by:
+1. **Web wrapper**: `resources/js/encryption.js` (imports from `@pioneer-dynamics/flashview-crypto`)
+2. **CLI wrapper**: `tools/flashview-cli/src/crypto.js` (imports from `@pioneer-dynamics/flashview-crypto`)
+
+Rules:
+- `crypto.subtle`, `PBKDF2`, `AES-GCM`, and key derivation logic must ONLY appear in `tools/flashview-crypto/src/index.js`
+- When adding a new crypto operation (e.g., `encryptBuffer`, `decryptBuffer`), add it to flashview-crypto first, then import and use it in both wrappers
+- Thin wrappers in `encryption.js` and `crypto.js` may add platform-specific helpers (e.g., reading a `File` object for browser, reading from disk for CLI) but must delegate all crypto to the shared package
