@@ -7,7 +7,29 @@ import { createRequire } from 'node:module';
 import { hostname } from 'node:os';
 import { createInterface } from 'node:readline';
 import { readFileSync, writeFileSync } from 'node:fs';
-import { basename, resolve } from 'node:path';
+import { basename, extname, resolve } from 'node:path';
+
+const MIME_TYPES = {
+    '.pdf': 'application/pdf',
+    '.zip': 'application/zip',
+    '.doc': 'application/msword',
+    '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    '.xls': 'application/vnd.ms-excel',
+    '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    '.ppt': 'application/vnd.ms-powerpoint',
+    '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    '.txt': 'text/plain',
+    '.csv': 'text/csv',
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.png': 'image/png',
+    '.gif': 'image/gif',
+    '.webp': 'image/webp',
+    '.mp4': 'video/mp4',
+    '.mov': 'video/quicktime',
+    '.mp3': 'audio/mpeg',
+    '.wav': 'audio/wav',
+};
 import { encryptMessage, decryptMessage, encryptBuffer, decryptBuffer } from './crypto.js';
 import { FlashViewClient, ApiError } from './api.js';
 import { getConfig, getConfigInfo, setConfig, clearConfig, getCachedLatestVersion } from './config.js';
@@ -188,7 +210,13 @@ program
                 encryptedMessage = secret;
             }
 
-            const mimeType = 'application/octet-stream';
+            const ext = extname(originalFilename).toLowerCase();
+            const mimeType = MIME_TYPES[ext] || null;
+            if (!mimeType) {
+                console.error(`Unsupported file type: ${ext || '(no extension)'}`);
+                console.error(`Supported types: ${Object.keys(MIME_TYPES).join(', ')}`);
+                process.exit(1);
+            }
             const result = await client.uploadFile(
                 encrypted,
                 encryptedFilename,
