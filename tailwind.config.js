@@ -23,10 +23,15 @@ export default {
                   "100%": {
                     borderColor: "currentColor"
                   }
-                }
+                },
+                shimmer: {
+                    '0%': { transform: 'translateX(-100%)' },
+                    '100%': { transform: 'translateX(400%)' },
+                },
               },
               animation: {
-                typing: "infinite alternate, blink 1s infinite"
+                typing: "infinite alternate, blink 1s infinite",
+                shimmer: 'shimmer 1.5s ease-in-out infinite',
               },
             fontFamily: {
                 sans: ['Figtree', ...defaultTheme.fontFamily.sans],
