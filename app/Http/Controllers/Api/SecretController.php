@@ -16,6 +16,9 @@ use App\Services\SecretService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class SecretController extends Controller implements HasMiddleware
 {
@@ -63,13 +66,17 @@ class SecretController extends Controller implements HasMiddleware
         }
 
         $result = $this->secretService->createSecret(
-            $request->message,
+            $request->hasFile('file') ? null : $request->message,
             (int) $request->expires_in,
             $request->user()->id,
             $maskedRecipientEmail,
             $senderCompanyName,
             $senderDomain,
             $senderEmail,
+            $request->file('file'),
+            $request->file_original_name,
+            $request->hasFile('file') ? (int) $request->file_size : null,
+            $request->file_mime_type,
         );
 
         if ($email = $request->safe()->email) {
@@ -93,20 +100,72 @@ class SecretController extends Controller implements HasMiddleware
     /**
      * Retrieve a secret's encrypted message (one-time access).
      *
-     * The Form Request gates on secrets:list token ability before
-     * the model is loaded. Secret::findByHashID triggers the normal
-     * Eloquent retrieved event, which marks the secret as consumed
-     * and notifies the owner. ActiveScope ensures expired or
-     * already-retrieved secrets return 404 automatically.
+     * For file secrets, returns file metadata and signals the CLI to call downloadFile next.
      */
     public function retrieve(RetrieveSecretRequest $request, string $secret): JsonResponse
     {
         $secretRecord = Secret::findByHashID($secret);
 
+        if ($secretRecord->isFileSecret()) {
+            return response()->json([
+                'data' => [
+                    'hash_id' => $secretRecord->hash_id,
+                    'type' => 'file',
+                    'filename' => $secretRecord->filename,
+                    'file_size' => $secretRecord->file_size,
+                    'file_mime_type' => $secretRecord->file_mime_type,
+                ],
+            ]);
+        }
+
         return (new SecretMessageResource([
             'hash_id' => $secretRecord->hash_id,
             'message' => $secretRecord->message,
         ]))->response();
+    }
+
+    /**
+     * Download an encrypted file secret (one-time, Bearer token auth).
+     */
+    public function downloadFile(string $secret): StreamedResponse
+    {
+        $content = null;
+        $filepath = null;
+
+        DB::transaction(function () use ($secret, &$content, &$filepath) {
+            $record = Secret::withoutEvents(
+                fn () => Secret::withoutGlobalScopes()
+                    ->lockForUpdate()
+                    ->find(Secret::decodeHashId($secret))
+            );
+
+            if (! $record || $record->retrieved_at !== null || ! $record->filepath) {
+                abort(410, 'File has already been retrieved or has expired.');
+            }
+
+            $filepath = $record->filepath;
+            $content = Storage::get($filepath);
+
+            DB::table($record->getTable())->where('id', $record->id)->update([
+                'retrieved_at' => now(),
+                'ip_address_retrieved' => encrypt(request()->ip(), false),
+                'message' => null,
+                'filepath' => null,
+                'filename' => null,
+            ]);
+        });
+
+        if ($filepath) {
+            Storage::delete($filepath);
+        }
+
+        return response()->stream(function () use ($content) {
+            echo $content;
+        }, 200, [
+            'Content-Type' => 'application/octet-stream',
+            'Content-Disposition' => 'attachment; filename="encrypted.bin"',
+            'Content-Length' => strlen($content),
+        ]);
     }
 
     /**

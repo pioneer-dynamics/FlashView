@@ -23,6 +23,9 @@ Route::prefix('v1')->as('api.v1.')->group(function () {
         Route::get('secrets/{secret}/retrieve', [SecretController::class, 'retrieve'])
             ->name('secrets.retrieve');
 
+        Route::get('secrets/{secret}/file', [SecretController::class, 'downloadFile'])
+            ->name('secrets.file');
+
         Route::middleware('ability:webhook:manage')->group(function () {
             Route::get('webhook', [WebhookController::class, 'show'])->name('webhook.show');
             Route::put('webhook', [WebhookController::class, 'update'])->name('webhook.update');

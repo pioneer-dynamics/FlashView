@@ -32,6 +32,7 @@ Route::get('/', function () {
 
 Route::resource('secret', SecretController::class)->only(['store', 'show']);
 Route::get('secret/{secret}/decrypt', [SecretController::class, 'decrypt'])->name('secret.decrypt');
+Route::get('secret/{secret}/file', [SecretController::class, 'downloadFile'])->name('secret.file');
 
 Route::get('plans', [PlanController::class, 'index'])->name('plans.index');
 
