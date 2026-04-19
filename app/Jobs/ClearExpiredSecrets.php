@@ -13,14 +13,6 @@ class ClearExpiredSecrets implements ShouldQueue
     use Queueable;
 
     /**
-     * Create a new job instance.
-     */
-    public function __construct()
-    {
-        //
-    }
-
-    /**
      * Execute the job.
      */
     public function handle(): void
@@ -31,7 +23,7 @@ class ClearExpiredSecrets implements ShouldQueue
             ->whereNotNull('filepath')
             ->each(function (Secret $secret) {
                 $secret->deleteFile();
-                DB::table('secrets')->where('id', $secret->id)->update([
+                DB::table($secret->getTable())->where('id', $secret->id)->update([
                     'filepath' => null,
                     'filename' => null,
                     'file_size' => null,
@@ -49,7 +41,7 @@ class ClearExpiredSecrets implements ShouldQueue
             ->where('retrieved_at', '<', now()->subHours($ttlHours))
             ->each(function (Secret $secret) {
                 $secret->deleteFile();
-                DB::table('secrets')->where('id', $secret->id)->update([
+                DB::table($secret->getTable())->where('id', $secret->id)->update([
                     'filepath' => null,
                     'filename' => null,
                     'file_size' => null,
