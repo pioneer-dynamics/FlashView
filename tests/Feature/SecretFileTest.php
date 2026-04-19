@@ -303,6 +303,73 @@ class SecretFileTest extends TestCase
         $response->assertSessionHas('flash.secret.file_download_url');
     }
 
+    // --- Combined message + file secret ---
+
+    public function test_authenticated_user_can_create_combined_message_and_file_secret(): void
+    {
+        Storage::fake();
+
+        $user = User::factory()->create();
+        $message = (new SecretFactory)->generateEncryptedMessage(50);
+        $file = UploadedFile::fake()->create('encrypted.bin', 100, 'application/octet-stream');
+
+        $response = $this->actingAs($user)->post(route('secret.store'), [
+            'message' => $message,
+            'file' => $file,
+            'file_original_name' => (new SecretFactory)->generateEncryptedMessage(20),
+            'file_size' => 102400,
+            'file_mime_type' => 'application/pdf',
+            'expires_in' => 60,
+        ]);
+
+        $response->assertSessionHas('flash.secret.url');
+
+        $secret = Secret::withoutGlobalScopes()->where('user_id', $user->id)->first();
+        $this->assertNotNull($secret->message);
+        $this->assertNotNull($secret->filepath);
+        Storage::assertExists($secret->filepath);
+    }
+
+    public function test_decrypt_endpoint_returns_both_message_and_file_metadata_for_combined_secret(): void
+    {
+        Storage::fake();
+        Storage::put('secrets/file.bin', 'content');
+
+        $secret = Secret::factory()->fileSecret('secrets/file.bin')->create(['message' => 'encrypted-note']);
+
+        $decryptUrl = URL::temporarySignedRoute('secret.decrypt', now()->addMinutes(5), ['secret' => $secret->hash_id]);
+
+        $response = $this->get($decryptUrl);
+        $response->assertRedirect();
+        $response->assertSessionHas('flash.secret.is_file', true);
+        $response->assertSessionHas('flash.secret.file_download_url');
+        $response->assertSessionHas('flash.secret.message', 'encrypted-note');
+
+        // Message should be nulled in DB after decrypt
+        $refreshed = Secret::withoutGlobalScopes()->find($secret->id);
+        $this->assertNull($refreshed->message);
+        // File should still exist (not consumed until download)
+        $this->assertNotNull($refreshed->filepath);
+    }
+
+    public function test_show_page_passes_has_message_true_for_combined_secret(): void
+    {
+        Storage::fake();
+        Storage::put('secrets/file.bin', 'content');
+
+        $secret = Secret::factory()->fileSecret('secrets/file.bin')->create(['message' => 'encrypted-note']);
+
+        $showUrl = URL::temporarySignedRoute('secret.show', now()->addMinutes(5), ['secret' => $secret->hash_id]);
+
+        $response = $this->get($showUrl);
+        $response->assertInertia(fn ($page) => $page
+            ->has('isFileSecret')
+            ->where('isFileSecret', true)
+            ->has('hasMessage')
+            ->where('hasMessage', true)
+        );
+    }
+
     // --- readyToPrune excludes live file secrets ---
 
     public function test_ready_to_prune_excludes_active_file_secrets(): void

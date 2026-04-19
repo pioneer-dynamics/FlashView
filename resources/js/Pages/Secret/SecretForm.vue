@@ -25,6 +25,7 @@
         senderDomain: { type: String, default: null },
         senderEmail: { type: String, default: null },
         isFileSecret: { type: Boolean, default: false },
+        hasMessage: { type: Boolean, default: false },
         fileSize: { type: Number, default: null },
         fileMimeType: { type: String, default: null },
         fileDownloadUrl: { type: String, default: null },
@@ -133,6 +134,10 @@
             formData.append('file_size', String(selectedFile.value.size));
             formData.append('file_mime_type', selectedFile.value.type);
             formData.append('expires_in', String(form.expires_in));
+            if (form.message) {
+                const { secret: encryptedMsg } = await e.encryptMessage(form.message, resolvedPassphrase);
+                formData.append('message', encryptedMsg);
+            }
             if (form.email) { formData.append('email', form.email); }
             if (form.include_sender_identity) { formData.append('include_sender_identity', '1'); }
 
@@ -212,8 +217,37 @@
     };
 
     const decryptData = () => {
-        if (props.isFileSecret) {
+        if (props.isFileSecret && !props.hasMessage) {
             fileDecryptPanelRef.value.triggerDecrypt();
+            return;
+        }
+
+        if (props.isFileSecret && props.hasMessage) {
+            const e = new encryption();
+            decryptForm.get(props.decryptUrl, {
+                preserveScroll: true,
+                preserveState: true,
+                onSuccess: () => {
+                    const flash = usePage().props.jetstream.flash?.secret;
+                    if (!flash) { return; }
+
+                    if (flash.message) {
+                        e.decryptMessage(flash.message, other.password)
+                            .then((data) => {
+                                form.message = data;
+                                decryptionSuccess.value = true;
+                            })
+                            .catch((error) => form.setError('message', error));
+                    }
+
+                    if (flash.file_download_url) {
+                        fileDecryptPanelRef.value.startDownload(flash);
+                    }
+                },
+                onError: () => {
+                    form.setError('message', 'Could not retrieve the secret. It may already have been retrieved or has expired.');
+                },
+            });
             return;
         }
 
@@ -269,7 +303,10 @@
             <div class="col-span-12">
                 <Alert v-if="props.secret != null" type="Warning" hide-title>
                     <div class="space-y-2">
-                        <p class="font-semibold" v-if="props.isFileSecret">
+                        <p class="font-semibold" v-if="props.isFileSecret && props.hasMessage">
+                            This message and file will be permanently deleted after one retrieval attempt &mdash; even if you enter the wrong password.
+                        </p>
+                        <p class="font-semibold" v-else-if="props.isFileSecret">
                             This file will be permanently deleted after one download attempt &mdash; even if you enter the wrong password.
                         </p>
                         <p class="font-semibold" v-else>
@@ -316,18 +353,23 @@
                     <CodeBlock :value="$page.props.jetstream.flash?.secret?.url" class="break-words mt-1"/>
                 </span>
                 <span v-else>
-                    <FileDecryptPanel
-                        v-if="props.isFileSecret && props.secret != null"
-                        ref="fileDecryptPanelRef"
-                        :decrypt-url="props.decryptUrl"
-                        :password="other.password"
-                        :file-mime-type="props.fileMimeType"
-                        :file-size="props.fileSize"
-                        @success="decryptionSuccess = true"
-                    />
+                    <div v-if="props.isFileSecret && props.secret != null">
+                        <FileDecryptPanel
+                            ref="fileDecryptPanelRef"
+                            :decrypt-url="props.decryptUrl"
+                            :password="other.password"
+                            :file-mime-type="props.fileMimeType"
+                            :file-size="props.fileSize"
+                            @success="decryptionSuccess = true"
+                        />
+                        <div v-if="props.hasMessage && decryptionSuccess" class="mt-3">
+                            <p class="text-xs uppercase tracking-widest text-gamboge-300 font-mono mb-1">Note from sender</p>
+                            <CodeBlock :value="form.message" class="mt-1" />
+                        </div>
+                    </div>
                     <div v-else>
                         <CodeBlock v-if="decryptionSuccess && props.secret != null" :value="form.message" class="mt-1" />
-                        <TextAreaInput v-else-if="!selectedFile" :autofocus="props.secret == null" id="message" rows="7" v-model="form.message" type="text" class="font-mono" :class="messageClass" placeholder="Your secret message..." :max-length="$page.props.jetstream.flash?.secret?.message ? 0 : maxLength"/>
+                        <TextAreaInput v-else :autofocus="props.secret == null" id="message" rows="7" v-model="form.message" type="text" class="font-mono" :class="messageClass" placeholder="Your secret message..." :max-length="$page.props.jetstream.flash?.secret?.message ? 0 : maxLength"/>
                     </div>
                     <div class="flex flex-wrap mt-2 relative text-sm gap-2" v-if="!props.isFileSecret || props.secret == null">
                         <div class="flex flex-wrap">

@@ -25,24 +25,7 @@ const humanFileSize = (bytes) => {
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
 };
 
-const triggerDecrypt = async () => {
-    fileDecryptError.value = null;
-    fileDecryptState.value = 'downloading';
-
-    await new Promise((resolve, reject) => {
-        decryptForm.get(props.decryptUrl, {
-            preserveScroll: true,
-            preserveState: true,
-            onSuccess: () => resolve(),
-            onError: () => reject(new Error('retrieve_failed')),
-        });
-    }).catch(() => {
-        fileDecryptState.value = null;
-        fileDecryptError.value = 'Could not retrieve the file. It may have already been downloaded or has expired.';
-        return;
-    });
-
-    const flash = usePage().props.jetstream.flash?.secret;
+const executeDownload = async (flash) => {
     if (!flash?.file_download_url) {
         fileDecryptState.value = null;
         fileDecryptError.value = 'Could not retrieve the file. It may have already been downloaded or has expired.';
@@ -108,7 +91,34 @@ const triggerDecrypt = async () => {
     }
 };
 
-defineExpose({ triggerDecrypt });
+const triggerDecrypt = async () => {
+    fileDecryptError.value = null;
+    fileDecryptState.value = 'downloading';
+
+    await new Promise((resolve, reject) => {
+        decryptForm.get(props.decryptUrl, {
+            preserveScroll: true,
+            preserveState: true,
+            onSuccess: () => resolve(),
+            onError: () => reject(new Error('retrieve_failed')),
+        });
+    }).catch(() => {
+        fileDecryptState.value = null;
+        fileDecryptError.value = 'Could not retrieve the file. It may have already been downloaded or has expired.';
+        return;
+    });
+
+    const flash = usePage().props.jetstream.flash?.secret;
+    await executeDownload(flash);
+};
+
+const startDownload = async (flash) => {
+    fileDecryptError.value = null;
+    fileDecryptState.value = 'downloading';
+    await executeDownload(flash);
+};
+
+defineExpose({ triggerDecrypt, startDownload });
 </script>
 
 <template>

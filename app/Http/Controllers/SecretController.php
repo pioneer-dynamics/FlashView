@@ -12,6 +12,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\URL;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -61,7 +62,7 @@ class SecretController extends Controller implements HasMiddleware
         }
 
         $result = $this->secretService->createSecret(
-            $request->hasFile('file') ? null : $request->message,
+            $request->message,
             (int) $request->expires_in,
             $request->user()?->id,
             $maskedRecipientEmail,
@@ -106,6 +107,7 @@ class SecretController extends Controller implements HasMiddleware
             $props['fileSize'] = $secretRecord->file_size;
             $props['fileMimeType'] = $secretRecord->file_mime_type;
             $props['fileDownloadUrl'] = URL::temporarySignedRoute('secret.file', now()->addMinutes(5), ['secret' => $secret]);
+            $props['hasMessage'] = $secretRecord->message !== null;
         }
 
         return Inertia::render('Welcome', $props);
@@ -113,24 +115,26 @@ class SecretController extends Controller implements HasMiddleware
 
     public function decrypt(Secret $secret): RedirectResponse
     {
+        $flash = [];
+
         if ($secret->isFileSecret()) {
-            return back()->with('flash', [
-                'secret' => [
-                    'is_file' => true,
-                    'file_size' => $secret->file_size,
-                    'file_mime_type' => $secret->file_mime_type,
-                    'file_original_name' => $secret->filename,
-                    'file_download_url' => URL::temporarySignedRoute('secret.file', now()->addMinutes(5), ['secret' => $secret->hash_id]),
-                    'file_confirm_url' => URL::temporarySignedRoute('secret.file.downloaded', now()->addMinutes(5), ['secret' => $secret->hash_id]),
-                ],
-            ]);
+            $flash['is_file'] = true;
+            $flash['file_size'] = $secret->file_size;
+            $flash['file_mime_type'] = $secret->file_mime_type;
+            $flash['file_original_name'] = $secret->filename;
+            $flash['file_download_url'] = URL::temporarySignedRoute('secret.file', now()->addMinutes(5), ['secret' => $secret->hash_id]);
+            $flash['file_confirm_url'] = URL::temporarySignedRoute('secret.file.downloaded', now()->addMinutes(5), ['secret' => $secret->hash_id]);
         }
 
-        return back()->with('flash', [
-            'secret' => [
-                'message' => $secret->message,
-            ],
-        ]);
+        if ($secret->message !== null) {
+            $flash['message'] = $secret->message;
+            // For combined secrets the retrieved event guard skips nulling the message — do it here.
+            if ($secret->isFileSecret()) {
+                DB::table($secret->getTable())->where('id', $secret->id)->update(['message' => null]);
+            }
+        }
+
+        return back()->with('flash', ['secret' => $flash]);
     }
 
     /**
