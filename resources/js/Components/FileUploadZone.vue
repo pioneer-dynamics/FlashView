@@ -8,6 +8,7 @@ const props = defineProps({
     maxFileUploadSizeMb: { type: Number, required: true },
     allowedMimeTypes: { type: Array, default: () => [] },
     uploadState: { type: String, default: null },
+    uploadProgress: { type: Number, default: 0 },
 });
 
 const emit = defineEmits(['update:modelValue', 'update:fileError']);
@@ -76,7 +77,7 @@ const clearFile = () => {
             <InputError :message="fileError" class="mt-1" />
         </div>
         <div class="mt-2" v-if="uploadState">
-            <FileProgressBar :state="uploadState" />
+            <FileProgressBar :state="uploadState" :progress="uploadProgress" />
         </div>
     </div>
 </template>

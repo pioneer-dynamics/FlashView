@@ -107,6 +107,7 @@
     const selectedFile = ref(null);
     const fileError = ref(null);
     const uploadState = ref(null);
+    const uploadProgress = ref(0);
 
     const encryptFileData = async () => {
         if (!selectedFile.value) { return; }
@@ -135,10 +136,15 @@
             if (form.email) { formData.append('email', form.email); }
             if (form.include_sender_identity) { formData.append('include_sender_identity', '1'); }
 
+            uploadProgress.value = 0;
             router.post(route('secret.store'), formData, {
                 preserveScroll: true,
+                onProgress: (progress) => {
+                    uploadProgress.value = Math.round(progress.percentage ?? 0);
+                },
                 onSuccess: () => {
                     uploadState.value = null;
+                    uploadProgress.value = 0;
                     if (usePage().props.jetstream.flash?.error) {
                         fileError.value = getErrorMessage(usePage().props.jetstream.flash.error);
                         return;
@@ -147,6 +153,7 @@
                 },
                 onError: () => {
                     uploadState.value = null;
+                    uploadProgress.value = 0;
                 },
             });
         } catch (err) {
@@ -320,7 +327,7 @@
                     />
                     <div v-else>
                         <CodeBlock v-if="decryptionSuccess && props.secret != null" :value="form.message" class="mt-1" />
-                        <TextAreaInput v-else :autofocus="props.secret == null" id="message" rows="7" v-model="form.message" type="text" class="font-mono" :class="messageClass" placeholder="Your secret message..." :max-length="$page.props.jetstream.flash?.secret?.message ? 0 : maxLength"/>
+                        <TextAreaInput v-else-if="!selectedFile" :autofocus="props.secret == null" id="message" rows="7" v-model="form.message" type="text" class="font-mono" :class="messageClass" placeholder="Your secret message..." :max-length="$page.props.jetstream.flash?.secret?.message ? 0 : maxLength"/>
                     </div>
                     <div class="flex flex-wrap mt-2 relative text-sm gap-2" v-if="!props.isFileSecret || props.secret == null">
                         <div class="flex flex-wrap">
@@ -356,6 +363,7 @@
                     :max-file-upload-size-mb="maxFileUploadSizeMb"
                     :allowed-mime-types="allowedMimeTypes"
                     :upload-state="uploadState"
+                    :upload-progress="uploadProgress"
                 />
                 <div v-else class="-mt-4">
                     <p class="text-sm">

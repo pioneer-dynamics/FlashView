@@ -16,6 +16,7 @@ const emit = defineEmits(['success']);
 
 const decryptForm = useForm({});
 const fileDecryptState = ref(null);
+const fileDecryptProgress = ref(0);
 const fileDecryptError = ref(null);
 
 const humanFileSize = (bytes) => {
@@ -54,10 +55,31 @@ const triggerDecrypt = async () => {
             throw new Error('download_failed');
         }
 
-        fileDecryptState.value = 'decrypting';
+        fileDecryptProgress.value = 0;
+        const contentLength = response.headers.get('Content-Length');
+        const totalBytes = contentLength ? parseInt(contentLength) : 0;
+        let receivedBytes = 0;
+        const chunks = [];
+        const reader = response.body.getReader();
 
-        const arrayBuffer = await response.arrayBuffer();
-        const encryptedBytes = new Uint8Array(arrayBuffer);
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) { break; }
+            chunks.push(value);
+            receivedBytes += value.length;
+            if (totalBytes > 0) {
+                fileDecryptProgress.value = Math.round((receivedBytes / totalBytes) * 100);
+            }
+        }
+
+        const encryptedBytes = new Uint8Array(receivedBytes);
+        let offset = 0;
+        for (const chunk of chunks) {
+            encryptedBytes.set(chunk, offset);
+            offset += chunk.length;
+        }
+
+        fileDecryptState.value = 'decrypting';
 
         // Confirm only after the full binary is in memory so S3 deletion is safe.
         if (flash.file_confirm_url) {
@@ -104,7 +126,7 @@ defineExpose({ triggerDecrypt });
                     <p v-if="fileSize" class="text-sm text-gray-500 dark:text-gray-400 font-mono">{{ humanFileSize(fileSize) }}</p>
                 </div>
             </div>
-            <FileProgressBar v-if="fileDecryptState" :state="fileDecryptState" />
+            <FileProgressBar v-if="fileDecryptState" :state="fileDecryptState" :progress="fileDecryptState === 'downloading' ? fileDecryptProgress : 0" />
         </div>
     </div>
 </template>
