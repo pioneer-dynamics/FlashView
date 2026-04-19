@@ -193,7 +193,7 @@ const testWebhook = () => {
         <template #content>
             <p class="text-sm text-gray-600 dark:text-gray-400">
                 Webhook notifications are available on the Prime plan.
-                <Link :href="route('plans.index')" class="text-indigo-600 dark:text-indigo-400 hover:underline">
+                <Link :href="route('plans.index')" class="underline text-sm text-gamboge-300 dark:text-gamboge-200 hover:text-gamboge-200 dark:hover:text-gamboge-100 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gamboge-500 dark:focus:ring-offset-gray-900">
                     View plans
                 </Link>
             </p>
