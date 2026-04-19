@@ -9,6 +9,13 @@ import SecondaryButton from '@/Components/SecondaryButton.vue';
 import DangerButton from '@/Components/DangerButton.vue';
 import Paginator from '@/Components/Paginator.vue';
 
+const humanFileSize = (bytes) => {
+    if (!bytes) { return null; }
+    if (bytes < 1024) { return bytes + ' B'; }
+    if (bytes < 1024 * 1024) { return (bytes / 1024).toFixed(1) + ' KB'; }
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+};
+
 const props = defineProps({
     secrets: Array
 })
@@ -62,12 +69,22 @@ const burn = () => {
                     <tbody>
                         <tr v-for="secret in secrets.data" :key="secret.hash_id" class="odd:bg-white odd:dark:bg-gray-900 even:bg-gray-50 even:dark:bg-gray-800 border-b dark:border-gray-700">
                             <th scope="row" class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">
-                                {{ secret.hash_id }}
+                                <div class="flex flex-col gap-1">
+                                    <span class="font-mono">{{ secret.hash_id }}</span>
+                                    <div v-if="secret.is_file" class="flex items-center gap-1.5">
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="size-3 text-gamboge-300 shrink-0">
+                                            <path d="M3 3.5A1.5 1.5 0 0 1 4.5 2h4.879a1.5 1.5 0 0 1 1.06.44l2.122 2.12a1.5 1.5 0 0 1 .439 1.061V12.5A1.5 1.5 0 0 1 11.5 14h-7A1.5 1.5 0 0 1 3 12.5v-9Z" />
+                                        </svg>
+                                        <span class="text-xs font-mono text-gamboge-300">
+                                            {{ secret.file_mime_type ?? 'file' }}
+                                            <span v-if="secret.file_size" class="text-gray-400 dark:text-gray-500">&middot; {{ humanFileSize(secret.file_size) }}</span>
+                                        </span>
+                                    </div>
+                                </div>
                             </th>
                             <td v-if="hasAnyRecipient" class="px-6 py-4 text-center">
                                 <span v-if="secret.masked_recipient_email" class="font-mono text-xs">{{ secret.masked_recipient_email }}</span>
                                 <span v-else class="text-gray-400 dark:text-gray-600">—</span>
-                            </td>
                             <td class="px-6 py-4 text-center">
                                 {{ DateTime.fromISO(secret.created_at).toLocaleString(DateTime.DATETIME_MED) }}
                             </td>
