@@ -39,6 +39,10 @@
             type: Boolean,
             default: false,
         },
+        hasMessage: {
+            type: Boolean,
+            default: false,
+        },
         fileSize: {
             type: Number,
             default: null,
@@ -75,6 +79,7 @@
                             :sender-domain="senderDomain"
                             :sender-email="senderEmail"
                             :is-file-secret="isFileSecret"
+                            :has-message="hasMessage"
                             :file-size="fileSize"
                             :file-mime-type="fileMimeType"
                             :file-download-url="fileDownloadUrl"
