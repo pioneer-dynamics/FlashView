@@ -71,7 +71,7 @@ const clearFile = () => {
                 Attach a file
                 <input type="file" class="sr-only" :accept="allowedMimeTypes.join(',')" @change="onFileSelected" />
             </label>
-            <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">
+            <p class="text-sm text-gray-400 dark:text-gray-400 mt-1">
                 Max: {{ maxFileUploadSizeMb }} MB &middot; PDF, ZIP, images, Office docs, audio/video
             </p>
             <InputError :message="fileError" class="mt-1" />
