@@ -1,7 +1,7 @@
 <script setup>
 import { ref } from 'vue';
 import { useForm, usePage } from '@inertiajs/vue3';
-import { encryption } from '../../encryption';
+import { encryption } from '../encryption';
 import FileProgressBar from '@/Components/FileProgressBar.vue';
 import Alert from '@/Components/Alert.vue';
 

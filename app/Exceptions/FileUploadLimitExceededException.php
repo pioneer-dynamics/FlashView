@@ -4,6 +4,8 @@ namespace App\Exceptions;
 
 use Exception;
 use Illuminate\Contracts\Support\Responsable;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 
 class FileUploadLimitExceededException extends Exception implements Responsable
 {
@@ -17,7 +19,7 @@ class FileUploadLimitExceededException extends Exception implements Responsable
         return false;
     }
 
-    public function toResponse($request)
+    public function toResponse(Request $request): RedirectResponse
     {
         return back()->withErrors(['file' => $this->getMessage()]);
     }
