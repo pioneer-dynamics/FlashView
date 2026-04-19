@@ -44,6 +44,6 @@ import { nextTick, onMounted, ref } from 'vue';
 </script>
 <template>
     <div class="w-full h-full flex flex-wrap gap-2">
-        <h1 class="text-4xl font-bold"><slot name="before"/><span class="text-gamboge-200 mr-2 border-r-2 animate-typing border-gamboge-200 pr-1">{{ currentScentence }}</span><slot name="after"/></h1>
+        <h1 class="text-2xl md:text-4xl font-bold"><slot name="before"/><span class="text-gamboge-200 mr-2 border-r-2 animate-typing border-gamboge-200 pr-1">{{ currentScentence }}</span><slot name="after"/></h1>
     </div>
 </template>
