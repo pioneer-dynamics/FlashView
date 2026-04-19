@@ -9,6 +9,37 @@ import { createInterface } from 'node:readline';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { basename, extname, resolve } from 'node:path';
 
+function humanBytes(bytes) {
+    if (bytes < 1024) { return `${bytes} B`; }
+    if (bytes < 1024 * 1024) { return `${(bytes / 1024).toFixed(1)} KB`; }
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function renderProgressBar(sent, total) {
+    const width = 25;
+    const pct = Math.min(1, sent / total);
+    const filled = Math.round(width * pct);
+    const bar = '█'.repeat(filled) + '░'.repeat(width - filled);
+    const percent = Math.round(pct * 100).toString().padStart(3);
+    process.stderr.write(`\r  Uploading  [${bar}] ${percent}%  ${humanBytes(sent)} / ${humanBytes(total)}`);
+}
+
+function createProgressBody(buffer, onProgress) {
+    const total = buffer.byteLength;
+    let offset = 0;
+    const CHUNK = 65536;
+    return new ReadableStream({
+        pull(controller) {
+            if (offset >= total) { controller.close(); return; }
+            const end = Math.min(offset + CHUNK, total);
+            const chunk = buffer.subarray(offset, end);
+            offset = end;
+            onProgress(offset, total);
+            controller.enqueue(chunk);
+        },
+    });
+}
+
 const MIME_TYPES = {
     '.pdf': 'application/pdf',
     '.zip': 'application/zip',
@@ -170,6 +201,7 @@ program
     .option('-e, --expires-in <duration>', 'Expiry duration (5m, 30m, 1h, 4h, 12h, 1d, 3d, 7d, 14d, 30d)', '1d')
     .option('--email <address>', 'Recipient email address')
     .option('--with-verified-badge', 'Include your verified sender identity badge')
+    .option('--verbose', 'Show step-by-step progress (including upload progress bar for files)')
     .option('--json', 'Output as JSON (for scripting)')
     .action(withErrorHandling(async (options) => {
         const config = getConfig();
@@ -189,6 +221,7 @@ program
         }
 
         if (options.file) {
+            const verbose = options.verbose && !options.json;
             const filePath = resolve(options.file);
             let fileBytes;
             try {
@@ -201,6 +234,7 @@ program
             const originalFilename = basename(filePath);
             const passphrase = options.passphrase || null;
 
+            if (verbose) { process.stderr.write(`  Encrypting ${originalFilename} (${humanBytes(fileBytes.byteLength)})...\n`); }
             const { encrypted, passphrase: resolvedPassphrase } = await encryptBuffer(fileBytes, passphrase);
             const { secret: encryptedFilename } = await encryptMessage(originalFilename, resolvedPassphrase);
 
@@ -217,21 +251,30 @@ program
                 console.error(`Supported types: ${Object.keys(MIME_TYPES).join(', ')}`);
                 process.exit(1);
             }
+
             // Step 1: get presigned upload URL (or server fallback URL)
+            if (verbose) { process.stderr.write('  Preparing upload...\n'); }
             const prepare = await client.prepareFileUpload();
 
             // Step 2: upload encrypted bytes directly (S3 or server fallback)
             const uploadHeaders = { 'Content-Type': 'application/octet-stream', ...prepare.upload_headers };
+            const uploadBody = verbose
+                ? createProgressBody(encrypted, (sent, total) => renderProgressBar(sent, total))
+                : encrypted;
+            if (verbose) { renderProgressBar(0, encrypted.byteLength); }
             const uploadResponse = await fetch(prepare.upload_url, {
                 method: prepare.upload_type === 's3_direct' ? 'PUT' : 'POST',
                 headers: uploadHeaders,
-                body: encrypted,
+                body: uploadBody,
+                duplex: 'half',
             });
+            if (verbose) { process.stderr.write('\n'); }
             if (!uploadResponse.ok) {
                 throw new Error(`File upload failed (HTTP ${uploadResponse.status})`);
             }
 
             // Step 3: create secret with the file token
+            if (verbose) { process.stderr.write('  Creating secret...\n'); }
             const result = await client.createSecretWithFileToken(
                 prepare.token,
                 encryptedFilename,
@@ -271,8 +314,11 @@ program
             message = await readStdin();
         }
 
+        const verbose = options.verbose && !options.json;
+        if (verbose) { process.stderr.write('  Encrypting message...\n'); }
         const { passphrase, secret } = await encryptMessage(message, options.passphrase);
 
+        if (verbose) { process.stderr.write('  Creating secret...\n'); }
         const result = await client.createSecret(secret, expiresIn, options.email, !!options.withVerifiedBadge);
 
         if (options.json) {
