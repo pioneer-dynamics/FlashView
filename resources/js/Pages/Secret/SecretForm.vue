@@ -2,6 +2,7 @@
     import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
     import {encryption} from '../../encryption';
     import { computed, ref } from 'vue';
+    import Checkbox from '@/Components/Checkbox.vue';
     import TextAreaInput from '@/Components/TextAreaInput.vue';
     import PrimaryButton from '@/Components/PrimaryButton.vue';
     import TextInput from '@/Components/TextInput.vue';
@@ -335,7 +336,7 @@
             </div>
             <div v-if="!$page.props.jetstream.flash?.secret?.url && props.secret == null && $page.props.auth.senderIdentity" class="col-span-12">
                 <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
-                    <input type="checkbox" v-model="form.include_sender_identity" class="rounded border-gray-300 dark:border-gray-600 text-gamboge-600 focus:ring-gamboge-500" />
+                    <Checkbox v-model:checked="form.include_sender_identity"/>
                     Include my verified sender identity
                     <span class="text-gray-500 dark:text-gray-400">
                         ({{ $page.props.auth.senderIdentity.company_name ?? $page.props.auth.senderIdentity.email }})

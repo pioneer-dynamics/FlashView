@@ -111,8 +111,8 @@
                         <tr class="odd:bg-white odd:dark:bg-gray-900 even:bg-gray-50 even:dark:bg-gray-800 border-b dark:border-gray-700">
                             <td colspan="4">
                                 <ConfirmsPasswordOrPasskey @confirmed="showModal" :seconds="60">
-                                    <div class="text-center">
-                                        <span class="cursor-pointer inline-flex items-center font-medium text-blue-600 dark:text-blue-500 hover:underline focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-blue-800">Create a Passkey?</span>
+                                    <div class="text-center m-2">
+                                        <span class="cursor-pointer underline text-sm text-gamboge-300 dark:text-gamboge-200 hover:text-gamboge-200 dark:hover:text-gamboge-100 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gamboge-500 dark:focus:ring-offset-gray-900">Create a Passkey?</span>
                                     </div>
                                 </ConfirmsPasswordOrPasskey>
                             </td>
