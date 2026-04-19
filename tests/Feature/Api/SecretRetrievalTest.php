@@ -8,6 +8,7 @@ use App\Models\Secret;
 use App\Models\User;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use PHPUnit\Framework\Attributes\DataProvider;
 use ReflectionProperty;
@@ -298,5 +299,65 @@ class SecretRetrievalTest extends TestCase
         $freshSecret = Secret::withoutEvents(fn () => Secret::withoutGlobalScopes()->find($secret->id));
         $this->assertNotNull($freshSecret->message);
         $this->assertNull($freshSecret->retrieved_at);
+    }
+
+    public function test_retrieve_returns_file_metadata_for_file_secret_without_consuming_it(): void
+    {
+        $this->subscribeUserToPlan($this->user, $this->primePlan);
+        Sanctum::actingAs($this->user, ['secrets:list']);
+
+        $secret = Secret::factory()->fileSecret()->create(['user_id' => $this->user->id]);
+
+        $response = $this->getJson("/api/v1/secrets/{$secret->hash_id}/retrieve");
+
+        $response->assertOk()
+            ->assertJsonPath('data.type', 'file')
+            ->assertJsonPath('data.hash_id', $secret->hash_id)
+            ->assertJsonStructure(['data' => ['hash_id', 'type', 'file_size', 'file_mime_type']]);
+
+        $fresh = Secret::withoutEvents(fn () => Secret::withoutGlobalScopes()->find($secret->id));
+        $this->assertNotNull($fresh->filepath, 'File should NOT be consumed by /retrieve for file secrets');
+        $this->assertNull($fresh->retrieved_at);
+    }
+
+    public function test_api_file_download_streams_encrypted_binary_and_consumes_secret(): void
+    {
+        $this->subscribeUserToPlan($this->user, $this->primePlan);
+        Sanctum::actingAs($this->user, ['secrets:retrieve']);
+
+        Storage::fake();
+        $filepath = 'secrets/test-file.bin';
+        Storage::put($filepath, 'encrypted-binary-content');
+
+        $secret = Secret::factory()->fileSecret($filepath)->create(['user_id' => $this->user->id]);
+
+        $response = $this->get("/api/v1/secrets/{$secret->hash_id}/file");
+
+        $response->assertOk()
+            ->assertHeader('Content-Type', 'application/octet-stream');
+
+        $this->assertEquals('encrypted-binary-content', $response->streamedContent());
+
+        $fresh = Secret::withoutEvents(fn () => Secret::withoutGlobalScopes()->find($secret->id));
+        $this->assertNull($fresh->filepath);
+        $this->assertNull($fresh->file_size);
+        $this->assertNull($fresh->file_mime_type);
+        $this->assertNotNull($fresh->retrieved_at);
+        Storage::assertMissing($filepath);
+    }
+
+    public function test_api_file_download_returns_410_on_second_attempt(): void
+    {
+        $this->subscribeUserToPlan($this->user, $this->primePlan);
+        Sanctum::actingAs($this->user, ['secrets:retrieve']);
+
+        Storage::fake();
+        $filepath = 'secrets/test-file-2.bin';
+        Storage::put($filepath, 'data');
+
+        $secret = Secret::factory()->fileSecret($filepath)->create(['user_id' => $this->user->id]);
+
+        $this->get("/api/v1/secrets/{$secret->hash_id}/file")->assertOk();
+        $this->get("/api/v1/secrets/{$secret->hash_id}/file")->assertStatus(410);
     }
 }
