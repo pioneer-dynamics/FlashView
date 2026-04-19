@@ -36,9 +36,10 @@ class WebhookNotificationTest extends TestCase
 
         $this->get($url);
 
-        Bus::assertDispatched(SendWebhookNotification::class, function ($job) use ($secret) {
+        Bus::assertDispatched(SendWebhookNotification::class, function ($job) use ($secret, $user) {
             return $job->hashId === $secret->hash_id
-                && $job->event === 'retrieved';
+                && $job->event === 'retrieved'
+                && $job->userId === $user->id;
         });
     }
 
@@ -113,13 +114,14 @@ class WebhookNotificationTest extends TestCase
 
         $this->get($url);
 
-        Bus::assertDispatched(SendWebhookNotification::class, function ($job) use ($secret) {
+        Bus::assertDispatched(SendWebhookNotification::class, function ($job) use ($secret, $user) {
             return $job->webhookUrl === 'https://example.com/hook'
                 && $job->webhookSecret === 'test-secret-123'
                 && $job->hashId === $secret->hash_id
                 && $job->event === 'retrieved'
                 && ! empty($job->createdAt)
-                && ! empty($job->retrievedAt);
+                && ! empty($job->retrievedAt)
+                && $job->userId === $user->id;
         });
     }
 

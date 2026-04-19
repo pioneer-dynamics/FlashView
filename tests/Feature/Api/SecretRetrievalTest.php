@@ -8,6 +8,7 @@ use App\Models\Secret;
 use App\Models\User;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use PHPUnit\Framework\Attributes\DataProvider;
 use ReflectionProperty;
@@ -298,5 +299,168 @@ class SecretRetrievalTest extends TestCase
         $freshSecret = Secret::withoutEvents(fn () => Secret::withoutGlobalScopes()->find($secret->id));
         $this->assertNotNull($freshSecret->message);
         $this->assertNull($freshSecret->retrieved_at);
+    }
+
+    public function test_retrieve_returns_file_metadata_for_file_secret_without_consuming_it(): void
+    {
+        $this->subscribeUserToPlan($this->user, $this->primePlan);
+        Sanctum::actingAs($this->user, ['secrets:list']);
+
+        $secret = Secret::factory()->fileSecret()->create(['user_id' => $this->user->id]);
+
+        $response = $this->getJson("/api/v1/secrets/{$secret->hash_id}/retrieve");
+
+        $response->assertOk()
+            ->assertJsonPath('data.type', 'file')
+            ->assertJsonPath('data.hash_id', $secret->hash_id)
+            ->assertJsonStructure(['data' => ['hash_id', 'type', 'file_size', 'file_mime_type']]);
+
+        $fresh = Secret::withoutEvents(fn () => Secret::withoutGlobalScopes()->find($secret->id));
+        $this->assertNotNull($fresh->filepath, 'File should NOT be consumed by /retrieve for file secrets');
+        $this->assertNull($fresh->retrieved_at);
+    }
+
+    public function test_api_file_download_redirects_to_presigned_url_and_marks_retrieved(): void
+    {
+        $this->subscribeUserToPlan($this->user, $this->primePlan);
+        Sanctum::actingAs($this->user, ['secrets:retrieve']);
+
+        Storage::fake();
+        $filepath = 'secrets/test-file.bin';
+        Storage::put($filepath, 'encrypted-binary-content');
+
+        $secret = Secret::factory()->fileSecret($filepath)->create(['user_id' => $this->user->id]);
+
+        $response = $this->get("/api/v1/secrets/{$secret->hash_id}/file");
+
+        // On a local disk that supports temporaryUrl (Storage::fake), we expect a redirect.
+        $response->assertRedirect();
+
+        $fresh = Secret::withoutEvents(fn () => Secret::withoutGlobalScopes()->find($secret->id));
+        $this->assertNotNull($fresh->retrieved_at, 'Secret should be marked as retrieved');
+    }
+
+    public function test_api_file_download_falls_back_to_streaming_on_local_disk(): void
+    {
+        $this->subscribeUserToPlan($this->user, $this->primePlan);
+        Sanctum::actingAs($this->user, ['secrets:retrieve']);
+
+        Storage::fake();
+        $filepath = 'secrets/test-file-stream.bin';
+        Storage::put($filepath, 'encrypted-binary-content');
+
+        Storage::shouldReceive('temporaryUrl')
+            ->once()
+            ->andThrow(new \RuntimeException('Local driver does not support temporary URLs.'));
+
+        Storage::shouldReceive('get')->with($filepath)->andReturn('encrypted-binary-content');
+        Storage::shouldReceive('delete')->with($filepath)->once();
+
+        $secret = Secret::factory()->fileSecret($filepath)->create(['user_id' => $this->user->id]);
+
+        $response = $this->get("/api/v1/secrets/{$secret->hash_id}/file");
+
+        $response->assertOk()
+            ->assertHeader('Content-Type', 'application/octet-stream');
+
+        $this->assertEquals('encrypted-binary-content', $response->streamedContent());
+
+        $fresh = Secret::withoutEvents(fn () => Secret::withoutGlobalScopes()->find($secret->id));
+        $this->assertNull($fresh->filepath);
+        $this->assertNotNull($fresh->retrieved_at);
+    }
+
+    public function test_api_file_download_returns_410_on_second_attempt(): void
+    {
+        $this->subscribeUserToPlan($this->user, $this->primePlan);
+        Sanctum::actingAs($this->user, ['secrets:retrieve']);
+
+        Storage::fake();
+        $filepath = 'secrets/test-file-2.bin';
+        Storage::put($filepath, 'data');
+
+        $secret = Secret::factory()->fileSecret($filepath)->create(['user_id' => $this->user->id]);
+
+        // First attempt — marks retrieved (redirect or stream)
+        $this->get("/api/v1/secrets/{$secret->hash_id}/file");
+
+        // Second attempt — retrieved_at is set, so returns 410
+        $this->get("/api/v1/secrets/{$secret->hash_id}/file")->assertStatus(410);
+    }
+
+    public function test_retrieve_returns_combined_type_with_message_and_file_metadata(): void
+    {
+        $this->subscribeUserToPlan($this->user, $this->primePlan);
+        Sanctum::actingAs($this->user, ['secrets:list']);
+
+        Storage::fake();
+        $filepath = 'secrets/combined.bin';
+        Storage::put($filepath, 'content');
+
+        $secret = Secret::factory()->fileSecret($filepath)->create([
+            'user_id' => $this->user->id,
+            'message' => 'encrypted-note',
+        ]);
+
+        $response = $this->getJson("/api/v1/secrets/{$secret->hash_id}/retrieve");
+
+        $response->assertOk()
+            ->assertJson([
+                'data' => [
+                    'type' => 'combined',
+                    'message' => 'encrypted-note',
+                    'file_size' => $secret->file_size,
+                ],
+            ]);
+
+        // Message is consumed (nulled) after retrieve; file still present for download.
+        $fresh = Secret::withoutGlobalScopes()->find($secret->id);
+        $this->assertNull($fresh->message);
+        $this->assertNotNull($fresh->filepath);
+    }
+
+    public function test_burn_file_secret_deletes_file_from_storage(): void
+    {
+        $this->subscribeUserToPlan($this->user, $this->primePlan);
+        Sanctum::actingAs($this->user, ['secrets:delete']);
+
+        Storage::fake();
+        $filepath = 'secrets/burn-me.bin';
+        Storage::put($filepath, 'encrypted-content');
+
+        $secret = Secret::factory()->fileSecret($filepath)->create(['user_id' => $this->user->id]);
+
+        $this->deleteJson("/api/v1/secrets/{$secret->hash_id}")
+            ->assertOk();
+
+        Storage::assertMissing($filepath);
+
+        $fresh = Secret::withoutGlobalScopes()->find($secret->id);
+        $this->assertNotNull($fresh->retrieved_at);
+        $this->assertNull($fresh->filepath);
+    }
+
+    public function test_confirm_file_downloaded_nulls_file_fields(): void
+    {
+        $this->subscribeUserToPlan($this->user, $this->primePlan);
+        Sanctum::actingAs($this->user, ['secrets:retrieve']);
+
+        Storage::fake();
+        $filepath = 'secrets/test-confirm.bin';
+        Storage::put($filepath, 'data');
+
+        $secret = Secret::factory()->fileSecret($filepath)->create([
+            'user_id' => $this->user->id,
+            'retrieved_at' => now(),
+        ]);
+
+        $this->postJson("/api/v1/secrets/{$secret->hash_id}/file/downloaded")
+            ->assertNoContent();
+
+        $fresh = Secret::withoutEvents(fn () => Secret::withoutGlobalScopes()->find($secret->id));
+        $this->assertNull($fresh->filepath);
+        $this->assertNull($fresh->file_size);
+        $this->assertNull($fresh->file_mime_type);
+        Storage::assertMissing($filepath);
     }
 }

@@ -199,27 +199,32 @@ const logout = () => {
                                                 Profile
                                             </DropdownLink>
 
-                                            <DropdownLink :href="route('user.notification-settings.index')">
-                                                Notification Settings
-                                            </DropdownLink>
-
-                                            <DropdownLink :href="route('user.settings.index')">
-                                                Settings
-                                            </DropdownLink>
+                                            <span v-if="$page.props?.auth?.user?.subscription">
+                                                <DropdownLink as="a" :href="route('billing')">
+                                                    Billing
+                                                </DropdownLink>
+                                            </span>
 
                                             <DropdownLink v-if="$page.props.jetstream.hasApiFeatures && $page.props.auth?.hasApiAccess"
                                                 :href="route('api-tokens.index')">
                                                 API Tokens
                                             </DropdownLink>
 
-                                            <span v-if="$page.props?.auth?.user?.subscription">
-                                                <div class="border-t border-gray-200 dark:border-gray-600" />
-                                                <DropdownLink as="a" :href="route('billing')">
-                                                    Billing
-                                                </DropdownLink>
-                                            </span>
+                                            <div class="border-t border-gamboge-600 dark:border-gamboge-600 mx-2" />
 
-                                            <div class="border-t border-gray-200 dark:border-gray-600" />
+                                            <div class="block px-4 py-2 text-xs text-gray-600 dark:text-gray-400">
+                                                Settings
+                                            </div>
+
+                                            <DropdownLink :href="route('user.notification-settings.index')">
+                                                Notification Settings
+                                            </DropdownLink>
+
+                                            <DropdownLink :href="route('user.settings.index')">
+                                                Misc Settings
+                                            </DropdownLink>
+
+                                            <div class="border-t border-gamboge-600 dark:border-gamboge-600 mx-2" />
 
                                             <!-- Authentication -->
                                             <form @submit.prevent="logout">

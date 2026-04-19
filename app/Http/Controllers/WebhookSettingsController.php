@@ -83,6 +83,7 @@ class WebhookSettingsController extends Controller
             hashId: 'test-'.Str::random(5),
             createdAt: now()->toIso8601String(),
             retrievedAt: now()->toIso8601String(),
+            userId: $user->id,
             event: 'ping',
         );
 

@@ -5,6 +5,7 @@ use App\Http\Controllers\CliAuthController;
 use App\Http\Controllers\CliDeviceController;
 use App\Http\Controllers\CliInstallationController;
 use App\Http\Controllers\ConfigurationController;
+use App\Http\Controllers\FileUploadController;
 use App\Http\Controllers\MarkdownDocumentController;
 use App\Http\Controllers\NotificationPreferencesController;
 use App\Http\Controllers\NotificationSettingsController;
@@ -30,8 +31,18 @@ Route::get('/', function () {
     ]);
 })->name('welcome');
 
+Route::post('/secret/file/prepare', [FileUploadController::class, 'prepare'])
+    ->name('secret.file.prepare')
+    ->middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']);
+
+Route::post('/secret/file/upload/{token}', [FileUploadController::class, 'upload'])
+    ->name('secret.file.upload')
+    ->middleware(['signed', 'auth:sanctum', config('jetstream.auth_session')]);
+
 Route::resource('secret', SecretController::class)->only(['store', 'show']);
 Route::get('secret/{secret}/decrypt', [SecretController::class, 'decrypt'])->name('secret.decrypt');
+Route::get('secret/{secret}/file', [SecretController::class, 'downloadFile'])->name('secret.file');
+Route::post('secret/{secret}/file/downloaded', [SecretController::class, 'confirmFileDownloaded'])->name('secret.file.downloaded');
 
 Route::get('plans', [PlanController::class, 'index'])->name('plans.index');
 

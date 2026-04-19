@@ -2,6 +2,7 @@
 
 namespace Tests\Unit;
 
+use App\Exceptions\WebhookDeliveryFailedException;
 use App\Jobs\SendWebhookNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -25,6 +26,7 @@ class SendWebhookNotificationTest extends TestCase
             hashId: 'abc123',
             createdAt: '2026-03-25T10:00:00+00:00',
             retrievedAt: '2026-03-25T12:00:00+00:00',
+            userId: 1,
         );
 
         $job->handle();
@@ -50,6 +52,7 @@ class SendWebhookNotificationTest extends TestCase
             hashId: 'abc123',
             createdAt: '2026-03-25T10:00:00+00:00',
             retrievedAt: '2026-03-25T12:00:00+00:00',
+            userId: 1,
         );
 
         $job->handle();
@@ -72,6 +75,7 @@ class SendWebhookNotificationTest extends TestCase
             hashId: 'abc123',
             createdAt: '2026-03-25T10:00:00+00:00',
             retrievedAt: '2026-03-25T12:00:00+00:00',
+            userId: 1,
         );
 
         $job->handle();
@@ -91,9 +95,10 @@ class SendWebhookNotificationTest extends TestCase
             hashId: 'abc123',
             createdAt: '2026-03-25T10:00:00+00:00',
             retrievedAt: '2026-03-25T12:00:00+00:00',
+            userId: 1,
         );
 
-        $this->expectException(\RuntimeException::class);
+        $this->expectException(WebhookDeliveryFailedException::class);
         $this->expectExceptionMessage('Webhook delivery failed with status 500');
 
         $job->handle();
@@ -107,6 +112,7 @@ class SendWebhookNotificationTest extends TestCase
             hashId: 'abc123',
             createdAt: '2026-03-25T10:00:00+00:00',
             retrievedAt: '2026-03-25T12:00:00+00:00',
+            userId: 1,
         );
 
         $backoff = $job->backoff();
@@ -124,6 +130,7 @@ class SendWebhookNotificationTest extends TestCase
             hashId: 'abc123',
             createdAt: '2026-03-25T10:00:00+00:00',
             retrievedAt: '2026-03-25T12:00:00+00:00',
+            userId: 1,
         );
 
         $retryUntil = $job->retryUntil();

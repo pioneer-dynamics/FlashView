@@ -111,6 +111,65 @@ export async function encryptMessage(message, passphrase = null) {
 }
 
 /**
+ * Encrypt a binary buffer using AES-256-GCM with PBKDF2-SHA-512 key derivation.
+ *
+ * Output format (raw binary): [8 bytes salt][12 bytes IV][ciphertext + 16 bytes auth tag]
+ *
+ * @param {Uint8Array} buffer
+ * @param {string|null} passphrase - Auto-generated if null
+ * @returns {Promise<{ passphrase: string, encrypted: Uint8Array }>}
+ */
+export async function encryptBuffer(buffer, passphrase = null) {
+    if (!passphrase) {
+        passphrase = generatePassphrase();
+    }
+
+    const salt = new Uint8Array(SALT_LENGTH);
+    globalThis.crypto.getRandomValues(salt);
+
+    const iv = new Uint8Array(IV_LENGTH);
+    globalThis.crypto.getRandomValues(iv);
+
+    const key = await deriveKey(passphrase, salt, ['encrypt']);
+
+    const ciphertext = await globalThis.crypto.subtle.encrypt(
+        { name: 'AES-GCM', iv },
+        key,
+        buffer
+    );
+
+    const encrypted = new Uint8Array(SALT_LENGTH + IV_LENGTH + ciphertext.byteLength);
+    encrypted.set(salt, 0);
+    encrypted.set(iv, SALT_LENGTH);
+    encrypted.set(new Uint8Array(ciphertext), SALT_LENGTH + IV_LENGTH);
+
+    return { passphrase, encrypted };
+}
+
+/**
+ * Decrypt a binary buffer produced by encryptBuffer.
+ *
+ * @param {Uint8Array} encryptedBuffer
+ * @param {string} passphrase
+ * @returns {Promise<Uint8Array>}
+ */
+export async function decryptBuffer(encryptedBuffer, passphrase) {
+    const salt = encryptedBuffer.slice(0, SALT_LENGTH);
+    const iv = encryptedBuffer.slice(SALT_LENGTH, SALT_LENGTH + IV_LENGTH);
+    const ciphertext = encryptedBuffer.slice(SALT_LENGTH + IV_LENGTH);
+
+    const key = await deriveKey(passphrase, salt, ['decrypt']);
+
+    const decrypted = await globalThis.crypto.subtle.decrypt(
+        { name: 'AES-GCM', iv },
+        key,
+        ciphertext
+    );
+
+    return new Uint8Array(decrypted);
+}
+
+/**
  * Decrypt a ciphertext string using AES-256-GCM with PBKDF2-SHA-512 key derivation.
  *
  * Accepts ciphertexts produced by this package, the browser OpenCrypto implementation,

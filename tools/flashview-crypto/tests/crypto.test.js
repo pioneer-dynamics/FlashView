@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { encryptMessage, decryptMessage, generatePassphrase } from '../src/index.js';
+import { encryptMessage, decryptMessage, generatePassphrase, encryptBuffer, decryptBuffer } from '../src/index.js';
 
 // Known vectors generated from the pre-migration CLI implementation (tools/flashview-cli/src/crypto.js)
 // using Node.js `node:crypto` (pbkdf2Sync + createCipheriv AES-256-GCM).
@@ -180,5 +180,96 @@ describe('ciphertext format compatibility (MessageLength validation)', () => {
 
         const estimatedPlaintext = decoded.length - 28;
         assert.equal(estimatedPlaintext, 5, 'Estimated plaintext length should match actual');
+    });
+});
+
+describe('encryptBuffer', () => {
+    it('returns passphrase and encrypted Uint8Array', async () => {
+        const input = new Uint8Array([1, 2, 3, 4, 5]);
+        const result = await encryptBuffer(input);
+        assert.ok(result.passphrase, 'Should return a passphrase');
+        assert.ok(result.encrypted instanceof Uint8Array, 'Should return a Uint8Array');
+    });
+
+    it('uses provided passphrase when given', async () => {
+        const input = new Uint8Array([10, 20, 30]);
+        const passphrase = 'my-buffer-passphrase';
+        const result = await encryptBuffer(input, passphrase);
+        assert.equal(result.passphrase, passphrase);
+    });
+
+    it('auto-generates passphrase when not provided', async () => {
+        const input = new Uint8Array([1]);
+        const result = await encryptBuffer(input);
+        const words = result.passphrase.split('-');
+        assert.equal(words.length, 8);
+    });
+
+    it('produces correct binary format: [8B salt][12B IV][ciphertext + 16B auth tag]', async () => {
+        const plaintext = new Uint8Array(100);
+        const { encrypted } = await encryptBuffer(plaintext);
+        // 8 salt + 12 IV + 100 plaintext + 16 auth tag = 136
+        assert.equal(encrypted.length, 8 + 12 + 100 + 16);
+    });
+
+    it('produces different ciphertext for same input (random salt/IV)', async () => {
+        const input = new Uint8Array([1, 2, 3]);
+        const a = await encryptBuffer(input, 'same-passphrase');
+        const b = await encryptBuffer(input, 'same-passphrase');
+        assert.notDeepEqual(a.encrypted, b.encrypted);
+    });
+});
+
+describe('decryptBuffer', () => {
+    it('round-trips arbitrary binary data', async () => {
+        const original = new Uint8Array([0, 1, 127, 128, 255, 42, 99]);
+        const { passphrase, encrypted } = await encryptBuffer(original);
+        const decrypted = await decryptBuffer(encrypted, passphrase);
+        assert.deepEqual(decrypted, original);
+    });
+
+    it('round-trips with custom passphrase', async () => {
+        const original = new Uint8Array(50).fill(77);
+        const passphrase = 'custom-buffer-passphrase';
+        const { encrypted } = await encryptBuffer(original, passphrase);
+        const decrypted = await decryptBuffer(encrypted, passphrase);
+        assert.deepEqual(decrypted, original);
+    });
+
+    it('round-trips zero-length buffer', async () => {
+        const original = new Uint8Array(0);
+        const { passphrase, encrypted } = await encryptBuffer(original);
+        const decrypted = await decryptBuffer(encrypted, passphrase);
+        assert.deepEqual(decrypted, original);
+    });
+
+    it('round-trips large binary buffer', async () => {
+        const original = new Uint8Array(1024 * 10);
+        for (let i = 0; i < original.length; i++) {
+            original[i] = i % 256;
+        }
+        const { passphrase, encrypted } = await encryptBuffer(original);
+        const decrypted = await decryptBuffer(encrypted, passphrase);
+        assert.deepEqual(decrypted, original);
+    });
+
+    it('fails with wrong passphrase', async () => {
+        const input = new Uint8Array([1, 2, 3]);
+        const { encrypted } = await encryptBuffer(input, 'correct-passphrase');
+        await assert.rejects(
+            () => decryptBuffer(encrypted, 'wrong-passphrase'),
+            'Should reject with wrong passphrase'
+        );
+    });
+
+    it('fails with corrupted ciphertext', async () => {
+        const input = new Uint8Array([1, 2, 3]);
+        const { passphrase, encrypted } = await encryptBuffer(input);
+        const corrupted = new Uint8Array(encrypted);
+        corrupted[20] ^= 0xff;
+        await assert.rejects(
+            () => decryptBuffer(corrupted, passphrase),
+            'Should reject with corrupted ciphertext'
+        );
     });
 });

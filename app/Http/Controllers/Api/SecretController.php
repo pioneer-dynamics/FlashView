@@ -14,8 +14,13 @@ use App\Models\Secret;
 use App\Services\EmailMaskingService;
 use App\Services\SecretService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class SecretController extends Controller implements HasMiddleware
 {
@@ -62,6 +67,19 @@ class SecretController extends Controller implements HasMiddleware
             $senderEmail = $identity->isEmailType() ? $identity->email : null;
         }
 
+        $preUploadedFilepath = null;
+
+        if ($request->filled('file_token')) {
+            $pending = Cache::pull("pending_file_upload:{$request->file_token}");
+
+            abort_if(! $pending || $pending['user_id'] !== $request->user()->id, 422, 'Invalid or expired file upload session.');
+            abort_if(! Storage::exists($pending['filepath']), 422, 'File upload did not complete.');
+
+            $preUploadedFilepath = $pending['filepath'];
+        }
+
+        $isFileUpload = $preUploadedFilepath !== null || $request->hasFile('file');
+
         $result = $this->secretService->createSecret(
             $request->message,
             (int) $request->expires_in,
@@ -70,6 +88,11 @@ class SecretController extends Controller implements HasMiddleware
             $senderCompanyName,
             $senderDomain,
             $senderEmail,
+            $request->file('file'),
+            $preUploadedFilepath,
+            $request->file_original_name,
+            $isFileUpload ? (int) $request->file_size : null,
+            $request->file_mime_type,
         );
 
         if ($email = $request->safe()->email) {
@@ -93,20 +116,53 @@ class SecretController extends Controller implements HasMiddleware
     /**
      * Retrieve a secret's encrypted message (one-time access).
      *
-     * The Form Request gates on secrets:list token ability before
-     * the model is loaded. Secret::findByHashID triggers the normal
-     * Eloquent retrieved event, which marks the secret as consumed
-     * and notifies the owner. ActiveScope ensures expired or
-     * already-retrieved secrets return 404 automatically.
+     * For file secrets, returns file metadata and signals the CLI to call downloadFile next.
      */
     public function retrieve(RetrieveSecretRequest $request, string $secret): JsonResponse
     {
         $secretRecord = Secret::findByHashID($secret);
 
+        if ($secretRecord->isFileSecret()) {
+            $isCombined = $secretRecord->message !== null;
+
+            $data = [
+                'hash_id' => $secretRecord->hash_id,
+                'type' => $isCombined ? 'combined' : 'file',
+                'filename' => $secretRecord->filename,
+                'file_size' => $secretRecord->file_size,
+                'file_mime_type' => $secretRecord->file_mime_type,
+            ];
+
+            if ($isCombined) {
+                $data['message'] = $secretRecord->message;
+                DB::table($secretRecord->getTable())->where('id', $secretRecord->id)->update(['message' => null]);
+            }
+
+            return response()->json(['data' => $data]);
+        }
+
         return (new SecretMessageResource([
             'hash_id' => $secretRecord->hash_id,
             'message' => $secretRecord->message,
         ]))->response();
+    }
+
+    /**
+     * Download an encrypted file secret (one-time, presigned URL or streaming fallback).
+     */
+    public function downloadFile(string $secret): RedirectResponse|StreamedResponse
+    {
+        return $this->secretService->downloadFileSecret($secret);
+    }
+
+    /**
+     * Confirm that the client has downloaded the file and the S3 object can be deleted.
+     */
+    public function confirmFileDownloaded(string $secret): JsonResponse
+    {
+        $this->secretService->deleteDownloadedFile($secret);
+
+        return response()->json(null, 204);
     }
 
     /**
