@@ -1,6 +1,7 @@
 <script setup>
 import FileProgressBar from '@/Components/FileProgressBar.vue';
 import InputError from '@/Components/InputError.vue';
+import { ref, watch, onUnmounted } from 'vue';
 
 const props = defineProps({
     modelValue: { type: Object, default: null },
@@ -45,6 +46,34 @@ const clearFile = () => {
     emit('update:modelValue', null);
     emit('update:fileError', null);
 };
+
+const scrambleChars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
+const scrambledName = ref('');
+let scrambleTimer = null;
+
+const stopScramble = () => {
+    if (scrambleTimer) {
+        clearInterval(scrambleTimer);
+        scrambleTimer = null;
+    }
+    scrambledName.value = '';
+};
+
+watch(() => props.uploadState, (state) => {
+    if (state === 'encrypting' && props.modelValue?.name) {
+        const name = props.modelValue.name;
+        scrambleTimer = setInterval(() => {
+            scrambledName.value = name
+                .split('')
+                .map((c) => (c === ' ' || c === '.') ? c : scrambleChars[Math.floor(Math.random() * scrambleChars.length)])
+                .join('');
+        }, 40);
+    } else {
+        stopScramble();
+    }
+});
+
+onUnmounted(stopScramble);
 </script>
 
 <template>
@@ -54,7 +83,7 @@ const clearFile = () => {
                 <path fill-rule="evenodd" d="M5.625 1.5c-1.036 0-1.875.84-1.875 1.875v17.25c0 1.035.84 1.875 1.875 1.875h12.75c1.035 0 1.875-.84 1.875-1.875V12.75A3.75 3.75 0 0 0 16.5 9h-1.875a1.875 1.875 0 0 1-1.875-1.875V5.25A3.75 3.75 0 0 0 9 1.5H5.625Z" clip-rule="evenodd" />
             </svg>
             <div class="flex-1 min-w-0">
-                <p class="text-sm font-mono text-gamboge-300 truncate">{{ modelValue.name }}</p>
+                <p class="text-sm font-mono text-gamboge-300 truncate">{{ uploadState === 'encrypting' ? scrambledName : modelValue.name }}</p>
                 <p class="text-xs text-gray-500 dark:text-gray-400">{{ humanFileSize(modelValue.size) }}</p>
             </div>
             <button type="button" @click="clearFile" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 shrink-0">
