@@ -75,7 +75,7 @@ class SecretController extends Controller implements HasMiddleware
             $senderEmail,
             $request->file('file'),
             $request->file_original_name,
-            $request->hasFile('file') ? (int) $request->file_size : null,
+            $request->filled('file_size') ? (int) $request->file_size : null,
             $request->file_mime_type,
         );
 
