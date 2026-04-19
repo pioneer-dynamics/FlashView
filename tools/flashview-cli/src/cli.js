@@ -257,7 +257,7 @@ program
             const prepare = await client.prepareFileUpload();
 
             // Step 2: upload encrypted bytes directly (S3 or server fallback)
-            const uploadHeaders = { 'Content-Type': 'application/octet-stream', ...prepare.upload_headers };
+            const uploadHeaders = { 'Content-Type': 'application/octet-stream', 'Content-Length': String(encrypted.byteLength), ...prepare.upload_headers };
             const uploadBody = verbose
                 ? createProgressBody(encrypted, (sent, total) => renderProgressBar(sent, total))
                 : encrypted;
