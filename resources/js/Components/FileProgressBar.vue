@@ -32,7 +32,7 @@ const isDeterminate = computed(() => props.progress > 0);
                 {{ label }}
             </span>
         </div>
-        <div class="relative h-1.5 w-full rounded-sm bg-gray-100 dark:bg-gray-800 border border-gamboge-300 dark:border-gamboge-800 overflow-hidden">
+        <div class="relative h-1.5 w-full rounded-sm bg-gray-100 dark:bg-gray-800 border border-gamboge-300/30 dark:border-gamboge-300/20 overflow-hidden">
             <div v-if="isDeterminate"
                  class="absolute inset-y-0 left-0 bg-gamboge-500 dark:bg-gamboge-300 rounded-sm transition-all duration-300 ease-out shadow-neon-cyan"
                  :style="{ width: progress + '%' }">

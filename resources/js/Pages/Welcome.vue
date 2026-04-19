@@ -35,6 +35,22 @@
             type: String,
             default: null,
         },
+        isFileSecret: {
+            type: Boolean,
+            default: false,
+        },
+        fileSize: {
+            type: Number,
+            default: null,
+        },
+        fileMimeType: {
+            type: String,
+            default: null,
+        },
+        fileDownloadUrl: {
+            type: String,
+            default: null,
+        },
     });
 
 
@@ -58,6 +74,10 @@
                             :sender-company-name="senderCompanyName"
                             :sender-domain="senderDomain"
                             :sender-email="senderEmail"
+                            :is-file-secret="isFileSecret"
+                            :file-size="fileSize"
+                            :file-mime-type="fileMimeType"
+                            :file-download-url="fileDownloadUrl"
                         />
                     <!-- </div> -->
                 </main>
