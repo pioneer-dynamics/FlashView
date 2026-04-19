@@ -51,6 +51,12 @@ class PlanSeederProd extends Seeder
                         ],
                         'type' => 'limit',
                     ],
+                    'file_upload' => [
+                        'order' => 4.3,
+                        'label' => 'File uploads up to :max_file_size_mb MB',
+                        'config' => ['max_file_size_mb' => 10],
+                        'type' => 'limit',
+                    ],
                     'email_notification' => [
                         'order' => 4.5,
                         'label' => 'Email Notifications',
@@ -84,12 +90,6 @@ class PlanSeederProd extends Seeder
                         'label' => 'Verified Sender Identity (optional)',
                         'config' => [],
                         'type' => 'missing',
-                    ],
-                    'file_upload' => [
-                        'order' => 8,
-                        'label' => 'File uploads up to :max_file_size_mb MB',
-                        'config' => ['max_file_size_mb' => 10],
-                        'type' => 'limit',
                     ],
                 ],
             ]);
@@ -131,6 +131,12 @@ class PlanSeederProd extends Seeder
                         'config' => [],
                         'type' => 'feature',
                     ],
+                    'file_upload' => [
+                        'order' => 4.3,
+                        'label' => 'File uploads up to :max_file_size_mb MB',
+                        'config' => ['max_file_size_mb' => 50],
+                        'type' => 'limit',
+                    ],
                     'email_notification' => [
                         'order' => 4.5,
                         'label' => 'Email Notifications',
@@ -164,12 +170,6 @@ class PlanSeederProd extends Seeder
                         'label' => 'Verified Sender Identity (optional)',
                         'config' => [],
                         'type' => 'missing',
-                    ],
-                    'file_upload' => [
-                        'order' => 8,
-                        'label' => 'File uploads up to :max_file_size_mb MB',
-                        'config' => ['max_file_size_mb' => 50],
-                        'type' => 'limit',
                     ],
                 ],
             ]);
@@ -211,6 +211,12 @@ class PlanSeederProd extends Seeder
                         'config' => [],
                         'type' => 'feature',
                     ],
+                    'file_upload' => [
+                        'order' => 4.3,
+                        'label' => 'File uploads up to :max_file_size_mb MB',
+                        'config' => ['max_file_size_mb' => 100],
+                        'type' => 'feature',
+                    ],
                     'email_notification' => [
                         'order' => 4.5,
                         'label' => 'Email Notifications',
@@ -243,12 +249,6 @@ class PlanSeederProd extends Seeder
                         'order' => 7,
                         'label' => 'Verified Sender Identity (optional)',
                         'config' => [],
-                        'type' => 'feature',
-                    ],
-                    'file_upload' => [
-                        'order' => 8,
-                        'label' => 'File uploads up to :max_file_size_mb MB',
-                        'config' => ['max_file_size_mb' => 100],
                         'type' => 'feature',
                     ],
                 ],
