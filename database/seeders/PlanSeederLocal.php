@@ -135,7 +135,7 @@ class PlanSeederLocal extends Seeder
                         'order' => 4.3,
                         'label' => 'File uploads up to :max_file_size_mb MB',
                         'config' => ['max_file_size_mb' => 50],
-                        'type' => 'limit',
+                        'type' => 'feature',
                     ],
                     'email_notification' => [
                         'order' => 4.5,
