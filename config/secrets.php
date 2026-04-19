@@ -77,7 +77,6 @@ return [
             'guest' => 0,
             'user' => env('USER_SECRET_FILE_SIZE_LIMIT_MB', 10),
         ],
-        'max_active_file_secrets' => env('MAX_ACTIVE_FILE_SECRETS_PER_USER', 10),
         'presigned_url_ttl_hours' => env('FILE_PRESIGNED_URL_TTL_HOURS', 12),
         'allowed_mime_types' => [
             // Documents

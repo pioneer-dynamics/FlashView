@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Exceptions\FileUploadLimitExceededException;
 use App\Mail\NewSecretNotification;
 use App\Models\Secret;
 use App\Models\User;
@@ -41,18 +40,6 @@ class SecretService
         $filepath = null;
 
         if ($encryptedFile !== null) {
-            if ($userId !== null) {
-                $activeFileCount = Secret::withoutGlobalScopes()
-                    ->where('user_id', $userId)
-                    ->whereNotNull('filepath')
-                    ->where('expires_at', '>=', now())
-                    ->count();
-
-                if ($activeFileCount >= config('secrets.file_upload.max_active_file_secrets', 10)) {
-                    throw new FileUploadLimitExceededException('You have reached the maximum number of active file secrets. Please wait for existing ones to expire or be retrieved.');
-                }
-            }
-
             $filepath = 'secrets/'.Str::uuid().'.bin';
             Storage::put($filepath, $encryptedFile->get());
         }
