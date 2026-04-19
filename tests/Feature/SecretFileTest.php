@@ -146,7 +146,7 @@ class SecretFileTest extends TestCase
 
     // --- File deleted from storage after download ---
 
-    public function test_file_is_deleted_from_storage_after_download(): void
+    public function test_file_is_marked_retrieved_after_download(): void
     {
         Storage::fake();
 
@@ -157,10 +157,32 @@ class SecretFileTest extends TestCase
 
         $downloadUrl = URL::temporarySignedRoute('secret.file', now()->addMinutes(5), ['secret' => $secret->hash_id]);
 
+        // S3 path: redirect to presigned URL; local disk may redirect too via Storage::fake
         $response = $this->get($downloadUrl);
-        $response->assertStatus(200);
+        $this->assertContains($response->getStatusCode(), [200, 302]);
 
-        $this->assertFalse(Storage::exists('secrets/file.bin'));
+        $refreshed = Secret::withoutGlobalScopes()->find($secret->id);
+        $this->assertNotNull($refreshed->retrieved_at);
+    }
+
+    public function test_file_is_deleted_from_storage_on_local_disk_fallback(): void
+    {
+        Storage::fake();
+
+        Storage::shouldReceive('temporaryUrl')
+            ->once()
+            ->andThrow(new \RuntimeException('Local driver does not support temporary URLs.'));
+
+        Storage::shouldReceive('get')->with('secrets/file.bin')->andReturn('fake-encrypted-content');
+        Storage::shouldReceive('delete')->with('secrets/file.bin')->once();
+
+        $user = User::factory()->create();
+
+        $secret = Secret::factory()->fileSecret('secrets/file.bin')->forUser($user)->create();
+
+        $downloadUrl = URL::temporarySignedRoute('secret.file', now()->addMinutes(5), ['secret' => $secret->hash_id]);
+
+        $this->get($downloadUrl)->assertOk();
 
         $refreshed = Secret::withoutGlobalScopes()->find($secret->id);
         $this->assertNull($refreshed->filepath);
@@ -179,7 +201,9 @@ class SecretFileTest extends TestCase
 
         $downloadUrl = URL::temporarySignedRoute('secret.file', now()->addMinutes(5), ['secret' => $secret->hash_id]);
 
-        $this->get($downloadUrl)->assertStatus(200);
+        // First attempt marks retrieved (redirect or stream)
+        $this->get($downloadUrl);
+        // Second attempt should return 410
         $this->get($downloadUrl)->assertStatus(410);
     }
 
