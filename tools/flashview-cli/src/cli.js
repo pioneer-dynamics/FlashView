@@ -6,7 +6,9 @@ import { createServer } from 'node:http';
 import { createRequire } from 'node:module';
 import { hostname } from 'node:os';
 import { createInterface } from 'node:readline';
-import { encryptMessage, decryptMessage } from './crypto.js';
+import { readFileSync, writeFileSync } from 'node:fs';
+import { basename, resolve } from 'node:path';
+import { encryptMessage, decryptMessage, encryptBuffer, decryptBuffer } from './crypto.js';
 import { FlashViewClient, ApiError } from './api.js';
 import { getConfig, getConfigInfo, setConfig, clearConfig, getCachedLatestVersion } from './config.js';
 import { parseExpiry, getServerConfig, FALLBACK_EXPIRY_OPTIONS } from './expiry.js';
@@ -141,6 +143,7 @@ program
     .command('create')
     .description('Create an encrypted secret')
     .option('-m, --message <text>', 'Secret message (reads from stdin if omitted)')
+    .option('-f, --file <path>', 'File to encrypt and share (requires authentication)')
     .option('-p, --passphrase <passphrase>', 'Encryption passphrase (auto-generated if omitted)')
     .option('-e, --expires-in <duration>', 'Expiry duration (5m, 30m, 1h, 4h, 12h, 1d, 3d, 7d, 14d, 30d)', '1d')
     .option('--email <address>', 'Recipient email address')
@@ -163,10 +166,55 @@ program
             process.exit(1);
         }
 
+        if (options.file) {
+            const filePath = resolve(options.file);
+            let fileBytes;
+            try {
+                fileBytes = new Uint8Array(readFileSync(filePath));
+            } catch {
+                console.error(`Could not read file: ${options.file}`);
+                process.exit(1);
+            }
+
+            const originalFilename = basename(filePath);
+            const passphrase = options.passphrase || null;
+
+            const { encrypted, passphrase: resolvedPassphrase } = await encryptBuffer(fileBytes, passphrase);
+            const { secret: encryptedFilename } = await encryptMessage(originalFilename, resolvedPassphrase);
+
+            const mimeType = 'application/octet-stream';
+            const result = await client.uploadFile(
+                encrypted,
+                encryptedFilename,
+                fileBytes.length,
+                mimeType,
+                expiresIn,
+                options.email || null,
+                !!options.withVerifiedBadge,
+            );
+
+            if (options.json) {
+                console.log(JSON.stringify({
+                    url: result.data.url,
+                    passphrase: resolvedPassphrase,
+                    message_id: result.data.hash_id,
+                    expires_at: result.data.expires_at,
+                }));
+            } else {
+                console.log('File secret created successfully!\n');
+                console.log(`URL:        ${result.data.url}`);
+                console.log(`Passphrase: ${resolvedPassphrase}`);
+                console.log(`Message ID: ${result.data.hash_id}`);
+                console.log(`Expires:    ${result.data.expires_at}`);
+                console.log('\nSave the URL and passphrase now — they cannot be retrieved later.');
+            }
+            return;
+        }
+
         let message = options.message;
         if (!message) {
             if (process.stdin.isTTY) {
-                console.error('No message provided. Use --message or pipe input via stdin.');
+                console.error('No message provided. Use --message, --file, or pipe input via stdin.');
                 console.error('Example: echo "my secret" | flashview create');
                 process.exit(1);
             }
@@ -200,8 +248,9 @@ program
 
 program
     .command('get <messageId>')
-    .description('Retrieve and decrypt a secret (text secrets only)')
+    .description('Retrieve and decrypt a secret')
     .requiredOption('-p, --passphrase <passphrase>', 'Decryption passphrase')
+    .option('-o, --output <path>', 'Output file path for file secrets (defaults to original filename in current directory)')
     .option('--json', 'Output as JSON (for scripting)')
     .action(withErrorHandling(async (hashId, options) => {
         const config = getConfig();
@@ -216,6 +265,44 @@ program
                 process.exit(1);
             }
             throw err;
+        }
+
+        if (result.data.type === 'file') {
+            let encryptedBytes;
+            try {
+                encryptedBytes = await client.downloadFile(hashId);
+            } catch (err) {
+                console.error('Failed to download encrypted file.');
+                if (err instanceof ApiError && err.status === 410) {
+                    console.error('The file has already been retrieved or has expired.');
+                }
+                process.exit(1);
+            }
+
+            let decryptedBytes;
+            let originalFilename;
+            try {
+                decryptedBytes = await decryptBuffer(encryptedBytes, options.passphrase);
+                originalFilename = await decryptMessage(result.data.filename, options.passphrase);
+            } catch {
+                console.error('Decryption failed. The password may be incorrect.');
+                console.error('Warning: The file has been consumed from the server and cannot be retrieved again.');
+                process.exit(1);
+            }
+
+            const outputPath = options.output ? resolve(options.output) : resolve(originalFilename);
+            writeFileSync(outputPath, Buffer.from(decryptedBytes));
+
+            if (options.json) {
+                console.log(JSON.stringify({
+                    message_id: result.data.hash_id,
+                    file: outputPath,
+                    original_filename: originalFilename,
+                }));
+            } else {
+                console.log(`\u2713 File saved to ${outputPath}`);
+            }
+            return;
         }
 
         const encryptedMessage = result.data.message;

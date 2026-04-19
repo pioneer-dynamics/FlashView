@@ -110,6 +110,97 @@ export class FlashViewClient {
     }
 
     /**
+     * Upload an encrypted file as a file secret.
+     *
+     * @param {Uint8Array} encryptedBuffer
+     * @param {string} encryptedFilename
+     * @param {number} fileSize
+     * @param {string} fileMimeType
+     * @param {number} expiresIn
+     * @param {string|null} email
+     * @param {boolean} withVerifiedBadge
+     * @returns {Promise<Object>}
+     */
+    async uploadFile(encryptedBuffer, encryptedFilename, fileSize, fileMimeType, expiresIn = 1440, email = null, withVerifiedBadge = false) {
+        const formData = new FormData();
+        formData.append('file', new Blob([encryptedBuffer], { type: 'application/octet-stream' }), 'encrypted.bin');
+        formData.append('file_original_name', encryptedFilename);
+        formData.append('file_size', String(fileSize));
+        formData.append('file_mime_type', fileMimeType);
+        formData.append('expires_in', String(expiresIn));
+        if (email) { formData.append('email', email); }
+        if (withVerifiedBadge) { formData.append('include_sender_identity', 'true'); }
+
+        return this.requestMultipart('POST', '/api/v1/secrets', formData);
+    }
+
+    /**
+     * Download an encrypted file secret as raw bytes.
+     *
+     * @param {string} hashId
+     * @returns {Promise<Uint8Array>}
+     */
+    async downloadFile(hashId) {
+        const url = `${this.baseUrl}/api/v1/secrets/${hashId}/file`;
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), this.timeout);
+        let response;
+        try {
+            response = await fetch(url, {
+                headers: { 'Authorization': `Bearer ${this.token}` },
+                signal: controller.signal,
+            });
+        } catch (err) {
+            if (err.name === 'AbortError') {
+                throw new ApiError('Request timed out', 0);
+            }
+            throw err;
+        } finally {
+            clearTimeout(timeout);
+        }
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new ApiError(error.message || `HTTP ${response.status}`, response.status, error.errors);
+        }
+        return new Uint8Array(await response.arrayBuffer());
+    }
+
+    /**
+     * Perform a multipart/form-data request (no explicit Content-Type — browser/Node sets boundary).
+     *
+     * @param {string} method
+     * @param {string} path
+     * @param {FormData} formData
+     * @returns {Promise<Object>}
+     */
+    async requestMultipart(method, path, formData) {
+        const url = `${this.baseUrl}${path}`;
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), this.timeout);
+        let response;
+        try {
+            response = await fetch(url, {
+                method,
+                signal: controller.signal,
+                headers: { 'Authorization': `Bearer ${this.token}`, 'Accept': 'application/json' },
+                body: formData,
+            });
+        } catch (err) {
+            if (err.name === 'AbortError') {
+                throw new ApiError('Request timed out', 0);
+            }
+            throw err;
+        } finally {
+            clearTimeout(timeout);
+        }
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new ApiError(error.message || `HTTP ${response.status}`, response.status, error.errors);
+        }
+        return response.json();
+    }
+
+    /**
      * @param {string} method
      * @param {string} path
      * @param {Object|null} body
