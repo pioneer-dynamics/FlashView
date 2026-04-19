@@ -16,8 +16,6 @@ use App\Services\SecretService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class SecretController extends Controller implements HasMiddleware
@@ -129,43 +127,7 @@ class SecretController extends Controller implements HasMiddleware
      */
     public function downloadFile(string $secret): StreamedResponse
     {
-        $content = null;
-        $filepath = null;
-
-        DB::transaction(function () use ($secret, &$content, &$filepath) {
-            $record = Secret::withoutEvents(
-                fn () => Secret::withoutGlobalScopes()
-                    ->lockForUpdate()
-                    ->find(Secret::decodeHashId($secret))
-            );
-
-            if (! $record || $record->retrieved_at !== null || ! $record->filepath) {
-                abort(410, 'File has already been retrieved or has expired.');
-            }
-
-            $filepath = $record->filepath;
-            $content = Storage::get($filepath);
-
-            DB::table($record->getTable())->where('id', $record->id)->update([
-                'retrieved_at' => now(),
-                'ip_address_retrieved' => encrypt(request()->ip(), false),
-                'message' => null,
-                'filepath' => null,
-                'filename' => null,
-            ]);
-        });
-
-        if ($filepath) {
-            Storage::delete($filepath);
-        }
-
-        return response()->stream(function () use ($content) {
-            echo $content;
-        }, 200, [
-            'Content-Type' => 'application/octet-stream',
-            'Content-Disposition' => 'attachment; filename="encrypted.bin"',
-            'Content-Length' => strlen($content),
-        ]);
+        return $this->secretService->downloadFileSecret($secret);
     }
 
     /**

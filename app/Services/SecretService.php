@@ -8,10 +8,12 @@ use App\Models\Secret;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class SecretService
 {
@@ -97,6 +99,52 @@ class SecretService
             ->withoutGlobalScopes()
             ->orderBy('created_at', 'desc')
             ->paginate());
+    }
+
+    /**
+     * Atomically download and invalidate an encrypted file secret (one-time).
+     */
+    public function downloadFileSecret(string $hashId): StreamedResponse
+    {
+        $content = null;
+        $filepath = null;
+
+        DB::transaction(function () use ($hashId, &$content, &$filepath) {
+            $record = Secret::withoutEvents(
+                fn () => Secret::withoutGlobalScopes()
+                    ->lockForUpdate()
+                    ->find(Secret::decodeHashId($hashId))
+            );
+
+            if (! $record || $record->retrieved_at !== null || ! $record->filepath) {
+                abort(410, 'File has already been retrieved or has expired.');
+            }
+
+            $filepath = $record->filepath;
+            $content = Storage::get($filepath);
+
+            DB::table($record->getTable())->where('id', $record->id)->update([
+                'retrieved_at' => now(),
+                'ip_address_retrieved' => encrypt(request()->ip(), false),
+                'message' => null,
+                'filepath' => null,
+                'filename' => null,
+                'file_size' => null,
+                'file_mime_type' => null,
+            ]);
+        });
+
+        if ($filepath) {
+            Storage::delete($filepath);
+        }
+
+        return response()->stream(function () use ($content) {
+            echo $content;
+        }, 200, [
+            'Content-Type' => 'application/octet-stream',
+            'Content-Disposition' => 'attachment; filename="encrypted.bin"',
+            'Content-Length' => strlen($content),
+        ]);
     }
 
     /**
