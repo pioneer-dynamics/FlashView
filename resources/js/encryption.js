@@ -1,4 +1,4 @@
-import { encryptMessage as sharedEncrypt, decryptMessage as sharedDecrypt, generatePassphrase } from '@pioneer-dynamics/flashview-crypto';
+import { encryptMessage as sharedEncrypt, decryptMessage as sharedDecrypt, generatePassphrase, encryptBuffer, decryptBuffer } from '@pioneer-dynamics/flashview-crypto';
 
 export class encryption {
 
@@ -49,5 +49,16 @@ export class encryption {
         } catch (error) {
             throw new Error('Could not decrypt message. Password might be wrong. Message destroyed.');
         }
+    }
+
+    async encryptFile(file, passphrase = null) {
+        const buffer = await file.arrayBuffer();
+        const { encrypted, passphrase: resolvedPassphrase } = await encryptBuffer(new Uint8Array(buffer), passphrase);
+        return { encryptedBuffer: encrypted, passphrase: resolvedPassphrase };
+    }
+
+    async decryptFile(encryptedUint8Array, passphrase) {
+        this.validatePassphrase(passphrase);
+        return decryptBuffer(encryptedUint8Array, passphrase);
     }
 }

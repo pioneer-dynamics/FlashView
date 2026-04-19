@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\ConfigController;
+use App\Http\Controllers\Api\FileUploadController;
 use App\Http\Controllers\Api\SecretController;
 use App\Http\Controllers\Api\WebhookController;
 use App\Http\Middleware\EnsurePlanHasApiAccess;
@@ -22,6 +23,20 @@ Route::prefix('v1')->as('api.v1.')->group(function () {
 
         Route::get('secrets/{secret}/retrieve', [SecretController::class, 'retrieve'])
             ->name('secrets.retrieve');
+
+        Route::get('secrets/{secret}/file', [SecretController::class, 'downloadFile'])
+            ->name('secrets.file');
+
+        Route::post('secrets/{secret}/file/downloaded', [SecretController::class, 'confirmFileDownloaded'])
+            ->name('secrets.file.downloaded');
+
+        Route::post('secrets/file/prepare', [FileUploadController::class, 'prepare'])
+            ->name('secrets.file.prepare');
+
+        Route::post('secrets/file/upload/{token}', [FileUploadController::class, 'upload'])
+            ->withoutMiddleware(EnsurePlanHasApiAccess::class)
+            ->middleware('signed')
+            ->name('secrets.file.upload');
 
         Route::middleware('ability:webhook:manage')->group(function () {
             Route::get('webhook', [WebhookController::class, 'show'])->name('webhook.show');

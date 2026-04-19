@@ -12,9 +12,13 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class SecretController extends Controller implements HasMiddleware
 {
@@ -26,7 +30,7 @@ class SecretController extends Controller implements HasMiddleware
     public static function middleware(): array
     {
         return [
-            new Middleware('signed', only: ['show', 'decrypt']),
+            new Middleware('signed', only: ['show', 'decrypt', 'downloadFile', 'confirmFileDownloaded']),
             new Middleware('throttle:secrets', only: ['store']),
         ];
     }
@@ -59,6 +63,25 @@ class SecretController extends Controller implements HasMiddleware
             $senderEmail = $identity->isEmailType() ? $identity->email : null;
         }
 
+        $preUploadedFilepath = null;
+
+        if ($request->filled('file_token')) {
+            $pending = Cache::get("pending_file_upload:{$request->file_token}");
+
+            if (! $pending || $pending['user_id'] !== $request->user()?->id) {
+                return back()->withErrors(['file_token' => 'Invalid or expired file upload session. Please try again.']);
+            }
+
+            if (! Storage::exists($pending['filepath'])) {
+                return back()->withErrors(['file_token' => 'File upload did not complete. Please try again.']);
+            }
+
+            $preUploadedFilepath = $pending['filepath'];
+            Cache::forget("pending_file_upload:{$request->file_token}");
+        }
+
+        $isFileUpload = $preUploadedFilepath !== null || $request->hasFile('file');
+
         $result = $this->secretService->createSecret(
             $request->message,
             (int) $request->expires_in,
@@ -67,6 +90,11 @@ class SecretController extends Controller implements HasMiddleware
             $senderCompanyName,
             $senderDomain,
             $senderEmail,
+            $request->file('file'),
+            $preUploadedFilepath,
+            $request->file_original_name,
+            $isFileUpload ? (int) $request->file_size : null,
+            $request->file_mime_type,
         );
 
         if ($request->user() && $email = $request->safe()->email) {
@@ -76,6 +104,7 @@ class SecretController extends Controller implements HasMiddleware
         return back()->with('flash', [
             'secret' => [
                 'url' => $result['url'],
+                'is_file' => $isFileUpload,
             ],
         ]);
     }
@@ -87,22 +116,65 @@ class SecretController extends Controller implements HasMiddleware
     {
         $secretRecord = Secret::withoutEvents(fn () => Secret::withoutGlobalScopes()->find(Secret::decodeHashId($secret)));
 
-        return Inertia::render('Welcome', [
+        $props = [
             'secret' => $secret,
             'decryptUrl' => URL::temporarySignedRoute('secret.decrypt', now()->addMinutes(5), ['secret' => $secret]),
             'senderCompanyName' => $secretRecord?->sender_company_name,
             'senderDomain' => $secretRecord?->sender_domain,
             'senderEmail' => $secretRecord?->sender_email,
-        ]);
+        ];
+
+        if ($secretRecord?->isFileSecret()) {
+            $props['isFileSecret'] = true;
+            $props['fileSize'] = $secretRecord->file_size;
+            $props['fileMimeType'] = $secretRecord->file_mime_type;
+            $props['fileDownloadUrl'] = URL::temporarySignedRoute('secret.file', now()->addMinutes(5), ['secret' => $secret]);
+            $props['hasMessage'] = $secretRecord->message !== null;
+        }
+
+        return Inertia::render('Welcome', $props);
     }
 
     public function decrypt(Secret $secret): RedirectResponse
     {
-        return back()->with('flash', [
-            'secret' => [
-                'message' => $secret->message,
-            ],
-        ]);
+        $flash = [];
+
+        if ($secret->isFileSecret()) {
+            $flash['is_file'] = true;
+            $flash['file_size'] = $secret->file_size;
+            $flash['file_mime_type'] = $secret->file_mime_type;
+            $flash['file_original_name'] = $secret->filename;
+            $flash['file_download_url'] = URL::temporarySignedRoute('secret.file', now()->addMinutes(5), ['secret' => $secret->hash_id]);
+            $flash['file_confirm_url'] = URL::temporarySignedRoute('secret.file.downloaded', now()->addMinutes(5), ['secret' => $secret->hash_id]);
+        }
+
+        if ($secret->message !== null) {
+            $flash['message'] = $secret->message;
+            // For combined secrets the retrieved event guard skips nulling the message — do it here.
+            if ($secret->isFileSecret()) {
+                DB::table($secret->getTable())->where('id', $secret->id)->update(['message' => null]);
+            }
+        }
+
+        return back()->with('flash', ['secret' => $flash]);
+    }
+
+    /**
+     * Download an encrypted file secret (one-time, presigned URL or streaming fallback).
+     */
+    public function downloadFile(string $secret): RedirectResponse|StreamedResponse
+    {
+        return $this->secretService->downloadFileSecret($secret);
+    }
+
+    /**
+     * Confirm that the client has downloaded the file and the S3 object can be deleted.
+     */
+    public function confirmFileDownloaded(string $secret): RedirectResponse
+    {
+        $this->secretService->deleteDownloadedFile($secret);
+
+        return back();
     }
 
     public function index(Request $request): Response

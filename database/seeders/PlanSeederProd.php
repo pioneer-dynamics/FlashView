@@ -51,6 +51,12 @@ class PlanSeederProd extends Seeder
                         ],
                         'type' => 'limit',
                     ],
+                    'file_upload' => [
+                        'order' => 4.3,
+                        'label' => 'File uploads up to :max_file_size_mb MB',
+                        'config' => ['max_file_size_mb' => 10],
+                        'type' => 'limit',
+                    ],
                     'email_notification' => [
                         'order' => 4.5,
                         'label' => 'Email Notifications',
@@ -125,6 +131,12 @@ class PlanSeederProd extends Seeder
                         'config' => [],
                         'type' => 'feature',
                     ],
+                    'file_upload' => [
+                        'order' => 4.3,
+                        'label' => 'File uploads up to :max_file_size_mb MB',
+                        'config' => ['max_file_size_mb' => 50],
+                        'type' => 'feature',
+                    ],
                     'email_notification' => [
                         'order' => 4.5,
                         'label' => 'Email Notifications',
@@ -197,6 +209,12 @@ class PlanSeederProd extends Seeder
                         'order' => 4,
                         'label' => 'No rate limits',
                         'config' => [],
+                        'type' => 'feature',
+                    ],
+                    'file_upload' => [
+                        'order' => 4.3,
+                        'label' => 'File uploads up to :max_file_size_mb MB',
+                        'config' => ['max_file_size_mb' => 250],
                         'type' => 'feature',
                     ],
                     'email_notification' => [

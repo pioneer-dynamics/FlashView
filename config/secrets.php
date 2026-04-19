@@ -70,6 +70,41 @@ return [
     'prune_after' => env('SECRET_PRUNE_AFTER_EXPIRY_DAYS_PLUS', 30),
 
     /**
+     * File upload limits and allowed MIME types
+     */
+    'file_upload' => [
+        'max_file_size_mb' => [
+            'guest' => 0,
+            'user' => env('USER_SECRET_FILE_SIZE_LIMIT_MB', 10),
+        ],
+        'presigned_url_ttl_hours' => env('FILE_PRESIGNED_URL_TTL_HOURS', 12),
+        'allowed_mime_types' => [
+            // Documents
+            'application/pdf',
+            'application/zip',
+            'application/x-zip-compressed',
+            'application/msword',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'application/vnd.ms-excel',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'application/vnd.ms-powerpoint',
+            'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+            'text/plain',
+            'text/csv',
+            // Images
+            'image/jpeg',
+            'image/png',
+            'image/gif',
+            'image/webp',
+            // Video/Audio
+            'video/mp4',
+            'video/quicktime',
+            'audio/mpeg',
+            'audio/wav',
+        ],
+    ],
+
+    /**
      * Rate limits for a non-susbscribed user or guest
      */
     'rate_limit' => [

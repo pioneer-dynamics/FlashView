@@ -6,7 +6,63 @@ import { createServer } from 'node:http';
 import { createRequire } from 'node:module';
 import { hostname } from 'node:os';
 import { createInterface } from 'node:readline';
-import { encryptMessage, decryptMessage } from './crypto.js';
+import { readFileSync, writeFileSync } from 'node:fs';
+import { basename, extname, resolve } from 'node:path';
+
+function humanBytes(bytes) {
+    if (bytes < 1024) { return `${bytes} B`; }
+    if (bytes < 1024 * 1024) { return `${(bytes / 1024).toFixed(1)} KB`; }
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function renderProgressBar(sent, total, label = 'Uploading') {
+    const width = 25;
+    const pct = Math.min(1, sent / total);
+    const filled = Math.round(width * pct);
+    const bar = '█'.repeat(filled) + '░'.repeat(width - filled);
+    const percent = Math.round(pct * 100).toString().padStart(3);
+    const line = `  ${label.padEnd(10)} [${bar}] ${percent}%  ${humanBytes(sent)} / ${humanBytes(total)}`;
+    process.stderr.write(`\r${line.padEnd(72)}`);
+}
+
+function createProgressBody(buffer, onProgress) {
+    const total = buffer.byteLength;
+    let offset = 0;
+    const CHUNK = 65536;
+    return new ReadableStream({
+        pull(controller) {
+            if (offset >= total) { controller.close(); return; }
+            const end = Math.min(offset + CHUNK, total);
+            const chunk = buffer.subarray(offset, end);
+            offset = end;
+            onProgress(offset, total);
+            controller.enqueue(chunk);
+        },
+    });
+}
+
+const MIME_TYPES = {
+    '.pdf': 'application/pdf',
+    '.zip': 'application/zip',
+    '.doc': 'application/msword',
+    '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    '.xls': 'application/vnd.ms-excel',
+    '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    '.ppt': 'application/vnd.ms-powerpoint',
+    '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    '.txt': 'text/plain',
+    '.csv': 'text/csv',
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.png': 'image/png',
+    '.gif': 'image/gif',
+    '.webp': 'image/webp',
+    '.mp4': 'video/mp4',
+    '.mov': 'video/quicktime',
+    '.mp3': 'audio/mpeg',
+    '.wav': 'audio/wav',
+};
+import { encryptMessage, decryptMessage, encryptBuffer, decryptBuffer } from './crypto.js';
 import { FlashViewClient, ApiError } from './api.js';
 import { getConfig, getConfigInfo, setConfig, clearConfig, getCachedLatestVersion } from './config.js';
 import { parseExpiry, getServerConfig, FALLBACK_EXPIRY_OPTIONS } from './expiry.js';
@@ -141,10 +197,12 @@ program
     .command('create')
     .description('Create an encrypted secret')
     .option('-m, --message <text>', 'Secret message (reads from stdin if omitted)')
+    .option('-f, --file <path>', 'File to encrypt and share (requires authentication)')
     .option('-p, --passphrase <passphrase>', 'Encryption passphrase (auto-generated if omitted)')
     .option('-e, --expires-in <duration>', 'Expiry duration (5m, 30m, 1h, 4h, 12h, 1d, 3d, 7d, 14d, 30d)', '1d')
     .option('--email <address>', 'Recipient email address')
     .option('--with-verified-badge', 'Include your verified sender identity badge')
+    .option('--verbose', 'Show step-by-step progress (including upload progress bar for files)')
     .option('--json', 'Output as JSON (for scripting)')
     .action(withErrorHandling(async (options) => {
         const config = getConfig();
@@ -163,18 +221,105 @@ program
             process.exit(1);
         }
 
+        if (options.file) {
+            const verbose = options.verbose && !options.json;
+            const filePath = resolve(options.file);
+            let fileBytes;
+            try {
+                fileBytes = new Uint8Array(readFileSync(filePath));
+            } catch {
+                console.error(`Could not read file: ${options.file}`);
+                process.exit(1);
+            }
+
+            const originalFilename = basename(filePath);
+            const passphrase = options.passphrase || null;
+
+            if (verbose) { process.stderr.write(`  Encrypting ${originalFilename} (${humanBytes(fileBytes.byteLength)})...\n`); }
+            const { encrypted, passphrase: resolvedPassphrase } = await encryptBuffer(fileBytes, passphrase);
+            const { secret: encryptedFilename } = await encryptMessage(originalFilename, resolvedPassphrase);
+
+            let encryptedMessage = null;
+            if (options.message) {
+                const { secret } = await encryptMessage(options.message, resolvedPassphrase);
+                encryptedMessage = secret;
+            }
+
+            const ext = extname(originalFilename).toLowerCase();
+            const mimeType = MIME_TYPES[ext] || null;
+            if (!mimeType) {
+                console.error(`Unsupported file type: ${ext || '(no extension)'}`);
+                console.error(`Supported types: ${Object.keys(MIME_TYPES).join(', ')}`);
+                process.exit(1);
+            }
+
+            // Step 1: get presigned upload URL (or server fallback URL)
+            if (verbose) { process.stderr.write('  Preparing upload...\n'); }
+            const prepare = await client.prepareFileUpload();
+
+            // Step 2: upload encrypted bytes directly (S3 or server fallback)
+            const uploadHeaders = { 'Content-Type': 'application/octet-stream', 'Content-Length': String(encrypted.byteLength), ...prepare.upload_headers };
+            const uploadBody = verbose
+                ? createProgressBody(encrypted, (sent, total) => renderProgressBar(sent, total))
+                : encrypted;
+            if (verbose) { renderProgressBar(0, encrypted.byteLength); }
+            const uploadResponse = await fetch(prepare.upload_url, {
+                method: prepare.upload_type === 's3_direct' ? 'PUT' : 'POST',
+                headers: uploadHeaders,
+                body: uploadBody,
+                duplex: 'half',
+            });
+            if (verbose) { process.stderr.write('\n'); }
+            if (!uploadResponse.ok) {
+                throw new Error(`File upload failed (HTTP ${uploadResponse.status})`);
+            }
+
+            // Step 3: create secret with the file token
+            if (verbose) { process.stderr.write('  Creating secret...\n'); }
+            const result = await client.createSecretWithFileToken(
+                prepare.token,
+                encryptedFilename,
+                fileBytes.length,
+                mimeType,
+                expiresIn,
+                options.email || null,
+                !!options.withVerifiedBadge,
+                encryptedMessage,
+            );
+
+            if (options.json) {
+                console.log(JSON.stringify({
+                    url: result.data.url,
+                    passphrase: resolvedPassphrase,
+                    message_id: result.data.hash_id,
+                    expires_at: result.data.expires_at,
+                }));
+            } else {
+                console.log(options.message ? 'File + note secret created successfully!\n' : 'File secret created successfully!\n');
+                console.log(`URL:        ${result.data.url}`);
+                console.log(`Passphrase: ${resolvedPassphrase}`);
+                console.log(`Message ID: ${result.data.hash_id}`);
+                console.log(`Expires:    ${result.data.expires_at}`);
+                console.log('\nSave the URL and passphrase now — they cannot be retrieved later.');
+            }
+            return;
+        }
+
         let message = options.message;
         if (!message) {
             if (process.stdin.isTTY) {
-                console.error('No message provided. Use --message or pipe input via stdin.');
+                console.error('No message provided. Use --message, --file, or pipe input via stdin.');
                 console.error('Example: echo "my secret" | flashview create');
                 process.exit(1);
             }
             message = await readStdin();
         }
 
+        const verbose = options.verbose && !options.json;
+        if (verbose) { process.stderr.write('  Encrypting message...\n'); }
         const { passphrase, secret } = await encryptMessage(message, options.passphrase);
 
+        if (verbose) { process.stderr.write('  Creating secret...\n'); }
         const result = await client.createSecret(secret, expiresIn, options.email, !!options.withVerifiedBadge);
 
         if (options.json) {
@@ -200,13 +345,17 @@ program
 
 program
     .command('get <messageId>')
-    .description('Retrieve and decrypt a secret (text secrets only)')
+    .description('Retrieve and decrypt a secret')
     .requiredOption('-p, --passphrase <passphrase>', 'Decryption passphrase')
+    .option('-o, --output <path>', 'Output file path for file secrets (defaults to original filename in current directory)')
+    .option('--verbose', 'Show step-by-step progress')
     .option('--json', 'Output as JSON (for scripting)')
     .action(withErrorHandling(async (hashId, options) => {
         const config = getConfig();
         const client = new FlashViewClient(config.url, config.token);
+        const verbose = options.verbose && !options.json;
 
+        if (verbose) { process.stderr.write('  Retrieving secret...\n'); }
         let result;
         try {
             result = await client.retrieveSecret(hashId);
@@ -218,6 +367,82 @@ program
             throw err;
         }
 
+        if (result.data.type === 'file' || result.data.type === 'combined') {
+            const fileSize = result.data.file_size ?? 0;
+            if (verbose) { process.stderr.write(`  Downloading file (${humanBytes(fileSize)})...\n`); }
+            let encryptedBytes;
+            try {
+                const onProgress = verbose
+                    ? (received, total) => renderProgressBar(received, total, 'Downloading')
+                    : null;
+                if (verbose) { renderProgressBar(0, fileSize, 'Downloading'); }
+                encryptedBytes = await client.downloadFile(hashId, onProgress);
+                if (verbose) { process.stderr.write('\n'); }
+            } catch (err) {
+                if (verbose) { process.stderr.write('\n'); }
+                console.error('Failed to download encrypted file.');
+                if (err instanceof ApiError && err.status === 410) {
+                    console.error('The file has already been retrieved or has expired.');
+                }
+                process.exit(1);
+            }
+
+            // Fire-and-forget: tell the server the download succeeded so it can delete the S3 object.
+            // The server will clean up automatically after the presigned URL TTL if this fails.
+            await client.confirmFileDownloaded(hashId);
+
+            if (verbose) { process.stderr.write('  Decrypting...\n'); }
+            let decryptedBytes;
+            let originalFilename;
+            try {
+                decryptedBytes = await decryptBuffer(encryptedBytes, options.passphrase);
+                originalFilename = await decryptMessage(result.data.filename, options.passphrase);
+            } catch {
+                console.error('Decryption failed. The password may be incorrect.');
+                console.error('Warning: The file has been consumed from the server and cannot be retrieved again.');
+                process.exit(1);
+            }
+
+            const outputPath = options.output ? resolve(options.output) : resolve(originalFilename);
+            if (verbose) { process.stderr.write(`  Saving to ${outputPath}...\n`); }
+            writeFileSync(outputPath, Buffer.from(decryptedBytes));
+
+            if (result.data.type === 'combined' && result.data.message) {
+                let plaintext;
+                try {
+                    plaintext = await decryptMessage(result.data.message, options.passphrase);
+                } catch {
+                    console.error('Note decryption failed. The password may be incorrect.');
+                    process.exit(1);
+                }
+
+                if (options.json) {
+                    console.log(JSON.stringify({
+                        message_id: result.data.hash_id,
+                        message: plaintext,
+                        file: outputPath,
+                        original_filename: originalFilename,
+                    }));
+                } else {
+                    console.log(`Note: ${plaintext}`);
+                    console.log(`\u2713 File saved to ${outputPath}`);
+                }
+                return;
+            }
+
+            if (options.json) {
+                console.log(JSON.stringify({
+                    message_id: result.data.hash_id,
+                    file: outputPath,
+                    original_filename: originalFilename,
+                }));
+            } else {
+                console.log(`\u2713 File saved to ${outputPath}`);
+            }
+            return;
+        }
+
+        if (verbose) { process.stderr.write('  Decrypting message...\n'); }
         const encryptedMessage = result.data.message;
 
         let plaintext;
