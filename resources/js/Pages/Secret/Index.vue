@@ -85,6 +85,7 @@ const burn = () => {
                             <td v-if="hasAnyRecipient" class="px-6 py-4 text-center">
                                 <span v-if="secret.masked_recipient_email" class="font-mono text-xs">{{ secret.masked_recipient_email }}</span>
                                 <span v-else class="text-gray-400 dark:text-gray-600">—</span>
+                            </td>
                             <td class="px-6 py-4 text-center">
                                 {{ DateTime.fromISO(secret.created_at).toLocaleString(DateTime.DATETIME_MED) }}
                             </td>
