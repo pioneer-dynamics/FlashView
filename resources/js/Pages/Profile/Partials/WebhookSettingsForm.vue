@@ -128,7 +128,7 @@ const testWebhook = () => {
                 <InputError :message="form.errors.webhook_url" class="mt-2" />
                 <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
                     We will send a signed HTTP POST to this URL when your secrets are retrieved. Must be HTTPS.
-                    <Link :href="route('webhooks.index')" class="text-indigo-600 dark:text-indigo-400 hover:underline">
+                    <Link :href="route('webhooks.index')" class="underline text-sm text-gamboge-300 dark:text-gamboge-200 hover:text-gamboge-200 dark:hover:text-gamboge-100 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gamboge-500 dark:focus:ring-offset-gray-900">
                         Learn more
                     </Link>
                 </p>
