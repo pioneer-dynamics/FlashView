@@ -205,13 +205,12 @@ const logout = () => {
                                                 </DropdownLink>
                                             </span>
 
-                                            <div class="border-t border-gamboge-600 dark:border-gamboge-600 mx-2" />
-
-
                                             <DropdownLink v-if="$page.props.jetstream.hasApiFeatures && $page.props.auth?.hasApiAccess"
                                                 :href="route('api-tokens.index')">
                                                 API Tokens
                                             </DropdownLink>
+
+                                            <div class="border-t border-gamboge-600 dark:border-gamboge-600 mx-2" />
 
                                             <div class="block px-4 py-2 text-xs text-gray-600 dark:text-gray-400">
                                                 Settings
