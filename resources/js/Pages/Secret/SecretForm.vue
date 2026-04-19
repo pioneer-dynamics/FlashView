@@ -444,7 +444,7 @@
                         <Link class="underline text-gamboge-300" :href="route('login')">Log in</Link>
                         or
                         <Link class="underline text-gamboge-300" :href="route('register')">create a free account</Link>
-                        to share encrypted files up to 10 MB.
+                        to share encrypted files up to 10 MB (more on <Link class="underline text-gamboge-300" :href="route('plans.index')">paid plans</Link>.)
                     </p>
                 </div>
             </div>
