@@ -205,7 +205,7 @@ const logout = () => {
                                                 </DropdownLink>
                                             </span>
 
-                                            <div class="border-t border-gray-200 dark:border-gray-600" />
+                                            <div class="border-t border-gamboge-600 dark:border-gamboge-600 mx-2" />
 
 
                                             <DropdownLink v-if="$page.props.jetstream.hasApiFeatures && $page.props.auth?.hasApiAccess"
@@ -225,7 +225,7 @@ const logout = () => {
                                                 Misc Settings
                                             </DropdownLink>
 
-                                            <div class="border-t border-gray-200 dark:border-gray-600" />
+                                            <div class="border-t border-gamboge-600 dark:border-gamboge-600 mx-2" />
 
                                             <!-- Authentication -->
                                             <form @submit.prevent="logout">
