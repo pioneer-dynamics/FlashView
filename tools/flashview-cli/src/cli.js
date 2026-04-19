@@ -15,13 +15,14 @@ function humanBytes(bytes) {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function renderProgressBar(sent, total) {
+function renderProgressBar(sent, total, label = 'Uploading') {
     const width = 25;
     const pct = Math.min(1, sent / total);
     const filled = Math.round(width * pct);
     const bar = '█'.repeat(filled) + '░'.repeat(width - filled);
     const percent = Math.round(pct * 100).toString().padStart(3);
-    process.stderr.write(`\r  Uploading  [${bar}] ${percent}%  ${humanBytes(sent)} / ${humanBytes(total)}`);
+    const line = `  ${label.padEnd(10)} [${bar}] ${percent}%  ${humanBytes(sent)} / ${humanBytes(total)}`;
+    process.stderr.write(`\r${line.padEnd(72)}`);
 }
 
 function createProgressBody(buffer, onProgress) {
@@ -372,9 +373,9 @@ program
             let encryptedBytes;
             try {
                 const onProgress = verbose
-                    ? (received, total) => renderProgressBar(received, total)
+                    ? (received, total) => renderProgressBar(received, total, 'Downloading')
                     : null;
-                if (verbose) { renderProgressBar(0, fileSize); }
+                if (verbose) { renderProgressBar(0, fileSize, 'Downloading'); }
                 encryptedBytes = await client.downloadFile(hashId, onProgress);
                 if (verbose) { process.stderr.write('\n'); }
             } catch (err) {
