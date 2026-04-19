@@ -357,8 +357,8 @@
                     :allowed-mime-types="allowedMimeTypes"
                     :upload-state="uploadState"
                 />
-                <div v-else class="mt-2">
-                    <p class="text-sm text-gray-400 dark:text-gray-500">
+                <div v-else class="-mt-4">
+                    <p class="text-sm">
                         Want to attach a file?
                         <Link class="underline text-gamboge-300" :href="route('login')">Log in</Link>
                         or
