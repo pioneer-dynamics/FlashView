@@ -17,6 +17,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
+use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class SecretController extends Controller implements HasMiddleware
@@ -65,7 +66,7 @@ class SecretController extends Controller implements HasMiddleware
         }
 
         $result = $this->secretService->createSecret(
-            $request->hasFile('file') ? null : $request->message,
+            $request->message,
             (int) $request->expires_in,
             $request->user()->id,
             $maskedRecipientEmail,
@@ -106,15 +107,22 @@ class SecretController extends Controller implements HasMiddleware
         $secretRecord = Secret::findByHashID($secret);
 
         if ($secretRecord->isFileSecret()) {
-            return response()->json([
-                'data' => [
-                    'hash_id' => $secretRecord->hash_id,
-                    'type' => 'file',
-                    'filename' => $secretRecord->filename,
-                    'file_size' => $secretRecord->file_size,
-                    'file_mime_type' => $secretRecord->file_mime_type,
-                ],
-            ]);
+            $isCombined = $secretRecord->message !== null;
+
+            $data = [
+                'hash_id' => $secretRecord->hash_id,
+                'type' => $isCombined ? 'combined' : 'file',
+                'filename' => $secretRecord->filename,
+                'file_size' => $secretRecord->file_size,
+                'file_mime_type' => $secretRecord->file_mime_type,
+            ];
+
+            if ($isCombined) {
+                $data['message'] = $secretRecord->message;
+                DB::table($secretRecord->getTable())->where('id', $secretRecord->id)->update(['message' => null]);
+            }
+
+            return response()->json(['data' => $data]);
         }
 
         return (new SecretMessageResource([

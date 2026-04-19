@@ -267,7 +267,7 @@ program
             throw err;
         }
 
-        if (result.data.type === 'file') {
+        if (result.data.type === 'file' || result.data.type === 'combined') {
             let encryptedBytes;
             try {
                 encryptedBytes = await client.downloadFile(hashId);
@@ -296,6 +296,29 @@ program
 
             const outputPath = options.output ? resolve(options.output) : resolve(originalFilename);
             writeFileSync(outputPath, Buffer.from(decryptedBytes));
+
+            if (result.data.type === 'combined' && result.data.message) {
+                let plaintext;
+                try {
+                    plaintext = await decryptMessage(result.data.message, options.passphrase);
+                } catch {
+                    console.error('Note decryption failed. The password may be incorrect.');
+                    process.exit(1);
+                }
+
+                if (options.json) {
+                    console.log(JSON.stringify({
+                        message_id: result.data.hash_id,
+                        message: plaintext,
+                        file: outputPath,
+                        original_filename: originalFilename,
+                    }));
+                } else {
+                    console.log(`Note: ${plaintext}`);
+                    console.log(`\u2713 File saved to ${outputPath}`);
+                }
+                return;
+            }
 
             if (options.json) {
                 console.log(JSON.stringify({

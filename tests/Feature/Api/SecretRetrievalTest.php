@@ -388,6 +388,58 @@ class SecretRetrievalTest extends TestCase
         $this->get("/api/v1/secrets/{$secret->hash_id}/file")->assertStatus(410);
     }
 
+    public function test_retrieve_returns_combined_type_with_message_and_file_metadata(): void
+    {
+        $this->subscribeUserToPlan($this->user, $this->primePlan);
+        Sanctum::actingAs($this->user, ['secrets:list']);
+
+        Storage::fake();
+        $filepath = 'secrets/combined.bin';
+        Storage::put($filepath, 'content');
+
+        $secret = Secret::factory()->fileSecret($filepath)->create([
+            'user_id' => $this->user->id,
+            'message' => 'encrypted-note',
+        ]);
+
+        $response = $this->getJson("/api/v1/secrets/{$secret->hash_id}/retrieve");
+
+        $response->assertOk()
+            ->assertJson([
+                'data' => [
+                    'type' => 'combined',
+                    'message' => 'encrypted-note',
+                    'file_size' => $secret->file_size,
+                ],
+            ]);
+
+        // Message is consumed (nulled) after retrieve; file still present for download.
+        $fresh = Secret::withoutGlobalScopes()->find($secret->id);
+        $this->assertNull($fresh->message);
+        $this->assertNotNull($fresh->filepath);
+    }
+
+    public function test_burn_file_secret_deletes_file_from_storage(): void
+    {
+        $this->subscribeUserToPlan($this->user, $this->primePlan);
+        Sanctum::actingAs($this->user, ['secrets:delete']);
+
+        Storage::fake();
+        $filepath = 'secrets/burn-me.bin';
+        Storage::put($filepath, 'encrypted-content');
+
+        $secret = Secret::factory()->fileSecret($filepath)->create(['user_id' => $this->user->id]);
+
+        $this->deleteJson("/api/v1/secrets/{$secret->hash_id}")
+            ->assertOk();
+
+        Storage::assertMissing($filepath);
+
+        $fresh = Secret::withoutGlobalScopes()->find($secret->id);
+        $this->assertNotNull($fresh->retrieved_at);
+        $this->assertNull($fresh->filepath);
+    }
+
     public function test_confirm_file_downloaded_nulls_file_fields(): void
     {
         $this->subscribeUserToPlan($this->user, $this->primePlan);
