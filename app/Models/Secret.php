@@ -120,6 +120,7 @@ class Secret extends Model
                                 hashId: $secret->hash_id,
                                 createdAt: $secret->created_at->toIso8601String(),
                                 retrievedAt: now()->toIso8601String(),
+                                userId: $user->id,
                             ));
                         }
                     }

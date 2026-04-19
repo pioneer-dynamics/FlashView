@@ -404,7 +404,8 @@ class WebhookSettingsTest extends TestCase
         Queue::assertPushed(SendWebhookNotification::class, function ($job) {
             return $job->event === 'ping'
                 && str_starts_with($job->hashId, 'test-')
-                && $job->webhookUrl === 'https://example.com/webhook';
+                && $job->webhookUrl === 'https://example.com/webhook'
+                && $job->userId === $this->user->id;
         });
     }
 
