@@ -54,14 +54,15 @@ const triggerDecrypt = async () => {
             throw new Error('download_failed');
         }
 
-        if (flash.file_confirm_url) {
-            router.post(flash.file_confirm_url, {}, { preserveState: true, preserveScroll: true });
-        }
-
         fileDecryptState.value = 'decrypting';
 
         const arrayBuffer = await response.arrayBuffer();
         const encryptedBytes = new Uint8Array(arrayBuffer);
+
+        // Confirm only after the full binary is in memory so S3 deletion is safe.
+        if (flash.file_confirm_url) {
+            router.post(flash.file_confirm_url, {}, { preserveState: true, preserveScroll: true });
+        }
 
         const e = new encryption();
         const decryptedBytes = await e.decryptFile(encryptedBytes, props.password);

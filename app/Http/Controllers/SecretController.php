@@ -27,7 +27,7 @@ class SecretController extends Controller implements HasMiddleware
     public static function middleware(): array
     {
         return [
-            new Middleware('signed', only: ['show', 'decrypt', 'downloadFile']),
+            new Middleware('signed', only: ['show', 'decrypt', 'downloadFile', 'confirmFileDownloaded']),
             new Middleware('throttle:secrets', only: ['store']),
         ];
     }
@@ -121,7 +121,7 @@ class SecretController extends Controller implements HasMiddleware
                     'file_mime_type' => $secret->file_mime_type,
                     'file_original_name' => $secret->filename,
                     'file_download_url' => URL::temporarySignedRoute('secret.file', now()->addMinutes(5), ['secret' => $secret->hash_id]),
-                    'file_confirm_url' => route('secret.file.downloaded', ['secret' => $secret->hash_id]),
+                    'file_confirm_url' => URL::temporarySignedRoute('secret.file.downloaded', now()->addMinutes(5), ['secret' => $secret->hash_id]),
                 ],
             ]);
         }

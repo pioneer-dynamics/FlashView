@@ -99,6 +99,11 @@ class Secret extends Model
                 return;
             }
 
+            // File secrets are consumed during the download route, not when metadata is loaded.
+            if ($secret->isFileSecret()) {
+                return;
+            }
+
             if (blank($secret->retrieved_at) || blank($secret->ip_address_retrieved)) {
                 $secret->markSilentlyAsRetrieved();
                 // DB::table($secret->getTable())->where('id', $secret->id)->update([

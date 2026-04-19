@@ -143,7 +143,7 @@ class SecretService
             $content = Storage::get($filepath);
             Storage::delete($filepath);
 
-            DB::table('secrets')
+            DB::table((new Secret)->getTable())
                 ->where('filepath', $filepath)
                 ->update([
                     'filepath' => null,

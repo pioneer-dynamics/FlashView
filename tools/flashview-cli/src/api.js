@@ -146,9 +146,12 @@ export class FlashViewClient {
         const timeout = setTimeout(() => controller.abort(), this.timeout);
         let response;
         try {
+            // Use redirect: 'manual' so we can follow the S3 presigned URL redirect
+            // without forwarding the Authorization header (AWS rejects dual-auth).
             response = await fetch(url, {
                 headers: { 'Authorization': `Bearer ${this.token}` },
                 signal: controller.signal,
+                redirect: 'manual',
             });
         } catch (err) {
             if (err.name === 'AbortError') {
@@ -158,6 +161,17 @@ export class FlashViewClient {
         } finally {
             clearTimeout(timeout);
         }
+
+        // Follow presigned URL redirect without Authorization header.
+        if (response.status === 301 || response.status === 302) {
+            const location = response.headers.get('Location');
+            const s3Response = await fetch(location);
+            if (!s3Response.ok) {
+                throw new ApiError(`Download failed (HTTP ${s3Response.status})`, s3Response.status);
+            }
+            return new Uint8Array(await s3Response.arrayBuffer());
+        }
+
         if (!response.ok) {
             const error = await response.json().catch(() => ({}));
             throw new ApiError(error.message || `HTTP ${response.status}`, response.status, error.errors);
