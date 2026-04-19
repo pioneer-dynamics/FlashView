@@ -41,7 +41,7 @@ const isFreePlan = (plan) => plan.price_per_month == 0
                 <div v-for="plan in plans.data" :key="plan.id"
                     class="w-full max-w-sm p-4 bg-gray-50 border border-gray-200 rounded-lg shadow sm:p-8 dark:bg-gray-800 dark:border-gray-700">
                     <div class="flex flex-wrap gap-2">
-                        <h5 class="mb-4 text-xl font-mono font-medium text-gray-700 dark:text-gray-400">
+                        <h5 class="mb-4 text-xl font-mono font-medium text-gamboge-700 dark:text-gamboge-200">
                             {{ plan.name }} {{ planFrequency }}
                             <span v-if="planFrequency == 'yearly' && plan.price_per_month > 0" class="ml-2 bg-purple-100 text-purple-800 text-xs font-medium me-2 px-2.5 py-0.5 rounded-full dark:bg-purple-900 dark:text-purple-300">
                                 Save {{(( (( plan.price_per_month * 12 ) - plan.price_per_year) / ( plan.price_per_month * 12 )) * 100).toFixed(2) }}%
@@ -64,7 +64,7 @@ const isFreePlan = (plan) => plan.price_per_month == 0
                                 <span>{{ planFrequency == 'monthly' ? 'month' : 'year' }}</span>
                             </span>
                         </div>
-                        <div class="line-through decoration-gray-500 flex items-baseline text-gray-700" v-if="planFrequency =='yearly'">
+                        <div class="line-through decoration-gray-500 flex items-baseline text-gray-200" v-if="planFrequency =='yearly'">
                             <span class="text-3xl font-semibold">A$</span>
                             <span class="text-3xl font-extrabold tracking-tight">
                                 {{ plan.price_per_month * 12 }}
