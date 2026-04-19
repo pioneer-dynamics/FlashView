@@ -2,10 +2,14 @@
 
 namespace App\Jobs;
 
+use App\Exceptions\WebhookDeliveryFailedException;
+use App\Mail\WebhookDeliveryFailedMail;
+use App\Models\User;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 
 class SendWebhookNotification implements ShouldQueue
@@ -20,6 +24,7 @@ class SendWebhookNotification implements ShouldQueue
         public string $hashId,
         public string $createdAt,
         public string $retrievedAt,
+        public int $userId,
         public string $event = 'retrieved',
     ) {}
 
@@ -62,7 +67,7 @@ class SendWebhookNotification implements ShouldQueue
             ->post($this->webhookUrl);
 
         if ($response->failed()) {
-            throw new \RuntimeException(
+            throw new WebhookDeliveryFailedException(
                 "Webhook delivery failed with status {$response->status()}"
             );
         }
@@ -76,5 +81,11 @@ class SendWebhookNotification implements ShouldQueue
             'event' => $this->event,
             'error' => $exception->getMessage(),
         ]);
+
+        $user = User::find($this->userId);
+
+        if ($user) {
+            Mail::to($user)->sendNow(new WebhookDeliveryFailedMail($user, $this->webhookUrl));
+        }
     }
 }
