@@ -31,15 +31,16 @@ class SecretService
         ?string $senderDomain = null,
         ?string $senderEmail = null,
         ?UploadedFile $encryptedFile = null,
+        ?string $preUploadedFilepath = null,
         ?string $encryptedOriginalFilename = null,
         ?int $fileSize = null,
         ?string $fileMimeType = null,
     ): array {
         $expiresAt = now()->addMinutes($expiresInMinutes);
 
-        $filepath = null;
+        $filepath = $preUploadedFilepath;
 
-        if ($encryptedFile !== null) {
+        if ($encryptedFile !== null && $preUploadedFilepath === null) {
             $filepath = 'secrets/'.Str::uuid().'.bin';
             Storage::put($filepath, $encryptedFile->get());
         }

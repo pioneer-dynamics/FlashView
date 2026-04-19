@@ -12,7 +12,9 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -61,6 +63,25 @@ class SecretController extends Controller implements HasMiddleware
             $senderEmail = $identity->isEmailType() ? $identity->email : null;
         }
 
+        $preUploadedFilepath = null;
+
+        if ($request->filled('file_token')) {
+            $pending = Cache::get("pending_file_upload:{$request->file_token}");
+
+            if (! $pending || $pending['user_id'] !== $request->user()?->id) {
+                return back()->withErrors(['file_token' => 'Invalid or expired file upload session. Please try again.']);
+            }
+
+            if (! Storage::exists($pending['filepath'])) {
+                return back()->withErrors(['file_token' => 'File upload did not complete. Please try again.']);
+            }
+
+            $preUploadedFilepath = $pending['filepath'];
+            Cache::forget("pending_file_upload:{$request->file_token}");
+        }
+
+        $isFileUpload = $preUploadedFilepath !== null || $request->hasFile('file');
+
         $result = $this->secretService->createSecret(
             $request->message,
             (int) $request->expires_in,
@@ -70,8 +91,9 @@ class SecretController extends Controller implements HasMiddleware
             $senderDomain,
             $senderEmail,
             $request->file('file'),
+            $preUploadedFilepath,
             $request->file_original_name,
-            $request->hasFile('file') ? (int) $request->file_size : null,
+            $isFileUpload ? (int) $request->file_size : null,
             $request->file_mime_type,
         );
 
@@ -82,7 +104,7 @@ class SecretController extends Controller implements HasMiddleware
         return back()->with('flash', [
             'secret' => [
                 'url' => $result['url'],
-                'is_file' => $request->hasFile('file'),
+                'is_file' => $isFileUpload,
             ],
         ]);
     }

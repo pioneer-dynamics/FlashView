@@ -17,7 +17,7 @@ class StoreSecretRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        if ($this->hasFile('file') && ! $this->user()) {
+        if (($this->hasFile('file') || $this->filled('file_token')) && ! $this->user()) {
             return false;
         }
 
@@ -35,20 +35,23 @@ class StoreSecretRequest extends FormRequest
      */
     public function rules(): array
     {
-        $isFileSecret = $this->hasFile('file');
+        $isFileUpload = $this->hasFile('file') || $this->filled('file_token');
 
         return [
-            'message' => [Rule::requiredIf(! $isFileSecret), 'nullable', 'string', 'min:1', new MessageLength($this->getUserType(), $this->getAllowedMessageLength())],
+            'message' => [Rule::requiredIf(! $isFileUpload), 'nullable', 'string', 'min:1', new MessageLength($this->getUserType(), $this->getAllowedMessageLength())],
             'file' => $this->user()
                 ? ['nullable', 'file', new ValidFileSize($this->getUserType())]
                 : ['prohibited'],
-            'file_original_name' => ($isFileSecret && $this->user())
+            'file_token' => $this->user()
+                ? ['nullable', 'string']
+                : ['prohibited'],
+            'file_original_name' => ($isFileUpload && $this->user())
                 ? ['required', 'string', 'max:2048']
                 : ['prohibited'],
-            'file_size' => ($isFileSecret && $this->user())
+            'file_size' => ($isFileUpload && $this->user())
                 ? ['required', 'integer', 'min:1']
                 : ['prohibited'],
-            'file_mime_type' => ($isFileSecret && $this->user())
+            'file_mime_type' => ($isFileUpload && $this->user())
                 ? ['required', 'string', 'in:'.implode(',', config('secrets.file_upload.allowed_mime_types'))]
                 : ['prohibited'],
             'expires_in' => ['required', 'numeric', new ValidExpiry($this->getUserType())],

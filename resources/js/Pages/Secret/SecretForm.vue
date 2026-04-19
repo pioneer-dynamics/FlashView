@@ -126,10 +126,45 @@
                 other.password = resolvedPassphrase;
             }
 
-            uploadState.value = 'uploading';
+            // Step 1: Ask server for a presigned S3 PUT URL (or server fallback URL).
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content ?? '';
+            const prepareRes = await fetch(route('secret.file.prepare'), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken },
+            });
 
+            if (!prepareRes.ok) { throw new Error('Could not prepare upload.'); }
+
+            const { upload_type, upload_url, upload_headers, token } = await prepareRes.json();
+
+            uploadState.value = 'uploading';
+            uploadProgress.value = 0;
+
+            // Step 2: Upload encrypted bytes directly to S3 (or server fallback) via XHR for progress.
+            await new Promise((resolve, reject) => {
+                const xhr = new XMLHttpRequest();
+                xhr.open(upload_type === 's3_direct' ? 'PUT' : 'POST', upload_url);
+
+                if (upload_type === 'server') {
+                    xhr.setRequestHeader('X-CSRF-TOKEN', csrfToken);
+                }
+                for (const [key, value] of Object.entries(upload_headers ?? {})) {
+                    xhr.setRequestHeader(key, value);
+                }
+
+                xhr.upload.onprogress = (event) => {
+                    if (event.lengthComputable) {
+                        uploadProgress.value = Math.round((event.loaded / event.total) * 100);
+                    }
+                };
+                xhr.onload = () => (xhr.status >= 200 && xhr.status < 300) ? resolve() : reject(new Error('Upload failed.'));
+                xhr.onerror = () => reject(new Error('Upload failed.'));
+                xhr.send(new Blob([encryptedBuffer], { type: 'application/octet-stream' }));
+            });
+
+            // Step 3: Create the secret record with the token referencing the uploaded file.
             const formData = new FormData();
-            formData.append('file', new Blob([encryptedBuffer], { type: 'application/octet-stream' }), 'encrypted.bin');
+            formData.append('file_token', token);
             formData.append('file_original_name', encryptedFilename);
             formData.append('file_size', String(selectedFile.value.size));
             formData.append('file_mime_type', selectedFile.value.type);
@@ -141,12 +176,8 @@
             if (form.email) { formData.append('email', form.email); }
             if (form.include_sender_identity) { formData.append('include_sender_identity', '1'); }
 
-            uploadProgress.value = 0;
             router.post(route('secret.store'), formData, {
                 preserveScroll: true,
-                onProgress: (progress) => {
-                    uploadProgress.value = Math.round(progress.percentage ?? 0);
-                },
                 onSuccess: () => {
                     uploadState.value = null;
                     uploadProgress.value = 0;

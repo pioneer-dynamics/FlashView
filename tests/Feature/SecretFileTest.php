@@ -9,8 +9,10 @@ use App\Models\User;
 use Database\Factories\SecretFactory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class SecretFileTest extends TestCase
@@ -142,6 +144,113 @@ class SecretFileTest extends TestCase
         $this->assertEquals('application/pdf', $secret->file_mime_type);
 
         Storage::assertExists($secret->filepath);
+    }
+
+    // --- Presigned upload flow (browser-to-S3) ---
+
+    public function test_prepare_caches_token_with_filepath_for_authenticated_user(): void
+    {
+        Storage::fake();
+
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)->postJson(route('secret.file.prepare'));
+
+        $response->assertOk()
+            ->assertJsonStructure(['upload_type', 'upload_url', 'upload_headers', 'token']);
+
+        $pending = Cache::get('pending_file_upload:'.$response->json('token'));
+        $this->assertNotNull($pending);
+        $this->assertEquals($user->id, $pending['user_id']);
+        $this->assertStringStartsWith('secrets/', $pending['filepath']);
+    }
+
+    public function test_store_with_file_token_creates_secret_using_pre_uploaded_file(): void
+    {
+        Storage::fake();
+
+        $user = User::factory()->create();
+        $filepath = 'secrets/'.Str::uuid().'.bin';
+        $token = Str::uuid()->toString();
+
+        Cache::put("pending_file_upload:{$token}", [
+            'filepath' => $filepath,
+            'user_id' => $user->id,
+        ], now()->addMinutes(30));
+
+        Storage::put($filepath, 'fake-encrypted-content');
+
+        $response = $this->actingAs($user)->post(route('secret.store'), [
+            'file_token' => $token,
+            'file_original_name' => (new SecretFactory)->generateEncryptedMessage(20),
+            'file_size' => 512,
+            'file_mime_type' => 'application/pdf',
+            'expires_in' => 60,
+        ]);
+
+        $response->assertSessionHas('flash.secret.url');
+        $response->assertSessionHas('flash.secret.is_file', true);
+
+        $secret = Secret::withoutGlobalScopes()->where('user_id', $user->id)->first();
+        $this->assertNotNull($secret->filepath);
+        $this->assertEquals($filepath, $secret->filepath);
+    }
+
+    public function test_file_token_cannot_be_reused(): void
+    {
+        Storage::fake();
+
+        $user = User::factory()->create();
+        $filepath = 'secrets/'.Str::uuid().'.bin';
+        $token = Str::uuid()->toString();
+
+        Cache::put("pending_file_upload:{$token}", [
+            'filepath' => $filepath,
+            'user_id' => $user->id,
+        ], now()->addMinutes(30));
+
+        Storage::put($filepath, 'fake-content');
+
+        $payload = [
+            'file_token' => $token,
+            'file_original_name' => (new SecretFactory)->generateEncryptedMessage(20),
+            'file_size' => 512,
+            'file_mime_type' => 'application/pdf',
+            'expires_in' => 60,
+        ];
+
+        // First use succeeds.
+        $this->actingAs($user)->post(route('secret.store'), $payload)
+            ->assertSessionHas('flash.secret.url');
+
+        // Token consumed — second use returns an error.
+        $this->actingAs($user)->post(route('secret.store'), $payload)
+            ->assertSessionHasErrors('file_token');
+    }
+
+    public function test_file_token_from_different_user_is_rejected(): void
+    {
+        Storage::fake();
+
+        $owner = User::factory()->create();
+        $attacker = User::factory()->create();
+        $filepath = 'secrets/'.Str::uuid().'.bin';
+        $token = Str::uuid()->toString();
+
+        Cache::put("pending_file_upload:{$token}", [
+            'filepath' => $filepath,
+            'user_id' => $owner->id,
+        ], now()->addMinutes(30));
+
+        Storage::put($filepath, 'fake-content');
+
+        $this->actingAs($attacker)->post(route('secret.store'), [
+            'file_token' => $token,
+            'file_original_name' => (new SecretFactory)->generateEncryptedMessage(20),
+            'file_size' => 512,
+            'file_mime_type' => 'application/pdf',
+            'expires_in' => 60,
+        ])->assertSessionHasErrors('file_token');
     }
 
     // --- File deleted from storage after download ---
