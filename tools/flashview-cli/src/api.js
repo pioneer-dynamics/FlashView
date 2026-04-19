@@ -166,6 +166,29 @@ export class FlashViewClient {
     }
 
     /**
+     * Confirm that the client has downloaded the file so the server can delete the S3 object.
+     *
+     * @param {string} hashId
+     * @returns {Promise<void>}
+     */
+    async confirmFileDownloaded(hashId) {
+        const url = `${this.baseUrl}/api/v1/secrets/${hashId}/file/downloaded`;
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), this.timeout);
+        try {
+            await fetch(url, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${this.token}`, 'Accept': 'application/json' },
+                signal: controller.signal,
+            });
+        } catch {
+            // Best-effort — server will clean up via the orphaned-file job after TTL.
+        } finally {
+            clearTimeout(timeout);
+        }
+    }
+
+    /**
      * Perform a multipart/form-data request (no explicit Content-Type — browser/Node sets boundary).
      *
      * @param {string} method

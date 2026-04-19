@@ -1,6 +1,6 @@
 <script setup>
 import { ref } from 'vue';
-import { useForm, usePage } from '@inertiajs/vue3';
+import { useForm, usePage, router } from '@inertiajs/vue3';
 import { encryption } from '../encryption';
 import FileProgressBar from '@/Components/FileProgressBar.vue';
 import Alert from '@/Components/Alert.vue';
@@ -52,6 +52,10 @@ const triggerDecrypt = async () => {
         const response = await fetch(flash.file_download_url);
         if (!response.ok) {
             throw new Error('download_failed');
+        }
+
+        if (flash.file_confirm_url) {
+            router.post(flash.file_confirm_url, {}, { preserveState: true, preserveScroll: true });
         }
 
         fileDecryptState.value = 'decrypting';

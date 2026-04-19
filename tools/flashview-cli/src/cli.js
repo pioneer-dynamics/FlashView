@@ -279,6 +279,10 @@ program
                 process.exit(1);
             }
 
+            // Fire-and-forget: tell the server the download succeeded so it can delete the S3 object.
+            // The server will clean up automatically after the presigned URL TTL if this fails.
+            await client.confirmFileDownloaded(hashId);
+
             let decryptedBytes;
             let originalFilename;
             try {
