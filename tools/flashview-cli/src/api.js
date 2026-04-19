@@ -175,9 +175,10 @@ export class FlashViewClient {
      * Download an encrypted file secret as raw bytes.
      *
      * @param {string} hashId
+     * @param {((received: number, total: number) => void)|null} onProgress
      * @returns {Promise<Uint8Array>}
      */
-    async downloadFile(hashId) {
+    async downloadFile(hashId, onProgress = null) {
         const url = `${this.baseUrl}/api/v1/secrets/${hashId}/file`;
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), this.timeout);
@@ -206,14 +207,49 @@ export class FlashViewClient {
             if (!s3Response.ok) {
                 throw new ApiError(`Download failed (HTTP ${s3Response.status})`, s3Response.status);
             }
-            return new Uint8Array(await s3Response.arrayBuffer());
+            return this._readResponseWithProgress(s3Response, onProgress);
         }
 
         if (!response.ok) {
             const error = await response.json().catch(() => ({}));
             throw new ApiError(error.message || `HTTP ${response.status}`, response.status, error.errors);
         }
-        return new Uint8Array(await response.arrayBuffer());
+        return this._readResponseWithProgress(response, onProgress);
+    }
+
+    /**
+     * Stream a response body, calling onProgress on each chunk if provided.
+     *
+     * @param {Response} response
+     * @param {((received: number, total: number) => void)|null} onProgress
+     * @returns {Promise<Uint8Array>}
+     */
+    async _readResponseWithProgress(response, onProgress) {
+        if (!onProgress || !response.body) {
+            return new Uint8Array(await response.arrayBuffer());
+        }
+
+        const total = parseInt(response.headers.get('Content-Length') ?? '0', 10);
+        const reader = response.body.getReader();
+        const chunks = [];
+        let received = 0;
+
+        onProgress(0, total);
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) { break; }
+            chunks.push(value);
+            received += value.byteLength;
+            onProgress(received, total || received);
+        }
+
+        const result = new Uint8Array(received);
+        let offset = 0;
+        for (const chunk of chunks) {
+            result.set(chunk, offset);
+            offset += chunk.byteLength;
+        }
+        return result;
     }
 
     /**

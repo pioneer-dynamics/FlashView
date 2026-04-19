@@ -367,11 +367,18 @@ program
         }
 
         if (result.data.type === 'file' || result.data.type === 'combined') {
-            if (verbose) { process.stderr.write(`  Downloading file (${humanBytes(result.data.file_size ?? 0)})...\n`); }
+            const fileSize = result.data.file_size ?? 0;
+            if (verbose) { process.stderr.write(`  Downloading file (${humanBytes(fileSize)})...\n`); }
             let encryptedBytes;
             try {
-                encryptedBytes = await client.downloadFile(hashId);
+                const onProgress = verbose
+                    ? (received, total) => renderProgressBar(received, total)
+                    : null;
+                if (verbose) { renderProgressBar(0, fileSize); }
+                encryptedBytes = await client.downloadFile(hashId, onProgress);
+                if (verbose) { process.stderr.write('\n'); }
             } catch (err) {
+                if (verbose) { process.stderr.write('\n'); }
                 console.error('Failed to download encrypted file.');
                 if (err instanceof ApiError && err.status === 410) {
                     console.error('The file has already been retrieved or has expired.');
