@@ -121,13 +121,14 @@ export class FlashViewClient {
      * @param {boolean} withVerifiedBadge
      * @returns {Promise<Object>}
      */
-    async uploadFile(encryptedBuffer, encryptedFilename, fileSize, fileMimeType, expiresIn = 1440, email = null, withVerifiedBadge = false) {
+    async uploadFile(encryptedBuffer, encryptedFilename, fileSize, fileMimeType, expiresIn = 1440, email = null, withVerifiedBadge = false, encryptedMessage = null) {
         const formData = new FormData();
         formData.append('file', new Blob([encryptedBuffer], { type: 'application/octet-stream' }), 'encrypted.bin');
         formData.append('file_original_name', encryptedFilename);
         formData.append('file_size', String(fileSize));
         formData.append('file_mime_type', fileMimeType);
         formData.append('expires_in', String(expiresIn));
+        if (encryptedMessage) { formData.append('message', encryptedMessage); }
         if (email) { formData.append('email', email); }
         if (withVerifiedBadge) { formData.append('include_sender_identity', 'true'); }
 

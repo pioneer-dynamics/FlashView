@@ -182,6 +182,12 @@ program
             const { encrypted, passphrase: resolvedPassphrase } = await encryptBuffer(fileBytes, passphrase);
             const { secret: encryptedFilename } = await encryptMessage(originalFilename, resolvedPassphrase);
 
+            let encryptedMessage = null;
+            if (options.message) {
+                const { secret } = await encryptMessage(options.message, resolvedPassphrase);
+                encryptedMessage = secret;
+            }
+
             const mimeType = 'application/octet-stream';
             const result = await client.uploadFile(
                 encrypted,
@@ -191,6 +197,7 @@ program
                 expiresIn,
                 options.email || null,
                 !!options.withVerifiedBadge,
+                encryptedMessage,
             );
 
             if (options.json) {
@@ -201,7 +208,7 @@ program
                     expires_at: result.data.expires_at,
                 }));
             } else {
-                console.log('File secret created successfully!\n');
+                console.log(options.message ? 'File + note secret created successfully!\n' : 'File secret created successfully!\n');
                 console.log(`URL:        ${result.data.url}`);
                 console.log(`Passphrase: ${resolvedPassphrase}`);
                 console.log(`Message ID: ${result.data.hash_id}`);
