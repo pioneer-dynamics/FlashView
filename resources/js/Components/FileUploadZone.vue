@@ -51,12 +51,12 @@ const scrambleChars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz01234
 const scrambledName = ref('');
 let scrambleTimer = null;
 
-const stopScramble = () => {
+const stopScramble = (clear = false) => {
     if (scrambleTimer) {
         clearInterval(scrambleTimer);
         scrambleTimer = null;
     }
-    scrambledName.value = '';
+    if (clear) { scrambledName.value = ''; }
 };
 
 watch(() => props.uploadState, (state) => {
@@ -68,12 +68,14 @@ watch(() => props.uploadState, (state) => {
                 .map((c) => (c === ' ' || c === '.') ? c : scrambleChars[Math.floor(Math.random() * scrambleChars.length)])
                 .join('');
         }, 40);
+    } else if (state === null) {
+        stopScramble(true);
     } else {
-        stopScramble();
+        stopScramble(false);
     }
 });
 
-onUnmounted(stopScramble);
+onUnmounted(() => stopScramble(true));
 </script>
 
 <template>
@@ -83,7 +85,7 @@ onUnmounted(stopScramble);
                 <path fill-rule="evenodd" d="M5.625 1.5c-1.036 0-1.875.84-1.875 1.875v17.25c0 1.035.84 1.875 1.875 1.875h12.75c1.035 0 1.875-.84 1.875-1.875V12.75A3.75 3.75 0 0 0 16.5 9h-1.875a1.875 1.875 0 0 1-1.875-1.875V5.25A3.75 3.75 0 0 0 9 1.5H5.625Z" clip-rule="evenodd" />
             </svg>
             <div class="flex-1 min-w-0">
-                <p class="text-sm font-mono text-gamboge-300 truncate">{{ uploadState === 'encrypting' ? scrambledName : modelValue.name }}</p>
+                <p class="text-sm font-mono text-gamboge-300 truncate">{{ scrambledName || modelValue.name }}</p>
                 <p class="text-xs text-gray-500 dark:text-gray-400">{{ humanFileSize(modelValue.size) }}</p>
             </div>
             <button type="button" @click="clearFile" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 shrink-0">
