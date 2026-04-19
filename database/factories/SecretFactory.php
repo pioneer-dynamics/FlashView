@@ -22,6 +22,10 @@ class SecretFactory extends Factory
             'message' => $this->generateEncryptedMessage(50),
             'expires_at' => now()->addHours(4),
             'user_id' => null,
+            'filepath' => null,
+            'filename' => null,
+            'file_size' => null,
+            'file_mime_type' => null,
         ];
     }
 
@@ -53,6 +57,21 @@ class SecretFactory extends Factory
         return $this->state(fn (array $attributes) => [
             'expires_at' => now()->subDays(config('secrets.prune_after') + 1),
             'message' => null,
+            'filepath' => null,
+        ]);
+    }
+
+    /**
+     * Indicate that the secret is a file secret.
+     */
+    public function fileSecret(?string $filepath = null): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'message' => null,
+            'filepath' => $filepath ?? 'secrets/'.fake()->uuid().'.bin',
+            'filename' => $this->generateEncryptedMessage(20),
+            'file_size' => fake()->numberBetween(1024, 1048576),
+            'file_mime_type' => 'application/pdf',
         ]);
     }
 

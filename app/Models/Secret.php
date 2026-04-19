@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use mathewparet\LaravelPolicyAbilitiesExport\Traits\ExportsPermissions;
 
 #[ScopedBy([ActiveScope::class])]
@@ -30,6 +31,8 @@ class Secret extends Model
         'message',
         'filepath',
         'filename',
+        'file_size',
+        'file_mime_type',
         'user_id',
         'expires_at',
         'masked_recipient_email',
@@ -71,13 +74,16 @@ class Secret extends Model
     #[Scope]
     protected function readyToPrune($query)
     {
-        return $query->where('expires_at', '<', now()->subDays(config('secrets.prune_after')))->where('message', null);
+        return $query->where('expires_at', '<', now()->subDays(config('secrets.prune_after')))
+            ->whereNull('message')
+            ->whereNull('filepath');
     }
 
     #[Scope]
     protected function active($query)
     {
-        return $query->where('expires_at', '>=', now())->where('message', '!=', null);
+        return $query->where('expires_at', '>=', now())
+            ->where(fn ($q) => $q->whereNotNull('message')->orWhereNotNull('filepath'));
     }
 
     public static function booted()
@@ -129,21 +135,39 @@ class Secret extends Model
         });
     }
 
-    public function markAsRetrieved()
+    public function isFileSecret(): bool
     {
+        return filled($this->filepath);
+    }
+
+    public function deleteFile(): void
+    {
+        if ($this->filepath && Storage::exists($this->filepath)) {
+            Storage::delete($this->filepath);
+        }
+    }
+
+    public function markAsRetrieved(): void
+    {
+        $this->deleteFile();
         $this->forceFill([
             'retrieved_at' => now(),
             'ip_address_retrieved' => request()->ip(),
             'message' => null,
+            'filepath' => null,
+            'filename' => null,
         ])->save();
     }
 
-    public function markSilentlyAsRetrieved()
+    public function markSilentlyAsRetrieved(): void
     {
+        $this->deleteFile();
         DB::table($this->getTable())->where('id', $this->id)->update([
             'retrieved_at' => now(),
             'ip_address_retrieved' => encrypt(request()->ip(), false),
             'message' => null,
+            'filepath' => null,
+            'filename' => null,
         ]);
     }
 
