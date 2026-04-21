@@ -37,6 +37,7 @@
     const decryptForm = useForm({});
     const other = useForm({ password: null });
     const decryptionSuccess = ref(false);
+    const decryptError = ref(null);
 
     const messageClass = computed(() => {
         if (props.secret) {
@@ -247,7 +248,11 @@
         router.reload();
     };
 
+    const wrongPasswordMessage = 'Wrong password — this secret has been permanently destroyed. Please ask the sender to create a new one.';
+
     const decryptData = () => {
+        decryptError.value = null;
+
         if (props.isFileSecret && !props.hasMessage) {
             fileDecryptPanelRef.value.triggerDecrypt();
             return;
@@ -268,7 +273,7 @@
                                 form.message = data;
                                 decryptionSuccess.value = true;
                             })
-                            .catch((error) => form.setError('message', error));
+                            .catch(() => { decryptError.value = wrongPasswordMessage; });
                     }
 
                     if (flash.file_download_url) {
@@ -276,7 +281,7 @@
                     }
                 },
                 onError: () => {
-                    form.setError('message', 'Could not retrieve the secret. It may already have been retrieved or has expired.');
+                    decryptError.value = 'Could not retrieve the secret. It may already have been retrieved or has expired.';
                 },
             });
             return;
@@ -296,13 +301,13 @@
                             form.message = data;
                             decryptionSuccess.value = true;
                         })
-                        .catch((error) => {
-                            form.setError('message', error);
+                        .catch(() => {
+                            decryptError.value = wrongPasswordMessage;
                         });
                 }
             },
             onError: () => {
-                form.setError('message', 'Could not get your message. Either the password was wrong, or the message is already expired, or the message was already retrieved. You have no more attempts.');
+                decryptError.value = 'Could not get your message. Either the password was wrong, or the message is already expired, or the message was already retrieved. You have no more attempts.';
             },
         });
     };
@@ -353,6 +358,9 @@
                 </Alert>
                 <Alert hide-title v-if="$page.props.jetstream.flash.error?.code == 404" type="Error">
                     This message has expired or has already been retrieved.
+                </Alert>
+                <Alert hide-title v-if="decryptError" type="Error">
+                    {{ decryptError }}
                 </Alert>
             </div>
 
