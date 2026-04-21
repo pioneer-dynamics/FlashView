@@ -1,7 +1,7 @@
 <script setup>
     import { Link, useForm, usePage } from '@inertiajs/vue3';
     import { encryption } from '../../encryption';
-    import { computed, ref } from 'vue';
+    import { computed, reactive, ref } from 'vue';
     import Checkbox from '@/Components/Checkbox.vue';
     import TextAreaInput from '@/Components/TextAreaInput.vue';
     import PrimaryButton from '@/Components/PrimaryButton.vue';
@@ -11,6 +11,7 @@
     import SelectInput from '@/Components/SelectInput.vue';
     import CodeBlock from '@/Components/CodeBlock.vue';
     import Alert from '@/Components/Alert.vue';
+    import DestroyedSecretState from '@/Components/DestroyedSecretState.vue';
     import FileDecryptPanel from '@/Components/FileDecryptPanel.vue';
     import FileUploadZone from '@/Components/FileUploadZone.vue';
     import { router } from '@inertiajs/vue3';
@@ -37,6 +38,45 @@
     const decryptForm = useForm({});
     const other = useForm({ password: null });
     const decryptionSuccess = ref(false);
+    const decryptionFailed = ref(false);
+    const decryptionPending = ref(false);
+    const decryptionFailureReason = ref('wrong-password');
+
+    const placeholderMessage = 'This isn\'t the actual message—it\'s just a placeholder. To view the message, please click the button below.';
+
+    const handleDecryptionFailure = (reason = 'wrong-password') => {
+        decryptionPending.value = false;
+        decryptionSuccess.value = false;
+        form.message = props.secret ? placeholderMessage : '';
+        decryptionFailureReason.value = reason;
+        decryptionFailed.value = true;
+    };
+
+    const combinedFlow = reactive({
+        anyFailed: false,
+        messageResolved: false,
+        fileResolved: false,
+        decryptedMessage: null,
+    });
+
+    const combinedMaybeReveal = () => {
+        if (combinedFlow.anyFailed) { return; }
+        if (!combinedFlow.messageResolved || !combinedFlow.fileResolved) { return; }
+        form.message = combinedFlow.decryptedMessage;
+        decryptionSuccess.value = true;
+        decryptionPending.value = false;
+    };
+
+    const onCombinedPanelSuccess = () => {
+        if (combinedFlow.anyFailed) { return; }
+        combinedFlow.fileResolved = true;
+        combinedMaybeReveal();
+    };
+
+    const onCombinedPanelFailure = (reason = 'wrong-password') => {
+        combinedFlow.anyFailed = true;
+        handleDecryptionFailure(reason);
+    };
 
     const messageClass = computed(() => {
         if (props.secret) {
@@ -79,7 +119,7 @@
     });
 
     const form = useForm({
-        message: props.secret ? 'This isn\'t the actual message—it\'s just a placeholder. To view the message, please click the button below.' : '',
+        message: props.secret ? placeholderMessage : '',
         email: '',
         expires_in: expiryOptions.value[expiryOptions.value.length - 1].value,
         include_sender_identity: usePage().props.auth.senderIdentity?.include_by_default ?? false,
@@ -248,36 +288,49 @@
     };
 
     const decryptData = () => {
+        decryptionFailed.value = false;
+        decryptionPending.value = true;
+
         if (props.isFileSecret && !props.hasMessage) {
             fileDecryptPanelRef.value.triggerDecrypt();
             return;
         }
 
         if (props.isFileSecret && props.hasMessage) {
+            combinedFlow.anyFailed = false;
+            combinedFlow.messageResolved = false;
+            combinedFlow.fileResolved = false;
+            combinedFlow.decryptedMessage = null;
+
             const e = new encryption();
             decryptForm.get(props.decryptUrl, {
                 preserveScroll: true,
                 preserveState: true,
                 onSuccess: () => {
                     const flash = usePage().props.jetstream.flash?.secret;
-                    if (!flash) { return; }
+                    if (!flash) { onCombinedPanelFailure('unavailable'); return; }
 
                     if (flash.message) {
                         e.decryptMessage(flash.message, other.password)
                             .then((data) => {
-                                form.message = data;
-                                decryptionSuccess.value = true;
+                                if (combinedFlow.anyFailed) { return; }
+                                combinedFlow.decryptedMessage = data;
+                                combinedFlow.messageResolved = true;
+                                combinedMaybeReveal();
                             })
-                            .catch((error) => form.setError('message', error));
+                            .catch(() => onCombinedPanelFailure('wrong-password'));
+                    } else {
+                        combinedFlow.messageResolved = true;
                     }
 
                     if (flash.file_download_url) {
                         fileDecryptPanelRef.value.startDownload(flash);
+                    } else {
+                        combinedFlow.fileResolved = true;
+                        combinedMaybeReveal();
                     }
                 },
-                onError: () => {
-                    form.setError('message', 'Could not retrieve the secret. It may already have been retrieved or has expired.');
-                },
+                onError: () => onCombinedPanelFailure('unavailable'),
             });
             return;
         }
@@ -287,23 +340,20 @@
             preserveScroll: true,
             preserveState: true,
             onSuccess: () => {
-                if (!usePage().props.jetstream.flash?.error && usePage().props.jetstream.flash?.error?.code != 404) {
-                    const secretMessage = usePage().props.jetstream.flash.secret.message;
-                    const passphrase = other.password;
-
-                    e.decryptMessage(secretMessage, passphrase)
-                        .then((data) => {
-                            form.message = data;
-                            decryptionSuccess.value = true;
-                        })
-                        .catch((error) => {
-                            form.setError('message', error);
-                        });
+                const flash = usePage().props.jetstream.flash;
+                if (flash?.error?.code === 404 || !flash?.secret?.message) {
+                    handleDecryptionFailure('unavailable');
+                    return;
                 }
+                e.decryptMessage(flash.secret.message, other.password)
+                    .then((data) => {
+                        form.message = data;
+                        decryptionSuccess.value = true;
+                        decryptionPending.value = false;
+                    })
+                    .catch(() => handleDecryptionFailure('wrong-password'));
             },
-            onError: () => {
-                form.setError('message', 'Could not get your message. Either the password was wrong, or the message is already expired, or the message was already retrieved. You have no more attempts.');
-            },
+            onError: () => handleDecryptionFailure('unavailable'),
         });
     };
 </script>
@@ -315,6 +365,12 @@
         </template>
 
         <template #form>
+            <template v-if="props.secret != null && decryptionFailed">
+                <div class="col-span-12">
+                    <DestroyedSecretState :reason="decryptionFailureReason" />
+                </div>
+            </template>
+            <template v-else>
             <div class="col-span-12" v-if="props.secret != null && (senderCompanyName || senderEmail)">
                 <Alert type="Success" hide-title>
                     <div class="flex items-start gap-2">
@@ -351,9 +407,6 @@
                         </p>
                     </div>
                 </Alert>
-                <Alert hide-title v-if="$page.props.jetstream.flash.error?.code == 404" type="Error">
-                    This message has expired or has already been retrieved.
-                </Alert>
             </div>
 
             <div class="col-span-12" v-if="stage=='generated'">
@@ -383,6 +436,12 @@
                     <InputLabel value="Retrieval Link"/>
                     <CodeBlock :value="$page.props.jetstream.flash?.secret?.url" class="break-words mt-1"/>
                 </span>
+                <template v-else>
+                <div v-if="props.secret != null && decryptionPending && !decryptionSuccess" class="py-6 text-center">
+                    <p class="font-mono text-xs uppercase tracking-widest text-gamboge-300 animate-pulse">
+                        Decrypting…
+                    </p>
+                </div>
                 <span v-else>
                     <div v-if="props.isFileSecret && props.secret != null">
                         <FileDecryptPanel
@@ -391,7 +450,8 @@
                             :password="other.password"
                             :file-mime-type="props.fileMimeType"
                             :file-size="props.fileSize"
-                            @success="decryptionSuccess = true"
+                            @success="props.hasMessage ? onCombinedPanelSuccess() : (decryptionPending = false, decryptionSuccess = true)"
+                            @failure="props.hasMessage ? onCombinedPanelFailure($event) : handleDecryptionFailure($event)"
                         />
                         <div v-if="props.hasMessage && decryptionSuccess" class="mt-3">
                             <p class="text-xs uppercase tracking-widest text-gamboge-300 font-mono mb-1">Note from sender</p>
@@ -426,6 +486,7 @@
                         </div>
                     </div>
                 </span>
+                </template>
             </div>
 
             <div class="col-span-12" v-if="props.secret == null && stage == 'generating' && !$page.props.jetstream.flash?.secret?.url">
@@ -490,6 +551,7 @@
                     </span>
                 </label>
             </div>
+            </template>
         </template>
 
         <template #actions>
@@ -503,7 +565,7 @@
                     </PrimaryButton>
                 </div>
             </span>
-            <span v-else>
+            <span v-else-if="!decryptionFailed && !decryptionPending">
                 <PrimaryButton
                     @click.prevent="decryptData"
                     v-if="!$page.props.jetstream.flash?.secret?.message && !decryptionSuccess"
