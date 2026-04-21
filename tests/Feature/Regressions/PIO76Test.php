@@ -240,6 +240,33 @@ class PIO76Test extends TestCase
         );
     }
 
+    /**
+     * Regression guard for a bug where a too-short passphrase on the create
+     * screen surfaced an inline error only for text-only secrets — when a
+     * file was attached the error was either swallowed into fileError or not
+     * shown at all. encryptFile() must validate the passphrase (parity with
+     * encryptMessage()) and encryptFileData() must route validation errors
+     * to other.errors.password like the text-only flow does.
+     */
+    public function test_file_upload_surfaces_short_passphrase_error_on_password_field(): void
+    {
+        $encryptionContents = file_get_contents(resource_path('js/encryption.js'));
+
+        $this->assertMatchesRegularExpression(
+            '/async\s+encryptFile\s*\([^)]*\)\s*\{\s*this\.validatePassphrase\(/s',
+            $encryptionContents,
+            'encryption.js encryptFile() must call this.validatePassphrase() so a short passphrase is rejected before upload (parity with encryptMessage()).'
+        );
+
+        $formContents = file_get_contents(resource_path('js/Pages/Secret/SecretForm.vue'));
+
+        $this->assertMatchesRegularExpression(
+            '/encryptFileData\s*=\s*async[\s\S]*?e\.validatePassphrase\(\s*passphrase\s*\)[\s\S]*?other\.setError\(\s*[\'"]password[\'"]\s*,\s*err\.message\s*\)/s',
+            $formContents,
+            'SecretForm.vue encryptFileData() must validate the passphrase upfront and route the error to other.errors.password so the "Passphrase must be at least 8 characters" message renders under the password input when a file is attached.'
+        );
+    }
+
     public function test_burned_secret_cannot_be_decrypted_again(): void
     {
         // Use markAsRetrieved() directly to simulate a real retrieval. The

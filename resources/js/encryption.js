@@ -52,6 +52,7 @@ export class encryption {
     }
 
     async encryptFile(file, passphrase = null) {
+        this.validatePassphrase(passphrase);
         const buffer = await file.arrayBuffer();
         const { encrypted, passphrase: resolvedPassphrase } = await encryptBuffer(new Uint8Array(buffer), passphrase);
         return { encryptedBuffer: encrypted, passphrase: resolvedPassphrase };

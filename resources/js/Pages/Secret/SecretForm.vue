@@ -128,6 +128,13 @@
         const e = new encryption();
         const passphrase = other.password || null;
 
+        try {
+            e.validatePassphrase(passphrase);
+        } catch (err) {
+            other.setError('password', err.message);
+            return;
+        }
+
         uploadState.value = 'encrypting';
 
         try {
