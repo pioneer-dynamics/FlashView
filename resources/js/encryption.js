@@ -26,6 +26,7 @@ export class encryption {
         const bytes = new Uint8Array(length);
         globalThis.crypto.getRandomValues(bytes);
         return this.arrayBufferToHex(bytes.buffer);
+        
     }
 
     generatePasssphrase() {

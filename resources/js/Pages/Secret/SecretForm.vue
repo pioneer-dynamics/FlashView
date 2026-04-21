@@ -1,7 +1,7 @@
 <script setup>
     import { Link, useForm, usePage } from '@inertiajs/vue3';
     import { encryption } from '../../encryption';
-    import { computed, ref } from 'vue';
+    import { computed, ref, watch } from 'vue';
     import Checkbox from '@/Components/Checkbox.vue';
     import TextAreaInput from '@/Components/TextAreaInput.vue';
     import PrimaryButton from '@/Components/PrimaryButton.vue';
@@ -40,6 +40,15 @@
     const decryptionSuccess = ref(false);
     const decryptionFailed = ref(false);
     const decryptionFailureReason = ref('wrong-password');
+
+    // An empty password means the system will auto-generate one, which bypasses
+    // the min-length check — so clear any stale validation error as soon as the
+    // user clears the field.
+    watch(() => other.password, (value) => {
+        if (!value && other.errors.password) {
+            other.clearErrors('password');
+        }
+    });
 
     const placeholderMessage = 'This isn\'t the actual message—it\'s just a placeholder. To view the message, please click the button below.';
 

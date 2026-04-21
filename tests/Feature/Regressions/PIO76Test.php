@@ -267,6 +267,24 @@ class PIO76Test extends TestCase
         );
     }
 
+    /**
+     * Regression guard: after showing the "Passphrase must be at least 8
+     * characters" error, clearing the password field switches the flow into
+     * auto-generate mode (which bypasses the min-length check), so the stale
+     * error must be cleared. A watcher on other.password must call
+     * other.clearErrors('password') when the value becomes falsy.
+     */
+    public function test_clearing_password_field_clears_stale_passphrase_error(): void
+    {
+        $contents = file_get_contents(resource_path('js/Pages/Secret/SecretForm.vue'));
+
+        $this->assertMatchesRegularExpression(
+            '/watch\(\s*\(\)\s*=>\s*other\.password[\s\S]*?other\.clearErrors\(\s*[\'"]password[\'"]\s*\)/s',
+            $contents,
+            'SecretForm.vue must watch other.password and call other.clearErrors("password") when the value becomes falsy — so the "Passphrase must be at least 8 characters" error disappears once the user clears the field (empty password triggers auto-generation which bypasses the min-length check).'
+        );
+    }
+
     public function test_burned_secret_cannot_be_decrypted_again(): void
     {
         // Use markAsRetrieved() directly to simulate a real retrieval. The
