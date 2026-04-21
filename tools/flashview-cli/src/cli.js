@@ -15,6 +15,12 @@ function humanBytes(bytes) {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+function printDestroyedSecretError() {
+    console.error('Wrong password — this secret has been permanently destroyed.');
+    console.error('Secrets self-destruct after one retrieval attempt — even on a wrong password.');
+    console.error('Ask the person who sent you this link to create a new one.');
+}
+
 function renderProgressBar(sent, total, label = 'Uploading') {
     const width = 25;
     const pct = Math.min(1, sent / total);
@@ -124,7 +130,8 @@ function withErrorHandling(fn) {
                 } else if (err.status === 403) {
                     console.error(err.message);
                 } else if (err.status === 410) {
-                    console.error('This message has expired or has already been retrieved.');
+                    console.error('This link is no longer valid. It may have expired, or it has already been opened.');
+                    console.error('Ask the person who sent you this link to create a new one.');
                 } else if (err.status === 422 && err.errors) {
                     console.error('Validation errors:');
                     for (const [field, messages] of Object.entries(err.errors)) {
@@ -361,7 +368,8 @@ program
             result = await client.retrieveSecret(hashId);
         } catch (err) {
             if (err instanceof ApiError && err.status === 404) {
-                console.error('This message has expired or has already been retrieved.');
+                console.error('This link is no longer valid. It may have expired, or it has already been opened.');
+                console.error('Ask the person who sent you this link to create a new one.');
                 process.exit(1);
             }
             throw err;
@@ -380,9 +388,11 @@ program
                 if (verbose) { process.stderr.write('\n'); }
             } catch (err) {
                 if (verbose) { process.stderr.write('\n'); }
-                console.error('Failed to download encrypted file.');
                 if (err instanceof ApiError && err.status === 410) {
-                    console.error('The file has already been retrieved or has expired.');
+                    console.error('This link is no longer valid. It may have expired, or it has already been opened.');
+                    console.error('Ask the person who sent you this link to create a new one.');
+                } else {
+                    console.error('Failed to download encrypted file.');
                 }
                 process.exit(1);
             }
@@ -398,8 +408,7 @@ program
                 decryptedBytes = await decryptBuffer(encryptedBytes, options.passphrase);
                 originalFilename = await decryptMessage(result.data.filename, options.passphrase);
             } catch {
-                console.error('Decryption failed. The password may be incorrect.');
-                console.error('Warning: The file has been consumed from the server and cannot be retrieved again.');
+                printDestroyedSecretError();
                 process.exit(1);
             }
 
@@ -412,7 +421,7 @@ program
                 try {
                     plaintext = await decryptMessage(result.data.message, options.passphrase);
                 } catch {
-                    console.error('Note decryption failed. The password may be incorrect.');
+                    printDestroyedSecretError();
                     process.exit(1);
                 }
 
@@ -449,8 +458,7 @@ program
         try {
             plaintext = await decryptMessage(encryptedMessage, options.passphrase);
         } catch {
-            console.error('Decryption failed. The password may be incorrect.');
-            console.error('Warning: The secret has been consumed from the server and cannot be retrieved again.');
+            printDestroyedSecretError();
             process.exit(1);
         }
 
