@@ -201,6 +201,11 @@ class PIO76Test extends TestCase
             $contents,
             'flashview-cli must not retain the old unavailable copy that confirms retrieval occurred (privacy oracle).'
         );
+        $this->assertStringNotContainsString(
+            'The file has already been retrieved or has expired.',
+            $contents,
+            'flashview-cli must not retain the old file-download unavailable copy that confirms retrieval occurred (privacy oracle).'
+        );
     }
 
     public function test_burned_secret_cannot_be_decrypted_again(): void

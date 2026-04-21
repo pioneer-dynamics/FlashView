@@ -388,9 +388,11 @@ program
                 if (verbose) { process.stderr.write('\n'); }
             } catch (err) {
                 if (verbose) { process.stderr.write('\n'); }
-                console.error('Failed to download encrypted file.');
                 if (err instanceof ApiError && err.status === 410) {
-                    console.error('The file has already been retrieved or has expired.');
+                    console.error('This link is no longer valid. It may have expired, or it has already been opened.');
+                    console.error('Ask the person who sent you this link to create a new one.');
+                } else {
+                    console.error('Failed to download encrypted file.');
                 }
                 process.exit(1);
             }
