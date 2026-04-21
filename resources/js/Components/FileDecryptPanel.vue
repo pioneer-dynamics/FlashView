@@ -3,7 +3,6 @@ import { ref } from 'vue';
 import { useForm, usePage, router } from '@inertiajs/vue3';
 import { encryption } from '../encryption';
 import FileProgressBar from '@/Components/FileProgressBar.vue';
-import Alert from '@/Components/Alert.vue';
 
 const props = defineProps({
     decryptUrl: { type: String, required: true },
@@ -12,12 +11,11 @@ const props = defineProps({
     fileSize: { type: Number, default: null },
 });
 
-const emit = defineEmits(['success']);
+const emit = defineEmits(['success', 'failure']);
 
 const decryptForm = useForm({});
 const fileDecryptState = ref(null);
 const fileDecryptProgress = ref(0);
-const fileDecryptError = ref(null);
 
 const humanFileSize = (bytes) => {
     if (bytes < 1024) return bytes + ' B';
@@ -28,7 +26,7 @@ const humanFileSize = (bytes) => {
 const executeDownload = async (flash) => {
     if (!flash?.file_download_url) {
         fileDecryptState.value = null;
-        fileDecryptError.value = 'Could not retrieve the file. It may have already been downloaded or has expired.';
+        emit('failure', 'unavailable');
         return;
     }
 
@@ -87,14 +85,14 @@ const executeDownload = async (flash) => {
         fileDecryptState.value = null;
     } catch {
         fileDecryptState.value = null;
-        fileDecryptError.value = 'The password is incorrect — the file has been permanently deleted. Please ask the sender to share it again.';
+        emit('failure', 'wrong-password');
     }
 };
 
 const triggerDecrypt = async () => {
-    fileDecryptError.value = null;
     fileDecryptState.value = 'downloading';
 
+    let retrieveFailed = false;
     await new Promise((resolve, reject) => {
         decryptForm.get(props.decryptUrl, {
             preserveScroll: true,
@@ -104,16 +102,17 @@ const triggerDecrypt = async () => {
         });
     }).catch(() => {
         fileDecryptState.value = null;
-        fileDecryptError.value = 'Could not retrieve the file. It may have already been downloaded or has expired.';
-        return;
+        emit('failure', 'unavailable');
+        retrieveFailed = true;
     });
+
+    if (retrieveFailed) { return; }
 
     const flash = usePage().props.jetstream.flash?.secret;
     await executeDownload(flash);
 };
 
 const startDownload = async (flash) => {
-    fileDecryptError.value = null;
     fileDecryptState.value = 'downloading';
     await executeDownload(flash);
 };
@@ -123,7 +122,6 @@ defineExpose({ triggerDecrypt, startDownload });
 
 <template>
     <div class="space-y-3">
-        <Alert v-if="fileDecryptError" hide-title type="Error">{{ fileDecryptError }}</Alert>
         <div class="mt-1 p-4 rounded-md bg-gray-50 dark:bg-gray-800 border border-gamboge-300/30 dark:border-gamboge-300/20 space-y-2">
             <div class="flex items-center gap-3">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-8 text-gamboge-300 shrink-0">
