@@ -111,6 +111,50 @@ class PIO76Test extends TestCase
         );
     }
 
+    /**
+     * Regression guard for a bug introduced during PIO-76 where the combined
+     * (message + file) flow deferred updating form.message via a coordinator
+     * that waited for BOTH halves to resolve. On a correct password the
+     * "Note from sender" block could render with the placeholder default
+     * because form.message was never set to the decrypted plaintext.
+     *
+     * The combined branch MUST update form.message directly inside the
+     * message-decryption .then callback so the rendered note always reflects
+     * the decrypted content, not the placeholder.
+     */
+    public function test_combined_flow_sets_form_message_from_decrypted_data(): void
+    {
+        $contents = file_get_contents(resource_path('js/Pages/Secret/SecretForm.vue'));
+
+        // Both the text-only branch and the combined (message+file) branch must
+        // set form.message directly on decryptMessage resolution. If the
+        // combined branch deferred this behind a coordinator, we would see only
+        // the text-only occurrence and the combined "Note from sender" would
+        // render the placeholder default after a correct password.
+        $this->assertGreaterThanOrEqual(
+            2,
+            substr_count($contents, 'form.message = data'),
+            'SecretForm.vue must assign form.message = data inside BOTH the combined (message+file) and text-only decryptMessage .then callbacks — otherwise the combined "Note from sender" shows the placeholder default on a correct password.'
+        );
+
+        // The combined branch must NOT reintroduce a deferred-reveal coordinator
+        // that sets form.message from an intermediate variable (e.g.
+        // combinedFlow.decryptedMessage). Direct assignment from the .then data
+        // argument is the only shape that is safe.
+        $this->assertStringNotContainsString(
+            'combinedFlow.decryptedMessage',
+            $contents,
+            'SecretForm.vue must not use a combinedFlow.decryptedMessage coordinator — a previous iteration of the fix left form.message as the placeholder because the coordinator never revealed the decrypted data.'
+        );
+
+        // Sanity-check: the combined branch exists and still reaches decryptMessage.
+        $this->assertMatchesRegularExpression(
+            '/props\.isFileSecret\s*&&\s*props\.hasMessage/',
+            $contents,
+            'SecretForm.vue must still contain an explicit combined-secret (file + message) branch.'
+        );
+    }
+
     public function test_file_decrypt_panel_emits_failure_with_reason(): void
     {
         $contents = file_get_contents(resource_path('js/Components/FileDecryptPanel.vue'));

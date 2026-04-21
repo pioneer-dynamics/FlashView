@@ -1,7 +1,7 @@
 <script setup>
     import { Link, useForm, usePage } from '@inertiajs/vue3';
     import { encryption } from '../../encryption';
-    import { computed, reactive, ref } from 'vue';
+    import { computed, ref } from 'vue';
     import Checkbox from '@/Components/Checkbox.vue';
     import TextAreaInput from '@/Components/TextAreaInput.vue';
     import PrimaryButton from '@/Components/PrimaryButton.vue';
@@ -48,31 +48,6 @@
         form.message = props.secret ? placeholderMessage : '';
         decryptionFailureReason.value = reason;
         decryptionFailed.value = true;
-    };
-
-    const combinedFlow = reactive({
-        anyFailed: false,
-        messageResolved: false,
-        fileResolved: false,
-        decryptedMessage: null,
-    });
-
-    const combinedMaybeReveal = () => {
-        if (combinedFlow.anyFailed) { return; }
-        if (!combinedFlow.messageResolved || !combinedFlow.fileResolved) { return; }
-        form.message = combinedFlow.decryptedMessage;
-        decryptionSuccess.value = true;
-    };
-
-    const onCombinedPanelSuccess = () => {
-        if (combinedFlow.anyFailed) { return; }
-        combinedFlow.fileResolved = true;
-        combinedMaybeReveal();
-    };
-
-    const onCombinedPanelFailure = (reason = 'wrong-password') => {
-        combinedFlow.anyFailed = true;
-        handleDecryptionFailure(reason);
     };
 
     const messageClass = computed(() => {
@@ -293,40 +268,29 @@
         }
 
         if (props.isFileSecret && props.hasMessage) {
-            combinedFlow.anyFailed = false;
-            combinedFlow.messageResolved = false;
-            combinedFlow.fileResolved = false;
-            combinedFlow.decryptedMessage = null;
-
             const e = new encryption();
             decryptForm.get(props.decryptUrl, {
                 preserveScroll: true,
                 preserveState: true,
                 onSuccess: () => {
                     const flash = usePage().props.jetstream.flash?.secret;
-                    if (!flash) { onCombinedPanelFailure('unavailable'); return; }
+                    if (!flash) { handleDecryptionFailure('unavailable'); return; }
 
                     if (flash.message) {
                         e.decryptMessage(flash.message, other.password)
                             .then((data) => {
-                                if (combinedFlow.anyFailed) { return; }
-                                combinedFlow.decryptedMessage = data;
-                                combinedFlow.messageResolved = true;
-                                combinedMaybeReveal();
+                                if (decryptionFailed.value) { return; }
+                                form.message = data;
+                                decryptionSuccess.value = true;
                             })
-                            .catch(() => onCombinedPanelFailure('wrong-password'));
-                    } else {
-                        combinedFlow.messageResolved = true;
+                            .catch(() => handleDecryptionFailure('wrong-password'));
                     }
 
                     if (flash.file_download_url) {
                         fileDecryptPanelRef.value.startDownload(flash);
-                    } else {
-                        combinedFlow.fileResolved = true;
-                        combinedMaybeReveal();
                     }
                 },
-                onError: () => onCombinedPanelFailure('unavailable'),
+                onError: () => handleDecryptionFailure('unavailable'),
             });
             return;
         }
@@ -439,8 +403,8 @@
                             :password="other.password"
                             :file-mime-type="props.fileMimeType"
                             :file-size="props.fileSize"
-                            @success="props.hasMessage ? onCombinedPanelSuccess() : (decryptionSuccess = true)"
-                            @failure="props.hasMessage ? onCombinedPanelFailure($event) : handleDecryptionFailure($event)"
+                            @success="decryptionSuccess = true"
+                            @failure="handleDecryptionFailure"
                         />
                         <div v-if="props.hasMessage && decryptionSuccess" class="mt-3">
                             <p class="text-xs uppercase tracking-widest text-gamboge-300 font-mono mb-1">Note from sender</p>
