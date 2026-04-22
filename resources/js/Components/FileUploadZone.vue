@@ -88,7 +88,7 @@ onUnmounted(() => stopScramble(true));
                 <p class="text-sm font-mono text-gamboge-300 truncate">{{ scrambledName || modelValue.name }}</p>
                 <p class="text-xs text-gray-500 dark:text-gray-400">{{ humanFileSize(modelValue.size) }}</p>
             </div>
-            <button type="button" @click="clearFile" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 shrink-0">
+            <button type="button" @click="clearFile" :disabled="!!uploadState" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 shrink-0 disabled:opacity-40 disabled:cursor-not-allowed">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-4">
                     <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />
                 </svg>
