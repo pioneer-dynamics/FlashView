@@ -50,11 +50,10 @@
         }
     });
 
-    const placeholderMessage = 'This isn\'t the actual message—it\'s just a placeholder. To view the message, please click the button below.';
-
     const handleDecryptionFailure = (reason = 'wrong-password') => {
         decryptionSuccess.value = false;
-        form.message = props.secret ? placeholderMessage : '';
+        form.message = '';
+        fileDecryptState.value = null;
         decryptionFailureReason.value = reason;
         decryptionFailed.value = true;
     };
@@ -100,7 +99,7 @@
     });
 
     const form = useForm({
-        message: props.secret ? placeholderMessage : '',
+        message: '',
         email: '',
         expires_in: expiryOptions.value[expiryOptions.value.length - 1].value,
         include_sender_identity: usePage().props.auth.senderIdentity?.include_by_default ?? false,
@@ -130,6 +129,13 @@
     const fileError = ref(null);
     const uploadState = ref(null);
     const uploadProgress = ref(0);
+
+    const fileDecryptState = ref(null);
+    const isEncryptBusy = computed(() => !!uploadState.value || form.processing);
+    const isDecryptBusy = computed(() => decryptForm.processing || !!fileDecryptState.value);
+    const passwordInputDisabled = computed(() =>
+        props.secret == null ? isEncryptBusy.value : isDecryptBusy.value,
+    );
 
     const encryptFileData = async () => {
         if (!selectedFile.value) { return; }
@@ -420,6 +426,7 @@
                             :file-mime-type="props.fileMimeType"
                             :file-size="props.fileSize"
                             @success="decryptionSuccess = true"
+                            @state-change="(next) => fileDecryptState = next"
                             @failure="handleDecryptionFailure"
                         />
                         <div v-if="props.hasMessage && decryptionSuccess" class="mt-3">
@@ -429,7 +436,7 @@
                     </div>
                     <div v-else>
                         <CodeBlock v-if="decryptionSuccess && props.secret != null" :value="form.message" class="mt-1" />
-                        <TextAreaInput v-else :autofocus="props.secret == null" id="message" rows="7" v-model="form.message" type="text" class="font-mono" :class="messageClass" placeholder="Your secret message..." :max-length="$page.props.jetstream.flash?.secret?.message ? 0 : maxLength"/>
+                        <TextAreaInput v-else :autofocus="props.secret == null" id="message" rows="7" v-model="form.message" type="text" class="font-mono" :class="messageClass" placeholder="Your secret message..." :max-length="$page.props.jetstream.flash?.secret?.message ? 0 : maxLength" :disabled="isEncryptBusy"/>
                     </div>
                     <div class="flex flex-wrap mt-2 relative text-sm gap-2" v-if="!props.isFileSecret || props.secret == null">
                         <div class="flex flex-wrap">
@@ -481,17 +488,17 @@
             <div class="col-span-12">
                 <div class="flex flex-wrap sm:flex-nowrap gap-2 sm:space-y-0">
                     <div class="w-full" v-if="$page.props.jetstream.flash?.secret?.message == undefined && !decryptionSuccess">
-                        <span v-if="stage=='generated'">
+                        <span v-if="stage=='generated' && !isEncryptBusy">
                             <InputLabel value="Password"/>
                             <CodeBlock :value="other.password" class="mt-1"/>
                         </span>
-                        <span v-else>
-                            <TextInput id="password" :autofocus="props.secret != null" ref="passwordInput" v-model="other.password" type="text" class="font-mono mt-1 block w-full" :placeholder="passwordPlaceholder" />
+                        <span v-else-if="!(isEncryptBusy && props.secret == null)">
+                            <TextInput id="password" :autofocus="props.secret != null" ref="passwordInput" v-model="other.password" type="text" class="font-mono mt-1 block w-full" :placeholder="passwordPlaceholder" :disabled="passwordInputDisabled" />
                             <InputError :message="other.errors.password" class="mt-2" />
                         </span>
                     </div>
                     <div v-if="!$page.props.jetstream.flash?.secret?.url && props.secret == null">
-                        <SelectInput id="expires_in" v-model="form.expires_in" class="mt-1 sm:w-full" :options="expiryOptions" />
+                        <SelectInput id="expires_in" v-model="form.expires_in" class="mt-1 sm:w-full" :options="expiryOptions" :disabled="isEncryptBusy" />
                         <InputError :message="other.errors.expires_in" class="mt-2" />
                     </div>
                 </div>
@@ -505,14 +512,14 @@
                     </span>
                 </span>
                 <span v-else-if="!$page.props.jetstream.flash?.secret?.url && props.secret == null">
-                    <TextInput v-model="form.email" placeholder="Recipient's email adddress (optional)" class="mt-1 block w-full" type="email"/>
+                    <TextInput v-model="form.email" placeholder="Recipient's email adddress (optional)" class="mt-1 block w-full" type="email" :disabled="isEncryptBusy"/>
                     <InputError :message="form.errors.email" class="mt-2" />
                 </span>
             </div>
 
             <div v-if="!$page.props.jetstream.flash?.secret?.url && props.secret == null && $page.props.auth.senderIdentity" class="col-span-12">
                 <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
-                    <Checkbox v-model:checked="form.include_sender_identity"/>
+                    <Checkbox v-model:checked="form.include_sender_identity" :disabled="isEncryptBusy"/>
                     Include my verified sender identity
                     <span class="text-gray-500 dark:text-gray-400">
                         ({{ $page.props.auth.senderIdentity.company_name ?? $page.props.auth.senderIdentity.email }})
@@ -528,7 +535,7 @@
                     <PrimaryButton @click.prevent="letsDoAnotherOne" v-if="$page.props.jetstream.flash?.secret?.url" :class="{ 'opacity-25': form.processing }" :disabled="form.processing">
                         Let's do another one
                     </PrimaryButton>
-                    <PrimaryButton @click.prevent="encryptData" v-else :class="{ 'opacity-25': form.processing || !!uploadState }" :disabled="form.processing || !!uploadState">
+                    <PrimaryButton @click.prevent="encryptData" v-else :class="{ 'opacity-25': isEncryptBusy }" :disabled="isEncryptBusy">
                         Generate link
                     </PrimaryButton>
                 </div>
@@ -537,9 +544,9 @@
                 <PrimaryButton
                     @click.prevent="decryptData"
                     v-if="!$page.props.jetstream.flash?.secret?.message && !decryptionSuccess"
-                    :class="{ 'opacity-25': decryptForm.processing || (other.password?.length == 0 || other.password == null) }"
-                    :disabled="decryptForm.processing || (other.password?.length == 0 || other.password == null)">
-                    {{ props.isFileSecret ? 'Unlock & Download' : 'Retrieve Message' }}
+                    :class="{ 'opacity-25': isDecryptBusy || (other.password?.length == 0 || other.password == null) }"
+                    :disabled="isDecryptBusy || (other.password?.length == 0 || other.password == null)">
+                    {{ props.isFileSecret ? 'Download and decrypt' : 'Retrieve Message' }}
                 </PrimaryButton>
                 <PrimaryButton v-else :href="route('welcome')">
                     Send a new secret link

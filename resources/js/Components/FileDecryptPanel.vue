@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import { useForm, usePage, router } from '@inertiajs/vue3';
 import { encryption } from '../encryption';
 import FileProgressBar from '@/Components/FileProgressBar.vue';
@@ -11,11 +11,13 @@ const props = defineProps({
     fileSize: { type: Number, default: null },
 });
 
-const emit = defineEmits(['success', 'failure']);
+const emit = defineEmits(['success', 'failure', 'state-change']);
 
 const decryptForm = useForm({});
 const fileDecryptState = ref(null);
 const fileDecryptProgress = ref(0);
+
+watch(fileDecryptState, (next) => emit('state-change', next));
 
 const humanFileSize = (bytes) => {
     if (bytes < 1024) return bytes + ' B';
