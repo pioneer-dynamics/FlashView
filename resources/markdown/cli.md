@@ -65,6 +65,9 @@ npx @pioneer-dynamics/flashview-cli --help
 **npm users:**
 ```
 flashview update
+
+# JSON output (useful for scripting version checks)
+flashview update --json
 ```
 
 ## Setup
@@ -162,7 +165,7 @@ flashview create --file large-video.mp4 --verbose
 
 The CLI will exit with an error if the file extension is not in this list. File secrets require a FlashView account with API access.
 
-Note: `--verbose` has no effect when `--json` is also passed.
+`--verbose` has no effect when `--json` is also passed.
 
 ### Retrieve a Secret
 
