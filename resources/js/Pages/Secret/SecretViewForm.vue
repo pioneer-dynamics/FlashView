@@ -11,7 +11,6 @@
     import Alert from '@/Components/Alert.vue';
     import DestroyedSecretState from '@/Components/DestroyedSecretState.vue';
     import FileDecryptPanel from '@/Components/FileDecryptPanel.vue';
-    import InputLabel from '@/Components/InputLabel.vue';
 
     const props = defineProps({
         secret: { type: String, required: true },
