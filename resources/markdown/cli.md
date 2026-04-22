@@ -90,6 +90,18 @@ flashview login --url https://your-server.com
 flashview config set --token your-api-token --url https://your-server.com
 ```
 
+### Headless login (SSH / CI environments)
+
+If no display server is detected (e.g. SSH sessions, CI pipelines), the CLI automatically falls back to a device code flow. You can also force it explicitly:
+
+```
+# Headless login — shows a QR code and short code to authorise from another device
+flashview login --headless
+
+# Custom browser-flow timeout (default: 120s)
+flashview login --timeout 60
+```
+
 ### View current configuration
 
 ```
@@ -126,6 +138,64 @@ flashview create -m "secret" --json
 **Available expiry options:** 5m, 30m, 1h, 4h, 12h, 1d, 3d, 7d, 14d, 30d
 
 After creating a secret, save the URL and passphrase immediately — they cannot be retrieved later.
+
+### Create a File Secret
+
+```
+# Share a file (requires authentication)
+flashview create --file report.pdf
+
+# Share a file with an accompanying note
+flashview create --file report.pdf --message "Here is the Q1 report"
+
+# Send the secret link to a recipient's email
+flashview create --message "secret" --email recipient@example.com
+
+# Include your verified sender identity badge
+flashview create --message "secret" --with-verified-badge
+
+# Show step-by-step progress (including upload progress bar for files)
+flashview create --file large-video.mp4 --verbose
+```
+
+**Supported file types:** pdf, zip, gz, doc, docx, xls, xlsx, ppt, pptx, txt, csv, jpg, jpeg, png, gif, webp, mp4, mov, mp3, wav
+
+The CLI will exit with an error if the file extension is not in this list. File secrets require a FlashView account with API access.
+
+Note: `--verbose` has no effect when `--json` is also passed.
+
+### Retrieve a Secret
+
+```
+# Retrieve and decrypt a text secret
+flashview get <messageId> --passphrase <passphrase>
+
+# Save a file secret to a specific path (defaults to original filename in current directory)
+flashview get <messageId> --passphrase <passphrase> --output /path/to/file
+
+# Show step-by-step progress (useful for large files)
+flashview get <messageId> --passphrase <passphrase> --verbose
+
+# JSON output for scripting
+flashview get <messageId> --passphrase <passphrase> --json
+```
+
+**Warning: Secrets are permanently destroyed on first access.** A wrong passphrase cannot be retried — the secret is already gone by the time decryption is attempted.
+
+The passphrase is required. File secrets are saved to disk using their original filename (in the current directory by default). Combined secrets (file + note) print the note to stdout and save the file.
+
+Retrieving secrets via the CLI requires a FlashView account with API access. Recipients without CLI access can still open the secret link in the web browser instead.
+
+### Check Secret Status
+
+```
+flashview status <messageId>
+
+# JSON output
+flashview status <messageId> --json
+```
+
+Shows whether a secret is **Active** (not yet retrieved, not expired), **Retrieved**, or **Expired**, along with its creation and expiry timestamps. If the secret has been retrieved, the retrieval timestamp is also shown.
 
 ### List Your Secrets
 
