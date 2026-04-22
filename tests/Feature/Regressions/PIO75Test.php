@@ -44,7 +44,7 @@ class PIO75Test extends TestCase
         );
     }
 
-    public function test_encrypt_flow_hides_password_and_disables_inputs_while_uploading(): void
+    public function test_encrypt_flow_blanks_password_input_and_disables_inputs_while_uploading(): void
     {
         $contents = file_get_contents(resource_path('js/Pages/Secret/SecretForm.vue'));
 
@@ -70,6 +70,18 @@ class PIO75Test extends TestCase
             'passwordInputDisabled',
             $contents,
             'SecretForm.vue must declare a passwordInputDisabled computed so the password TextInput binding is readable and greppable.'
+        );
+
+        $this->assertMatchesRegularExpression(
+            '/isEncryptBusy\s*&&\s*props\.secret\s*==\s*null\s*\)\s*\?\s*[\'""]{2}\s*:\s*other\.password/',
+            $contents,
+            'SecretForm.vue password TextInput must display an empty string while isEncryptBusy so the password is not visible during upload.'
+        );
+
+        $this->assertStringNotContainsString(
+            'v-else-if="!(isEncryptBusy',
+            $contents,
+            'SecretForm.vue must not conditionally hide the password input — keep it visible but blank it during upload instead.'
         );
     }
 
@@ -119,6 +131,29 @@ class PIO75Test extends TestCase
             "/emit\\(\\s*['\"]state-change['\"]/",
             $fileDecryptPanelContents,
             'FileDecryptPanel.vue must call emit("state-change", ...) to forward its internal fileDecryptState to the parent.'
+        );
+    }
+
+    public function test_send_new_link_button_is_disabled_while_decrypt_busy(): void
+    {
+        $contents = file_get_contents(resource_path('js/Pages/Secret/SecretForm.vue'));
+
+        $this->assertMatchesRegularExpression(
+            '/Send a new secret link/',
+            $contents,
+            'SecretForm.vue must contain the "Send a new secret link" button.'
+        );
+
+        $this->assertMatchesRegularExpression(
+            '/isDecryptBusy\s*\?\s*null\s*:\s*route\([\'"]welcome[\'"]\)/',
+            $contents,
+            'SecretForm.vue "Send a new secret link" button must suppress its href while isDecryptBusy to prevent navigation during download/decrypt.'
+        );
+
+        $this->assertMatchesRegularExpression(
+            '/:disabled="[^"]*isDecryptBusy[^"]*"[^>]*>\s*Send a new secret link/',
+            $contents,
+            'SecretForm.vue "Send a new secret link" button must be disabled while isDecryptBusy is true.'
         );
     }
 }

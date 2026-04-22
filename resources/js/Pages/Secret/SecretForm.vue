@@ -492,8 +492,8 @@
                             <InputLabel value="Password"/>
                             <CodeBlock :value="other.password" class="mt-1"/>
                         </span>
-                        <span v-else-if="!(isEncryptBusy && props.secret == null)">
-                            <TextInput id="password" :autofocus="props.secret != null" ref="passwordInput" v-model="other.password" type="text" class="font-mono mt-1 block w-full" :placeholder="passwordPlaceholder" :disabled="passwordInputDisabled" />
+                        <span v-else>
+                            <TextInput id="password" :autofocus="props.secret != null" ref="passwordInput" :model-value="(isEncryptBusy && props.secret == null) ? '' : other.password" @update:model-value="other.password = $event" type="text" class="font-mono mt-1 block w-full" :placeholder="passwordPlaceholder" :disabled="passwordInputDisabled" />
                             <InputError :message="other.errors.password" class="mt-2" />
                         </span>
                     </div>
@@ -548,7 +548,7 @@
                     :disabled="isDecryptBusy || (other.password?.length == 0 || other.password == null)">
                     {{ props.isFileSecret ? 'Download and decrypt' : 'Retrieve Message' }}
                 </PrimaryButton>
-                <PrimaryButton v-else :href="route('welcome')">
+                <PrimaryButton v-else :href="isDecryptBusy ? null : route('welcome')" :class="{ 'opacity-25': isDecryptBusy }" :disabled="isDecryptBusy">
                     Send a new secret link
                 </PrimaryButton>
             </span>
