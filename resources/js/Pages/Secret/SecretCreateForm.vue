@@ -316,7 +316,7 @@
 
             <div class="col-span-12">
                 <div class="flex flex-wrap sm:flex-nowrap gap-2 sm:space-y-0">
-                    <div class="w-full" v-if="!$page.props.jetstream.flash?.secret?.url">
+                    <div class="w-full">
                         <span v-if="stage == 'generated' && !isEncryptBusy">
                             <InputLabel value="Password"/>
                             <CodeBlock :value="other.password" class="mt-1"/>
