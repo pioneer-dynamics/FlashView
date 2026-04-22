@@ -26,6 +26,7 @@ export class encryption {
         const bytes = new Uint8Array(length);
         globalThis.crypto.getRandomValues(bytes);
         return this.arrayBufferToHex(bytes.buffer);
+        
     }
 
     generatePasssphrase() {
@@ -52,6 +53,7 @@ export class encryption {
     }
 
     async encryptFile(file, passphrase = null) {
+        this.validatePassphrase(passphrase);
         const buffer = await file.arrayBuffer();
         const { encrypted, passphrase: resolvedPassphrase } = await encryptBuffer(new Uint8Array(buffer), passphrase);
         return { encryptedBuffer: encrypted, passphrase: resolvedPassphrase };
