@@ -178,7 +178,6 @@
                     </div>
                     <div v-else>
                         <CodeBlock v-if="decryptionSuccess && decryptedMessage?.length > 0" :value="decryptedMessage" class="mt-1" />
-                        <TextAreaInput v-else autofocus id="message" rows="7" :model-value="decryptedMessage" type="text" class="font-mono" :class="messageClass" placeholder="Your secret message..." :max-length="0" :disabled="isDecryptBusy"/>
                     </div>
                     <div class="flex flex-wrap mt-2 relative text-sm gap-2">
                         <div class="flex flex-wrap">
