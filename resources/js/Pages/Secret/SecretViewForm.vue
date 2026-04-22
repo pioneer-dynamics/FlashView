@@ -179,7 +179,7 @@
                     </div>
                     <div v-else>
                         <CodeBlock v-if="decryptionSuccess && decryptedMessage?.length > 0" :value="decryptedMessage" class="mt-1" />
-                        <TextAreaInput v-else autofocus id="message" rows="7" :model-value="decryptedMessage" type="text" class="font-mono" :class="messageClass" placeholder="Your secret message..." :max-length="$page.props.jetstream.flash?.secret?.message ? 0 : 0" :disabled="isDecryptBusy"/>
+                        <TextAreaInput v-else autofocus id="message" rows="7" :model-value="decryptedMessage" type="text" class="font-mono" :class="messageClass" placeholder="Your secret message..." :max-length="0" :disabled="isDecryptBusy"/>
                     </div>
                     <div class="flex flex-wrap mt-2 relative text-sm gap-2">
                         <div class="flex flex-wrap">
@@ -194,7 +194,7 @@
                 <div class="col-span-12">
                     <div class="flex flex-wrap sm:flex-nowrap gap-2 sm:space-y-0">
                         <div class="w-full" v-if="!$page.props.jetstream.flash?.secret?.message && !decryptionSuccess">
-                            <TextInput id="password" autofocus ref="passwordInput" :model-value="other.password" @update:model-value="other.password = $event" type="text" class="font-mono mt-1 block w-full" placeholder="Enter your password to decrypt the message." :disabled="isDecryptBusy" />
+                            <TextInput id="password" autofocus ref="passwordInput" :model-value="other.password" @update:model-value="other.password = $event" type="text" class="font-mono mt-1 block w-full dark:shadow-neon-cyan-sm" placeholder="Enter your password to decrypt the message." :disabled="isDecryptBusy" />
                             <InputError :message="other.errors.password" class="mt-2" />
                         </div>
                     </div>

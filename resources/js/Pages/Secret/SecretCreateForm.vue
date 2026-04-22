@@ -1,8 +1,7 @@
 <script setup>
-    import { Link, useForm, usePage } from '@inertiajs/vue3';
+    import { Link, useForm, usePage, router } from '@inertiajs/vue3';
     import { encryption } from '../../encryption';
     import { computed, ref, watch } from 'vue';
-    import { router } from '@inertiajs/vue3';
     import Checkbox from '@/Components/Checkbox.vue';
     import TextAreaInput from '@/Components/TextAreaInput.vue';
     import PrimaryButton from '@/Components/PrimaryButton.vue';
@@ -305,7 +304,7 @@
                     :upload-progress="uploadProgress"
                 />
                 <div v-else class="-mt-4">
-                    <p class="text-sm">
+                    <p class="text-sm text-gray-600 dark:text-gray-300">
                         Want to attach a file?
                         <Link class="underline text-gamboge-300" :href="route('login')">Log in</Link>
                         or
@@ -323,12 +322,12 @@
                             <CodeBlock :value="other.password" class="mt-1"/>
                         </span>
                         <span v-else>
-                            <TextInput id="password" ref="passwordInput" :model-value="isEncryptBusy ? '' : other.password" @update:model-value="other.password = $event" type="text" class="font-mono mt-1 block w-full" placeholder="Enter a password, or leave blank to auto generate a password for you." :disabled="passwordInputDisabled" />
+                            <TextInput id="password" ref="passwordInput" :model-value="isEncryptBusy ? '' : other.password" @update:model-value="other.password = $event" type="text" class="font-mono mt-1 block w-full dark:shadow-neon-cyan-sm" placeholder="Enter a password, or leave blank to auto generate a password for you." :disabled="passwordInputDisabled" />
                             <InputError :message="other.errors.password" class="mt-2" />
                         </span>
                     </div>
                     <div v-if="!$page.props.jetstream.flash?.secret?.url">
-                        <SelectInput id="expires_in" v-model="form.expires_in" class="mt-1 sm:w-full" :options="expiryOptions" :disabled="isEncryptBusy" />
+                        <SelectInput id="expires_in" v-model="form.expires_in" class="mt-1 sm:w-full dark:shadow-neon-cyan-sm" :options="expiryOptions" :disabled="isEncryptBusy" />
                         <InputError :message="other.errors.expires_in" class="mt-2" />
                     </div>
                 </div>
@@ -342,7 +341,7 @@
                     </span>
                 </span>
                 <span v-else-if="!$page.props.jetstream.flash?.secret?.url">
-                    <TextInput v-model="form.email" placeholder="Recipient's email address (optional)" class="mt-1 block w-full" type="email" :disabled="isEncryptBusy"/>
+                    <TextInput v-model="form.email" placeholder="Recipient's email address (optional)" class="mt-1 block w-full dark:shadow-neon-cyan-sm" type="email" :disabled="isEncryptBusy"/>
                     <InputError :message="form.errors.email" class="mt-2" />
                 </span>
             </div>
