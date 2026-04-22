@@ -82,6 +82,7 @@ return [
             // Documents
             'application/pdf',
             'application/zip',
+            'application/gzip',
             'application/x-zip-compressed',
             'application/msword',
             'application/vnd.openxmlformats-officedocument.wordprocessingml.document',

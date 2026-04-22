@@ -50,6 +50,7 @@ function createProgressBody(buffer, onProgress) {
 const MIME_TYPES = {
     '.pdf': 'application/pdf',
     '.zip': 'application/zip',
+    '.gz': 'application/gzip',
     '.doc': 'application/msword',
     '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     '.xls': 'application/vnd.ms-excel',
