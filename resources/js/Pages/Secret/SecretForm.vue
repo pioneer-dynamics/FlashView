@@ -429,7 +429,7 @@
                             @state-change="(next) => fileDecryptState = next"
                             @failure="handleDecryptionFailure"
                         />
-                        <div v-if="props.hasMessage && decryptionSuccess" class="mt-3">
+                        <div v-if="props.hasMessage && decryptionSuccess && form.message?.length > 0" class="mt-3">
                             <p class="text-xs uppercase tracking-widest text-gamboge-300 font-mono mb-1">Note from sender</p>
                             <CodeBlock :value="form.message" class="mt-1" />
                         </div>
