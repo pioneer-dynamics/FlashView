@@ -435,7 +435,7 @@
                         </div>
                     </div>
                     <div v-else>
-                        <CodeBlock v-if="decryptionSuccess && props.secret != null" :value="form.message" class="mt-1" />
+                        <CodeBlock v-if="decryptionSuccess && props.secret != null && form.message?.length > 0" :value="form.message" class="mt-1" />
                         <TextAreaInput v-else :autofocus="props.secret == null" id="message" rows="7" v-model="form.message" type="text" class="font-mono" :class="messageClass" placeholder="Your secret message..." :max-length="$page.props.jetstream.flash?.secret?.message ? 0 : maxLength" :disabled="isEncryptBusy"/>
                     </div>
                     <div class="flex flex-wrap mt-2 relative text-sm gap-2" v-if="!props.isFileSecret || props.secret == null">
