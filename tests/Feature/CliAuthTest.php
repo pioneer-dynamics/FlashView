@@ -38,6 +38,31 @@ class CliAuthTest extends TestCase
         return $user;
     }
 
+    private function createUserWithMobileAccess(): User
+    {
+        $user = User::factory()->withPersonalTeam()->create();
+
+        $plan = Plan::factory()->create([
+            'name' => 'Basic',
+            'stripe_monthly_price_id' => 'price_monthly_basic_'.uniqid(),
+            'stripe_yearly_price_id' => 'price_yearly_basic_'.uniqid(),
+            'stripe_product_id' => 'prod_basic_'.uniqid(),
+            'price_per_month' => 10,
+            'price_per_year' => 100,
+            'features' => ['mobile_app' => ['order' => 8, 'label' => 'Mobile App Access', 'config' => [], 'type' => 'feature']],
+        ]);
+
+        $user->subscriptions()->create([
+            'type' => 'default',
+            'stripe_id' => 'sub_test_mobile_'.uniqid(),
+            'stripe_status' => 'active',
+            'stripe_price' => $plan->stripe_monthly_price_id,
+            'quantity' => 1,
+        ]);
+
+        return $user;
+    }
+
     public function test_authorize_page_renders_for_authenticated_user(): void
     {
         $user = $this->createUserWithApiAccess();
@@ -538,7 +563,7 @@ class CliAuthTest extends TestCase
 
     public function test_mobile_authorize_page_renders_with_redirect_uri(): void
     {
-        $user = $this->createUserWithApiAccess();
+        $user = $this->createUserWithMobileAccess();
         config(['auth.allowed_redirect_uris' => ['https://flashview.link/auth/mobile/callback']]);
 
         $response = $this->actingAs($user)
@@ -567,7 +592,7 @@ class CliAuthTest extends TestCase
 
     public function test_mobile_authorize_generates_code_and_redirects_to_redirect_uri(): void
     {
-        $user = $this->createUserWithApiAccess();
+        $user = $this->createUserWithMobileAccess();
         config(['auth.allowed_redirect_uris' => ['https://flashview.link/auth/mobile/callback']]);
 
         $response = $this->actingAs($user)

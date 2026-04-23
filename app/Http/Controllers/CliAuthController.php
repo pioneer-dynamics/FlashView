@@ -46,7 +46,7 @@ class CliAuthController extends Controller
             'name' => $request->validated('name'),
             'redirectUri' => $request->validated('redirect_uri'),
             'clientType' => $clientType,
-            'hasApiAccess' => $user->hasApiAccess(),
+            'hasApiAccess' => $clientType === 'mobile' ? $user->hasMobileAccess() : $user->hasApiAccess(),
             'availablePermissions' => Jetstream::$permissions,
             'defaultPermissions' => $defaultPermissions,
             'existingDeviceName' => $existingToken?->name,
@@ -70,7 +70,10 @@ class CliAuthController extends Controller
 
         $user = $request->user();
 
-        if (! $user->hasApiAccess()) {
+        $clientType = $request->validated('client_type') ?? 'cli';
+        $hasAccess = $clientType === 'mobile' ? $user->hasMobileAccess() : $user->hasApiAccess();
+
+        if (! $hasAccess) {
             return Inertia::location($baseCallback.'?'.http_build_query([
                 'error' => 'no_api_access',
                 'state' => $request->validated('state'),
@@ -89,7 +92,7 @@ class CliAuthController extends Controller
             'state' => $request->validated('state'),
             'permissions' => $permissions,
             'name' => $request->validated('name'),
-            'client_type' => $request->validated('client_type') ?? 'cli',
+            'client_type' => $clientType,
         ], now()->addSeconds(60));
 
         return Inertia::location($baseCallback.'?'.http_build_query([

@@ -72,7 +72,7 @@ async function copyMessage(): Promise<void> {
                 >
                     ← Back
                 </button>
-                <h1 class="text-xs uppercase tracking-widest text-cyan-400">Retrieve Secret</h1>
+                <h1 class="text-xs uppercase tracking-widest text-gamboge-300">Retrieve Secret</h1>
             </div>
 
             <div v-if="!decryptedMessage" class="flex flex-col gap-4">
@@ -81,13 +81,13 @@ async function copyMessage(): Promise<void> {
                 </p>
 
                 <div>
-                    <p class="text-xs uppercase tracking-widest text-cyan-400 mb-1">Passphrase</p>
+                    <p class="text-xs uppercase tracking-widest text-gamboge-300 mb-1">Passphrase</p>
                     <div class="flex gap-2">
                         <input
                             v-model="passphrase"
                             :type="showPassphrase ? 'text' : 'password'"
                             placeholder="Leave empty if none was set"
-                            class="flex-1 rounded-xl bg-gray-900 border border-gray-700 px-3 py-2 text-sm text-gray-100 placeholder-gray-500 focus:border-cyan-400 focus:outline-none transition-colors font-mono"
+                            class="flex-1 rounded-xl bg-gray-900 border border-gray-700 px-3 py-2 text-sm text-gray-100 placeholder-gray-500 focus:border-gamboge-300 focus:outline-none transition-colors font-mono"
                         />
                         <button
                             type="button"
@@ -106,7 +106,7 @@ async function copyMessage(): Promise<void> {
                 <button
                     @click="handleRetrieve"
                     :disabled="isRetrieving"
-                    class="w-full py-3 rounded-xl bg-cyan-400 text-gray-950 font-semibold text-sm transition-opacity disabled:opacity-40"
+                    class="w-full py-3 rounded-xl bg-gamboge-300 text-gray-950 font-semibold text-sm transition-opacity disabled:opacity-40"
                 >
                     {{ isRetrieving ? 'Decrypting…' : 'Retrieve & Decrypt' }}
                 </button>
@@ -114,13 +114,13 @@ async function copyMessage(): Promise<void> {
 
             <div v-else class="flex flex-col gap-4">
                 <div class="rounded-xl bg-gray-900 border border-gray-700 p-4">
-                    <p class="text-xs uppercase tracking-widest text-cyan-400 mb-2">Message</p>
+                    <p class="text-xs uppercase tracking-widest text-gamboge-300 mb-2">Message</p>
                     <p class="text-sm text-gray-100 whitespace-pre-wrap leading-relaxed">{{ decryptedMessage }}</p>
                 </div>
 
                 <button
                     @click="copyMessage"
-                    class="w-full py-3 rounded-xl bg-cyan-400 text-gray-950 font-semibold text-sm transition-opacity"
+                    class="w-full py-3 rounded-xl bg-gamboge-300 text-gray-950 font-semibold text-sm transition-opacity"
                 >
                     {{ copied ? 'Copied!' : 'Copy message' }}
                 </button>

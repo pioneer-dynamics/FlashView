@@ -27,7 +27,7 @@ class EnsurePlanHasApiAccess
             abort(403, 'API access requires an active subscription with API support.');
         }
 
-        if (! $user->hasApiAccess()) {
+        if (! $user->hasApiAccess() && ! $user->hasMobileAccess()) {
             if ($request->expectsJson()) {
                 return response()->json([
                     'message' => 'Your current plan does not include API access. Please upgrade to a plan with API support.',

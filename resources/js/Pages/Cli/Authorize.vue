@@ -53,7 +53,7 @@ function submit(action) {
 </script>
 
 <template>
-    <Head title="CLI Login" />
+    <Head :title="clientType === 'mobile' ? 'Mobile Login' : 'CLI Login'" />
 
     <AuthenticationCard>
         <template #logo>
@@ -91,10 +91,10 @@ function submit(action) {
                 for your account ({{ page.props.auth.user.email }}).
             </p>
             <p v-if="existingDeviceName" class="mt-1 text-xs text-gray-500 dark:text-gray-400 text-center">
-                Re-authorizing your existing CLI installation. Your token will be refreshed with the selected permissions.
+                Re-authorizing your existing {{ clientType === 'mobile' ? 'mobile' : 'CLI' }} installation. Your token will be refreshed with the selected permissions.
             </p>
             <p v-else class="mt-1 text-xs text-gray-500 dark:text-gray-400 text-center">
-                This will create a new CLI installation. Your existing CLI connections will not be affected.
+                This will create a new {{ clientType === 'mobile' ? 'mobile' : 'CLI' }} installation. Your existing connections will not be affected.
             </p>
 
             <div class="mt-4">

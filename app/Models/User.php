@@ -114,6 +114,20 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
     }
 
     /**
+     * Check if the user's plan includes mobile app access.
+     */
+    public function hasMobileAccess(): bool
+    {
+        if (! $this->subscribed()) {
+            return false;
+        }
+
+        $plan = $this->resolvePlan();
+
+        return $plan && ($plan->features['mobile_app']['type'] ?? 'missing') === 'feature';
+    }
+
+    /**
      * Check if the user's plan supports email notifications.
      */
     public function planSupportsEmailNotifications(): bool

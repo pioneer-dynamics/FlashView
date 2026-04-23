@@ -91,6 +91,12 @@ class PlanSeederProd extends Seeder
                         'config' => [],
                         'type' => 'missing',
                     ],
+                    'mobile_app' => [
+                        'order' => 8,
+                        'label' => 'Mobile App Access',
+                        'config' => [],
+                        'type' => 'missing',
+                    ],
                 ],
             ]);
 
@@ -171,6 +177,12 @@ class PlanSeederProd extends Seeder
                         'config' => [],
                         'type' => 'missing',
                     ],
+                    'mobile_app' => [
+                        'order' => 8,
+                        'label' => 'Mobile App Access',
+                        'config' => [],
+                        'type' => 'feature',
+                    ],
                 ],
             ]);
 
@@ -248,6 +260,12 @@ class PlanSeederProd extends Seeder
                     'sender_identity' => [
                         'order' => 7,
                         'label' => 'Verified Sender Identity (optional)',
+                        'config' => [],
+                        'type' => 'feature',
+                    ],
+                    'mobile_app' => [
+                        'order' => 8,
+                        'label' => 'Mobile App Access',
                         'config' => [],
                         'type' => 'feature',
                     ],

@@ -46,24 +46,24 @@ async function copyPassphrase(): Promise<void> {
 <template>
     <MobileLayout>
         <div class="px-4 pt-6 pb-4">
-            <h1 class="text-xs uppercase tracking-widest text-cyan-400 mb-4">Secret Created</h1>
+            <h1 class="text-xs uppercase tracking-widest text-gamboge-300 mb-4">Secret Created</h1>
 
             <div class="flex flex-col gap-4">
                 <div class="rounded-xl bg-gray-900 border border-gray-700 p-4 flex flex-col gap-3">
                     <div>
-                        <p class="text-xs uppercase tracking-widest text-cyan-400 mb-1">Link</p>
+                        <p class="text-xs uppercase tracking-widest text-gamboge-300 mb-1">Link</p>
                         <p class="font-mono text-xs text-gray-300 break-all leading-relaxed">{{ url }}</p>
                     </div>
 
                     <div v-if="passphrase">
-                        <p class="text-xs uppercase tracking-widest text-cyan-400 mb-1">Passphrase</p>
+                        <p class="text-xs uppercase tracking-widest text-gamboge-300 mb-1">Passphrase</p>
                         <p class="font-mono text-sm text-gray-100 break-all">{{ passphrase }}</p>
                     </div>
                 </div>
 
                 <button
                     @click="shareAll"
-                    class="w-full py-3 rounded-xl bg-cyan-400 text-gray-950 font-semibold text-sm transition-opacity"
+                    class="w-full py-3 rounded-xl bg-gamboge-300 text-gray-950 font-semibold text-sm transition-opacity"
                 >
                     Share link{{ passphrase ? ' + passphrase' : '' }}
                 </button>

@@ -97,7 +97,7 @@ function openRetrieve(hashId: string): void {
     <MobileLayout>
         <div class="px-4 pt-6 pb-4">
             <div class="flex items-center justify-between mb-4">
-                <h1 class="text-xs uppercase tracking-widest text-cyan-400">My Secrets</h1>
+                <h1 class="text-xs uppercase tracking-widest text-gamboge-300">My Secrets</h1>
                 <button
                     @click="load"
                     :disabled="isLoading"
@@ -123,7 +123,7 @@ function openRetrieve(hashId: string): void {
                 <p class="text-gray-500 text-sm">No secrets yet.</p>
                 <button
                     @click="router.push({ name: 'create' })"
-                    class="mt-4 text-cyan-400 text-xs uppercase tracking-widest hover:text-cyan-300 transition-colors"
+                    class="mt-4 text-gamboge-300 text-xs uppercase tracking-widest hover:text-gamboge-200 transition-colors"
                 >
                     Create one
                 </button>

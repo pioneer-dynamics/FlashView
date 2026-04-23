@@ -81,7 +81,7 @@ async function handleCreate(): Promise<void> {
 <template>
     <MobileLayout>
         <div class="px-4 pt-6 pb-4">
-            <h1 class="text-xs uppercase tracking-widest text-cyan-400 mb-4">New Secret</h1>
+            <h1 class="text-xs uppercase tracking-widest text-gamboge-300 mb-4">New Secret</h1>
 
             <div class="flex flex-col gap-4">
                 <div>
@@ -89,7 +89,7 @@ async function handleCreate(): Promise<void> {
                         v-model="message"
                         placeholder="Enter your secret message…"
                         rows="6"
-                        class="w-full rounded-xl bg-gray-900 border border-gray-700 px-3 py-3 text-sm text-gray-100 placeholder-gray-500 focus:border-cyan-400 focus:outline-none resize-none transition-colors"
+                        class="w-full rounded-xl bg-gray-900 border border-gray-700 px-3 py-3 text-sm text-gray-100 placeholder-gray-500 focus:border-gamboge-300 focus:outline-none resize-none transition-colors"
                     />
                     <p class="mt-1 text-xs text-gray-500 text-right font-mono">
                         {{ message.length }} / {{ config.maxMessageLength }}
@@ -103,7 +103,7 @@ async function handleCreate(): Promise<void> {
                         <input
                             type="checkbox"
                             v-model="useCustomPassphrase"
-                            class="rounded border-gray-600 bg-gray-800 text-cyan-400 focus:ring-cyan-400"
+                            class="rounded border-gray-600 bg-gray-800 text-gamboge-300 focus:ring-gamboge-300"
                         />
                         Use custom passphrase
                     </label>
@@ -113,7 +113,7 @@ async function handleCreate(): Promise<void> {
                             v-model="passphrase"
                             :type="showPassphrase ? 'text' : 'password'"
                             placeholder="Min 8 characters"
-                            class="flex-1 rounded-xl bg-gray-900 border border-gray-700 px-3 py-2 text-sm text-gray-100 focus:border-cyan-400 focus:outline-none transition-colors font-mono"
+                            class="flex-1 rounded-xl bg-gray-900 border border-gray-700 px-3 py-2 text-sm text-gray-100 focus:border-gamboge-300 focus:outline-none transition-colors font-mono"
                         />
                         <button
                             type="button"
@@ -132,7 +132,7 @@ async function handleCreate(): Promise<void> {
                 <button
                     @click="handleCreate"
                     :disabled="isSubmitting || !message.trim()"
-                    class="w-full py-3 rounded-xl bg-cyan-400 text-gray-950 font-semibold text-sm transition-opacity disabled:opacity-40"
+                    class="w-full py-3 rounded-xl bg-gamboge-300 text-gray-950 font-semibold text-sm transition-opacity disabled:opacity-40"
                 >
                     {{ isSubmitting ? 'Encrypting & sending…' : 'Create Secret' }}
                 </button>

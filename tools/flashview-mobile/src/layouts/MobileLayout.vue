@@ -24,7 +24,7 @@ const tabs = [
                     :to="{ name: tab.name }"
                     class="flex-1 flex flex-col items-center gap-1 py-3 text-xs transition-colors"
                     :class="route.name === tab.name
-                        ? 'text-cyan-400'
+                        ? 'text-gamboge-300'
                         : 'text-gray-500 hover:text-gray-300'"
                 >
                     <span class="text-lg leading-none">{{ tab.icon }}</span>

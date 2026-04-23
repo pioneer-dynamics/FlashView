@@ -29,12 +29,12 @@ function select(value: number): void {
 
 <template>
     <div>
-        <p class="text-xs uppercase tracking-widest text-cyan-400 mb-1">Expires in</p>
+        <p class="text-xs uppercase tracking-widest text-gamboge-300 mb-1">Expires in</p>
 
         <button
             type="button"
             @click="expanded = !expanded"
-            class="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-gray-800 border border-gray-700 text-sm text-gray-100 hover:border-cyan-400 transition-colors"
+            class="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-gray-800 border border-gray-700 text-sm text-gray-100 hover:border-gamboge-300 transition-colors"
         >
             <span class="font-mono">{{ selectedLabel }}</span>
             <span class="text-gray-400 text-xs">{{ expanded ? '▲' : '▼' }}</span>
@@ -47,7 +47,7 @@ function select(value: number): void {
                 type="button"
                 @click="select(option.value)"
                 class="w-full text-left px-3 py-2 text-sm transition-colors hover:bg-gray-700"
-                :class="option.value === modelValue ? 'text-cyan-400 font-medium' : 'text-gray-300'"
+                :class="option.value === modelValue ? 'text-gamboge-300 font-medium' : 'text-gray-300'"
             >
                 {{ option.label }}
             </button>
