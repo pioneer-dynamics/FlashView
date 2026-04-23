@@ -21,29 +21,31 @@ class CliAuthController extends Controller
     public function show(CliAuthorizeRequest $request): Response
     {
         $user = $request->user();
-
+        $clientType = $request->validated('client_type') ?? 'cli';
         $tokenId = $request->validated('token_id');
 
         $existingToken = $tokenId
             ? $user->tokens()
-                ->where('type', 'cli')
+                ->where('type', $clientType)
                 ->where('id', $tokenId)
                 ->first()
             : null;
 
-        $latestCliToken = $existingToken ?? $user->tokens()
-            ->where('type', 'cli')
+        $latestToken = $existingToken ?? $user->tokens()
+            ->where('type', $clientType)
             ->latest('id')
             ->first();
 
-        $defaultPermissions = $latestCliToken
-            ? $latestCliToken->abilities
+        $defaultPermissions = $latestToken
+            ? $latestToken->abilities
             : Jetstream::$defaultPermissions;
 
         return Inertia::render('Cli/Authorize', [
-            'port' => (int) $request->validated('port'),
+            'port' => is_null($request->validated('port')) ? null : (int) $request->validated('port'),
             'state' => $request->validated('state'),
             'name' => $request->validated('name'),
+            'redirectUri' => $request->validated('redirect_uri'),
+            'clientType' => $clientType,
             'hasApiAccess' => $user->hasApiAccess(),
             'availablePermissions' => Jetstream::$permissions,
             'defaultPermissions' => $defaultPermissions,
@@ -56,7 +58,8 @@ class CliAuthController extends Controller
      */
     public function authorize(CliAuthorizeRequest $request): \Symfony\Component\HttpFoundation\Response
     {
-        $baseCallback = "http://127.0.0.1:{$request->validated('port')}/callback";
+        $baseCallback = $request->validated('redirect_uri')
+            ?? "http://127.0.0.1:{$request->validated('port')}/callback";
 
         if ($request->input('action') === 'deny') {
             return Inertia::location($baseCallback.'?'.http_build_query([
@@ -86,6 +89,7 @@ class CliAuthController extends Controller
             'state' => $request->validated('state'),
             'permissions' => $permissions,
             'name' => $request->validated('name'),
+            'client_type' => $request->validated('client_type') ?? 'cli',
         ], now()->addSeconds(60));
 
         return Inertia::location($baseCallback.'?'.http_build_query([
@@ -115,16 +119,17 @@ class CliAuthController extends Controller
         }
 
         $user = User::findOrFail($data['user_id']);
+        $clientType = $data['client_type'] ?? 'cli';
 
-        $tokenName = $data['name'] ?? $this->generateDefaultInstallationName($user);
+        $tokenName = $data['name'] ?? $this->generateDefaultInstallationName($user, $clientType);
 
         $user->tokens()
-            ->where('type', 'cli')
+            ->where('type', $clientType)
             ->where('name', $tokenName)
             ->delete();
 
         $token = $user->createToken($tokenName, $data['permissions'] ?? Jetstream::$defaultPermissions);
-        $token->accessToken->update(['type' => 'cli']);
+        $token->accessToken->update(['type' => $clientType]);
 
         return new CliTokenResource([
             'token' => $token->plainTextToken,
@@ -133,10 +138,11 @@ class CliAuthController extends Controller
         ]);
     }
 
-    private function generateDefaultInstallationName(User $user): string
+    private function generateDefaultInstallationName(User $user, string $clientType = 'cli'): string
     {
-        $count = $user->tokens()->where('type', 'cli')->count() + 1;
+        $label = $clientType === 'mobile' ? 'Mobile Installation' : 'CLI Installation';
+        $count = $user->tokens()->where('type', $clientType)->count() + 1;
 
-        return "CLI Installation #{$count}";
+        return "{$label} #{$count}";
     }
 }

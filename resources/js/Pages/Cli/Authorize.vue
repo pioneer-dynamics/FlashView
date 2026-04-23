@@ -10,9 +10,20 @@ import PrimaryButton from '@/Components/PrimaryButton.vue'
 import SecondaryButton from '@/Components/SecondaryButton.vue'
 
 const props = defineProps({
-    port: Number,
+    port: {
+        type: Number,
+        default: null,
+    },
     state: String,
     name: String,
+    redirectUri: {
+        type: String,
+        default: null,
+    },
+    clientType: {
+        type: String,
+        default: 'cli',
+    },
     hasApiAccess: Boolean,
     availablePermissions: Array,
     defaultPermissions: Array,
@@ -32,6 +43,8 @@ function submit(action) {
     router.post(route('cli.authorize.store'), {
         port: props.port,
         state: props.state,
+        redirect_uri: props.redirectUri,
+        client_type: props.clientType,
         action: action,
         permissions: selectedPermissions.value,
         name: installationName.value || null,
@@ -71,10 +84,10 @@ function submit(action) {
         <!-- Authorization Prompt -->
         <div v-else>
             <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100 text-center">
-                Authorize FlashView CLI
+                Authorize {{ clientType === 'mobile' ? 'FlashView Mobile' : 'FlashView CLI' }}
             </h2>
             <p class="mt-2 text-sm text-gray-600 dark:text-gray-400 text-center">
-                The FlashView CLI is requesting access to create an API token
+                {{ clientType === 'mobile' ? 'The FlashView mobile app' : 'The FlashView CLI' }} is requesting access to create an API token
                 for your account ({{ page.props.auth.user.email }}).
             </p>
             <p v-if="existingDeviceName" class="mt-1 text-xs text-gray-500 dark:text-gray-400 text-center">
