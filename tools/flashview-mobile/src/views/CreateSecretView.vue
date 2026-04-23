@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { encryptMessage } from '@pioneer-dynamics/flashview-crypto'
 import { useAuth } from '@/composables/useAuth'
@@ -14,6 +14,13 @@ const { config, fetchConfig } = useServerConfig()
 const { sharedText, clearSharedContent } = useShareIntent()
 
 const message = ref(sharedText.value ?? '')
+
+// Update the message field if a share arrives while this view is already mounted.
+watch(sharedText, (text) => {
+    if (text) {
+        message.value = text
+    }
+})
 const expiresIn = ref(1440)
 const passphrase = ref('')
 const useCustomPassphrase = ref(false)
