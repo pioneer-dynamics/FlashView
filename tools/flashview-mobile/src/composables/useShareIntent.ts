@@ -1,25 +1,27 @@
 import { ref } from 'vue';
 import { App } from '@capacitor/app';
-import { getPendingShare, setPendingShare, clearPendingShare } from '@/services/storage';
+import { getPendingShare, clearPendingShare } from '@/services/storage';
 
 const sharedText = ref<string | null>(null);
 
-export async function initShareIntent(): Promise<void> {
-    // Restore any text cached before a login redirect
+async function loadPendingShare(): Promise<void> {
     const pending = await getPendingShare();
     if (pending) {
         sharedText.value = pending;
     }
+}
 
-    // Android: handle incoming share intent on app launch/resume
-    App.addListener('appUrlOpen', async (event) => {
-        // Deep-link URL from Android intent — data is passed via query param
-        const url = new URL(event.url);
-        const text = url.searchParams.get('text');
-        if (text) {
-            sharedText.value = text;
-            await setPendingShare(text);
-        }
+export async function initShareIntent(): Promise<void> {
+    await loadPendingShare();
+
+    // Fired by MainActivity.onNewIntent when the app is already open.
+    window.addEventListener('shareIntentReceived', () => {
+        loadPendingShare();
+    });
+
+    // Covers the case where the share intent arrives while the app is backgrounded.
+    App.addListener('resume', () => {
+        loadPendingShare();
     });
 }
 

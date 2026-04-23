@@ -11,6 +11,7 @@ const { sharedText } = useShareIntent()
 onMounted(async () => {
     await Promise.all([initAuth(), initShareIntent()])
 
+    // Cold start: shared text was stored before JS loaded.
     if (sharedText.value) {
         if (isAuthenticated.value) {
             router.push({ name: 'create' })
@@ -18,6 +19,13 @@ onMounted(async () => {
             router.push({ name: 'login' })
         }
     }
+
+    // Warm start: share arrives while app is already open.
+    window.addEventListener('shareIntentReceived', () => {
+        if (isAuthenticated.value) {
+            router.push({ name: 'create' })
+        }
+    })
 })
 </script>
 
