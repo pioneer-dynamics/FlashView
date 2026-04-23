@@ -91,6 +91,24 @@ class PlanFactory extends Factory
      *
      * @return array<string, array<string, mixed>>
      */
+    /**
+     * A plan with Mobile App Access feature enabled (but no API access).
+     */
+    public function withMobileAccess(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'features' => $this->defaultFeatures(
+                apiType: 'missing',
+                mobileAppType: 'feature',
+            ),
+        ]);
+    }
+
+    /**
+     * Build the default features array with configurable options.
+     *
+     * @return array<string, array<string, mixed>>
+     */
     private function defaultFeatures(
         int $messageLength = 100000,
         int $expiryMinutes = 43200,
@@ -99,6 +117,7 @@ class PlanFactory extends Factory
         bool $notificationEmail = true,
         bool $notificationWebhook = true,
         string $senderIdentityType = 'missing',
+        string $mobileAppType = 'missing',
     ): array {
         return [
             'untracked' => [
@@ -163,6 +182,12 @@ class PlanFactory extends Factory
                 'label' => 'Verified Sender Identity (optional)',
                 'config' => [],
                 'type' => $senderIdentityType,
+            ],
+            'mobile_app' => [
+                'order' => 8,
+                'label' => 'Mobile App Access',
+                'config' => [],
+                'type' => $mobileAppType,
             ],
         ];
     }

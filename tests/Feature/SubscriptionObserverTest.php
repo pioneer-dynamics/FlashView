@@ -100,4 +100,60 @@ class SubscriptionObserverTest extends TestCase
         $this->assertNull($user->webhook_secret);
         $this->assertFalse($user->notify_secret_retrieved);
     }
+
+    public function test_only_cli_tokens_deleted_when_losing_api_access_but_retaining_mobile_access(): void
+    {
+        $bothPlan = Plan::factory()->withApiAccess()->create([
+            'features' => array_merge(
+                Plan::factory()->withApiAccess()->make()->features,
+                ['mobile_app' => ['order' => 8, 'label' => 'Mobile App Access', 'config' => [], 'type' => 'feature']]
+            ),
+        ]);
+        $mobilePlan = Plan::factory()->withMobileAccess()->create();
+        $user = User::factory()->withPersonalTeam()->create();
+
+        $subscription = $this->subscribeUser($user, $bothPlan);
+
+        $cliToken = $user->createToken('My CLI', ['secrets:list']);
+        $cliToken->accessToken->update(['type' => 'cli']);
+
+        $mobileToken = $user->createToken('My iPhone', ['secrets:list']);
+        $mobileToken->accessToken->update(['type' => 'mobile']);
+
+        $this->assertCount(2, $user->fresh()->tokens);
+
+        $subscription->update(['stripe_price' => $mobilePlan->stripe_monthly_price_id]);
+
+        $remaining = $user->fresh()->tokens;
+        $this->assertCount(1, $remaining);
+        $this->assertEquals('mobile', $remaining->first()->type);
+    }
+
+    public function test_only_mobile_tokens_deleted_when_losing_mobile_access_but_retaining_api_access(): void
+    {
+        $bothPlan = Plan::factory()->withApiAccess()->create([
+            'features' => array_merge(
+                Plan::factory()->withApiAccess()->make()->features,
+                ['mobile_app' => ['order' => 8, 'label' => 'Mobile App Access', 'config' => [], 'type' => 'feature']]
+            ),
+        ]);
+        $apiPlan = Plan::factory()->withApiAccess()->create();
+        $user = User::factory()->withPersonalTeam()->create();
+
+        $subscription = $this->subscribeUser($user, $bothPlan);
+
+        $cliToken = $user->createToken('My CLI', ['secrets:list']);
+        $cliToken->accessToken->update(['type' => 'cli']);
+
+        $mobileToken = $user->createToken('My iPhone', ['secrets:list']);
+        $mobileToken->accessToken->update(['type' => 'mobile']);
+
+        $this->assertCount(2, $user->fresh()->tokens);
+
+        $subscription->update(['stripe_price' => $apiPlan->stripe_monthly_price_id]);
+
+        $remaining = $user->fresh()->tokens;
+        $this->assertCount(1, $remaining);
+        $this->assertEquals('cli', $remaining->first()->type);
+    }
 }

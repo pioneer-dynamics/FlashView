@@ -79,4 +79,41 @@ class CliInstallationTest extends TestCase
         $response->assertRedirect();
         $this->assertCount(1, $user->fresh()->tokens);
     }
+
+    public function test_mobile_installation_can_be_deleted(): void
+    {
+        $user = $this->createSubscribedUser();
+        $this->actingAs($user);
+
+        $token = $user->tokens()->create([
+            'name' => 'My iPhone',
+            'token' => Str::random(40),
+            'abilities' => ['*'],
+            'type' => 'mobile',
+        ]);
+
+        $this->withSession(['auth.password_confirmed_at' => time()])
+            ->delete('/user/cli-installations/'.$token->id);
+
+        $this->assertCount(0, $user->fresh()->tokens);
+    }
+
+    public function test_api_type_token_cannot_be_deleted_via_cli_installation_route(): void
+    {
+        $user = $this->createSubscribedUser();
+        $this->actingAs($user);
+
+        $token = $user->tokens()->create([
+            'name' => 'My API Key',
+            'token' => Str::random(40),
+            'abilities' => ['*'],
+            'type' => 'api',
+        ]);
+
+        $this->withSession(['auth.password_confirmed_at' => time()])
+            ->delete('/user/cli-installations/'.$token->id)
+            ->assertNotFound();
+
+        $this->assertCount(1, $user->fresh()->tokens);
+    }
 }
