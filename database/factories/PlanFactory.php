@@ -87,11 +87,6 @@ class PlanFactory extends Factory
     }
 
     /**
-     * Build the default features array with configurable options.
-     *
-     * @return array<string, array<string, mixed>>
-     */
-    /**
      * A plan with Mobile App Access feature enabled (but no API access).
      */
     public function withMobileAccess(): static
