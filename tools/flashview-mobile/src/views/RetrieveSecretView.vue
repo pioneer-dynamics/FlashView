@@ -115,7 +115,7 @@ async function copyMessage(): Promise<void> {
             <div v-else class="flex flex-col gap-4">
                 <div class="rounded-xl bg-gray-900 border border-gray-700 p-4">
                     <p class="text-xs uppercase tracking-widest text-gamboge-300 mb-2">Message</p>
-                    <p class="text-sm text-gray-100 whitespace-pre-wrap leading-relaxed">{{ decryptedMessage }}</p>
+                    <p class="font-mono text-sm text-gray-100 whitespace-pre-wrap leading-relaxed">{{ decryptedMessage }}</p>
                 </div>
 
                 <button

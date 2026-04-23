@@ -67,7 +67,7 @@ const confirmApiTokenDeletion = (token) => {
 
 const deleteApiToken = () => {
     const token = apiTokenBeingDeleted.value;
-    const deleteRoute = token.type === 'cli'
+    const deleteRoute = (token.type === 'cli' || token.type === 'mobile')
         ? route('cli-installations.destroy', token)
         : route('api-tokens.destroy', token);
 
@@ -160,6 +160,12 @@ const deleteApiToken = () => {
                                             class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300"
                                         >
                                             CLI
+                                        </span>
+                                        <span
+                                            v-else-if="token.type === 'mobile'"
+                                            class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300"
+                                        >
+                                            Mobile
                                         </span>
                                         <span
                                             v-else
@@ -266,12 +272,15 @@ const deleteApiToken = () => {
         <!-- Delete Token Confirmation Modal -->
         <ConfirmationModal :show="apiTokenBeingDeleted != null" @close="apiTokenBeingDeleted = null">
             <template #title>
-                Delete {{ apiTokenBeingDeleted?.type === 'cli' ? 'CLI Installation' : 'API Token' }}
+                Delete {{ apiTokenBeingDeleted?.type === 'cli' ? 'CLI Installation' : apiTokenBeingDeleted?.type === 'mobile' ? 'Mobile Installation' : 'API Token' }}
             </template>
 
             <template #content>
                 <template v-if="apiTokenBeingDeleted?.type === 'cli'">
                     Are you sure you would like to revoke access for this CLI installation? The device will no longer be able to access your account.
+                </template>
+                <template v-else-if="apiTokenBeingDeleted?.type === 'mobile'">
+                    Are you sure you would like to revoke access for this mobile installation? The device will no longer be able to access your account.
                 </template>
                 <template v-else>
                     Are you sure you would like to delete this API token?

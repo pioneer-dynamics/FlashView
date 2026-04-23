@@ -11,7 +11,7 @@ class CliInstallationController extends Controller
     {
         $request->user()
             ->tokens()
-            ->where('type', 'cli')
+            ->whereIn('type', ['cli', 'mobile'])
             ->findOrFail($tokenId)
             ->delete();
 

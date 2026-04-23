@@ -11,7 +11,7 @@ class SubscriptionObserver
         if ($subscription->isDirty('stripe_price') || $subscription->isDirty('ends_at') || $subscription->isDirty('stripe_status')) {
             $user = $subscription->user;
 
-            if (! $user->hasApiAccess()) {
+            if (! $user->hasApiAccess() && ! $user->hasMobileAccess()) {
                 $user->tokens()->delete();
 
                 if ($user->hasWebhookConfigured()) {
@@ -20,6 +20,10 @@ class SubscriptionObserver
                         'webhook_secret' => null,
                     ]);
                 }
+            } elseif (! $user->hasApiAccess()) {
+                $user->tokens()->where('type', 'cli')->delete();
+            } elseif (! $user->hasMobileAccess()) {
+                $user->tokens()->where('type', 'mobile')->delete();
             }
 
             if (! $user->planSupportsEmailNotifications() && $user->notify_secret_retrieved) {
