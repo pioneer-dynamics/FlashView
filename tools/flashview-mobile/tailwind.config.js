@@ -29,6 +29,15 @@ export default {
                 '.pb-safe': {
                     'padding-bottom': 'env(safe-area-inset-bottom, 0px)',
                 },
+                '.shadow-neon-cyan': {
+                    'box-shadow': '0 0 8px 0 rgba(0, 212, 245, 0.4), 0 0 20px 0 rgba(0, 212, 245, 0.15)',
+                },
+                '.shadow-neon-cyan-sm': {
+                    'box-shadow': '0 0 4px 0 rgba(0, 212, 245, 0.3)',
+                },
+                '.shadow-neon-cyan-lg': {
+                    'box-shadow': '0 0 12px 0 rgba(0, 212, 245, 0.5), 0 0 40px 0 rgba(0, 212, 245, 0.2)',
+                },
             })
         },
     ],

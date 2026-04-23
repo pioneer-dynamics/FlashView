@@ -29,19 +29,16 @@ function cancelEditServer(): void {
 
 async function saveServer(): Promise<void> {
     serverError.value = ''
+    const trimmed = serverInput.value.trim().replace(/\/$/, '')
     try {
-        const parsed = new URL(serverInput.value.trim())
-        if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
-            serverError.value = 'URL must use http or https.'
-            return
-        }
-        const normalised = parsed.origin
-        await setServerUrl(normalised)
-        serverUrl.value = normalised
-        editingServer.value = false
+        new URL(trimmed)
     } catch {
-        serverError.value = 'Please enter a valid URL.'
+        serverError.value = 'Please enter a valid URL (e.g. https://flashview.link)'
+        return
     }
+    await setServerUrl(trimmed)
+    serverUrl.value = trimmed
+    editingServer.value = false
 }
 
 async function handleLogin(): Promise<void> {
@@ -101,7 +98,7 @@ async function handleLogin(): Promise<void> {
                         <button
                             type="button"
                             @click="saveServer"
-                            class="flex-1 py-2 rounded-lg bg-gamboge-300 text-gray-950 text-xs font-semibold"
+                            class="flex-1 py-2 rounded-lg bg-gamboge-300 text-gray-950 text-xs font-semibold shadow-neon-cyan-sm"
                         >
                             Save
                         </button>
@@ -134,7 +131,7 @@ async function handleLogin(): Promise<void> {
                 <button
                     @click="handleLogin"
                     :disabled="isLoading"
-                    class="w-full py-3 px-4 rounded-xl bg-gamboge-300 text-gray-950 font-semibold text-sm transition-opacity disabled:opacity-50"
+                    class="w-full py-3 px-4 rounded-xl bg-gamboge-300 text-gray-950 font-semibold text-sm transition-opacity disabled:opacity-50 shadow-neon-cyan-sm"
                 >
                     {{ isLoading ? 'Opening browser...' : 'Sign in with FlashView' }}
                 </button>

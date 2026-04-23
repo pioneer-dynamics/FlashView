@@ -75,7 +75,7 @@ async function handleLogout(): Promise<void> {
                         <button
                             @click="saveServerUrl"
                             :disabled="isSaving || serverUrl === savedUrl"
-                            class="w-full py-2 rounded-xl bg-gamboge-300 text-gray-950 font-semibold text-xs transition-opacity disabled:opacity-40"
+                            class="w-full py-2 rounded-xl bg-gamboge-300 text-gray-950 font-semibold text-xs transition-opacity disabled:opacity-40 shadow-neon-cyan-sm"
                         >
                             {{ saved ? 'Saved!' : isSaving ? 'Saving…' : 'Save' }}
                         </button>
