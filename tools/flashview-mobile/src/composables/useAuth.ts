@@ -27,6 +27,7 @@ export function useAuth() {
     async function login(): Promise<void> {
         await loginWithBrowser();
         isAuthenticated.value = true;
+        await router.replace({ name: 'create' });
     }
 
     async function logout(): Promise<void> {
