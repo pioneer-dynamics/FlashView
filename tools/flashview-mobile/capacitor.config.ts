@@ -7,6 +7,13 @@ const config: CapacitorConfig = {
     server: {
         androidScheme: 'https',
     },
+    plugins: {
+        // Routes all fetch() calls through native HTTP, bypassing WebView CORS restrictions.
+        // Authentication security is enforced by Bearer tokens, not CORS.
+        CapacitorHttp: {
+            enabled: true,
+        },
+    },
 };
 
 export default config;
