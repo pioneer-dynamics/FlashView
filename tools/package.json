@@ -2,6 +2,7 @@
     "private": true,
     "workspaces": [
         "flashview-crypto",
-        "flashview-cli"
+        "flashview-cli",
+        "flashview-mobile"
     ]
 }
