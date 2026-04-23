@@ -8,7 +8,7 @@ interface ExpiryOption {
 
 const props = defineProps<{
     modelValue: number
-    options: ExpiryOption[]
+    options: readonly ExpiryOption[]
 }>()
 
 const emit = defineEmits<{
