@@ -20,7 +20,7 @@ class CliAuthorizeRequest extends FormRequest
     {
         return [
             'port' => ['required_without:redirect_uri', 'nullable', 'integer', 'min:1024', 'max:65535'],
-            'redirect_uri' => ['required_without:port', 'nullable', 'url', Rule::in(config('auth.allowed_redirect_uris', []))],
+            'redirect_uri' => ['required_without:port', 'nullable', Rule::in(config('auth.allowed_redirect_uris', []))],
             'state' => ['required', 'string', 'min:16'],
             'name' => ['nullable', 'string', 'max:255'],
             'token_id' => ['nullable', 'integer'],

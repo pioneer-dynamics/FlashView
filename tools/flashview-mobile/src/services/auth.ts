@@ -2,12 +2,14 @@ import { Browser } from '@capacitor/browser';
 import { App } from '@capacitor/app';
 import { getToken, setToken, clearToken, getServerUrl } from './storage';
 
-const CALLBACK_PATH = '/auth/mobile/callback';
+// Custom scheme deep-link — triggers appUrlOpen in Capacitor on both platforms.
+// Must be registered in AndroidManifest.xml and iOS Info.plist.
+const REDIRECT_URI = 'com.pioneerdynamics.flashview://auth/callback';
 
 export async function loginWithBrowser(): Promise<void> {
     const serverUrl = await getServerUrl();
     const state = generateState();
-    const redirectUri = `${serverUrl}${CALLBACK_PATH}`;
+    const redirectUri = REDIRECT_URI;
 
     const authorizeUrl = `${serverUrl}/cli/authorize?` + new URLSearchParams({
         redirect_uri: redirectUri,
