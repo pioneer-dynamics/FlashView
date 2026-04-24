@@ -239,7 +239,7 @@ async function handleCreate(): Promise<void> {
 
             <div class="flex flex-col gap-4">
                 <!-- Attached file -->
-                <div v-if="selectedFile" class="rounded-xl bg-gray-900 border border-gamboge-800 p-3 flex items-center justify-between gap-3">
+                <div v-if="selectedFile" class="rounded-xl bg-gray-900 border border-gamboge-300/20 p-3 flex items-center justify-between gap-3">
                     <div class="flex flex-col gap-0.5 min-w-0">
                         <p class="text-xs text-gamboge-300 uppercase tracking-widest mb-1">Attached file</p>
                         <p class="text-sm text-gray-100 font-mono truncate">{{ selectedFile.name }}</p>

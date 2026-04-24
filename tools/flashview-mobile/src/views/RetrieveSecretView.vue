@@ -260,7 +260,7 @@ function retrieveButtonLabel(): string {
 
             <!-- File secret result -->
             <div v-else-if="decryptedFileUri" class="flex flex-col gap-4">
-                <div class="rounded-xl bg-gray-900 border border-gamboge-800 p-4">
+                <div class="rounded-xl bg-gray-900 border border-gamboge-300/20 p-4">
                     <p class="text-xs uppercase tracking-widest text-gamboge-300 mb-2">Decrypted file</p>
                     <p class="font-mono text-sm text-gray-100 truncate">{{ decryptedFilename }}</p>
                 </div>
