@@ -2,9 +2,12 @@
 import { ref, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { encryptMessage, encryptBuffer } from '@pioneer-dynamics/flashview-crypto'
+import { Filesystem, Directory } from '@capacitor/filesystem'
+import { CapacitorHttp } from '@capacitor/core'
 import { useAuth } from '@/composables/useAuth'
 import { useServerConfig } from '@/composables/useServerConfig'
 import { useShareIntent } from '@/composables/useShareIntent'
+import { uint8ArrayToBase64 } from '@/utils/binary'
 import MobileLayout from '@/layouts/MobileLayout.vue'
 import ExpiryPicker from '@/components/ExpiryPicker.vue'
 
@@ -141,25 +144,32 @@ async function handleCreate(): Promise<void> {
             uploadStage.value = 'uploading'
             const prepare = await client.prepareFileUpload()
 
-            // Use Blob so Capacitor's native HTTP bridge sends raw binary — passing
-            // ArrayBuffer directly can cause double-encoding through the JS bridge.
-            const uploadResponse = await fetch(prepare.upload_url, {
-                method: prepare.upload_type === 's3_direct' ? 'PUT' : 'POST',
-                headers: {
-                    'Content-Type': 'application/octet-stream',
-                    ...prepare.upload_headers,
-                },
-                // Copy into a fresh ArrayBuffer so TypeScript is satisfied and
-                // Capacitor's bridge treats the body as raw binary (not JSON-encoded).
-                body: (() => {
-                    const buf = new ArrayBuffer(encrypted.byteLength)
-                    new Uint8Array(buf).set(encrypted)
-                    return new Blob([buf])
-                })(),
-            })
-
-            if (!uploadResponse.ok) {
-                throw new TypeError(`File upload failed (HTTP ${uploadResponse.status})`)
+            // Write encrypted bytes to a temp file, then upload via native HTTP
+            // so the binary payload is read directly from disk (bypasses the JS
+            // bridge, which corrupts binary Blob bodies with CapacitorHttp.enabled).
+            const tempPath = `flashview_upload_${Date.now()}.enc`
+            try {
+                await Filesystem.writeFile({
+                    path: tempPath,
+                    data: uint8ArrayToBase64(encrypted),
+                    directory: Directory.Cache,
+                })
+                const { uri: tempUri } = await Filesystem.getUri({ path: tempPath, directory: Directory.Cache })
+                const uploadResult = await CapacitorHttp.request({
+                    url: prepare.upload_url,
+                    method: prepare.upload_type === 's3_direct' ? 'PUT' : 'POST',
+                    headers: {
+                        'Content-Type': 'application/octet-stream',
+                        ...prepare.upload_headers,
+                    },
+                    data: tempUri,
+                    dataType: 'file',
+                })
+                if (uploadResult.status < 200 || uploadResult.status >= 300) {
+                    throw new TypeError(`File upload failed (HTTP ${uploadResult.status})`)
+                }
+            } finally {
+                await Filesystem.deleteFile({ path: tempPath, directory: Directory.Cache }).catch(() => {})
             }
 
             uploadStage.value = 'saving'
