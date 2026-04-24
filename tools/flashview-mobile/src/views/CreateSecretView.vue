@@ -14,6 +14,15 @@ const { config, fetchConfig } = useServerConfig()
 const { sharedText, clearSharedContent } = useShareIntent()
 
 const message = ref(sharedText.value ?? '')
+const expiresIn = ref(1440)
+const passphrase = ref('')
+const useCustomPassphrase = ref(false)
+// Passphrases are shown by default — they are memorable phrases, not passwords.
+const showPassphrase = ref(true)
+const recipientEmail = ref('')
+const includeSenderIdentity = ref(false)
+const isSubmitting = ref(false)
+const error = ref('')
 
 // Update the message field if a share arrives while this view is already mounted.
 watch(sharedText, (text) => {
@@ -21,16 +30,26 @@ watch(sharedText, (text) => {
         message.value = text
     }
 })
-const expiresIn = ref(1440)
-const passphrase = ref('')
-const useCustomPassphrase = ref(false)
-const showPassphrase = ref(false)
-const isSubmitting = ref(false)
-const error = ref('')
+
+// Auto-enable verified sender badge when the user has it configured with include_by_default.
+watch(() => config.value.senderIdentity, (identity) => {
+    if (identity?.include_by_default) {
+        includeSenderIdentity.value = true
+    }
+}, { immediate: true })
 
 onMounted(() => {
     fetchConfig()
 })
+
+function resetForm(): void {
+    message.value = ''
+    passphrase.value = ''
+    useCustomPassphrase.value = false
+    recipientEmail.value = ''
+    error.value = ''
+    // Keep includeSenderIdentity at its current value (follows user preference).
+}
 
 async function handleCreate(): Promise<void> {
     if (!message.value.trim()) {
@@ -57,11 +76,17 @@ async function handleCreate(): Promise<void> {
         )
 
         const client = await getClient()
-        const response = await client.createSecret(result.secret, expiresIn.value)
+        const response = await client.createSecret(
+            result.secret,
+            expiresIn.value,
+            recipientEmail.value.trim() || null,
+            config.value.senderIdentity ? includeSenderIdentity.value : false,
+        )
 
         clearSharedContent()
+        resetForm()
 
-        // Pass sensitive data via router state (in-memory), not query params
+        // Pass sensitive data via router state (in-memory), not query params.
         router.push({
             name: 'secret-created',
             state: { url: response.data.url, passphrase: result.passphrase },
@@ -91,6 +116,7 @@ async function handleCreate(): Promise<void> {
             <h1 class="text-xs uppercase tracking-widest text-gamboge-300 mb-4">New Secret</h1>
 
             <div class="flex flex-col gap-4">
+                <!-- Message -->
                 <div>
                     <textarea
                         v-model="message"
@@ -103,8 +129,23 @@ async function handleCreate(): Promise<void> {
                     </p>
                 </div>
 
+                <!-- Expiry -->
                 <ExpiryPicker v-model="expiresIn" :options="config.expiryOptions" />
 
+                <!-- Recipient email -->
+                <div>
+                    <p class="text-xs uppercase tracking-widest text-gamboge-300 mb-1">Recipient email (optional)</p>
+                    <input
+                        v-model="recipientEmail"
+                        type="email"
+                        placeholder="notify@example.com"
+                        autocorrect="off"
+                        autocapitalize="none"
+                        class="w-full rounded-xl bg-gray-900 border border-gray-700 px-3 py-2 text-sm text-gray-100 placeholder-gray-500 focus:border-gamboge-300 focus:outline-none transition-colors"
+                    />
+                </div>
+
+                <!-- Custom passphrase -->
                 <div>
                     <label class="flex items-center gap-2 text-sm text-gray-300 cursor-pointer select-none">
                         <input
@@ -120,6 +161,8 @@ async function handleCreate(): Promise<void> {
                             v-model="passphrase"
                             :type="showPassphrase ? 'text' : 'password'"
                             placeholder="Min 8 characters"
+                            autocorrect="off"
+                            autocapitalize="none"
                             class="flex-1 rounded-xl bg-gray-900 border border-gray-700 px-3 py-2 text-sm text-gray-100 focus:border-gamboge-300 focus:outline-none transition-colors font-mono"
                         />
                         <button
@@ -132,6 +175,21 @@ async function handleCreate(): Promise<void> {
                     </div>
                 </div>
 
+                <!-- Verified sender badge -->
+                <div v-if="config.senderIdentity">
+                    <label class="flex items-center gap-2 text-sm text-gray-300 cursor-pointer select-none">
+                        <input
+                            type="checkbox"
+                            v-model="includeSenderIdentity"
+                            class="rounded border-gray-600 bg-gray-800 text-gamboge-300 focus:ring-gamboge-300"
+                        />
+                        Include my verified sender identity
+                        <span class="text-gray-500 text-xs font-mono">
+                            ({{ config.senderIdentity.company_name ?? config.senderIdentity.email }})
+                        </span>
+                    </label>
+                </div>
+
                 <p v-if="error" class="text-sm text-red-400 rounded-xl bg-red-950/30 border border-red-800/50 px-3 py-2">
                     {{ error }}
                 </p>
@@ -139,14 +197,10 @@ async function handleCreate(): Promise<void> {
                 <button
                     @click="handleCreate"
                     :disabled="isSubmitting || !message.trim()"
-                    class="w-full py-3 rounded-xl bg-gamboge-300 text-gray-950 font-semibold text-sm transition-opacity disabled:opacity-40"
+                    class="w-full py-3 rounded-xl bg-gamboge-300 text-gray-950 font-semibold text-sm transition-opacity disabled:opacity-40 shadow-neon-cyan-sm"
                 >
                     {{ isSubmitting ? 'Encrypting & sending…' : 'Create Secret' }}
                 </button>
-
-                <p class="text-xs text-gray-600 text-center">
-                    Text sharing only — file support coming soon.
-                </p>
             </div>
         </div>
     </MobileLayout>

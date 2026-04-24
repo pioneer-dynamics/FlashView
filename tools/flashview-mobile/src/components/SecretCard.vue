@@ -6,6 +6,7 @@ interface Secret {
     expires_at: string | null
     created_at: string
     is_expired: boolean
+    is_retrieved: boolean
 }
 
 const props = defineProps<{
@@ -51,7 +52,7 @@ const createdLabel = computed(() => {
 <template>
     <div
         class="rounded-xl bg-gray-900 border border-gray-700 px-4 py-3 flex items-center justify-between gap-3"
-        :class="{ 'opacity-50': secret.is_expired }"
+        :class="{ 'opacity-50': secret.is_expired || secret.is_retrieved }"
     >
         <div class="flex flex-col gap-0.5 min-w-0">
             <p class="font-mono text-xs text-gray-300 truncate">{{ secret.hash_id }}</p>
@@ -68,8 +69,13 @@ const createdLabel = computed(() => {
                 {{ expiresLabel }}
             </span>
 
+            <span
+                v-if="secret.is_retrieved"
+                class="text-xs text-gray-500 font-mono"
+            >Retrieved</span>
+
             <button
-                v-if="!secret.is_expired"
+                v-else-if="!secret.is_expired"
                 type="button"
                 @click.stop="emit('burn', secret.hash_id)"
                 class="text-xs text-red-400 hover:text-red-300 transition-colors px-1"

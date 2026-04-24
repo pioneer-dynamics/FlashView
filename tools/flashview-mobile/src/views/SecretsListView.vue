@@ -10,6 +10,7 @@ interface Secret {
     expires_at: string | null
     created_at: string
     is_expired: boolean
+    is_retrieved: boolean
 }
 
 const router = useRouter()
