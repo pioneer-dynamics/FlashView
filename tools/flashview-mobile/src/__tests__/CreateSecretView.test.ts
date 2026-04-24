@@ -122,7 +122,7 @@ describe('CreateSecretView — validation', () => {
         await wrapper.find('textarea').setValue('my secret message')
         await wrapper.find('input[type="checkbox"]').setValue(true)
         // Passphrase defaults to visible (type=text); use a data-testid-free selector
-        await wrapper.findAll('input[type="text"]').at(-1)!.setValue('short')
+        await wrapper.findAll('input[type="text"]').slice(-1)[0].setValue('short')
 
         const createBtn = wrapper.findAll('button').find((b) => b.text().includes('Create Secret'))
         await createBtn!.trigger('click')
