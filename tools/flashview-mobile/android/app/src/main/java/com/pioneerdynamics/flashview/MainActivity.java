@@ -27,17 +27,23 @@ public class MainActivity extends BridgeActivity {
     private static final int MAX_FILE_BYTES = 25 * 1024 * 1024; // 25 MB
     private static final int PERMISSION_REQUEST_CODE = 1001;
 
-    /** Share intent held while waiting for permission grant on cold start. */
-    private Intent pendingShareIntent = null;
+    /**
+     * MediaStore share intent held for a permission-grant retry.
+     * FileProvider URIs (PDFs, etc.) are processed immediately without needing this.
+     */
+    private Intent pendingPermissionRetry = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        if (hasRequiredMediaPermissions()) {
-            storeShareIntent(getIntent());
-        } else {
-            // Defer processing until the user grants permissions.
-            pendingShareIntent = getIntent();
+        Intent intent = getIntent();
+        // Always attempt to process immediately — works for FileProvider URIs and
+        // already-permissioned MediaStore URIs without blocking on a dialog.
+        storeShareIntent(intent);
+        // For MediaStore file shares that need permissions, request them and retry
+        // after grant so the share isn't silently dropped on first install.
+        if (isMediaStoreFileShare(intent) && !hasRequiredMediaPermissions()) {
+            pendingPermissionRetry = intent;
             requestMediaPermissions();
         }
     }
@@ -54,13 +60,26 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == PERMISSION_REQUEST_CODE && pendingShareIntent != null) {
-            storeShareIntent(pendingShareIntent);
-            pendingShareIntent = null;
+        if (requestCode == PERMISSION_REQUEST_CODE && pendingPermissionRetry != null) {
+            // Re-process in case the first attempt failed due to missing permissions.
+            storeShareIntent(pendingPermissionRetry);
+            pendingPermissionRetry = null;
         }
     }
 
     // ── Permissions ─────────────────────────────────────────────────────────────
+
+    private boolean isMediaStoreFileShare(Intent intent) {
+        if (!Intent.ACTION_SEND.equals(intent.getAction())) {
+            return false;
+        }
+        Uri stream = intent.getParcelableExtra(Intent.EXTRA_STREAM);
+        if (stream == null) {
+            return false;
+        }
+        String authority = stream.getAuthority();
+        return authority != null && authority.startsWith("media");
+    }
 
     private boolean hasRequiredMediaPermissions() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {

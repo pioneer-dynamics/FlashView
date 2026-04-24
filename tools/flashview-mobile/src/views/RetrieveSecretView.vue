@@ -86,27 +86,36 @@ async function handleFileRetrieve(client: any, data: any): Promise<void> {
     downloadStage.value = 'fetching'
     const [token, serverUrl] = await Promise.all([getToken(), getServerUrl()])
 
-    // Get the presigned S3 URL without following the redirect so we can download
-    // without forwarding the Authorization header (AWS rejects dual auth).
-    const redirectResponse = await CapacitorHttp.request({
+    // Fetch the file endpoint with disableRedirects so we can distinguish:
+    //   302 → S3 presigned URL (production) — download without auth header to avoid AWS dual-auth rejection
+    //   200 → direct stream (local disk dev/staging) — response body is the encrypted bytes
+    const fileResponse = await CapacitorHttp.request({
         url: `${serverUrl}/api/v1/secrets/${hashId}/file`,
         method: 'GET',
         headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
         disableRedirects: true,
+        responseType: 'arraybuffer',
     })
 
-    const s3Url = (redirectResponse.headers['Location'] ?? redirectResponse.headers['location']) as string | undefined
-    if (!s3Url) {
-        throw new Error('Could not retrieve file download URL.')
-    }
-
-    // Download encrypted bytes from S3 directly (presigned URL, no auth header).
-    downloadStage.value = 'downloading'
+    let encryptedBytes: Uint8Array
     const tempPath = `flashview_enc_${hashId}.bin`
-    await Filesystem.downloadFile({ url: s3Url, path: tempPath, directory: Directory.Cache })
+    downloadStage.value = 'downloading'
 
-    const fileResult = await Filesystem.readFile({ path: tempPath, directory: Directory.Cache })
-    const encryptedBytes = base64ToUint8Array(fileResult.data as string)
+    if (fileResponse.status === 301 || fileResponse.status === 302) {
+        const s3Url = (fileResponse.headers['Location'] ?? fileResponse.headers['location']) as string | undefined
+        if (!s3Url) {
+            throw new Error('Could not retrieve file download URL.')
+        }
+        await Filesystem.downloadFile({ url: s3Url, path: tempPath, directory: Directory.Cache })
+        const fileResult = await Filesystem.readFile({ path: tempPath, directory: Directory.Cache })
+        encryptedBytes = base64ToUint8Array(fileResult.data as string)
+        await Filesystem.deleteFile({ path: tempPath, directory: Directory.Cache }).catch(() => {})
+    } else if (fileResponse.status === 200) {
+        // Local disk environment streams the encrypted bytes directly.
+        encryptedBytes = new Uint8Array(fileResponse.data as ArrayBuffer)
+    } else {
+        throw new Error(`Download failed (HTTP ${fileResponse.status})`)
+    }
 
     // Decrypt file and filename.
     downloadStage.value = 'decrypting'
@@ -132,8 +141,7 @@ async function handleFileRetrieve(client: any, data: any): Promise<void> {
     const { uri } = await Filesystem.getUri({ path: outputPath, directory: Directory.Cache })
     decryptedFileUri.value = uri
 
-    // Cleanup temp download; keep output until user shares.
-    await Filesystem.deleteFile({ path: tempPath, directory: Directory.Cache }).catch(() => {})
+    // Note: tempPath cleanup is already handled per-branch above.
 
     // Best-effort server confirmation so it can schedule S3 cleanup.
     client.confirmFileDownloaded(hashId).catch(() => {})
