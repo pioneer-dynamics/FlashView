@@ -157,6 +157,9 @@ flashview create --message "secret" --email recipient@example.com
 # Include your verified sender identity badge
 flashview create --message "secret" --with-verified-badge
 
+# The badge is also included automatically when your account has
+# "include by default" enabled — you do not need to pass the flag explicitly
+
 # Show step-by-step progress (including upload progress bar for files)
 flashview create --file large-video.mp4 --verbose
 ```
