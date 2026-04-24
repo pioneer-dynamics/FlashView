@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Cashier\Billable;
+use Laravel\Cashier\Subscription;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 use Laravel\Jetstream\HasProfilePhoto;
 use Laravel\Sanctum\HasApiTokens;
@@ -77,7 +78,7 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
         'senderIdentity',
     ];
 
-    public function getSubscriptionAttribute()
+    public function getSubscriptionAttribute(): ?Subscription
     {
         return $this->subscriptions()->active()->first();
     }
