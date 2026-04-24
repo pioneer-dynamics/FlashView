@@ -36,7 +36,7 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
-        Inertia::share('auth.hasApiAccess', fn () => ($request->user()?->hasApiAccess() || $request->user()?->hasMobileAccess()) ?? false);
+        Inertia::share('auth.hasApiAccess', fn () => ($request->user()?->hasApiAccess() ?? false) || ($request->user()?->hasMobileAccess() ?? false));
         Inertia::share('auth.senderIdentity', function () use ($request) {
             $user = $request->user();
 
