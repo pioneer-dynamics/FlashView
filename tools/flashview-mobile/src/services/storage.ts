@@ -3,6 +3,7 @@ import { Preferences } from '@capacitor/preferences';
 const TOKEN_KEY = 'flashview_token';
 const SERVER_URL_KEY = 'flashview_server_url';
 const PENDING_SHARE_KEY = 'flashview_pending_share';
+const PENDING_SHARE_FILE_KEY = 'flashview_pending_share_file';
 const DEFAULT_SERVER_URL = 'https://flashview.link';
 
 export async function getToken(): Promise<string | null> {
@@ -38,4 +39,13 @@ export async function setPendingShare(text: string): Promise<void> {
 
 export async function clearPendingShare(): Promise<void> {
     await Preferences.remove({ key: PENDING_SHARE_KEY });
+}
+
+export async function getPendingShareFile(): Promise<string | null> {
+    const { value } = await Preferences.get({ key: PENDING_SHARE_FILE_KEY });
+    return value;
+}
+
+export async function clearPendingShareFile(): Promise<void> {
+    await Preferences.remove({ key: PENDING_SHARE_FILE_KEY });
 }

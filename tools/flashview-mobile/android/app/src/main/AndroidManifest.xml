@@ -37,6 +37,13 @@
                 <data android:mimeType="text/plain" />
             </intent-filter>
 
+            <!-- Share Sheet: receive files from other apps -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="*/*" />
+            </intent-filter>
+
         </activity>
 
         <provider

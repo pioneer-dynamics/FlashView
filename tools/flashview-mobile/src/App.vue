@@ -6,13 +6,13 @@ import { initShareIntent, useShareIntent } from '@/composables/useShareIntent'
 
 const router = useRouter()
 const { isAuthenticated } = useAuth()
-const { sharedText } = useShareIntent()
+const { sharedText, sharedFile } = useShareIntent()
 
 onMounted(async () => {
     await Promise.all([initAuth(), initShareIntent()])
 
-    // Cold start: shared text was stored before JS loaded.
-    if (sharedText.value) {
+    // Cold start: a share arrived before JS loaded.
+    if (sharedText.value || sharedFile.value) {
         if (isAuthenticated.value) {
             router.push({ name: 'create' })
         } else {

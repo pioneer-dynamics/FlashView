@@ -45,6 +45,18 @@ export class FlashViewClient {
         token: string;
     }>;
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    createSecretWithFileToken(
+        fileToken: string,
+        encryptedFilename: string,
+        fileSize: number,
+        fileMimeType: string,
+        expiresIn?: number,
+        email?: string | null,
+        withVerifiedBadge?: boolean,
+        encryptedMessage?: string | null,
+    ): Promise<any>;
+
     uploadFile(
         encryptedBuffer: Uint8Array,
         encryptedFilename: string,

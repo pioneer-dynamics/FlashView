@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { encryptMessage } from '@pioneer-dynamics/flashview-crypto'
+import { encryptMessage, encryptBuffer } from '@pioneer-dynamics/flashview-crypto'
 import { useAuth } from '@/composables/useAuth'
 import { useServerConfig } from '@/composables/useServerConfig'
 import { useShareIntent } from '@/composables/useShareIntent'
@@ -11,7 +11,7 @@ import ExpiryPicker from '@/components/ExpiryPicker.vue'
 const router = useRouter()
 const { getClient, reAuthenticate } = useAuth()
 const { config, fetchConfig } = useServerConfig()
-const { sharedText, clearSharedContent } = useShareIntent()
+const { sharedText, sharedFile, clearSharedContent } = useShareIntent()
 
 const message = ref(sharedText.value ?? '')
 const expiresIn = ref(1440)
@@ -24,14 +24,32 @@ const includeSenderIdentity = ref(false)
 const isSubmitting = ref(false)
 const error = ref('')
 
-// Update the message field if a share arrives while this view is already mounted.
+interface AttachedFile {
+    name: string
+    size: number
+    type: string
+}
+const selectedFile = ref<AttachedFile | null>(null)
+const fileBytes = ref<Uint8Array | null>(null)
+const fileInputRef = ref<HTMLInputElement | null>(null)
+
+// Pre-fill from share intent
 watch(sharedText, (text) => {
-    if (text) {
-        message.value = text
-    }
+    if (text) message.value = text
 })
 
-// Auto-enable verified sender badge when the user has it configured with include_by_default.
+watch(sharedFile, (file) => {
+    if (file) {
+        selectedFile.value = { name: file.name, size: file.size, type: file.mimeType }
+        const binary = atob(file.data)
+        const bytes = new Uint8Array(binary.length)
+        for (let i = 0; i < binary.length; i++) {
+            bytes[i] = binary.charCodeAt(i)
+        }
+        fileBytes.value = bytes
+    }
+}, { immediate: true })
+
 watch(() => config.value.senderIdentity, (identity) => {
     if (identity?.include_by_default) {
         includeSenderIdentity.value = true
@@ -42,17 +60,45 @@ onMounted(() => {
     fetchConfig()
 })
 
+function formatFileSize(bytes: number): string {
+    if (bytes < 1024) return `${bytes} B`
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+function onFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement
+    const file = input.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = () => {
+        fileBytes.value = new Uint8Array(reader.result as ArrayBuffer)
+        selectedFile.value = { name: file.name, size: file.size, type: file.type || 'application/octet-stream' }
+    }
+    reader.readAsArrayBuffer(file)
+    // Reset so the same file can be re-selected if removed and re-added
+    input.value = ''
+}
+
+function clearFile(): void {
+    selectedFile.value = null
+    fileBytes.value = null
+}
+
 function resetForm(): void {
     message.value = ''
     passphrase.value = ''
     useCustomPassphrase.value = false
     recipientEmail.value = ''
     error.value = ''
-    // Keep includeSenderIdentity at its current value (follows user preference).
+    selectedFile.value = null
+    fileBytes.value = null
 }
 
 async function handleCreate(): Promise<void> {
-    if (!message.value.trim()) {
+    const hasFile = !!(selectedFile.value && fileBytes.value)
+
+    if (!hasFile && !message.value.trim()) {
         return
     }
 
@@ -70,27 +116,79 @@ async function handleCreate(): Promise<void> {
     error.value = ''
 
     try {
-        const result = await encryptMessage(
-            message.value,
-            useCustomPassphrase.value ? passphrase.value : null,
-        )
-
         const client = await getClient()
-        const response = await client.createSecret(
-            result.secret,
-            expiresIn.value,
-            recipientEmail.value.trim() || null,
-            config.value.senderIdentity ? includeSenderIdentity.value : false,
-        )
 
-        clearSharedContent()
-        resetForm()
+        if (hasFile) {
+            const { encrypted, passphrase: resolvedPassphrase } = await encryptBuffer(
+                fileBytes.value!,
+                useCustomPassphrase.value ? passphrase.value : null,
+            )
 
-        // Pass sensitive data via router state (in-memory), not query params.
-        router.push({
-            name: 'secret-created',
-            state: { url: response.data.url, passphrase: result.passphrase },
-        })
+            const { secret: encryptedFilename } = await encryptMessage(
+                selectedFile.value!.name,
+                resolvedPassphrase,
+            )
+
+            let encryptedNote: string | null = null
+            if (message.value.trim()) {
+                const { secret } = await encryptMessage(message.value, resolvedPassphrase)
+                encryptedNote = secret
+            }
+
+            const prepare = await client.prepareFileUpload()
+
+            const uploadResponse = await fetch(prepare.upload_url, {
+                method: prepare.upload_type === 's3_direct' ? 'PUT' : 'POST',
+                headers: {
+                    'Content-Type': 'application/octet-stream',
+                    ...prepare.upload_headers,
+                },
+                body: encrypted.buffer as ArrayBuffer,
+            })
+
+            if (!uploadResponse.ok) {
+                throw new TypeError(`File upload failed (HTTP ${uploadResponse.status})`)
+            }
+
+            const response = await client.createSecretWithFileToken(
+                prepare.token,
+                encryptedFilename,
+                fileBytes.value!.length,
+                selectedFile.value!.type,
+                expiresIn.value,
+                recipientEmail.value.trim() || null,
+                config.value.senderIdentity ? includeSenderIdentity.value : false,
+                encryptedNote,
+            )
+
+            clearSharedContent()
+            resetForm()
+
+            router.push({
+                name: 'secret-created',
+                state: { url: response.data.url, passphrase: resolvedPassphrase },
+            })
+        } else {
+            const result = await encryptMessage(
+                message.value,
+                useCustomPassphrase.value ? passphrase.value : null,
+            )
+
+            const response = await client.createSecret(
+                result.secret,
+                expiresIn.value,
+                recipientEmail.value.trim() || null,
+                config.value.senderIdentity ? includeSenderIdentity.value : false,
+            )
+
+            clearSharedContent()
+            resetForm()
+
+            router.push({
+                name: 'secret-created',
+                state: { url: response.data.url, passphrase: result.passphrase },
+            })
+        }
     } catch (err: unknown) {
         const apiErr = err as { status?: number; retryAfter?: number | null; message?: string }
 
@@ -99,8 +197,8 @@ async function handleCreate(): Promise<void> {
             error.value = `Please wait ${wait} seconds before creating another secret.`
         } else if (apiErr.status === 401) {
             await reAuthenticate()
-        } else if (apiErr instanceof TypeError || String(apiErr.message).toLowerCase().includes('network')) {
-            error.value = 'Your secret was NOT sent. Your text is still only on this device. Check your connection and try again.'
+        } else if (err instanceof TypeError || String(apiErr.message).toLowerCase().includes('network') || String(apiErr.message).toLowerCase().includes('failed')) {
+            error.value = 'Your secret was NOT sent. Your content is still only on this device. Check your connection and try again.'
         } else {
             error.value = apiErr.message || 'Something went wrong. Please try again.'
         }
@@ -116,11 +214,45 @@ async function handleCreate(): Promise<void> {
             <h1 class="text-xs uppercase tracking-widest text-gamboge-300 mb-4">New Secret</h1>
 
             <div class="flex flex-col gap-4">
-                <!-- Message -->
+                <!-- Attached file -->
+                <div v-if="selectedFile" class="rounded-xl bg-gray-900 border border-gamboge-800 p-3 flex items-center justify-between gap-3">
+                    <div class="flex flex-col gap-0.5 min-w-0">
+                        <p class="text-xs text-gamboge-300 uppercase tracking-widest mb-1">Attached file</p>
+                        <p class="text-sm text-gray-100 font-mono truncate">{{ selectedFile.name }}</p>
+                        <p class="text-xs text-gray-500">{{ formatFileSize(selectedFile.size) }}</p>
+                    </div>
+                    <button
+                        type="button"
+                        @click="clearFile"
+                        class="shrink-0 text-xs text-red-400 hover:text-red-300 transition-colors px-2"
+                    >
+                        Remove
+                    </button>
+                </div>
+
+                <!-- File picker (shown when no file attached) -->
+                <div v-else>
+                    <input
+                        ref="fileInputRef"
+                        type="file"
+                        class="hidden"
+                        @change="onFileSelected"
+                    />
+                    <button
+                        type="button"
+                        @click="fileInputRef?.click()"
+                        class="w-full py-2 rounded-xl border border-dashed border-gray-600 text-xs text-gray-400 hover:border-gamboge-300 hover:text-gamboge-300 transition-colors"
+                    >
+                        Attach a file
+                    </button>
+                </div>
+
+                <!-- Message / note -->
                 <div>
+                    <p v-if="selectedFile" class="text-xs uppercase tracking-widest text-gamboge-300 mb-1">Note (optional)</p>
                     <textarea
                         v-model="message"
-                        placeholder="Enter your secret message…"
+                        :placeholder="selectedFile ? 'Add an optional note…' : 'Enter your secret message…'"
                         rows="6"
                         class="w-full rounded-xl bg-gray-900 border border-gray-700 px-3 py-3 text-sm text-gray-100 placeholder-gray-500 focus:border-gamboge-300 focus:outline-none resize-none transition-colors"
                     />
@@ -196,7 +328,7 @@ async function handleCreate(): Promise<void> {
 
                 <button
                     @click="handleCreate"
-                    :disabled="isSubmitting || !message.trim()"
+                    :disabled="isSubmitting || (!message.trim() && !selectedFile)"
                     class="w-full py-3 rounded-xl bg-gamboge-300 text-gray-950 font-semibold text-sm transition-opacity disabled:opacity-40 shadow-neon-cyan-sm"
                 >
                     {{ isSubmitting ? 'Encrypting & sending…' : 'Create Secret' }}
