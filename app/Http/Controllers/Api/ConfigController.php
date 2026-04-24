@@ -29,10 +29,22 @@ class ConfigController extends Controller
             fn (array $option) => $option['value'] <= $maxExpiry,
         ));
 
+        $senderIdentity = null;
+        if ($user->hasVerifiedSenderIdentity()) {
+            $identity = $user->senderIdentity;
+            $senderIdentity = [
+                'type' => $identity->type,
+                'company_name' => $identity->company_name,
+                'email' => $identity->email,
+                'include_by_default' => $identity->include_by_default,
+            ];
+        }
+
         return new ConfigResource([
             'expiry_options' => $expiryOptions,
             'max_expiry' => $maxExpiry,
             'max_message_length' => $maxMessageLength,
+            'sender_identity' => $senderIdentity,
         ]);
     }
 }

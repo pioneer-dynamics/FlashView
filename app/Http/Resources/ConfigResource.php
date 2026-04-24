@@ -25,6 +25,7 @@ class ConfigResource extends JsonResource
             'expiry_options' => $this->resource['expiry_options'],
             'max_expiry' => $this->resource['max_expiry'],
             'max_message_length' => $this->resource['max_message_length'],
+            'sender_identity' => $this->resource['sender_identity'] ?? null,
         ];
     }
 }

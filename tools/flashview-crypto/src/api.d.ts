@@ -35,6 +35,9 @@ export class FlashViewClient {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     burnSecret(hashId: string): Promise<any>;
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    getUser(): Promise<any>;
+
     prepareFileUpload(): Promise<{
         upload_type: string;
         upload_url: string;

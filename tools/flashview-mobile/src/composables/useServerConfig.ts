@@ -7,9 +7,17 @@ interface ExpiryOption {
     label: string;
 }
 
+export interface SenderIdentity {
+    type: string;
+    company_name: string | null;
+    email: string | null;
+    include_by_default: boolean;
+}
+
 interface ServerConfig {
     maxMessageLength: number;
     expiryOptions: ExpiryOption[];
+    senderIdentity: SenderIdentity | null;
 }
 
 const DEFAULT_CONFIG: ServerConfig = {
@@ -24,6 +32,7 @@ const DEFAULT_CONFIG: ServerConfig = {
         { value: 4320, label: '3 days' },
         { value: 10080, label: '7 days' },
     ],
+    senderIdentity: null,
 };
 
 const config = ref<ServerConfig>(DEFAULT_CONFIG);
@@ -43,6 +52,7 @@ export function useServerConfig() {
                 config.value = {
                     maxMessageLength: raw.max_message_length ?? DEFAULT_CONFIG.maxMessageLength,
                     expiryOptions: raw.expiry_options ?? DEFAULT_CONFIG.expiryOptions,
+                    senderIdentity: raw.sender_identity ?? null,
                 };
             } catch {
                 // Fall back to defaults on error — do not crash the app

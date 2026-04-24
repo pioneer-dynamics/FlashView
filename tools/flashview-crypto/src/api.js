@@ -110,6 +110,10 @@ export class FlashViewClient {
         return this.request('DELETE', `/api/v1/secrets/${hashId}`);
     }
 
+    async getUser() {
+        return this.request('GET', '/api/v1/user');
+    }
+
     /**
      * Request a presigned upload URL for direct client-to-S3 upload.
      *

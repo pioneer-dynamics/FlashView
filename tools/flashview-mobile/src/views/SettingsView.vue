@@ -2,9 +2,11 @@
 import { ref, onMounted } from 'vue'
 import { getServerUrl, setServerUrl } from '@/services/storage'
 import { useAuth } from '@/composables/useAuth'
+import { useUserProfile } from '@/composables/useUserProfile'
 import MobileLayout from '@/layouts/MobileLayout.vue'
 
 const { logout } = useAuth()
+const { profile, fetchProfile, clearProfile } = useUserProfile()
 
 const serverUrl = ref('')
 const savedUrl = ref('')
@@ -16,6 +18,7 @@ onMounted(async () => {
     const url = await getServerUrl()
     serverUrl.value = url
     savedUrl.value = url
+    fetchProfile()
 })
 
 async function saveServerUrl(): Promise<void> {
@@ -43,7 +46,16 @@ async function saveServerUrl(): Promise<void> {
 }
 
 async function handleLogout(): Promise<void> {
+    clearProfile()
     await logout()
+}
+
+function initials(name: string): string {
+    return name
+        .split(' ')
+        .slice(0, 2)
+        .map((w) => w[0]?.toUpperCase() ?? '')
+        .join('')
 }
 </script>
 
@@ -53,6 +65,40 @@ async function handleLogout(): Promise<void> {
             <h1 class="text-xs uppercase tracking-widest text-gamboge-300 mb-6">Settings</h1>
 
             <div class="flex flex-col gap-6">
+                <!-- User profile -->
+                <div v-if="profile" class="rounded-xl bg-gray-900 border border-gray-700 p-4 flex items-center gap-4">
+                    <div class="shrink-0">
+                        <img
+                            v-if="profile.profile_photo_url"
+                            :src="profile.profile_photo_url"
+                            :alt="profile.name"
+                            class="w-12 h-12 rounded-full object-cover border border-gray-700"
+                        />
+                        <div
+                            v-else
+                            class="w-12 h-12 rounded-full bg-gamboge-300/20 border border-gamboge-300/40 flex items-center justify-center"
+                        >
+                            <span class="text-gamboge-300 font-mono font-semibold text-sm">
+                                {{ initials(profile.name) || '?' }}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="min-w-0">
+                        <p class="text-sm text-gray-100 font-medium truncate">{{ profile.name }}</p>
+                        <p class="text-xs text-gray-400 font-mono truncate">{{ profile.email }}</p>
+                    </div>
+                </div>
+
+                <!-- Skeleton while loading -->
+                <div v-else class="rounded-xl bg-gray-900 border border-gray-700 p-4 flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-full bg-gray-800 animate-pulse shrink-0" />
+                    <div class="flex flex-col gap-2 flex-1">
+                        <div class="h-3 bg-gray-800 rounded animate-pulse w-32" />
+                        <div class="h-3 bg-gray-800 rounded animate-pulse w-48" />
+                    </div>
+                </div>
+
+                <!-- Server URL -->
                 <div>
                     <p class="text-xs uppercase tracking-widest text-gamboge-300 mb-2">Server</p>
                     <div class="rounded-xl bg-gray-900 border border-gray-700 p-4 flex flex-col gap-3">
@@ -82,6 +128,7 @@ async function handleLogout(): Promise<void> {
                     </div>
                 </div>
 
+                <!-- Account -->
                 <div>
                     <p class="text-xs uppercase tracking-widest text-gamboge-300 mb-2">Account</p>
                     <div class="rounded-xl bg-gray-900 border border-gray-700 overflow-hidden">
@@ -94,6 +141,7 @@ async function handleLogout(): Promise<void> {
                     </div>
                 </div>
 
+                <!-- About -->
                 <div>
                     <p class="text-xs uppercase tracking-widest text-gamboge-300 mb-2">About</p>
                     <div class="rounded-xl bg-gray-900 border border-gray-700 p-4">
