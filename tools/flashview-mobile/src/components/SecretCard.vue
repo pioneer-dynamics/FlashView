@@ -64,7 +64,7 @@ const createdLabel = computed(() => {
                 class="text-xs font-mono px-2 py-0.5 rounded-full border"
                 :class="secret.is_expired
                     ? 'text-gray-500 border-gray-700'
-                    : 'text-gamboge-300 border-gamboge-800 shadow-neon-cyan-sm'"
+                    : 'text-gamboge-300 border-gamboge-300/30 shadow-neon-cyan-sm'"
             >
                 {{ expiresLabel }}
             </span>

@@ -63,7 +63,7 @@ async function copyPassphrase(): Promise<void> {
 
                 <button
                     @click="shareAll"
-                    class="w-full py-3 rounded-xl bg-gamboge-300 text-gray-950 font-semibold text-sm transition-opacity"
+                    class="w-full py-3 rounded-xl bg-gamboge-300 text-gray-950 font-semibold text-sm transition-opacity shadow-neon-cyan-sm"
                 >
                     Share link{{ passphrase ? ' + passphrase' : '' }}
                 </button>
