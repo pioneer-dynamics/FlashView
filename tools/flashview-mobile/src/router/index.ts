@@ -1,5 +1,5 @@
 import { createRouter, createWebHashHistory } from 'vue-router';
-import { useAuth } from '@/composables/useAuth';
+import { initAuth, useAuth } from '@/composables/useAuth';
 
 const router = createRouter({
     history: createWebHashHistory(),
@@ -49,6 +49,8 @@ const router = createRouter({
 });
 
 router.beforeEach(async (to) => {
+    // Wait for the token to be read from storage before making auth decisions.
+    await initAuth();
     const { isAuthenticated } = useAuth();
 
     if (to.meta.requiresAuth && !isAuthenticated.value) {

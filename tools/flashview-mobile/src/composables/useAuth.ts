@@ -7,10 +7,17 @@ import { FlashViewClient } from '@pioneer-dynamics/flashview-crypto/api';
 const isAuthenticated = ref(false);
 const isInitialised = ref(false);
 
+let _initPromise: Promise<void> | null = null;
+
 export async function initAuth(): Promise<void> {
-    const token = await getToken();
-    isAuthenticated.value = !!token;
-    isInitialised.value = true;
+    if (!_initPromise) {
+        _initPromise = (async () => {
+            const token = await getToken();
+            isAuthenticated.value = !!token;
+            isInitialised.value = true;
+        })();
+    }
+    return _initPromise;
 }
 
 export function useAuth() {
