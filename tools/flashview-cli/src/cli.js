@@ -219,6 +219,7 @@ program
         const serverConfig = await getServerConfig();
         const expiryOptions = serverConfig?.expiry_options ?? FALLBACK_EXPIRY_OPTIONS;
         const allowedValues = expiryOptions.map(o => o.value);
+        const withVerifiedBadge = !!options.withVerifiedBadge || !!(serverConfig?.sender_identity?.include_by_default);
 
         const expiresIn = parseExpiry(options.expiresIn, allowedValues);
         if (!expiresIn) {
@@ -291,7 +292,7 @@ program
                 mimeType,
                 expiresIn,
                 options.email || null,
-                !!options.withVerifiedBadge,
+                withVerifiedBadge,
                 encryptedMessage,
             );
 
@@ -328,7 +329,7 @@ program
         const { passphrase, secret } = await encryptMessage(message, options.passphrase);
 
         if (verbose) { process.stderr.write('  Creating secret...\n'); }
-        const result = await client.createSecret(secret, expiresIn, options.email, !!options.withVerifiedBadge);
+        const result = await client.createSecret(secret, expiresIn, options.email, withVerifiedBadge);
 
         if (options.json) {
             console.log(JSON.stringify({
