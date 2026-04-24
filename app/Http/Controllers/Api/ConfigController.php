@@ -34,6 +34,7 @@ class ConfigController extends Controller
             $identity = $user->senderIdentity;
             $senderIdentity = [
                 'type' => $identity->type,
+                'domain' => $identity->domain,
                 'company_name' => $identity->company_name,
                 'email' => $identity->email,
                 'include_by_default' => $identity->include_by_default,

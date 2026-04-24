@@ -9,6 +9,7 @@ interface ExpiryOption {
 
 export interface SenderIdentity {
     type: string;
+    domain: string | null;
     company_name: string | null;
     email: string | null;
     include_by_default: boolean;

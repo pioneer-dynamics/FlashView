@@ -52,6 +52,10 @@ class CliDeviceController extends Controller
 
     /**
      * Render the device code entry page for authenticated users.
+     *
+     * This flow is intentionally CLI-only. The mobile app uses the browser-based
+     * OAuth flow (CliAuthController) with a custom URL scheme deep-link callback,
+     * not the device-code flow. Token type is hardcoded to 'cli' throughout.
      */
     public function show(Request $request): Response
     {
