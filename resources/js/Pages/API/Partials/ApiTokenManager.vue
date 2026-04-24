@@ -157,13 +157,13 @@ const deleteApiToken = () => {
                                         {{ token.name }}
                                         <span
                                             v-if="token.type === 'cli'"
-                                            class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300"
+                                            class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gamboge-50 text-gamboge-700 dark:bg-gamboge-900 dark:text-gamboge-300"
                                         >
                                             CLI
                                         </span>
                                         <span
                                             v-else-if="token.type === 'mobile'"
-                                            class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300"
+                                            class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gamboge-50 text-gamboge-700 dark:bg-gamboge-900 dark:text-gamboge-300"
                                         >
                                             Mobile
                                         </span>

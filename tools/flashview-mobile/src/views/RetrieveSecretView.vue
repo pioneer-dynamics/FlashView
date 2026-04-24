@@ -106,7 +106,7 @@ async function copyMessage(): Promise<void> {
                 <button
                     @click="handleRetrieve"
                     :disabled="isRetrieving"
-                    class="w-full py-3 rounded-xl bg-gamboge-300 text-gray-950 font-semibold text-sm transition-opacity disabled:opacity-40"
+                    class="w-full py-3 rounded-xl bg-gamboge-300 text-gray-950 font-semibold text-sm transition-opacity disabled:opacity-40 shadow-neon-cyan-sm"
                 >
                     {{ isRetrieving ? 'Decrypting…' : 'Retrieve & Decrypt' }}
                 </button>
@@ -120,7 +120,7 @@ async function copyMessage(): Promise<void> {
 
                 <button
                     @click="copyMessage"
-                    class="w-full py-3 rounded-xl bg-gamboge-300 text-gray-950 font-semibold text-sm transition-opacity"
+                    class="w-full py-3 rounded-xl bg-gamboge-300 text-gray-950 font-semibold text-sm transition-opacity shadow-neon-cyan-sm"
                 >
                     {{ copied ? 'Copied!' : 'Copy message' }}
                 </button>
