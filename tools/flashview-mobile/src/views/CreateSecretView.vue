@@ -340,11 +340,18 @@ async function handleCreate(): Promise<void> {
                     {{ error }}
                 </p>
 
-                <!-- Upload progress (file secrets only) -->
+                <!-- Upload progress (file secrets only):
+                     Phase 1 (encrypting/uploading) — indeterminate shimmer overlay
+                     Phase 2 (saving) — determinate full-width gamboge fill -->
                 <div v-if="uploadStage !== 'idle'" class="flex flex-col gap-1.5">
                     <div class="h-1.5 w-full rounded-full bg-gray-800 overflow-hidden relative">
-                        <div class="absolute inset-y-0 left-0 right-0 bg-gamboge-300/20" />
-                        <div class="absolute inset-y-0 w-1/3 bg-gamboge-300 rounded-full animate-shimmer" />
+                        <template v-if="uploadStage === 'saving'">
+                            <div class="absolute inset-y-0 left-0 w-full bg-gamboge-300 rounded-full transition-all duration-300" />
+                        </template>
+                        <template v-else>
+                            <div class="absolute inset-y-0 left-0 right-0 bg-gamboge-300/20" />
+                            <div class="absolute inset-y-0 w-1/3 bg-gamboge-300 rounded-full animate-shimmer" />
+                        </template>
                     </div>
                     <p class="text-xs text-gray-400 font-mono text-center">
                         <span v-if="uploadStage === 'encrypting'">Encrypting file…</span>

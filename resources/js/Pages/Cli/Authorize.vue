@@ -128,7 +128,7 @@ function submit(action) {
             </div>
 
             <div v-if="availablePermissions?.length" class="mt-4 rounded-md bg-gray-50 dark:bg-gray-800 p-3">
-                <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2">
+                <p class="text-xs font-medium text-gamboge-300 uppercase tracking-widest mb-2">
                     Token permissions:
                 </p>
                 <div class="space-y-2">
