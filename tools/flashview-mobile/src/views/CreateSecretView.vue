@@ -22,6 +22,7 @@ const showPassphrase = ref(true)
 const recipientEmail = ref('')
 const includeSenderIdentity = ref(false)
 const isSubmitting = ref(false)
+const uploadStage = ref<'idle' | 'encrypting' | 'uploading' | 'saving'>('idle')
 const error = ref('')
 
 interface AttachedFile {
@@ -91,6 +92,7 @@ function resetForm(): void {
     useCustomPassphrase.value = false
     recipientEmail.value = ''
     error.value = ''
+    uploadStage.value = 'idle'
     selectedFile.value = null
     fileBytes.value = null
 }
@@ -119,6 +121,7 @@ async function handleCreate(): Promise<void> {
         const client = await getClient()
 
         if (hasFile) {
+            uploadStage.value = 'encrypting'
             const { encrypted, passphrase: resolvedPassphrase } = await encryptBuffer(
                 fileBytes.value!,
                 useCustomPassphrase.value ? passphrase.value : null,
@@ -135,21 +138,31 @@ async function handleCreate(): Promise<void> {
                 encryptedNote = secret
             }
 
+            uploadStage.value = 'uploading'
             const prepare = await client.prepareFileUpload()
 
+            // Use Blob so Capacitor's native HTTP bridge sends raw binary — passing
+            // ArrayBuffer directly can cause double-encoding through the JS bridge.
             const uploadResponse = await fetch(prepare.upload_url, {
                 method: prepare.upload_type === 's3_direct' ? 'PUT' : 'POST',
                 headers: {
                     'Content-Type': 'application/octet-stream',
                     ...prepare.upload_headers,
                 },
-                body: encrypted.buffer as ArrayBuffer,
+                // Copy into a fresh ArrayBuffer so TypeScript is satisfied and
+                // Capacitor's bridge treats the body as raw binary (not JSON-encoded).
+                body: (() => {
+                    const buf = new ArrayBuffer(encrypted.byteLength)
+                    new Uint8Array(buf).set(encrypted)
+                    return new Blob([buf])
+                })(),
             })
 
             if (!uploadResponse.ok) {
                 throw new TypeError(`File upload failed (HTTP ${uploadResponse.status})`)
             }
 
+            uploadStage.value = 'saving'
             const response = await client.createSecretWithFileToken(
                 prepare.token,
                 encryptedFilename,
@@ -204,6 +217,7 @@ async function handleCreate(): Promise<void> {
         }
     } finally {
         isSubmitting.value = false
+        uploadStage.value = 'idle'
     }
 }
 </script>
@@ -326,12 +340,24 @@ async function handleCreate(): Promise<void> {
                     {{ error }}
                 </p>
 
+                <!-- Upload progress (file secrets only) -->
+                <div v-if="uploadStage !== 'idle'" class="flex flex-col gap-1.5">
+                    <div class="h-1.5 w-full rounded-full bg-gray-800 overflow-hidden">
+                        <div class="h-full rounded-full bg-gamboge-300 animate-shimmer" />
+                    </div>
+                    <p class="text-xs text-gray-400 font-mono text-center">
+                        <span v-if="uploadStage === 'encrypting'">Encrypting file…</span>
+                        <span v-else-if="uploadStage === 'uploading'">Uploading…</span>
+                        <span v-else-if="uploadStage === 'saving'">Creating secret…</span>
+                    </p>
+                </div>
+
                 <button
                     @click="handleCreate"
                     :disabled="isSubmitting || (!message.trim() && !selectedFile)"
                     class="w-full py-3 rounded-xl bg-gamboge-300 text-gray-950 font-semibold text-sm transition-opacity disabled:opacity-40 shadow-neon-cyan-sm"
                 >
-                    {{ isSubmitting ? 'Encrypting & sending…' : 'Create Secret' }}
+                    {{ isSubmitting ? (selectedFile ? 'Sending…' : 'Encrypting & sending…') : 'Create Secret' }}
                 </button>
             </div>
         </div>
