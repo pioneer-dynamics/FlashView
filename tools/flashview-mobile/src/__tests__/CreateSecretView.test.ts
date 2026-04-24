@@ -67,28 +67,37 @@ describe('CreateSecretView — custom passphrase toggle', () => {
         mockCreateSecret.mockResolvedValue({ data: { url: 'https://flashview.link/s/abc123' } })
     })
 
-    it('hides the passphrase field by default', async () => {
+    it('hides the passphrase field by default (checkbox unchecked)', async () => {
         const wrapper = mount(CreateSecretView)
         await flushPromises()
-        expect(wrapper.find('input[type="password"]').exists()).toBe(false)
+        // The passphrase section is hidden until the checkbox is ticked.
+        const hideBtn = wrapper.findAll('button').find((b) => b.text() === 'Hide')
+        expect(hideBtn).toBeUndefined()
     })
 
-    it('shows the passphrase field when the checkbox is ticked', async () => {
+    it('shows the passphrase field as plain text when the checkbox is ticked', async () => {
         const wrapper = mount(CreateSecretView)
         await flushPromises()
         await wrapper.find('input[type="checkbox"]').setValue(true)
+        // Passphrases default to visible (type=text), not masked.
+        const hideBtn = wrapper.findAll('button').find((b) => b.text() === 'Hide')
+        expect(hideBtn).toBeDefined()
+    })
+
+    it('toggles passphrase masking with the Hide/Show button', async () => {
+        const wrapper = mount(CreateSecretView)
+        await flushPromises()
+        await wrapper.find('input[type="checkbox"]').setValue(true)
+
+        // Default: visible (Hide button shown). Click to mask.
+        const hideBtn = wrapper.findAll('button').find((b) => b.text() === 'Hide')
+        await hideBtn!.trigger('click')
         expect(wrapper.find('input[type="password"]').exists()).toBe(true)
-    })
 
-    it('toggles passphrase visibility with the Show/Hide button', async () => {
-        const wrapper = mount(CreateSecretView)
-        await flushPromises()
-        await wrapper.find('input[type="checkbox"]').setValue(true)
-
+        // Click again to reveal.
         const showBtn = wrapper.findAll('button').find((b) => b.text() === 'Show')
-        expect(showBtn).toBeDefined()
         await showBtn!.trigger('click')
-        expect(wrapper.find('input[type="text"]').exists()).toBe(true)
+        expect(wrapper.find('input[type="password"]').exists()).toBe(false)
     })
 })
 
@@ -112,7 +121,8 @@ describe('CreateSecretView — validation', () => {
         await flushPromises()
         await wrapper.find('textarea').setValue('my secret message')
         await wrapper.find('input[type="checkbox"]').setValue(true)
-        await wrapper.find('input[type="password"]').setValue('short')
+        // Passphrase defaults to visible (type=text); use a data-testid-free selector
+        await wrapper.findAll('input[type="text"]').at(-1)!.setValue('short')
 
         const createBtn = wrapper.findAll('button').find((b) => b.text().includes('Create Secret'))
         await createBtn!.trigger('click')
