@@ -2,8 +2,19 @@
 
 namespace App\Providers;
 
+use App\Features\ApiFeature;
+use App\Features\EmailNotificationFeature;
+use App\Features\ExpiryFeature;
+use App\Features\FileUploadFeature;
+use App\Features\MessagesFeature;
+use App\Features\SenderIdentityFeature;
+use App\Features\SupportFeature;
+use App\Features\ThrottlingFeature;
+use App\Features\UntrackedFeature;
+use App\Features\WebhookNotificationFeature;
 use App\Models\PersonalAccessToken;
 use App\Observers\SubscriptionObserver;
+use App\Services\FeatureRegistry;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
@@ -19,7 +30,18 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->singleton(FeatureRegistry::class, fn () => new FeatureRegistry([
+            new UntrackedFeature,
+            new MessagesFeature,
+            new ExpiryFeature,
+            new ThrottlingFeature,
+            new FileUploadFeature,
+            new EmailNotificationFeature,
+            new WebhookNotificationFeature,
+            new SupportFeature,
+            new ApiFeature,
+            new SenderIdentityFeature,
+        ]));
     }
 
     private function forceHttps(): void
