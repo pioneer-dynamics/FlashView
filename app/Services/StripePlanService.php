@@ -17,14 +17,14 @@ class StripePlanService
 
         $monthlyPrice = Cashier::stripe()->prices->create([
             'unit_amount' => $monthlyAmountCents,
-            'currency' => 'usd',
+            'currency' => 'aud',
             'recurring' => ['interval' => 'month'],
             'product' => $product->id,
         ]);
 
         $yearlyPrice = Cashier::stripe()->prices->create([
             'unit_amount' => $yearlyAmountCents,
-            'currency' => 'usd',
+            'currency' => 'aud',
             'recurring' => ['interval' => 'year'],
             'product' => $product->id,
         ]);
