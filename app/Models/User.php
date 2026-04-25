@@ -70,6 +70,7 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
         'subscription',
         'plan',
         'frequency',
+        'is_admin',
     ];
 
     protected $with = [
@@ -172,6 +173,16 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
             'webhook_secret' => 'encrypted',
             'store_masked_recipient_email' => 'boolean',
         ];
+    }
+
+    public function isAdmin(): bool
+    {
+        return in_array(strtolower($this->email), array_map('strtolower', config('admin.emails', [])));
+    }
+
+    public function getIsAdminAttribute(): bool
+    {
+        return $this->isAdmin();
     }
 
     public function hasWebhookConfigured(): bool
