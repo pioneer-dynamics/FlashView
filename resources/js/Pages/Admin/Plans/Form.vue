@@ -157,7 +157,7 @@ const submit = (confirmed = false) => {
             <form @submit.prevent="submit()" class="space-y-8">
 
                 <!-- Plan Details -->
-                <section class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 space-y-4">
+                <section class="bg-white dark:bg-gray-800 rounded-lg shadow dark:shadow-neon-cyan-sm p-6 space-y-4">
                     <h2 class="text-xs uppercase tracking-widest text-gamboge-300 font-mono">Plan Details</h2>
                     <div>
                         <InputLabel for="name" value="Plan Name" />
@@ -167,7 +167,7 @@ const submit = (confirmed = false) => {
                 </section>
 
                 <!-- Pricing -->
-                <section class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 space-y-4">
+                <section class="bg-white dark:bg-gray-800 rounded-lg shadow dark:shadow-neon-cyan-sm p-6 space-y-4">
                     <h2 class="text-xs uppercase tracking-widest text-gamboge-300 font-mono">Pricing</h2>
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
@@ -184,7 +184,7 @@ const submit = (confirmed = false) => {
                 </section>
 
                 <!-- Stripe Integration -->
-                <section class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 space-y-4">
+                <section class="bg-white dark:bg-gray-800 rounded-lg shadow dark:shadow-neon-cyan-sm p-6 space-y-4">
                     <h2 class="text-xs uppercase tracking-widest text-gamboge-300 font-mono">Stripe Integration</h2>
 
                     <div class="space-y-3">
@@ -234,7 +234,7 @@ const submit = (confirmed = false) => {
                 </section>
 
                 <!-- Features -->
-                <section class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 space-y-4">
+                <section class="bg-white dark:bg-gray-800 rounded-lg shadow dark:shadow-neon-cyan-sm p-6 space-y-4">
                     <h2 class="text-xs uppercase tracking-widest text-gamboge-300 font-mono">Features</h2>
 
                     <div v-for="key in FEATURE_KEYS" :key="key"
