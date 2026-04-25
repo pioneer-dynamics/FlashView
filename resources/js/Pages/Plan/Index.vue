@@ -123,7 +123,8 @@ const isFreePlan = (plan) => plan.price_per_month == 0
                             </PrimaryButton>
                             <PrimaryButton
                                 v-else
-                                :href="route('plans.subscribe', { plan: plan.id, period: planFrequency })"
+                                type="button"
+                                @click="window.location.href = route('plans.subscribe', { plan: plan.id, period: planFrequency })"
                                 class="w-full justify-center"
                             >
                                 Choose This Plan
