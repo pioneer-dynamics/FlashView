@@ -19,6 +19,10 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    existingFreePlanName: {
+        type: String,
+        default: null,
+    },
 });
 
 const isEditing = computed(() => props.plan !== null);
@@ -161,9 +165,21 @@ const form = reactive({
 
 // Auto-suggest yearly = monthly × 10 in create mode
 watch(() => form.price_per_month, (val) => {
-    if (!isEditing.value) {
+    if (!isEditing.value && !form.is_free_plan) {
         const monthly = parseFloat(val) || 0;
         form.price_per_year = Math.round(monthly * 10 * 100) / 100;
+    }
+});
+
+// Zero out prices when the free plan toggle is switched on
+watch(() => form.is_free_plan, (isFree) => {
+    if (isFree) {
+        form.price_per_month = 0;
+        form.price_per_year = 0;
+        form.create_stripe_product = false;
+        form.stripe_product_id = '';
+        form.stripe_monthly_price_id = '';
+        form.stripe_yearly_price_id = '';
     }
 });
 
@@ -194,7 +210,8 @@ const buildPayload = () => {
             name: form.name,
             price_per_month: Number(form.price_per_month),
             price_per_year: Number(form.price_per_year),
-            create_stripe_product: hasPriceChanged && hasStripeIds,
+            is_free_plan: form.is_free_plan,
+            create_stripe_product: !form.is_free_plan && hasPriceChanged && hasStripeIds,
             stripe_product_id: props.plan?.stripe_product_id ?? '',
             stripe_monthly_price_id: props.plan?.stripe_monthly_price_id ?? '',
             stripe_yearly_price_id: props.plan?.stripe_yearly_price_id ?? '',
@@ -206,7 +223,8 @@ const buildPayload = () => {
         name: form.name,
         price_per_month: Number(form.price_per_month),
         price_per_year: Number(form.price_per_year),
-        create_stripe_product: form.create_stripe_product,
+        is_free_plan: form.is_free_plan,
+        create_stripe_product: !form.is_free_plan && form.create_stripe_product,
         stripe_product_id: form.stripe_product_id,
         stripe_monthly_price_id: form.stripe_monthly_price_id,
         stripe_yearly_price_id: form.stripe_yearly_price_id,
@@ -260,13 +278,16 @@ const submit = () => {
                         <Checkbox id="is_free_plan" v-model:checked="form.is_free_plan" />
                         <div>
                             <InputLabel for="is_free_plan" value="Default free plan" class="cursor-pointer" />
-                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Non-subscribed users will have their limits resolved from this plan. Only one plan can be the free plan.</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Non-subscribed users will have their limits resolved from this plan. Only one plan can be the free plan at a time.</p>
                         </div>
                     </div>
+                    <Alert v-if="form.is_free_plan && existingFreePlanName" type="warning">
+                        <strong>{{ existingFreePlanName }}</strong> is currently the free plan. Saving will replace it.
+                    </Alert>
                 </section>
 
                 <!-- Pricing -->
-                <section class="bg-white dark:bg-gray-800 rounded-lg shadow dark:shadow-neon-cyan-sm p-6 space-y-4">
+                <section v-if="!form.is_free_plan" class="bg-white dark:bg-gray-800 rounded-lg shadow dark:shadow-neon-cyan-sm p-6 space-y-4">
                     <h2 class="text-xs uppercase tracking-widest text-gamboge-300 font-mono">Pricing</h2>
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
@@ -283,7 +304,7 @@ const submit = () => {
                 </section>
 
                 <!-- Stripe Integration -->
-                <section class="bg-white dark:bg-gray-800 rounded-lg shadow dark:shadow-neon-cyan-sm p-6 space-y-4">
+                <section v-if="!form.is_free_plan" class="bg-white dark:bg-gray-800 rounded-lg shadow dark:shadow-neon-cyan-sm p-6 space-y-4">
                     <h2 class="text-xs uppercase tracking-widest text-gamboge-300 font-mono">Stripe Integration</h2>
 
                     <!-- Edit mode: read-only -->

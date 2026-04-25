@@ -34,6 +34,7 @@ class AdminPlanController extends Controller
             'plan' => null,
             'defaultStripeMode' => app()->environment('production') ? 'create' : 'map',
             'availableFeatures' => $this->featureRegistry->forFrontend(),
+            'existingFreePlanName' => Plan::where('is_free_plan', true)->value('name'),
         ]);
     }
 
@@ -80,6 +81,7 @@ class AdminPlanController extends Controller
             'plan' => $plan,
             'defaultStripeMode' => app()->environment('production') ? 'create' : 'map',
             'availableFeatures' => $this->featureRegistry->forFrontend(),
+            'existingFreePlanName' => Plan::where('is_free_plan', true)->where('id', '!=', $plan->id)->value('name'),
         ]);
     }
 
