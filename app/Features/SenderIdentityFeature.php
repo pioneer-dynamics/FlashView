@@ -11,12 +11,12 @@ class SenderIdentityFeature extends AbstractFeature
 
     public function label(): string
     {
-        return 'Custom sender identity';
+        return 'Verified sender identity';
     }
 
     public function description(): string
     {
-        return 'Shows the sender\'s name or brand on shared secrets.';
+        return 'Shows a verified badge to messages sent (optional)';
     }
 
     public function defaultOrder(): float

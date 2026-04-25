@@ -2,6 +2,7 @@
 
 namespace App\Rules;
 
+use App\Services\FeatureRegistry;
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Support\Str;
@@ -18,20 +19,29 @@ class MessageLength implements ValidationRule
      */
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {
-        $message_length = $this->getActualMessageLength($value);
+        $messageLength = $this->getActualMessageLength($value);
 
-        if ($message_length > $this->getAllowedMessageLength()) {
-            $fail('The :attribute must be at most '.$this->length.' characters.');
+        if (! $this->isWithinLimit($messageLength)) {
+            $fail('The :attribute must be at most '.$this->getAllowedMessageLength().' characters.');
         }
 
-        if ($message_length < $this->min_length) {
+        if ($messageLength < $this->min_length) {
             $fail('The :attribute must be at least '.$this->min_length.' '.Str::plural('character', $this->min_length).'.');
         }
     }
 
-    /**
-     * Get the allowed message length based on the user
-     */
+    private function isWithinLimit(int $messageLength): bool
+    {
+        if ($this->userType !== 'subscribed') {
+            return $messageLength <= $this->getAllowedMessageLength();
+        }
+
+        $plan = request()->user()?->resolvePlan();
+        $config = $plan?->features['messages']['config'] ?? [];
+
+        return app(FeatureRegistry::class)->get('messages')->withinLimit($messageLength, $config);
+    }
+
     private function getAllowedMessageLength(): int
     {
         if ($this->userType !== 'subscribed') {

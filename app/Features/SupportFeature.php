@@ -16,7 +16,7 @@ class SupportFeature extends AbstractFeature
 
     public function description(): string
     {
-        return 'Provides access to priority support channels.';
+        return 'Priority Support';
     }
 
     public function defaultOrder(): float

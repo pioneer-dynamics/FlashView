@@ -16,7 +16,7 @@ class ApiFeature extends AbstractFeature
 
     public function description(): string
     {
-        return 'Enables programmatic access via API tokens.';
+        return 'API and CLI Access';
     }
 
     public function defaultOrder(): float

@@ -16,7 +16,7 @@ class WebhookNotificationFeature extends AbstractFeature
 
     public function description(): string
     {
-        return 'Posts a callback to a webhook URL when a secret is viewed.';
+        return 'Webhook notifcation when a secret is retrieved.';
     }
 
     public function defaultOrder(): float
