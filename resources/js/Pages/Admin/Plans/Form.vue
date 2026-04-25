@@ -6,55 +6,108 @@ import SecondaryButton from '@/Components/SecondaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import InputError from '@/Components/InputError.vue';
-import SelectInput from '@/Components/SelectInput.vue';
 import Alert from '@/Components/Alert.vue';
 import { Link, router } from '@inertiajs/vue3';
 import { reactive, ref, computed } from 'vue';
 
-const FEATURE_KEYS = [
-    'untracked',
-    'messages',
-    'expiry',
-    'throttling',
-    'file_upload',
-    'email_notification',
-    'webhook_notification',
-    'support',
-    'api',
-    'sender_identity',
-];
-
-const FEATURE_DEFAULTS = {
-    untracked: { label: 'Unlimited messages', order: 1, type: 'feature', config: {} },
-    messages: { label: ':message_length character limit per message', order: 2, type: 'feature', config: { message_length: 1000 } },
-    expiry: { label: 'Maximum expiry of :expiry_label', order: 3, type: 'limit', config: { expiry_minutes: 20160, expiry_label: '14 days' } },
-    throttling: { label: 'Throttled at :per_minute messages per minute', order: 4, type: 'limit', config: { per_minute: 60 } },
-    file_upload: { label: 'File uploads up to :max_file_size_mb MB', order: 4.3, type: 'limit', config: { max_file_size_mb: 10 } },
-    email_notification: { label: 'Email Notifications', order: 4.5, type: 'missing', config: { email: false } },
-    webhook_notification: { label: 'Webhook Notifications', order: 5.5, type: 'missing', config: { webhook: false } },
-    support: { label: 'Support', order: 5, type: 'missing', config: {} },
-    api: { label: 'API Access', order: 6, type: 'missing', config: {} },
-    sender_identity: { label: 'Verified Sender Identity (optional)', order: 7, type: 'missing', config: {} },
-};
-
 const props = defineProps({
     plan: Object,
     defaultStripeMode: String,
+    availableFeatures: {
+        type: Array,
+        default: () => [],
+    },
 });
 
 const isEditing = computed(() => props.plan !== null);
 const pageTitle = computed(() => isEditing.value ? `Edit ${props.plan.name}` : 'New Plan');
 
-const initFeatures = () => {
-    const features = {};
-    for (const key of FEATURE_KEYS) {
-        const existing = props.plan?.features?.[key];
-        features[key] = existing
-            ? { ...existing, config: { ...existing.config } }
-            : { ...FEATURE_DEFAULTS[key], config: { ...FEATURE_DEFAULTS[key].config } };
+// ── Feature helpers ──────────────────────────────────────────────────────────
+
+const featMeta = (key) => props.availableFeatures.find((f) => f.key === key);
+
+const buildDefaultConfig = (key, stored = {}) => {
+    const meta = featMeta(key);
+    if (!meta) { return { ...stored }; }
+    const defaults = {};
+    for (const field of meta.configSchema) {
+        defaults[field.key] = stored[field.key] ?? field.default;
     }
-    return features;
+    return defaults;
 };
+
+const initFromPlan = () => {
+    if (!props.plan?.features) { return []; }
+    return Object.entries(props.plan.features)
+        .filter(([, f]) => f.type !== 'missing')
+        .sort(([, a], [, b]) => a.order - b.order)
+        .map(([key, f]) => ({
+            key,
+            type: f.type,
+            config: buildDefaultConfig(key, f.config ?? {}),
+        }));
+};
+
+const includedFeatures = ref(initFromPlan());
+
+const poolFeatures = computed(() =>
+    props.availableFeatures.filter(
+        (f) => !includedFeatures.value.some((i) => i.key === f.key),
+    ),
+);
+
+// ── Drag-and-drop state ──────────────────────────────────────────────────────
+
+const dragKey = ref(null);
+const dragFrom = ref(null);
+const dropIndex = ref(null);
+const isDraggingPool = computed(() => dragFrom.value === 'pool');
+const isDraggingPlan = computed(() => dragFrom.value === 'plan');
+
+const onDragStart = (key, from) => {
+    dragKey.value = key;
+    dragFrom.value = from;
+};
+
+const onDragEnd = () => {
+    dragKey.value = null;
+    dragFrom.value = null;
+    dropIndex.value = null;
+};
+
+const addToPlan = (key) => {
+    includedFeatures.value.push({
+        key,
+        type: 'feature',
+        config: buildDefaultConfig(key, {}),
+    });
+};
+
+const removeFromPlan = (key) => {
+    includedFeatures.value = includedFeatures.value.filter((f) => f.key !== key);
+};
+
+const onDropToPlan = (targetIndex = null) => {
+    if (dragFrom.value === 'pool') {
+        addToPlan(dragKey.value);
+    } else if (dragFrom.value === 'plan' && targetIndex !== null && dragKey.value !== null) {
+        const fromIndex = includedFeatures.value.findIndex((f) => f.key === dragKey.value);
+        if (fromIndex !== -1 && fromIndex !== targetIndex) {
+            const item = includedFeatures.value.splice(fromIndex, 1)[0];
+            includedFeatures.value.splice(targetIndex, 0, item);
+        }
+    }
+    onDragEnd();
+};
+
+const onDropToPool = () => {
+    if (dragFrom.value === 'plan') {
+        removeFromPlan(dragKey.value);
+    }
+    onDragEnd();
+};
+
+// ── Form state ───────────────────────────────────────────────────────────────
 
 const form = reactive({
     name: props.plan?.name ?? '',
@@ -64,7 +117,6 @@ const form = reactive({
     stripe_product_id: props.plan?.stripe_product_id ?? '',
     stripe_monthly_price_id: props.plan?.stripe_monthly_price_id ?? '',
     stripe_yearly_price_id: props.plan?.stripe_yearly_price_id ?? '',
-    features: initFeatures(),
 });
 
 const errors = ref({});
@@ -81,22 +133,19 @@ const pricesUnchanged = computed(() => {
     );
 });
 
-const typeOptions = [
-    { label: 'Feature', value: 'feature' },
-    { label: 'Limit', value: 'limit' },
-    { label: 'Missing', value: 'missing' },
-];
+const canSubmit = computed(() => includedFeatures.value.length > 0);
 
 const buildPayload = () => {
     const features = {};
-    for (const key of FEATURE_KEYS) {
-        features[key] = {
-            label: form.features[key].label,
-            order: Number(form.features[key].order),
-            type: form.features[key].type,
-            config: buildConfig(key),
+    includedFeatures.value.forEach((f, index) => {
+        const meta = featMeta(f.key);
+        features[f.key] = {
+            type: f.type,
+            order: index + 1,
+            config: meta?.canBeLimit && f.type === 'limit' ? { ...f.config } : {},
         };
-    }
+    });
+
     return {
         name: form.name,
         price_per_month: Number(form.price_per_month),
@@ -109,24 +158,17 @@ const buildPayload = () => {
     };
 };
 
-const buildConfig = (key) => {
-    const config = form.features[key].config;
-    switch (key) {
-        case 'messages': return { message_length: Number(config.message_length ?? 0) };
-        case 'expiry': return { expiry_minutes: Number(config.expiry_minutes ?? 0), expiry_label: config.expiry_label ?? '' };
-        case 'throttling': return form.features[key].type === 'feature' ? {} : { per_minute: Number(config.per_minute ?? 0) };
-        case 'file_upload': return { max_file_size_mb: Number(config.max_file_size_mb ?? 0) };
-        case 'email_notification': return { email: Boolean(config.email) };
-        case 'webhook_notification': return { webhook: Boolean(config.webhook) };
-        default: return {};
-    }
-};
-
 const submit = (confirmed = false) => {
+    if (!canSubmit.value) {
+        errors.value = { ...errors.value, features: 'At least one feature is required.' };
+        return;
+    }
+
     if (pricesUnchanged.value && !confirmed) {
         showUnchangedPriceWarning.value = true;
         return;
     }
+
     showUnchangedPriceWarning.value = false;
     errors.value = {};
     processing.value = true;
@@ -236,74 +278,136 @@ const submit = (confirmed = false) => {
                 <!-- Features -->
                 <section class="bg-white dark:bg-gray-800 rounded-lg shadow dark:shadow-neon-cyan-sm p-6 space-y-4">
                     <h2 class="text-xs uppercase tracking-widest text-gamboge-300 font-mono">Features</h2>
+                    <p v-if="errors.features" class="text-red-500 text-xs">{{ errors.features }}</p>
 
-                    <div v-for="key in FEATURE_KEYS" :key="key"
-                        class="border border-gray-100 dark:border-gray-700 rounded-lg p-4 space-y-3">
-                        <div class="flex items-center justify-between">
-                            <span class="font-mono text-xs text-gamboge-300 uppercase tracking-widest">{{ key }}</span>
-                            <div class="flex items-center gap-2">
-                                <InputLabel :for="`type_${key}`" value="Type" class="text-xs" />
-                                <SelectInput :id="`type_${key}`" v-model="form.features[key].type"
-                                    :options="typeOptions"
-                                    class="text-xs py-1" />
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                        <!-- Left: Plan Features -->
+                        <div
+                            @dragover.prevent
+                            @drop.prevent="onDropToPlan()"
+                            :class="[
+                                'min-h-24 rounded-lg border-2 border-dashed p-3 space-y-2 transition-colors',
+                                isDraggingPool
+                                    ? 'border-gamboge-300 bg-gamboge-300/5'
+                                    : 'border-gray-200 dark:border-gray-700'
+                            ]"
+                        >
+                            <p class="text-xs uppercase tracking-widest text-gamboge-300 font-mono mb-2">Plan Features</p>
+
+                            <template v-for="(feat, idx) in includedFeatures" :key="feat.key">
+                                <div
+                                    v-if="dropIndex === idx && isDraggingPlan"
+                                    class="h-0.5 bg-gamboge-300 rounded mx-1"
+                                />
+                                <div
+                                    draggable="true"
+                                    @dragstart="onDragStart(feat.key, 'plan')"
+                                    @dragend="onDragEnd"
+                                    @dragover.prevent="dropIndex = idx"
+                                    @drop.stop.prevent="onDropToPlan(idx)"
+                                    :class="[
+                                        'bg-gray-50 dark:bg-gray-900 rounded-lg p-3 border border-gray-100 dark:border-gray-700 space-y-2',
+                                        dragKey === feat.key ? 'opacity-50' : ''
+                                    ]"
+                                >
+                                    <div class="flex items-center gap-2">
+                                        <span class="cursor-grab text-gray-400 dark:text-gray-500 select-none text-lg leading-none">≡</span>
+                                        <div class="flex-1 min-w-0">
+                                            <p class="font-mono text-xs text-gamboge-300 uppercase tracking-widest truncate">{{ feat.key }}</p>
+                                            <p class="text-xs text-gray-500 dark:text-gray-400 truncate">{{ featMeta(feat.key)?.description }}</p>
+                                        </div>
+                                        <label
+                                            v-if="featMeta(feat.key)?.canBeLimit"
+                                            class="flex items-center gap-1 text-xs cursor-pointer shrink-0"
+                                            title="Check to cap usage at a specific value; unchecked means unlimited access to this feature."
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                :checked="feat.type === 'limit'"
+                                                @change="feat.type = $event.target.checked ? 'limit' : 'feature'"
+                                                class="text-gamboge-300 focus:ring-gamboge-500 rounded"
+                                            />
+                                            <span class="text-gray-600 dark:text-gray-300">Limit</span>
+                                        </label>
+                                        <button
+                                            type="button"
+                                            @click="removeFromPlan(feat.key)"
+                                            class="shrink-0 text-gray-400 hover:text-red-500 text-lg leading-none"
+                                            title="Remove from plan"
+                                        >×</button>
+                                    </div>
+
+                                    <!-- Config inputs — only when type=limit and configSchema is non-empty -->
+                                    <div
+                                        v-if="feat.type === 'limit' && featMeta(feat.key)?.configSchema?.length"
+                                        class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 border-t border-gray-100 dark:border-gray-700"
+                                    >
+                                        <div v-for="field in featMeta(feat.key).configSchema" :key="field.key">
+                                            <InputLabel :value="field.label" class="text-xs" />
+                                            <TextInput
+                                                :type="field.type === 'number' ? 'number' : 'text'"
+                                                :min="field.min"
+                                                v-model="feat.config[field.key]"
+                                                class="mt-1 block w-full text-xs"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+
+                            <div
+                                v-if="!includedFeatures.length"
+                                class="text-xs text-gray-400 dark:text-gray-500 text-center py-6"
+                            >
+                                Drag features here to include them in this plan.
                             </div>
                         </div>
 
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <div>
-                                <InputLabel :for="`label_${key}`" value="Label" class="text-xs" />
-                                <TextInput :id="`label_${key}`" v-model="form.features[key].label" class="mt-1 block w-full text-xs" />
-                                <InputError :message="errors[`features.${key}.label`]" class="mt-1" />
+                        <!-- Right: Available Pool -->
+                        <div
+                            @dragover.prevent
+                            @drop.prevent="onDropToPool()"
+                            :class="[
+                                'min-h-24 rounded-lg border-2 border-dashed p-3 space-y-2 transition-colors',
+                                isDraggingPlan
+                                    ? 'border-red-400 bg-red-400/5'
+                                    : 'border-gray-200 dark:border-gray-700'
+                            ]"
+                        >
+                            <p class="text-xs uppercase tracking-widest text-gamboge-300 font-mono mb-2">Available Features</p>
+
+                            <div
+                                v-for="feat in poolFeatures"
+                                :key="feat.key"
+                                draggable="true"
+                                @dragstart="onDragStart(feat.key, 'pool')"
+                                @dragend="onDragEnd"
+                                :class="[
+                                    'flex items-center justify-between bg-gray-50 dark:bg-gray-900 rounded-lg p-3 border border-gray-100 dark:border-gray-700 cursor-grab',
+                                    dragKey === feat.key ? 'opacity-50' : ''
+                                ]"
+                            >
+                                <div class="min-w-0">
+                                    <p class="font-mono text-xs text-gamboge-300 uppercase tracking-widest truncate">{{ feat.key }}</p>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400 truncate">{{ feat.description }}</p>
+                                </div>
+                                <button
+                                    type="button"
+                                    @click="addToPlan(feat.key)"
+                                    class="shrink-0 ml-2 text-gamboge-300 hover:text-gamboge-400 text-lg leading-none font-mono"
+                                    title="Add to plan"
+                                >+</button>
                             </div>
-                            <div>
-                                <InputLabel :for="`order_${key}`" value="Order" class="text-xs" />
-                                <TextInput :id="`order_${key}`" type="number" step="0.1" v-model="form.features[key].order" class="mt-1 block w-full text-xs" />
-                                <InputError :message="errors[`features.${key}.order`]" class="mt-1" />
+
+                            <div
+                                v-if="!poolFeatures.length"
+                                class="text-xs text-gray-400 dark:text-gray-500 text-center py-6"
+                            >
+                                All features have been added to this plan.
                             </div>
                         </div>
 
-                        <!-- Config fields per feature key -->
-                        <div v-if="key === 'messages'" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <div>
-                                <InputLabel :for="`messages_length`" value="Character Limit" class="text-xs" />
-                                <TextInput id="messages_length" type="number" min="1" v-model="form.features.messages.config.message_length" class="mt-1 block w-full text-xs" />
-                            </div>
-                        </div>
-
-                        <div v-if="key === 'expiry'" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <div>
-                                <InputLabel for="expiry_minutes" value="Max Expiry (minutes)" class="text-xs" />
-                                <TextInput id="expiry_minutes" type="number" min="1" v-model="form.features.expiry.config.expiry_minutes" class="mt-1 block w-full text-xs" />
-                            </div>
-                            <div>
-                                <InputLabel for="expiry_label" value="Expiry Label" class="text-xs" />
-                                <TextInput id="expiry_label" v-model="form.features.expiry.config.expiry_label" placeholder="e.g. 30 days" class="mt-1 block w-full text-xs" />
-                            </div>
-                        </div>
-
-                        <div v-if="key === 'throttling' && form.features.throttling.type !== 'feature'" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <div>
-                                <InputLabel for="throttling_per_minute" value="Requests Per Minute" class="text-xs" />
-                                <TextInput id="throttling_per_minute" type="number" min="1" v-model="form.features.throttling.config.per_minute" class="mt-1 block w-full text-xs" />
-                            </div>
-                        </div>
-
-                        <div v-if="key === 'file_upload'" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <div>
-                                <InputLabel for="file_upload_max" value="Max File Size (MB)" class="text-xs" />
-                                <TextInput id="file_upload_max" type="number" min="0" step="1" v-model="form.features.file_upload.config.max_file_size_mb" class="mt-1 block w-full text-xs" />
-                            </div>
-                        </div>
-
-                        <div v-if="key === 'email_notification'" class="flex items-center gap-2">
-                            <input type="checkbox" :id="`email_notif`" v-model="form.features.email_notification.config.email" class="text-gamboge-300 focus:ring-gamboge-500 rounded" />
-                            <InputLabel for="email_notif" value="Email notifications enabled" class="text-xs" />
-                        </div>
-
-                        <div v-if="key === 'webhook_notification'" class="flex items-center gap-2">
-                            <input type="checkbox" :id="`webhook_notif`" v-model="form.features.webhook_notification.config.webhook" class="text-gamboge-300 focus:ring-gamboge-500 rounded" />
-                            <InputLabel for="webhook_notif" value="Webhook notifications enabled" class="text-xs" />
-                        </div>
                     </div>
                 </section>
 
@@ -317,7 +421,11 @@ const submit = (confirmed = false) => {
                 </Alert>
 
                 <div class="flex items-center gap-4">
-                    <PrimaryButton type="submit" :disabled="processing" :class="{ 'opacity-25': processing }">
+                    <PrimaryButton
+                        type="submit"
+                        :disabled="processing || !canSubmit"
+                        :class="{ 'opacity-25': processing || !canSubmit }"
+                    >
                         {{ isEditing ? 'Update Plan' : 'Create Plan' }}
                     </PrimaryButton>
                     <Link :href="route('admin.plans.index')">
