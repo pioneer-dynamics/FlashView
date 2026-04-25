@@ -45,6 +45,7 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
         'webhook_url',
         'webhook_secret',
         'store_masked_recipient_email',
+        'suspended_at',
     ];
 
     /**
@@ -71,6 +72,7 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
         'plan',
         'frequency',
         'is_admin',
+        'is_suspended',
     ];
 
     protected $with = [
@@ -169,6 +171,7 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
     {
         return [
             'email_verified_at' => 'datetime',
+            'suspended_at' => 'datetime',
             'password' => 'hashed',
             'notify_secret_retrieved' => 'boolean',
             'webhook_secret' => 'encrypted',
@@ -184,6 +187,16 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
     public function getIsAdminAttribute(): bool
     {
         return $this->isAdmin();
+    }
+
+    public function isSuspended(): bool
+    {
+        return $this->suspended_at !== null;
+    }
+
+    public function getIsSuspendedAttribute(): bool
+    {
+        return $this->isSuspended();
     }
 
     public function hasWebhookConfigured(): bool
