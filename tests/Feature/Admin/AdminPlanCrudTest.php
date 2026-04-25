@@ -37,16 +37,12 @@ class AdminPlanCrudTest extends TestCase
             'stripe_monthly_price_id' => '',
             'stripe_yearly_price_id' => '',
             'features' => [
-                'untracked' => ['label' => 'Unlimited messages', 'order' => 1, 'type' => 'feature', 'config' => []],
-                'messages' => ['label' => ':message_length char limit', 'order' => 2, 'type' => 'feature', 'config' => ['message_length' => 5000]],
-                'expiry' => ['label' => 'Max expiry :expiry_label', 'order' => 3, 'type' => 'limit', 'config' => ['expiry_minutes' => 20160, 'expiry_label' => '14 days']],
-                'throttling' => ['label' => 'No rate limits', 'order' => 4, 'type' => 'feature', 'config' => []],
-                'file_upload' => ['label' => 'File uploads up to :max_file_size_mb MB', 'order' => 4.3, 'type' => 'limit', 'config' => ['max_file_size_mb' => 10]],
-                'email_notification' => ['label' => 'Email Notifications', 'order' => 4.5, 'type' => 'missing', 'config' => ['email' => false]],
-                'webhook_notification' => ['label' => 'Webhook Notifications', 'order' => 5.5, 'type' => 'missing', 'config' => ['webhook' => false]],
-                'support' => ['label' => 'Support', 'order' => 5, 'type' => 'missing', 'config' => []],
-                'api' => ['label' => 'API Access', 'order' => 6, 'type' => 'missing', 'config' => []],
-                'sender_identity' => ['label' => 'Sender Identity', 'order' => 7, 'type' => 'missing', 'config' => []],
+                'untracked' => ['order' => 1, 'type' => 'feature', 'config' => []],
+                'messages' => ['order' => 2, 'type' => 'limit',   'config' => ['message_length' => 5000]],
+                'expiry' => ['order' => 3, 'type' => 'limit',   'config' => ['expiry_minutes' => 20160, 'expiry_label' => '14 days']],
+                'throttling' => ['order' => 4, 'type' => 'feature', 'config' => []],
+                'support' => ['order' => 5, 'type' => 'feature', 'config' => []],
+                'api' => ['order' => 6, 'type' => 'feature', 'config' => []],
             ],
         ], $overrides);
     }
@@ -100,7 +96,7 @@ class AdminPlanCrudTest extends TestCase
         $plan = Plan::factory()->create();
 
         $updatedFeatures = $this->planPayload()['features'];
-        $updatedFeatures['messages'] = ['label' => 'Big limit :message_length', 'order' => 2, 'type' => 'feature', 'config' => ['message_length' => 99999]];
+        $updatedFeatures['messages'] = ['order' => 2, 'type' => 'limit', 'config' => ['message_length' => 99999]];
 
         $response = $this->actingAs($admin)->putJson(route('admin.plans.update', $plan), $this->planPayload([
             'name' => $plan->name,
@@ -111,9 +107,35 @@ class AdminPlanCrudTest extends TestCase
 
         $response->assertRedirect(route('admin.plans.index'));
         $plan->refresh();
-        $this->assertEquals('Big limit :message_length', $plan->features['messages']['label']);
         $this->assertEquals(99999, $plan->features['messages']['config']['message_length']);
         $this->assertEquals(2, $plan->features['messages']['order']);
+        $this->assertEquals('limit', $plan->features['messages']['type']);
+    }
+
+    public function test_admin_cannot_save_plan_with_empty_features(): void
+    {
+        $admin = $this->adminUser();
+
+        $response = $this->actingAs($admin)->postJson(route('admin.plans.store'), $this->planPayload([
+            'features' => [],
+        ]));
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['features']);
+    }
+
+    public function test_admin_cannot_save_plan_with_missing_type_feature(): void
+    {
+        $admin = $this->adminUser();
+
+        $response = $this->actingAs($admin)->postJson(route('admin.plans.store'), $this->planPayload([
+            'features' => [
+                'untracked' => ['order' => 1, 'type' => 'missing', 'config' => []],
+            ],
+        ]));
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['features.untracked.type']);
     }
 
     public function test_admin_can_delete_plan_with_no_subscribers(): void

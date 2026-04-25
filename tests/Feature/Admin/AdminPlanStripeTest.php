@@ -33,16 +33,13 @@ class AdminPlanStripeTest extends TestCase
             'stripe_monthly_price_id' => '',
             'stripe_yearly_price_id' => '',
             'features' => [
-                'untracked' => ['label' => 'Unlimited', 'order' => 1, 'type' => 'feature', 'config' => []],
-                'messages' => ['label' => ':message_length chars', 'order' => 2, 'type' => 'feature', 'config' => ['message_length' => 5000]],
-                'expiry' => ['label' => 'Max :expiry_label', 'order' => 3, 'type' => 'limit', 'config' => ['expiry_minutes' => 43200, 'expiry_label' => '30 days']],
-                'throttling' => ['label' => 'No rate limits', 'order' => 4, 'type' => 'feature', 'config' => []],
-                'file_upload' => ['label' => 'Files up to :max_file_size_mb MB', 'order' => 4.3, 'type' => 'feature', 'config' => ['max_file_size_mb' => 50]],
-                'email_notification' => ['label' => 'Email Notifications', 'order' => 4.5, 'type' => 'feature', 'config' => ['email' => true]],
-                'webhook_notification' => ['label' => 'Webhook Notifications', 'order' => 5.5, 'type' => 'missing', 'config' => ['webhook' => false]],
-                'support' => ['label' => 'Standard Support', 'order' => 5, 'type' => 'feature', 'config' => []],
-                'api' => ['label' => 'API Access', 'order' => 6, 'type' => 'missing', 'config' => []],
-                'sender_identity' => ['label' => 'Sender Identity', 'order' => 7, 'type' => 'missing', 'config' => []],
+                'untracked' => ['order' => 1,   'type' => 'feature', 'config' => []],
+                'messages' => ['order' => 2,   'type' => 'limit',   'config' => ['message_length' => 5000]],
+                'expiry' => ['order' => 3,   'type' => 'limit',   'config' => ['expiry_minutes' => 43200, 'expiry_label' => '30 days']],
+                'throttling' => ['order' => 4,   'type' => 'feature', 'config' => []],
+                'email_notification' => ['order' => 4.5, 'type' => 'feature', 'config' => []],
+                'support' => ['order' => 5,   'type' => 'feature', 'config' => []],
+                'api' => ['order' => 6,   'type' => 'feature', 'config' => []],
             ],
         ], $overrides);
     }
