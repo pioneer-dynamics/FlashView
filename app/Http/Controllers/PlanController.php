@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\StorePlanRequest;
+use App\Http\Requests\UnsubscribeRequest;
 use App\Http\Requests\UpdatePlanRequest;
 use App\Http\Resources\PlanResource;
 use App\Models\Plan;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -21,9 +23,11 @@ class PlanController extends Controller
         return Inertia::render('Plan/Index', compact('plans'));
     }
 
-    public function unsubscribe(Request $request)
+    public function unsubscribe(UnsubscribeRequest $request): RedirectResponse
     {
         $request->user()->subscription('default')->cancel();
+
+        return redirect()->route('plans.index');
     }
 
     public function resume(Request $request)
