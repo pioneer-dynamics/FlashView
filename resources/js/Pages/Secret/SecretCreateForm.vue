@@ -302,15 +302,16 @@
                             <Link class="underline text-gamboge-300" :href="route('login')">Log in</Link>
                             or
                             <Link class="underline text-gamboge-300" :href="route('register')">create a free account</Link>
-                            to share encrypted files up to 10 MB.
-                        </template>
-                        <template v-else-if="!$page.props.auth.user.subscription">
-                            <a class="underline text-gamboge-300" :href="route('plans.index')">Subscribe to a paid plan</a>
                             to share encrypted files.
                         </template>
+                        <template v-else-if="$page.props.auth.user.subscription">
+                            File uploads are not included in your current plan.
+                            <a class="underline text-gamboge-300" :href="route('plans.index')">View available plans</a>
+                            to upgrade.
+                        </template>
                         <template v-else>
-                            Your current plan does not include file uploads.
-                            <a class="underline text-gamboge-300" :href="route('plans.index')">Upgrade your plan</a>
+                            File uploads are not available on your current plan.
+                            <a class="underline text-gamboge-300" :href="route('plans.index')">View available plans</a>
                             to unlock this feature.
                         </template>
                     </p>
