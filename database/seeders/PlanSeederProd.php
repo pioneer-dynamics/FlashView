@@ -8,10 +8,15 @@ use Illuminate\Database\Seeder;
 class PlanSeederProd extends Seeder
 {
     /**
-     * Run the database seeds.
+     * Bootstrap-only seeder. Superseded by the admin UI at /admin/plans.
+     * Only runs when the plans table is empty to avoid overwriting admin-managed data.
      */
     public function run(): void
     {
+        if (Plan::count() > 0) {
+            return;
+        }
+
         Plan::updateOrCreate(['name' => 'Free'],
             [
                 'stripe_monthly_price_id' => '',
