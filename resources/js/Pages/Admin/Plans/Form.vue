@@ -7,6 +7,7 @@ import TextInput from '@/Components/TextInput.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import InputError from '@/Components/InputError.vue';
 import Alert from '@/Components/Alert.vue';
+import Checkbox from '@/Components/Checkbox.vue';
 import Feature from '../../Plan/Partials/Feature.vue';
 import { Link, router } from '@inertiajs/vue3';
 import { reactive, ref, computed, watch } from 'vue';
@@ -151,6 +152,7 @@ const form = reactive({
     name: props.plan?.name ?? '',
     price_per_month: props.plan?.price_per_month ?? 0,
     price_per_year: props.plan?.price_per_year ?? 0,
+    is_free_plan: props.plan?.is_free_plan ?? false,
     create_stripe_product: props.defaultStripeMode === 'create',
     stripe_product_id: props.plan?.stripe_product_id ?? '',
     stripe_monthly_price_id: props.plan?.stripe_monthly_price_id ?? '',
@@ -253,6 +255,13 @@ const submit = () => {
                         <InputLabel for="name" value="Plan Name" />
                         <TextInput id="name" v-model="form.name" class="mt-1 block w-full" />
                         <InputError :message="errors.name" class="mt-2" />
+                    </div>
+                    <div class="flex items-start gap-3 pt-1">
+                        <Checkbox id="is_free_plan" v-model:checked="form.is_free_plan" />
+                        <div>
+                            <InputLabel for="is_free_plan" value="Default free plan" class="cursor-pointer" />
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Non-subscribed users will have their limits resolved from this plan. Only one plan can be the free plan.</p>
+                        </div>
                     </div>
                 </section>
 

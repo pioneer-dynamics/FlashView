@@ -68,12 +68,7 @@ class AppServiceProvider extends ServiceProvider
     {
         RateLimiter::for('secrets', function (Request $request) {
             if ($user = $request->user()) {
-                if ($user->subscribed()) {
-                    return $this->planThrottleLimit($user);
-                }
-
-                return Limit::perMinute(config('secrets.rate_limit.user.per_minute'))
-                    ->by($request->ip());
+                return $this->planThrottleLimit($user);
             }
 
             return Limit::perMinute(config('secrets.rate_limit.guest.per_minute'))
@@ -82,12 +77,7 @@ class AppServiceProvider extends ServiceProvider
         });
 
         RateLimiter::for('api-secrets', function (Request $request) {
-            if ($request->user()->subscribed()) {
-                return $this->planThrottleLimit($request->user());
-            }
-
-            return Limit::perMinute(config('secrets.rate_limit.user.per_minute', 60))
-                ->by($request->user()->id);
+            return $this->planThrottleLimit($request->user());
         });
     }
 
@@ -100,6 +90,6 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute((int) $config['per_minute'])->by($user->id);
         }
 
-        return Limit::none();
+        return Limit::perMinute(config('secrets.rate_limit.user.per_minute'))->by($user->id);
     }
 }

@@ -18,7 +18,7 @@ class ValidFileSize implements ValidationRule
      */
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {
-        if ($this->userType === 'subscribed') {
+        if ($this->userType !== 'guest') {
             $plan = request()->user()?->resolvePlan();
             $config = $plan?->features['file_upload']['config'] ?? [];
 
@@ -29,13 +29,6 @@ class ValidFileSize implements ValidationRule
             return;
         }
 
-        $maxBytes = match ($this->userType) {
-            'user' => config('secrets.file_upload.max_file_size_mb.user') * 1024 * 1024,
-            default => 0,
-        };
-
-        if ($maxBytes === 0 || $value->getSize() > $maxBytes) {
-            $fail('File exceeds the maximum allowed size.');
-        }
+        $fail('File exceeds the maximum allowed size.');
     }
 }

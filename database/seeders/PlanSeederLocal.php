@@ -24,6 +24,7 @@ class PlanSeederLocal extends Seeder
                 'stripe_product_id' => '',
                 'price_per_month' => 0,
                 'price_per_year' => 0,
+                'is_free_plan' => true,
                 'features' => [
                     'messages' => [
                         'order' => 1,

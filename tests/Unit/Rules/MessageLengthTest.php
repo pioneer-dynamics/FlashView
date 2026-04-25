@@ -21,9 +21,9 @@ class MessageLengthTest extends TestCase
         return $salt.base64_encode($header.$plaintext);
     }
 
-    private function validate(string $userType, int $limit, string $message, int $minLength = 1): bool
+    private function validate(string $userType, string $message, int $minLength = 1): bool
     {
-        $rule = new MessageLength($userType, $limit, $minLength);
+        $rule = new MessageLength($userType, $minLength);
         $passed = true;
 
         $rule->validate('message', $message, function () use (&$passed) {
@@ -38,7 +38,7 @@ class MessageLengthTest extends TestCase
         $limit = config('secrets.message_length.guest');
         $message = $this->makeEncryptedMessage($limit - 10);
 
-        $this->assertTrue($this->validate('guest', $limit, $message));
+        $this->assertTrue($this->validate('guest', $message));
     }
 
     public function test_guest_message_exceeding_limit_fails(): void
@@ -46,29 +46,33 @@ class MessageLengthTest extends TestCase
         $limit = config('secrets.message_length.guest');
         $message = $this->makeEncryptedMessage($limit + 1);
 
-        $this->assertFalse($this->validate('guest', $limit, $message));
+        $this->assertFalse($this->validate('guest', $message));
     }
 
-    public function test_user_message_within_limit_passes(): void
+    public function test_user_with_free_plan_message_within_limit_passes(): void
     {
+        $plan = Plan::factory()->free()->create();
         $user = User::factory()->create();
         $this->actingAs($user);
+        request()->setUserResolver(fn () => $user);
 
-        $limit = config('secrets.message_length.user');
+        $limit = $plan->features['messages']['config']['message_length'];
         $message = $this->makeEncryptedMessage($limit - 10);
 
-        $this->assertTrue($this->validate('user', $limit, $message));
+        $this->assertTrue($this->validate('user', $message));
     }
 
-    public function test_user_message_exceeding_limit_fails(): void
+    public function test_user_with_free_plan_message_exceeding_limit_fails(): void
     {
+        $plan = Plan::factory()->free()->create();
         $user = User::factory()->create();
         $this->actingAs($user);
+        request()->setUserResolver(fn () => $user);
 
-        $limit = config('secrets.message_length.user');
+        $limit = $plan->features['messages']['config']['message_length'];
         $message = $this->makeEncryptedMessage($limit + 1);
 
-        $this->assertFalse($this->validate('user', $limit, $message));
+        $this->assertFalse($this->validate('user', $message));
     }
 
     public function test_subscribed_user_message_within_plan_limit_passes(): void
@@ -88,7 +92,7 @@ class MessageLengthTest extends TestCase
         $planLimit = $plan->features['messages']['config']['message_length'];
         $message = $this->makeEncryptedMessage($planLimit - 10);
 
-        $this->assertTrue($this->validate('subscribed', $planLimit, $message));
+        $this->assertTrue($this->validate('user', $message));
     }
 
     public function test_subscribed_user_message_exceeding_plan_limit_fails(): void
@@ -108,14 +112,14 @@ class MessageLengthTest extends TestCase
         $planLimit = $plan->features['messages']['config']['message_length'];
         $message = $this->makeEncryptedMessage($planLimit + 1);
 
-        $this->assertFalse($this->validate('subscribed', $planLimit, $message));
+        $this->assertFalse($this->validate('user', $message));
     }
 
     public function test_message_below_minimum_length_fails(): void
     {
         $message = $this->makeEncryptedMessage(0);
 
-        $this->assertFalse($this->validate('guest', 160, $message, 1));
+        $this->assertFalse($this->validate('guest', $message, 1));
     }
 
     public function test_message_at_exact_boundary_passes(): void
@@ -123,7 +127,7 @@ class MessageLengthTest extends TestCase
         $limit = config('secrets.message_length.guest');
         $message = $this->makeEncryptedMessage($limit);
 
-        $this->assertTrue($this->validate('guest', $limit, $message));
+        $this->assertTrue($this->validate('guest', $message));
     }
 
     public function test_message_one_over_boundary_fails(): void
@@ -131,6 +135,6 @@ class MessageLengthTest extends TestCase
         $limit = config('secrets.message_length.guest');
         $message = $this->makeEncryptedMessage($limit + 1);
 
-        $this->assertFalse($this->validate('guest', $limit, $message));
+        $this->assertFalse($this->validate('guest', $message));
     }
 }

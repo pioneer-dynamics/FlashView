@@ -84,20 +84,21 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
     }
 
     /**
-     * Resolve the user's current subscription Plan model.
+     * Resolve the user's current Plan model.
+     * Subscribed users get their paid plan; everyone else gets the free plan.
      */
     public function resolvePlan(): ?Plan
     {
         $stripePrice = $this->subscription?->stripe_price;
 
-        if (! $stripePrice) {
-            return null;
+        if ($stripePrice) {
+            return Plan::where(fn ($q) => $q
+                ->where('stripe_monthly_price_id', $stripePrice)
+                ->orWhere('stripe_yearly_price_id', $stripePrice)
+            )->first();
         }
 
-        return Plan::where(fn ($q) => $q
-            ->where('stripe_monthly_price_id', $stripePrice)
-            ->orWhere('stripe_yearly_price_id', $stripePrice)
-        )->first();
+        return Plan::where('is_free_plan', true)->first();
     }
 
     /**

@@ -54,15 +54,22 @@ class AdminPlanController extends Controller
             ];
         }
 
-        Plan::create([
-            'name' => $request->name,
-            'price_per_month' => $request->price_per_month,
-            'price_per_year' => $request->price_per_year,
-            'stripe_product_id' => $stripeIds['product_id'],
-            'stripe_monthly_price_id' => $stripeIds['monthly_price_id'],
-            'stripe_yearly_price_id' => $stripeIds['yearly_price_id'],
-            'features' => $request->features,
-        ]);
+        DB::transaction(function () use ($request, $stripeIds) {
+            if ($request->boolean('is_free_plan')) {
+                Plan::query()->update(['is_free_plan' => false]);
+            }
+
+            Plan::create([
+                'name' => $request->name,
+                'price_per_month' => $request->price_per_month,
+                'price_per_year' => $request->price_per_year,
+                'stripe_product_id' => $stripeIds['product_id'],
+                'stripe_monthly_price_id' => $stripeIds['monthly_price_id'],
+                'stripe_yearly_price_id' => $stripeIds['yearly_price_id'],
+                'is_free_plan' => $request->boolean('is_free_plan'),
+                'features' => $request->features,
+            ]);
+        });
 
         return redirect()->route('admin.plans.index')->with('flash', ['success' => 'Plan created.']);
     }
@@ -91,6 +98,10 @@ class AdminPlanController extends Controller
 
             // Commit everything in a single transaction
             DB::transaction(function () use ($plan, $request, $stripeIds) {
+                if ($request->boolean('is_free_plan')) {
+                    Plan::where('id', '!=', $plan->id)->update(['is_free_plan' => false]);
+                }
+
                 $plan->update([
                     'name' => $request->name,
                     'price_per_month' => $request->price_per_month,
@@ -98,6 +109,7 @@ class AdminPlanController extends Controller
                     'stripe_product_id' => $stripeIds['product_id'],
                     'stripe_monthly_price_id' => $stripeIds['monthly_price_id'],
                     'stripe_yearly_price_id' => $stripeIds['yearly_price_id'],
+                    'is_free_plan' => $request->boolean('is_free_plan'),
                     'features' => $request->features,
                 ]);
             });
@@ -107,15 +119,22 @@ class AdminPlanController extends Controller
         } else {
             $this->validateStripeAmounts($request);
 
-            $plan->update([
-                'name' => $request->name,
-                'price_per_month' => $request->price_per_month,
-                'price_per_year' => $request->price_per_year,
-                'stripe_product_id' => $request->stripe_product_id ?? $plan->stripe_product_id ?? '',
-                'stripe_monthly_price_id' => $request->stripe_monthly_price_id ?? $plan->stripe_monthly_price_id ?? '',
-                'stripe_yearly_price_id' => $request->stripe_yearly_price_id ?? $plan->stripe_yearly_price_id ?? '',
-                'features' => $request->features,
-            ]);
+            DB::transaction(function () use ($plan, $request) {
+                if ($request->boolean('is_free_plan')) {
+                    Plan::where('id', '!=', $plan->id)->update(['is_free_plan' => false]);
+                }
+
+                $plan->update([
+                    'name' => $request->name,
+                    'price_per_month' => $request->price_per_month,
+                    'price_per_year' => $request->price_per_year,
+                    'stripe_product_id' => $request->stripe_product_id ?? $plan->stripe_product_id ?? '',
+                    'stripe_monthly_price_id' => $request->stripe_monthly_price_id ?? $plan->stripe_monthly_price_id ?? '',
+                    'stripe_yearly_price_id' => $request->stripe_yearly_price_id ?? $plan->stripe_yearly_price_id ?? '',
+                    'is_free_plan' => $request->boolean('is_free_plan'),
+                    'features' => $request->features,
+                ]);
+            });
         }
 
         return redirect()->route('admin.plans.index')->with('flash', ['success' => 'Plan updated.']);

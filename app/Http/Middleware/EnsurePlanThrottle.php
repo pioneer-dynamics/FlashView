@@ -21,7 +21,7 @@ class EnsurePlanThrottle
     {
         $user = $request->user();
 
-        if (! $user?->subscribed()) {
+        if (! $user) {
             return $next($request);
         }
 

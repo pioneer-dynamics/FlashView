@@ -24,6 +24,7 @@ class PlanFactory extends Factory
             'stripe_yearly_price_id' => 'price_'.fake()->unique()->bothify('??????????????'),
             'price_per_month' => 25,
             'price_per_year' => 250,
+            'is_free_plan' => false,
             'features' => $this->defaultFeatures(),
         ];
     }
@@ -40,7 +41,10 @@ class PlanFactory extends Factory
             'stripe_product_id' => '',
             'stripe_monthly_price_id' => '',
             'stripe_yearly_price_id' => '',
+            'is_free_plan' => true,
             'features' => $this->defaultFeatures(
+                messageLength: 1000,
+                expiryMinutes: 20160,
                 includeApi: false,
                 includeEmailNotification: false,
                 includeWebhookNotification: false,
@@ -71,6 +75,18 @@ class PlanFactory extends Factory
                 includeEmailNotification: true,
                 includeWebhookNotification: true,
             ),
+        ]);
+    }
+
+    /**
+     * A plan with file upload enabled up to $maxMb megabytes.
+     */
+    public function withFileUpload(int $maxMb = 10): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'features' => array_merge($attributes['features'] ?? [], [
+                'file_upload' => ['order' => 4, 'type' => 'limit', 'config' => ['max_file_size_mb' => $maxMb]],
+            ]),
         ]);
     }
 

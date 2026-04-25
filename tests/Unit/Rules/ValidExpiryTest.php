@@ -44,25 +44,29 @@ class ValidExpiryTest extends TestCase
 
     public function test_valid_user_expiry_passes(): void
     {
+        $plan = Plan::factory()->free()->create();
         $user = User::factory()->create();
         $this->actingAs($user);
+        request()->setUserResolver(fn () => $user);
 
         $this->assertTrue($this->validate('user', 5));
     }
 
-    public function test_user_expiry_exceeding_limit_fails(): void
+    public function test_user_expiry_exceeding_free_plan_limit_fails(): void
     {
+        $plan = Plan::factory()->free()->create();
         $user = User::factory()->create();
         $this->actingAs($user);
+        request()->setUserResolver(fn () => $user);
 
-        $userLimit = config('secrets.expiry_limits.user');
+        $planExpiryMinutes = $plan->features['expiry']['config']['expiry_minutes'];
         $beyondLimit = collect(config('secrets.expiry_options'))
-            ->firstWhere(fn ($opt) => $opt['value'] > $userLimit);
+            ->firstWhere(fn ($opt) => $opt['value'] > $planExpiryMinutes);
 
         if ($beyondLimit) {
             $this->assertFalse($this->validate('user', $beyondLimit['value']));
         } else {
-            $this->markTestSkipped('No expiry option exceeds user limit.');
+            $this->markTestSkipped('No expiry option exceeds free plan limit.');
         }
     }
 
@@ -105,7 +109,7 @@ class ValidExpiryTest extends TestCase
 
         foreach ($allowed as $option) {
             $this->assertTrue(
-                $this->validate('subscribed', $option['value']),
+                $this->validate('user', $option['value']),
                 "Expected expiry value {$option['value']} to pass for subscribed user"
             );
         }

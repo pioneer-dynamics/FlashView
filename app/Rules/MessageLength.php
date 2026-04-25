@@ -10,7 +10,7 @@ use Illuminate\Translation\PotentiallyTranslatedString;
 
 class MessageLength implements ValidationRule
 {
-    public function __construct(private string $userType, private int $length, private int $min_length = 1) {}
+    public function __construct(private string $userType, private int $min_length = 1) {}
 
     /**
      * Run the validation rule.
@@ -32,7 +32,7 @@ class MessageLength implements ValidationRule
 
     private function isWithinLimit(int $messageLength): bool
     {
-        if ($this->userType !== 'subscribed') {
+        if ($this->userType === 'guest') {
             return $messageLength <= $this->getAllowedMessageLength();
         }
 
@@ -44,10 +44,8 @@ class MessageLength implements ValidationRule
 
     private function getAllowedMessageLength(): int
     {
-        if ($this->userType !== 'subscribed') {
-            return $this->userType === 'user'
-                ? config('secrets.message_length.user')
-                : config('secrets.message_length.guest');
+        if ($this->userType === 'guest') {
+            return config('secrets.message_length.guest');
         }
 
         $plan = request()->user()?->resolvePlan();
@@ -61,26 +59,10 @@ class MessageLength implements ValidationRule
      */
     private function getActualMessageLength(string $message): int
     {
-        /**
-         * Remove the `salt` from the message
-         */
         $ciphertext = substr($message, 16);
-
-        /**
-         * Decode the message to get the actual binary
-         */
         $binary = base64_decode($ciphertext);
-
-        /**
-         * Find the binary length
-         */
         $binary_length = strlen($binary);
 
-        /**
-         * Get the actual message by subtracting the length of the header (28 bytes)
-         */
-        $message_length = $binary_length - 28;
-
-        return $message_length;
+        return $binary_length - 28;
     }
 }

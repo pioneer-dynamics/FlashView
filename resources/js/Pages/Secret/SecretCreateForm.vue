@@ -26,25 +26,15 @@
         }
     });
 
-    const userType = computed(() => {
-        if (usePage().props?.auth?.user?.id) {
-            return usePage().props?.auth?.user?.subscription ? 'subscribed' : 'user';
-        }
-        return 'guest';
-    });
+    const userType = computed(() => usePage().props?.auth?.user?.id ? 'user' : 'guest');
 
     const expiryOptions = computed(() => {
         let max_expiry = 0;
-        switch (userType.value) {
-            case 'subscribed':
-                max_expiry = usePage().props.auth.user.plan.settings.expiry.expiry_minutes;
-                break;
-            case 'user':
-                max_expiry = usePage().props.config.secrets.expiry_limits.user;
-                break;
-            case 'guest':
-                max_expiry = usePage().props.config.secrets.expiry_limits.guest;
-                break;
+        if (userType.value === 'user') {
+            max_expiry = usePage().props.auth.user.plan.settings.expiry?.expiry_minutes
+                ?? usePage().props.config.secrets.expiry_limits.user;
+        } else {
+            max_expiry = usePage().props.config.secrets.expiry_limits.guest;
         }
         return usePage().props.config.secrets.expiry_options.filter((option) => option.value <= max_expiry);
     });
@@ -57,22 +47,19 @@
     });
 
     const maxLength = computed(() => {
-        switch (userType.value) {
-            case 'subscribed': return usePage().props.auth.user.plan.settings.messages.message_length;
-            case 'user': return usePage().props.config.secrets.message_length.user;
-            case 'guest': return usePage().props.config.secrets.message_length.guest;
+        if (userType.value === 'user') {
+            return usePage().props.auth.user.plan.settings.messages?.message_length
+                ?? usePage().props.config.secrets.message_length.user;
         }
+        return usePage().props.config.secrets.message_length.guest;
     });
 
     const maxFileUploadSizeMb = computed(() => {
-        switch (userType.value) {
-            case 'subscribed': {
-                const fileUploadSettings = usePage().props.auth.user.plan.settings.file_upload;
-                return fileUploadSettings ? (fileUploadSettings.max_file_size_mb ?? 10) : 0;
-            }
-            case 'user': return usePage().props.config.secrets.file_upload?.max_file_size_mb?.user ?? 10;
-            case 'guest': return 0;
+        if (userType.value === 'user') {
+            const fileUploadSettings = usePage().props.auth.user.plan.settings.file_upload;
+            return fileUploadSettings ? (fileUploadSettings.max_file_size_mb ?? 10) : 0;
         }
+        return 0;
     });
 
     const canUploadFile = computed(() => maxFileUploadSizeMb.value > 0);

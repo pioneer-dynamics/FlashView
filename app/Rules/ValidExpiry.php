@@ -25,23 +25,21 @@ class ValidExpiry implements ValidationRule
 
     private function getAllowedExpiryOptions(): array
     {
-        if ($this->userType !== 'subscribed') {
-            return array_filter(config('secrets.expiry_options'), fn ($item) => $item['value'] <= $this->getMaxAllowedExpiry());
+        if ($this->userType === 'guest') {
+            return array_filter(config('secrets.expiry_options'), fn ($item) => $item['value'] <= config('secrets.expiry_limits.guest'));
         }
 
         $plan = request()->user()?->resolvePlan();
-        $config = $plan?->features['expiry']['config'] ?? [];
+
+        if (! $plan) {
+            return array_filter(config('secrets.expiry_options'), fn ($item) => $item['value'] <= config('secrets.expiry_limits.user'));
+        }
+
+        $config = $plan->features['expiry']['config'] ?? [];
 
         return array_filter(
             config('secrets.expiry_options'),
             fn ($item) => app(FeatureRegistry::class)->get('expiry')->withinLimit($item['value'], $config)
         );
-    }
-
-    private function getMaxAllowedExpiry(): int
-    {
-        return $this->userType === 'user'
-            ? config('secrets.expiry_limits.user')
-            : config('secrets.expiry_limits.guest');
     }
 }

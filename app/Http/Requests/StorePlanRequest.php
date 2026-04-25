@@ -21,6 +21,7 @@ class StorePlanRequest extends FormRequest
             'name' => ['required', 'string', 'max:255', 'unique:plans,name'],
             'price_per_month' => ['required', 'numeric', 'min:0'],
             'price_per_year' => ['required', 'numeric', 'min:0'],
+            'is_free_plan' => ['boolean', 'nullable'],
             'create_stripe_product' => ['required', 'boolean'],
             'stripe_product_id' => ['nullable', 'string', 'max:255'],
             'stripe_monthly_price_id' => ['nullable', 'string', 'max:255'],
