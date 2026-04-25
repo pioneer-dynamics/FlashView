@@ -135,7 +135,7 @@ class AdminPlanController extends Controller
             $enteredMonthly = (int) round($request->price_per_month * 100);
 
             if (abs($actualMonthly - $enteredMonthly) > 1) {
-                abort(422, 'Monthly price mismatch: entered $'.number_format($request->price_per_month, 2).' but Stripe has $'.number_format($actualMonthly / 100, 2)." for {$request->stripe_monthly_price_id}.");
+                abort(422, 'Monthly price mismatch: entered A$'.number_format($request->price_per_month, 2).' but Stripe has A$'.number_format($actualMonthly / 100, 2)." for {$request->stripe_monthly_price_id}.");
             }
         }
 
@@ -144,7 +144,7 @@ class AdminPlanController extends Controller
             $enteredYearly = (int) round($request->price_per_year * 100);
 
             if (abs($actualYearly - $enteredYearly) > 1) {
-                abort(422, 'Yearly price mismatch: entered $'.number_format($request->price_per_year, 2).' but Stripe has $'.number_format($actualYearly / 100, 2)." for {$request->stripe_yearly_price_id}.");
+                abort(422, 'Yearly price mismatch: entered A$'.number_format($request->price_per_year, 2).' but Stripe has A$'.number_format($actualYearly / 100, 2)." for {$request->stripe_yearly_price_id}.");
             }
         }
     }

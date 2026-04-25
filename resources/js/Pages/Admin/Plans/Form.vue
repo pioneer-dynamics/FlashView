@@ -171,12 +171,12 @@ const submit = (confirmed = false) => {
                     <h2 class="text-xs uppercase tracking-widest text-gamboge-300 font-mono">Pricing</h2>
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
-                            <InputLabel for="price_per_month" value="Monthly Price (USD)" />
+                            <InputLabel for="price_per_month" value="Monthly Price (AUD)" />
                             <TextInput id="price_per_month" type="number" step="0.01" min="0" v-model="form.price_per_month" class="mt-1 block w-full" />
                             <InputError :message="errors.price_per_month" class="mt-2" />
                         </div>
                         <div>
-                            <InputLabel for="price_per_year" value="Yearly Price (USD)" />
+                            <InputLabel for="price_per_year" value="Yearly Price (AUD)" />
                             <TextInput id="price_per_year" type="number" step="0.01" min="0" v-model="form.price_per_year" class="mt-1 block w-full" />
                             <InputError :message="errors.price_per_year" class="mt-2" />
                         </div>
