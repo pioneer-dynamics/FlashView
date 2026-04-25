@@ -37,8 +37,7 @@ class AdminPlanCrudTest extends TestCase
             'stripe_monthly_price_id' => '',
             'stripe_yearly_price_id' => '',
             'features' => [
-                'untracked' => ['order' => 1, 'type' => 'feature', 'config' => []],
-                'messages' => ['order' => 2, 'type' => 'limit',   'config' => ['message_length' => 5000]],
+                'messages' => ['order' => 1, 'type' => 'limit',   'config' => ['message_length' => 5000]],
                 'expiry' => ['order' => 3, 'type' => 'limit',   'config' => ['expiry_minutes' => 20160, 'expiry_label' => '14 days']],
                 'throttling' => ['order' => 4, 'type' => 'feature', 'config' => []],
                 'support' => ['order' => 5, 'type' => 'feature', 'config' => []],
@@ -130,12 +129,12 @@ class AdminPlanCrudTest extends TestCase
 
         $response = $this->actingAs($admin)->postJson(route('admin.plans.store'), $this->planPayload([
             'features' => [
-                'untracked' => ['order' => 1, 'type' => 'missing', 'config' => []],
+                'api' => ['order' => 1, 'type' => 'missing', 'config' => []],
             ],
         ]));
 
         $response->assertStatus(422);
-        $response->assertJsonValidationErrors(['features.untracked.type']);
+        $response->assertJsonValidationErrors(['features.api.type']);
     }
 
     public function test_admin_can_delete_plan_with_no_subscribers(): void

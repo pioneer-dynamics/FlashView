@@ -10,7 +10,6 @@ use App\Features\MessagesFeature;
 use App\Features\SenderIdentityFeature;
 use App\Features\SupportFeature;
 use App\Features\ThrottlingFeature;
-use App\Features\UntrackedFeature;
 use App\Features\WebhookNotificationFeature;
 use App\Models\PersonalAccessToken;
 use App\Observers\SubscriptionObserver;
@@ -31,7 +30,6 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(FeatureRegistry::class, fn () => new FeatureRegistry([
-            new UntrackedFeature,
             new MessagesFeature,
             new ExpiryFeature,
             new ThrottlingFeature,

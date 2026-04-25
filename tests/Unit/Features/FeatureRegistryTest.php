@@ -3,8 +3,8 @@
 namespace Tests\Unit\Features;
 
 use App\Features\ApiFeature;
+use App\Features\ExpiryFeature;
 use App\Features\MessagesFeature;
-use App\Features\UntrackedFeature;
 use App\Services\FeatureRegistry;
 use RuntimeException;
 use Tests\TestCase;
@@ -14,8 +14,8 @@ class FeatureRegistryTest extends TestCase
     private function makeRegistry(): FeatureRegistry
     {
         return new FeatureRegistry([
-            new UntrackedFeature,
             new MessagesFeature,
+            new ExpiryFeature,
             new ApiFeature,
         ]);
     }
@@ -32,7 +32,7 @@ class FeatureRegistryTest extends TestCase
         $registry = $this->makeRegistry();
 
         $this->assertTrue($registry->has('messages'));
-        $this->assertTrue($registry->has('untracked'));
+        $this->assertTrue($registry->has('expiry'));
         $this->assertTrue($registry->has('api'));
     }
 

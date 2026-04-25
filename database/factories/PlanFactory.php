@@ -99,11 +99,10 @@ class PlanFactory extends Factory
         bool $includeSenderIdentity = false,
     ): array {
         $features = [
-            'untracked' => ['order' => 1, 'type' => 'feature', 'config' => []],
-            'messages' => ['order' => 2, 'type' => 'limit',   'config' => ['message_length' => $messageLength]],
-            'expiry' => ['order' => 3, 'type' => 'limit',   'config' => ['expiry_minutes' => $expiryMinutes, 'expiry_label' => $expiryLabel]],
-            'throttling' => ['order' => 4, 'type' => 'feature', 'config' => []],
-            'support' => ['order' => 5, 'type' => 'feature', 'config' => []],
+            'messages' => ['order' => 1, 'type' => 'limit',   'config' => ['message_length' => $messageLength]],
+            'expiry' => ['order' => 2, 'type' => 'limit',   'config' => ['expiry_minutes' => $expiryMinutes, 'expiry_label' => $expiryLabel]],
+            'throttling' => ['order' => 3, 'type' => 'feature', 'config' => []],
+            'support' => ['order' => 4, 'type' => 'feature', 'config' => []],
         ];
 
         if ($includeEmailNotification) {

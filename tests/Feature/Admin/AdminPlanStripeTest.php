@@ -33,8 +33,7 @@ class AdminPlanStripeTest extends TestCase
             'stripe_monthly_price_id' => '',
             'stripe_yearly_price_id' => '',
             'features' => [
-                'untracked' => ['order' => 1,   'type' => 'feature', 'config' => []],
-                'messages' => ['order' => 2,   'type' => 'limit',   'config' => ['message_length' => 5000]],
+                'messages' => ['order' => 1,   'type' => 'limit',   'config' => ['message_length' => 5000]],
                 'expiry' => ['order' => 3,   'type' => 'limit',   'config' => ['expiry_minutes' => 43200, 'expiry_label' => '30 days']],
                 'throttling' => ['order' => 4,   'type' => 'feature', 'config' => []],
                 'email_notification' => ['order' => 4.5, 'type' => 'feature', 'config' => []],
