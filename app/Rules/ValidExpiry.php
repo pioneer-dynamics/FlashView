@@ -2,6 +2,7 @@
 
 namespace App\Rules;
 
+use App\Services\FeatureRegistry;
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Translation\PotentiallyTranslatedString;
@@ -22,28 +23,25 @@ class ValidExpiry implements ValidationRule
         }
     }
 
-    /**
-     * Get the allowed expiry options for the user
-     */
     private function getAllowedExpiryOptions(): array
     {
-        return array_filter(config('secrets.expiry_options'), fn ($item) => $item['value'] <= $this->getMaxAllowedExpiry());
-    }
-
-    /**
-     * Get the allowed expiry for the user
-     */
-    private function getMaxAllowedExpiry(): int
-    {
         if ($this->userType !== 'subscribed') {
-            return $this->userType === 'user'
-                ? config('secrets.expiry_limits.user')
-                : config('secrets.expiry_limits.guest');
+            return array_filter(config('secrets.expiry_options'), fn ($item) => $item['value'] <= $this->getMaxAllowedExpiry());
         }
 
         $plan = request()->user()?->resolvePlan();
         $config = $plan?->features['expiry']['config'] ?? [];
 
-        return $config['expiry_minutes'] ?? config('secrets.expiry_limits.user');
+        return array_filter(
+            config('secrets.expiry_options'),
+            fn ($item) => app(FeatureRegistry::class)->get('expiry')->withinLimit($item['value'], $config)
+        );
+    }
+
+    private function getMaxAllowedExpiry(): int
+    {
+        return $this->userType === 'user'
+            ? config('secrets.expiry_limits.user')
+            : config('secrets.expiry_limits.guest');
     }
 }
