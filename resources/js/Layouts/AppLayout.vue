@@ -85,10 +85,27 @@ const logout = () => {
                                         </NavLink>
                                     </template>
                                     <template v-if="$page.props?.auth?.user?.is_admin">
-                                        <NavLink :href="route('admin.plans.index')" :active="route().current('admin.plans.*')"
-                                            class="text-gamboge-300 dark:text-gamboge-300">
-                                            Admin
-                                        </NavLink>
+                                        <Dropdown align="right" width="48">
+                                            <template #trigger>
+                                                <button type="button"
+                                                    :class="route().current('admin.*') ? 'border-gamboge-400 text-gamboge-200' : 'border-transparent text-gamboge-300 hover:text-gamboge-200 hover:border-gamboge-300'"
+                                                    class="inline-flex items-center gap-1 px-1 pt-1 border-b-2 text-sm font-medium leading-5 focus:outline-none focus:text-gamboge-200 focus:border-gamboge-300 transition duration-150 ease-in-out">
+                                                    Admin
+                                                    <svg class="size-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                                                        stroke-width="1.5" stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                                                    </svg>
+                                                </button>
+                                            </template>
+                                            <template #content>
+                                                <DropdownLink :href="route('admin.plans.index')">
+                                                    Plans
+                                                </DropdownLink>
+                                                <DropdownLink :href="route('admin.users.index')">
+                                                    Manage Users
+                                                </DropdownLink>
+                                            </template>
+                                        </Dropdown>
                                     </template>
                                 </div>
                             </div>
@@ -304,10 +321,16 @@ const logout = () => {
                                 </ResponsiveNavLink>
                             </template>
                             <template v-if="$page.props?.auth?.user?.is_admin">
-                                <ResponsiveNavLink :href="route('admin.plans.index')"
-                                    :active="route().current('admin.plans.*')"
-                                    class="text-gamboge-300 dark:text-gamboge-300">
+                                <div class="block px-4 py-2 text-xs uppercase tracking-widest text-gamboge-300 font-mono">
                                     Admin
+                                </div>
+                                <ResponsiveNavLink :href="route('admin.plans.index')"
+                                    :active="route().current('admin.plans.*')">
+                                    Plans
+                                </ResponsiveNavLink>
+                                <ResponsiveNavLink :href="route('admin.users.index')"
+                                    :active="route().current('admin.users.*')">
+                                    Manage Users
                                 </ResponsiveNavLink>
                             </template>
                         </div>
