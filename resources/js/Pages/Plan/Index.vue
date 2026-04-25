@@ -3,8 +3,12 @@ import AppLayout from '@/Layouts/AppLayout.vue';
 import Page from '../Page.vue';
 import Faq from '../Partials/Faq.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
-import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
-import { reactive, ref } from 'vue';
+import ConfirmationModal from '@/Components/ConfirmationModal.vue';
+import DialogModal from '@/Components/DialogModal.vue';
+import DangerButton from '@/Components/DangerButton.vue';
+import SecondaryButton from '@/Components/SecondaryButton.vue';
+import { Head, Link, useForm, usePage, router } from '@inertiajs/vue3';
+import { reactive, ref, computed } from 'vue';
 import { DateTime } from 'luxon';
 import ToggleButton from '@/Components/ToggleButton.vue';
 import Feature from './Partials/Feature.vue';
@@ -32,6 +36,38 @@ const userIsSubscribedTo = (plan) => {
 
 const isFreePlan = (plan) => plan.price_per_month == 0
 
+const userHasActiveSubscription = computed(() => {
+    return usePage().props.auth?.user?.subscription != null;
+});
+
+// Cancellation modal
+const showCancellationModal = ref(false);
+const cancelForm = useForm({});
+
+const confirmCancellation = () => {
+    showCancellationModal.value = true;
+};
+
+const submitCancellation = () => {
+    cancelForm.post(route('plans.unsubscribe'), {
+        onSuccess: () => { showCancellationModal.value = false; },
+    });
+};
+
+// Plan switch modal
+const planBeingSwitchedTo = ref(null);
+
+const confirmPlanSwitch = (plan) => {
+    planBeingSwitchedTo.value = plan;
+};
+
+const proceedWithSwitch = () => {
+    router.visit(route('plans.subscribe', {
+        plan: planBeingSwitchedTo.value.id,
+        period: planFrequency.value,
+    }));
+};
+
 </script>
 <template>
     <AppLayout title="Pricing">
@@ -51,8 +87,8 @@ const isFreePlan = (plan) => plan.price_per_month == 0
                         <span v-if="userIsSubscribedTo(plan) && !$page.props?.auth?.user?.subscription?.ends_at" class="mb-4 font-mono text-xs uppercase tracking-widest text-gamboge-300 border border-gamboge-300/40 px-2 py-0.5 rounded self-start">
                             Current Plan
                         </span>
-                        <div 
-                            class="mb-4 text-xl font-medium text-xs text-red-500 dark:text-red-400" 
+                        <div
+                            class="mb-4 text-xl font-medium text-xs text-red-500 dark:text-red-400"
                             v-if="userIsSubscribedTo(plan) && $page.props?.auth?.user?.subscription?.ends_at"
                         >
                             Expires on: {{ DateTime.fromISO($page.props?.auth?.user?.subscription?.ends_at).toLocaleString(DateTime.DATEMED) }}
@@ -98,14 +134,14 @@ const isFreePlan = (plan) => plan.price_per_month == 0
                                 >
                                     Resume Plan
                                 </Link>
-                                <Link
+                                <button
                                     v-if="!$page.props.auth.user.subscription.ends_at"
-                                    method="post"
-                                    :href="route('plans.unsubscribe')"
+                                    type="button"
+                                    @click="confirmCancellation"
                                     class="inline-flex w-full items-center justify-center px-4 py-2 bg-transparent border border-red-400/60 rounded-md font-semibold text-xs text-red-400 uppercase tracking-widest hover:bg-red-400/10 hover:border-red-400 dark:hover:shadow-[0_0_8px_rgba(248,113,113,0.3)] focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-offset-2 dark:focus:ring-offset-gray-900 disabled:opacity-50 transition ease-in-out duration-150"
                                 >
                                     Cancel Plan
-                                </Link>
+                                </button>
                             </span>
                         </span>
                         <span v-else> <!-- User is not subscribed -->
@@ -117,17 +153,66 @@ const isFreePlan = (plan) => plan.price_per_month == 0
                             >
                                 Login to Subscribe
                             </PrimaryButton>
-                            <a
-                                v-else
-                                :href="route('plans.subscribe', { plan: plan.id, period: planFrequency })"
-                                class="w-full justify-center inline-flex items-center px-4 py-2 bg-gamboge-800 dark:bg-transparent border border-transparent dark:border-gamboge-300 rounded-md font-semibold text-xs text-white dark:text-gamboge-300 uppercase tracking-widest hover:bg-gamboge-700 dark:hover:bg-gamboge-300 dark:hover:text-gray-900 dark:hover:shadow-neon-cyan-sm focus:bg-gamboge-700 dark:focus:bg-gamboge-300 dark:focus:text-gray-900 active:bg-gamboge-900 dark:active:bg-gamboge-300 dark:active:text-gray-900 focus:outline-none focus:ring-2 focus:ring-gamboge-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 disabled:opacity-50 transition ease-in-out duration-150"
-                            >
-                                Choose This Plan
-                            </a>
+                            <template v-else>
+                                <!-- Subscribed user switching plans → show confirmation modal -->
+                                <button
+                                    v-if="userHasActiveSubscription"
+                                    type="button"
+                                    @click="confirmPlanSwitch(plan)"
+                                    class="w-full justify-center inline-flex items-center px-4 py-2 bg-gamboge-800 dark:bg-transparent border border-transparent dark:border-gamboge-300 rounded-md font-semibold text-xs text-white dark:text-gamboge-300 uppercase tracking-widest hover:bg-gamboge-700 dark:hover:bg-gamboge-300 dark:hover:text-gray-900 dark:hover:shadow-neon-cyan-sm focus:bg-gamboge-700 dark:focus:bg-gamboge-300 dark:focus:text-gray-900 active:bg-gamboge-900 dark:active:bg-gamboge-300 dark:active:text-gray-900 focus:outline-none focus:ring-2 focus:ring-gamboge-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 disabled:opacity-50 transition ease-in-out duration-150"
+                                >
+                                    Choose This Plan
+                                </button>
+                                <!-- New subscriber → go directly to Stripe checkout -->
+                                <a
+                                    v-else
+                                    :href="route('plans.subscribe', { plan: plan.id, period: planFrequency })"
+                                    class="w-full justify-center inline-flex items-center px-4 py-2 bg-gamboge-800 dark:bg-transparent border border-transparent dark:border-gamboge-300 rounded-md font-semibold text-xs text-white dark:text-gamboge-300 uppercase tracking-widest hover:bg-gamboge-700 dark:hover:bg-gamboge-300 dark:hover:text-gray-900 dark:hover:shadow-neon-cyan-sm focus:bg-gamboge-700 dark:focus:bg-gamboge-300 dark:focus:text-gray-900 active:bg-gamboge-900 dark:active:bg-gamboge-300 dark:active:text-gray-900 focus:outline-none focus:ring-2 focus:ring-gamboge-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 disabled:opacity-50 transition ease-in-out duration-150"
+                                >
+                                    Choose This Plan
+                                </a>
+                            </template>
                         </span>
                     </span>
                 </div>
             </div>
+
+            <ConfirmationModal :show="showCancellationModal" @close="showCancellationModal = false">
+                <template #title>Cancel Your Plan</template>
+                <template #content>
+                    Are you sure you want to cancel your plan? You will retain access to paid features
+                    until the end of your current billing period, after which your account will revert
+                    to the free plan.
+                </template>
+                <template #footer>
+                    <SecondaryButton @click="showCancellationModal = false">Keep Plan</SecondaryButton>
+                    <DangerButton
+                        class="ms-3"
+                        :class="{ 'opacity-25': cancelForm.processing }"
+                        :disabled="cancelForm.processing"
+                        @click="submitCancellation"
+                    >
+                        Yes, Cancel Plan
+                    </DangerButton>
+                </template>
+            </ConfirmationModal>
+
+            <DialogModal :show="planBeingSwitchedTo !== null" @close="planBeingSwitchedTo = null">
+                <template #title>Switch Plan</template>
+                <template #content>
+                    You are currently on
+                    <strong>{{ $page.props.auth.user?.plan?.name }}</strong>.
+                    Switching to
+                    <strong>{{ planBeingSwitchedTo?.name }}</strong>
+                    will take effect immediately. Any difference in cost will be pro-rated and applied to your next invoice.
+                </template>
+                <template #footer>
+                    <SecondaryButton @click="planBeingSwitchedTo = null">Keep Current Plan</SecondaryButton>
+                    <PrimaryButton class="ms-3" @click="proceedWithSwitch">
+                        Switch Plan
+                    </PrimaryButton>
+                </template>
+            </DialogModal>
         </Page>
     </AppLayout>
 </template>
