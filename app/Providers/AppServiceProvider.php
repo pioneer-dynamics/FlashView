@@ -2,8 +2,19 @@
 
 namespace App\Providers;
 
+use App\Features\ApiFeature;
+use App\Features\EmailNotificationFeature;
+use App\Features\ExpiryFeature;
+use App\Features\FileUploadFeature;
+use App\Features\MessagesFeature;
+use App\Features\SenderIdentityFeature;
+use App\Features\SupportFeature;
+use App\Features\ThrottlingFeature;
+use App\Features\WebhookNotificationFeature;
 use App\Models\PersonalAccessToken;
+use App\Models\User;
 use App\Observers\SubscriptionObserver;
+use App\Services\FeatureRegistry;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
@@ -19,7 +30,17 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->singleton(FeatureRegistry::class, fn () => new FeatureRegistry([
+            new MessagesFeature,
+            new ExpiryFeature,
+            new ThrottlingFeature,
+            new FileUploadFeature,
+            new EmailNotificationFeature,
+            new WebhookNotificationFeature,
+            new SupportFeature,
+            new ApiFeature,
+            new SenderIdentityFeature,
+        ]));
     }
 
     private function forceHttps(): void
@@ -47,27 +68,28 @@ class AppServiceProvider extends ServiceProvider
     {
         RateLimiter::for('secrets', function (Request $request) {
             if ($user = $request->user()) {
-                if ($user->subscribed()) {
-                    return Limit::none();
-                } else {
-                    return Limit::perMinute(config('secrets.rate_limit.user.per_minute'))
-                        ->by($request->ip());
-                }
-            } else {
-                return Limit::perMinute(config('secrets.rate_limit.guest.per_minute'))
-                    ->perDay(config('secrets.rate_limit.guest.per_day')
-                    )->by($request->ip());
+                return $this->planThrottleLimit($user);
             }
+
+            return Limit::perMinute(config('secrets.rate_limit.guest.per_minute'))
+                ->perDay(config('secrets.rate_limit.guest.per_day'))
+                ->by($request->ip());
         });
 
         RateLimiter::for('api-secrets', function (Request $request) {
-            if ($request->user()->subscribed()) {
-                return Limit::none();
-            }
-
-            $perMinute = config('secrets.rate_limit.user.per_minute', 60);
-
-            return Limit::perMinute($perMinute)->by($request->user()->id);
+            return $this->planThrottleLimit($request->user());
         });
+    }
+
+    private function planThrottleLimit(User $user): Limit
+    {
+        $plan = $user->resolvePlan();
+        $config = $plan?->features['throttling']['config'] ?? [];
+
+        if (isset($config['per_minute'])) {
+            return Limit::perMinute((int) $config['per_minute'])->by($user->id);
+        }
+
+        return Limit::perMinute(config('secrets.rate_limit.user.per_minute'))->by($user->id);
     }
 }

@@ -84,6 +84,12 @@ const logout = () => {
                                             About Us
                                         </NavLink>
                                     </template>
+                                    <template v-if="$page.props?.auth?.user?.is_admin">
+                                        <NavLink :href="route('admin.plans.index')" :active="route().current('admin.plans.*')"
+                                            class="text-gamboge-300 dark:text-gamboge-300">
+                                            Admin
+                                        </NavLink>
+                                    </template>
                                 </div>
                             </div>
 
@@ -295,6 +301,13 @@ const logout = () => {
                                 </ResponsiveNavLink>
                                 <ResponsiveNavLink :href="route('about.index')" :active="route().current('about.index')">
                                     About Us
+                                </ResponsiveNavLink>
+                            </template>
+                            <template v-if="$page.props?.auth?.user?.is_admin">
+                                <ResponsiveNavLink :href="route('admin.plans.index')"
+                                    :active="route().current('admin.plans.*')"
+                                    class="text-gamboge-300 dark:text-gamboge-300">
+                                    Admin
                                 </ResponsiveNavLink>
                             </template>
                         </div>

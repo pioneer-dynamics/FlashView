@@ -16,13 +16,8 @@ class ConfigController extends Controller
         $user = $request->user();
         $plan = $user->resolvePlan();
 
-        $maxExpiry = $plan
-            ? ($plan->features['expiry']['config']['expiry_minutes'] ?? config('secrets.expiry_limits.user'))
-            : config('secrets.expiry_limits.user');
-
-        $maxMessageLength = $plan
-            ? ($plan->features['messages']['config']['message_length'] ?? config('secrets.message_length.user'))
-            : config('secrets.message_length.user');
+        $maxExpiry = $plan?->features['expiry']['config']['expiry_minutes'] ?? config('secrets.expiry_limits.user');
+        $maxMessageLength = $plan?->features['messages']['config']['message_length'] ?? config('secrets.message_length.user');
 
         $expiryOptions = array_values(array_filter(
             config('secrets.expiry_options'),

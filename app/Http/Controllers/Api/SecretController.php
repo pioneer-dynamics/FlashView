@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Middleware\EnsurePlanThrottle;
 use App\Http\Requests\Api\ListSecretsRequest;
 use App\Http\Requests\Api\RetrieveSecretRequest;
 use App\Http\Requests\Api\ShowSecretMetadataRequest;
@@ -33,6 +34,7 @@ class SecretController extends Controller implements HasMiddleware
     {
         return [
             new Middleware('throttle:api-secrets', only: ['store']),
+            new Middleware(EnsurePlanThrottle::class, only: ['store']),
         ];
     }
 

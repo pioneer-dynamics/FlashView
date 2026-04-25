@@ -176,6 +176,25 @@ class NotificationPreferencesTest extends TestCase
         $this->assertFalse($user->fresh()->notify_secret_retrieved);
     }
 
+    public function test_plan_supports_email_notifications_inertia_prop_is_true_for_qualifying_plan(): void
+    {
+        $user = User::factory()->create();
+        $this->subscribeUserToPlan($user, $this->basicPlan);
+
+        $response = $this->actingAs($user)->get(route('profile.show'));
+
+        $response->assertInertia(fn ($page) => $page->where('auth.planSupportsEmailNotifications', true));
+    }
+
+    public function test_plan_supports_email_notifications_inertia_prop_is_false_without_plan(): void
+    {
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)->get(route('profile.show'));
+
+        $response->assertInertia(fn ($page) => $page->where('auth.planSupportsEmailNotifications', false));
+    }
+
     public function test_notification_preference_cleared_when_subscription_cancelled(): void
     {
         $user = User::factory()->withSecretRetrievedNotifications()->create();

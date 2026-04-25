@@ -20,7 +20,7 @@ class PriceUpdateCommand extends Command
      *
      * @var string
      */
-    protected $description = 'Clear pricing cache and update cache from Stripe pricing';
+    protected $description = '[Deprecated — use Admin UI at /admin/plans] Clear pricing cache and update cache from Stripe pricing';
 
     /**
      * Execute the console command.

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Middleware\EnsurePlanThrottle;
 use App\Http\Requests\BurnSecretRequest;
 use App\Http\Requests\StoreSecretRequest;
 use App\Http\Resources\SecretResourceCollection;
@@ -32,6 +33,7 @@ class SecretController extends Controller implements HasMiddleware
         return [
             new Middleware('signed', only: ['show', 'decrypt', 'downloadFile', 'confirmFileDownloaded']),
             new Middleware('throttle:secrets', only: ['store']),
+            new Middleware(EnsurePlanThrottle::class, only: ['store']),
         ];
     }
 
