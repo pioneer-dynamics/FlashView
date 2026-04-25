@@ -29,7 +29,7 @@ class PlanFactory extends Factory
     }
 
     /**
-     * A free plan without API, notifications, or support.
+     * A free plan without API, notifications, or sender identity.
      */
     public function free(): static
     {
@@ -41,23 +41,21 @@ class PlanFactory extends Factory
             'stripe_monthly_price_id' => '',
             'stripe_yearly_price_id' => '',
             'features' => $this->defaultFeatures(
-                apiType: 'missing',
-                notificationEmail: false,
-                notificationWebhook: false,
+                includeApi: false,
+                includeEmailNotification: false,
+                includeWebhookNotification: false,
             ),
         ]);
     }
 
     /**
-     * A plan with email notifications but no API or webhook.
+     * A plan with email notifications enabled.
      */
     public function withEmailNotifications(): static
     {
         return $this->state(fn (array $attributes) => [
             'features' => $this->defaultFeatures(
-                apiType: 'missing',
-                notificationEmail: true,
-                notificationWebhook: false,
+                includeEmailNotification: true,
             ),
         ]);
     }
@@ -69,9 +67,9 @@ class PlanFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'features' => $this->defaultFeatures(
-                apiType: 'feature',
-                notificationEmail: true,
-                notificationWebhook: true,
+                includeApi: true,
+                includeEmailNotification: true,
+                includeWebhookNotification: true,
             ),
         ]);
     }
@@ -82,12 +80,12 @@ class PlanFactory extends Factory
     public function withSenderIdentity(): static
     {
         return $this->state(fn (array $attributes) => [
-            'features' => $this->defaultFeatures(senderIdentityType: 'feature'),
+            'features' => $this->defaultFeatures(includeSenderIdentity: true),
         ]);
     }
 
     /**
-     * Build the default features array with configurable options.
+     * Build the sparse features array. Only included features are present — no missing entries, no labels.
      *
      * @return array<string, array<string, mixed>>
      */
@@ -95,75 +93,35 @@ class PlanFactory extends Factory
         int $messageLength = 100000,
         int $expiryMinutes = 43200,
         string $expiryLabel = '30 days',
-        string $apiType = 'feature',
-        bool $notificationEmail = true,
-        bool $notificationWebhook = true,
-        string $senderIdentityType = 'missing',
+        bool $includeApi = true,
+        bool $includeEmailNotification = true,
+        bool $includeWebhookNotification = true,
+        bool $includeSenderIdentity = false,
     ): array {
-        return [
-            'untracked' => [
-                'order' => 1,
-                'label' => 'Unlimited messages',
-                'config' => [],
-                'type' => 'feature',
-            ],
-            'messages' => [
-                'order' => 2,
-                'label' => ':message_length character limit per message',
-                'config' => [
-                    'message_length' => $messageLength,
-                ],
-                'type' => 'feature',
-            ],
-            'expiry' => [
-                'order' => 3,
-                'label' => 'Maximum expiry of :expiry_label',
-                'config' => [
-                    'expiry_label' => $expiryLabel,
-                    'expiry_minutes' => $expiryMinutes,
-                ],
-                'type' => 'feature',
-            ],
-            'throttling' => [
-                'order' => 4,
-                'label' => 'No rate limits',
-                'config' => [],
-                'type' => 'feature',
-            ],
-            'email_notification' => [
-                'order' => 4.5,
-                'label' => 'Email Notifications',
-                'config' => [
-                    'email' => $notificationEmail,
-                ],
-                'type' => $notificationEmail ? 'feature' : 'missing',
-            ],
-            'webhook_notification' => [
-                'order' => 4.6,
-                'label' => 'Webhook Notifications',
-                'config' => [
-                    'webhook' => $notificationWebhook,
-                ],
-                'type' => $notificationWebhook ? 'feature' : 'missing',
-            ],
-            'support' => [
-                'order' => 5,
-                'label' => 'Support',
-                'config' => [],
-                'type' => 'feature',
-            ],
-            'api' => [
-                'order' => 6,
-                'label' => 'API Access',
-                'config' => [],
-                'type' => $apiType,
-            ],
-            'sender_identity' => [
-                'order' => 7,
-                'label' => 'Verified Sender Identity (optional)',
-                'config' => [],
-                'type' => $senderIdentityType,
-            ],
+        $features = [
+            'untracked' => ['order' => 1, 'type' => 'feature', 'config' => []],
+            'messages' => ['order' => 2, 'type' => 'limit',   'config' => ['message_length' => $messageLength]],
+            'expiry' => ['order' => 3, 'type' => 'limit',   'config' => ['expiry_minutes' => $expiryMinutes, 'expiry_label' => $expiryLabel]],
+            'throttling' => ['order' => 4, 'type' => 'feature', 'config' => []],
+            'support' => ['order' => 5, 'type' => 'feature', 'config' => []],
         ];
+
+        if ($includeEmailNotification) {
+            $features['email_notification'] = ['order' => 4.5, 'type' => 'feature', 'config' => []];
+        }
+
+        if ($includeWebhookNotification) {
+            $features['webhook_notification'] = ['order' => 4.6, 'type' => 'feature', 'config' => []];
+        }
+
+        if ($includeApi) {
+            $features['api'] = ['order' => 6, 'type' => 'feature', 'config' => []];
+        }
+
+        if ($includeSenderIdentity) {
+            $features['sender_identity'] = ['order' => 7, 'type' => 'feature', 'config' => []];
+        }
+
+        return $features;
     }
 }

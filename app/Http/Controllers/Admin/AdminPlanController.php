@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StorePlanRequest;
 use App\Http\Requests\UpdatePlanRequest;
 use App\Models\Plan;
+use App\Services\FeatureRegistry;
 use App\Services\StripePlanService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
@@ -29,6 +30,7 @@ class AdminPlanController extends Controller
         return Inertia::render('Admin/Plans/Form', [
             'plan' => null,
             'defaultStripeMode' => app()->environment('production') ? 'create' : 'map',
+            'availableFeatures' => app(FeatureRegistry::class)->forFrontend(),
         ]);
     }
 
@@ -67,6 +69,7 @@ class AdminPlanController extends Controller
         return Inertia::render('Admin/Plans/Form', [
             'plan' => $plan,
             'defaultStripeMode' => app()->environment('production') ? 'create' : 'map',
+            'availableFeatures' => app(FeatureRegistry::class)->forFrontend(),
         ]);
     }
 

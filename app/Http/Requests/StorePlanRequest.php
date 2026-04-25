@@ -25,10 +25,9 @@ class StorePlanRequest extends FormRequest
             'stripe_product_id' => ['nullable', 'string', 'max:255'],
             'stripe_monthly_price_id' => ['nullable', 'string', 'max:255'],
             'stripe_yearly_price_id' => ['nullable', 'string', 'max:255'],
-            'features' => ['required', 'array'],
-            'features.*.label' => ['required', 'string'],
+            'features' => ['required', 'array', 'min:1'],
             'features.*.order' => ['required', 'numeric'],
-            'features.*.type' => ['required', 'in:feature,limit,missing'],
+            'features.*.type' => ['required', 'in:feature,limit'],
             'features.*.config' => ['present', 'array'],
         ];
     }
