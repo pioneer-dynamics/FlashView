@@ -301,7 +301,7 @@
                         <template v-if="!$page.props.auth.user">
                             <Link class="underline text-gamboge-300" :href="route('login')">Log in</Link>
                             or
-                            <Link class="underline text-gamboge-300" :href="route('register')">create a free account</Link>
+                            <Link class="underline text-gamboge-300" :href="route('plans.index')">signup to an eligible plan</Link>
                             to share encrypted files.
                         </template>
                         <template v-else-if="$page.props.auth.user.subscription">
