@@ -7,8 +7,8 @@ import ConfirmationModal from '@/Components/ConfirmationModal.vue';
 import DialogModal from '@/Components/DialogModal.vue';
 import DangerButton from '@/Components/DangerButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
-import { Head, Link, useForm, usePage, router } from '@inertiajs/vue3';
-import { reactive, ref, computed } from 'vue';
+import { Link, useForm, usePage, router } from '@inertiajs/vue3';
+import { ref, computed } from 'vue';
 import { DateTime } from 'luxon';
 import ToggleButton from '@/Components/ToggleButton.vue';
 import Feature from './Partials/Feature.vue';
@@ -159,13 +159,13 @@ const proceedWithSwitch = () => {
                                 >
                                     Choose This Plan
                                 </PrimaryButton>
-                                <a
+                                <PrimaryButton
                                     v-else
                                     :href="route('plans.subscribe', { plan: plan.id, period: planFrequency })"
-                                    class="w-full justify-center inline-flex items-center px-4 py-2 bg-gamboge-800 dark:bg-transparent border border-transparent dark:border-gamboge-300 rounded-md font-semibold text-xs text-white dark:text-gamboge-300 uppercase tracking-widest hover:bg-gamboge-700 dark:hover:bg-gamboge-300 dark:hover:text-gray-900 dark:hover:shadow-neon-cyan-sm focus:bg-gamboge-700 dark:focus:bg-gamboge-300 dark:focus:text-gray-900 active:bg-gamboge-900 dark:active:bg-gamboge-300 dark:active:text-gray-900 focus:outline-none focus:ring-2 focus:ring-gamboge-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 disabled:opacity-50 transition ease-in-out duration-150"
+                                    class="w-full justify-center"
                                 >
                                     Choose This Plan
-                                </a>
+                                </PrimaryButton>
                             </template>
                         </span>
                     </span>
