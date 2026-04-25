@@ -39,7 +39,8 @@ const isFreePlan = (plan) => plan.price_per_month == 0
             <ToggleButton class="justify-center" :options="[{ label: 'Monthly', value: 'monthly' }, { label: 'Yearly', value: 'yearly' }]" v-model="planFrequency"/>
             <div class="flex flex-col md:flex-row gap-4 justify-center p-4">
                 <div v-for="plan in plans.data" :key="plan.id"
-                    class="w-full max-w-sm p-4 bg-gray-50 border border-gray-200 rounded-lg shadow sm:p-8 dark:bg-gray-800 dark:border-gamboge-300/20 flex flex-col">
+                    class="w-full max-w-sm p-4 bg-gray-50 border border-gray-200 rounded-lg shadow sm:p-8 dark:bg-gray-800 flex flex-col transition-colors duration-200"
+                    :class="userIsSubscribedTo(plan) ? 'dark:border-gamboge-300/60' : 'dark:border-gamboge-300/20'">
                     <div class="flex flex-wrap gap-2">
                         <h5 class="mb-4 text-xl font-mono font-medium text-gamboge-700 dark:text-gamboge-200">
                             {{ plan.name }} {{ planFrequency }}
@@ -47,6 +48,9 @@ const isFreePlan = (plan) => plan.price_per_month == 0
                                 Save {{(( (( plan.price_per_month * 12 ) - plan.price_per_year) / ( plan.price_per_month * 12 )) * 100).toFixed(2) }}%
                             </span>
                         </h5>
+                        <span v-if="userIsSubscribedTo(plan) && !$page.props?.auth?.user?.subscription?.ends_at" class="mb-4 font-mono text-xs uppercase tracking-widest text-gamboge-300 border border-gamboge-300/40 px-2 py-0.5 rounded self-start">
+                            Current Plan
+                        </span>
                         <div 
                             class="mb-4 text-xl font-medium text-xs text-red-500 dark:text-red-400" 
                             v-if="userIsSubscribedTo(plan) && $page.props?.auth?.user?.subscription?.ends_at"
@@ -85,28 +89,20 @@ const isFreePlan = (plan) => plan.price_per_month == 0
                     </span>
                     <span v-else class="mt-auto"> <!-- Not a free plan -->
                         <span v-if="userIsSubscribedTo(plan)">
-                            <span class="flex flex-wrap gap-2 justify-center">
+                            <span class="flex flex-col gap-2">
                                 <Link
                                     v-if="$page.props.auth.user.subscription.ends_at"
                                     method="post"
                                     :href="route('plans.resume')"
-                                    class="inline-flex w-full items-center px-4 py-2 bg-green-800 dark:bg-green-200 border border-transparent rounded-md font-semibold text-xs text-white dark:text-green-800 uppercase tracking-widest hover:bg-green-700 dark:hover:bg-white dark:hover:shadow-neon-cyan-sm focus:bg-green-700 dark:focus:bg-white active:bg-green-900 dark:active:bg-green-300 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-offset-green-800 disabled:opacity-50 transition ease-in-out duration-150 justify-center"
+                                    class="inline-flex w-full items-center justify-center px-4 py-2 bg-green-800 dark:bg-transparent border border-transparent dark:border-green-400/60 rounded-md font-semibold text-xs text-white dark:text-green-400 uppercase tracking-widest hover:bg-green-700 dark:hover:bg-green-400/10 dark:hover:border-green-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 disabled:opacity-50 transition ease-in-out duration-150"
                                 >
                                     Resume Plan
                                 </Link>
-                                <PrimaryButton
-                                    v-else
-                                    type="button"
-                                    disabled
-                                    class="opacity-25 w-full justify-center cursor-not-allowed"
-                                >
-                                    Current Plan
-                                </PrimaryButton>
                                 <Link
                                     v-if="!$page.props.auth.user.subscription.ends_at"
                                     method="post"
                                     :href="route('plans.unsubscribe')"
-                                    class="inline-flex items-center px-4 py-2 bg-red-800 dark:bg-red-200 border border-transparent rounded-md font-semibold text-xs text-white dark:text-red-800 uppercase tracking-widest hover:bg-red-700 dark:hover:bg-white dark:hover:shadow-neon-cyan-sm focus:bg-red-700 dark:focus:bg-white active:bg-red-900 dark:active:bg-red-300 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:focus:ring-offset-red-800 disabled:opacity-50 transition ease-in-out duration-150 justify-center"
+                                    class="inline-flex w-full items-center justify-center px-4 py-2 bg-transparent border border-red-400/60 rounded-md font-semibold text-xs text-red-400 uppercase tracking-widest hover:bg-red-400/10 hover:border-red-400 dark:hover:shadow-[0_0_8px_rgba(248,113,113,0.3)] focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-offset-2 dark:focus:ring-offset-gray-900 disabled:opacity-50 transition ease-in-out duration-150"
                                 >
                                     Cancel Plan
                                 </Link>
