@@ -36,6 +36,8 @@ const buildDefaultConfig = (key, stored = {}) => {
     return defaults;
 };
 
+const deriveType = (key) => featMeta(key)?.canBeLimit ? 'limit' : 'feature';
+
 const initFromPlan = () => {
     if (!props.plan?.features) { return []; }
     return Object.entries(props.plan.features)
@@ -43,7 +45,7 @@ const initFromPlan = () => {
         .sort(([, a], [, b]) => a.order - b.order)
         .map(([key, f]) => ({
             key,
-            type: f.type,
+            type: deriveType(key),
             config: buildDefaultConfig(key, f.config ?? {}),
         }));
 };
@@ -78,7 +80,7 @@ const onDragEnd = () => {
 const addToPlan = (key) => {
     includedFeatures.value.push({
         key,
-        type: 'feature',
+        type: deriveType(key),
         config: buildDefaultConfig(key, {}),
     });
 };
@@ -139,10 +141,11 @@ const buildPayload = () => {
     const features = {};
     includedFeatures.value.forEach((f, index) => {
         const meta = featMeta(f.key);
+        const type = deriveType(f.key);
         features[f.key] = {
-            type: f.type,
+            type,
             order: index + 1,
-            config: meta?.canBeLimit && f.type === 'limit' ? { ...f.config } : {},
+            config: meta?.canBeLimit ? { ...f.config } : {},
         };
     });
 
@@ -317,19 +320,6 @@ const submit = (confirmed = false) => {
                                             <p class="font-mono text-xs text-gamboge-300 uppercase tracking-widest truncate">{{ feat.key }}</p>
                                             <p class="text-xs text-gray-500 dark:text-gray-400 truncate">{{ featMeta(feat.key)?.description }}</p>
                                         </div>
-                                        <label
-                                            v-if="featMeta(feat.key)?.canBeLimit"
-                                            class="flex items-center gap-1 text-xs cursor-pointer shrink-0"
-                                            title="Check to cap usage at a specific value; unchecked means unlimited access to this feature."
-                                        >
-                                            <input
-                                                type="checkbox"
-                                                :checked="feat.type === 'limit'"
-                                                @change="feat.type = $event.target.checked ? 'limit' : 'feature'"
-                                                class="text-gamboge-300 focus:ring-gamboge-500 rounded"
-                                            />
-                                            <span class="text-gray-600 dark:text-gray-300">Limit</span>
-                                        </label>
                                         <button
                                             type="button"
                                             @click="removeFromPlan(feat.key)"
@@ -338,9 +328,9 @@ const submit = (confirmed = false) => {
                                         >×</button>
                                     </div>
 
-                                    <!-- Config inputs — only when type=limit and configSchema is non-empty -->
+                                    <!-- Config inputs — shown for features with configurable limits -->
                                     <div
-                                        v-if="feat.type === 'limit' && featMeta(feat.key)?.configSchema?.length"
+                                        v-if="featMeta(feat.key)?.configSchema?.length"
                                         class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 border-t border-gray-100 dark:border-gray-700"
                                     >
                                         <div v-for="field in featMeta(feat.key).configSchema" :key="field.key">
