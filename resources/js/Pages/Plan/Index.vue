@@ -18,10 +18,11 @@ const props = defineProps({
     plans: Array,
 })
 
-const planFrequency = ref(usePage().props.auth?.user?.frequency || 'monthly');
+const page = usePage();
+const planFrequency = ref(page.props.auth?.user?.frequency || 'monthly');
 
 const userIsSubscribedTo = (plan) => {
-    let user = usePage().props.auth?.user;
+    let user = page.props.auth?.user;
 
     if(user?.plan?.id == plan.id) // plan matches
     {
@@ -36,11 +37,8 @@ const userIsSubscribedTo = (plan) => {
 
 const isFreePlan = (plan) => plan.price_per_month == 0
 
-const userHasActiveSubscription = computed(() => {
-    return usePage().props.auth?.user?.subscription != null;
-});
+const userHasActiveSubscription = computed(() => page.props.auth?.user?.subscription != null);
 
-// Cancellation modal
 const showCancellationModal = ref(false);
 const cancelForm = useForm({});
 
@@ -54,7 +52,6 @@ const submitCancellation = () => {
     });
 };
 
-// Plan switch modal
 const planBeingSwitchedTo = ref(null);
 
 const confirmPlanSwitch = (plan) => {
@@ -144,7 +141,7 @@ const proceedWithSwitch = () => {
                                 </button>
                             </span>
                         </span>
-                        <span v-else> <!-- User is not subscribed -->
+                        <span v-else>
                             <PrimaryButton
                                 v-if="!$page.props.auth.user"
                                 type="button"
@@ -154,16 +151,14 @@ const proceedWithSwitch = () => {
                                 Login to Subscribe
                             </PrimaryButton>
                             <template v-else>
-                                <!-- Subscribed user switching plans → show confirmation modal -->
-                                <button
+                                <PrimaryButton
                                     v-if="userHasActiveSubscription"
                                     type="button"
+                                    class="w-full justify-center"
                                     @click="confirmPlanSwitch(plan)"
-                                    class="w-full justify-center inline-flex items-center px-4 py-2 bg-gamboge-800 dark:bg-transparent border border-transparent dark:border-gamboge-300 rounded-md font-semibold text-xs text-white dark:text-gamboge-300 uppercase tracking-widest hover:bg-gamboge-700 dark:hover:bg-gamboge-300 dark:hover:text-gray-900 dark:hover:shadow-neon-cyan-sm focus:bg-gamboge-700 dark:focus:bg-gamboge-300 dark:focus:text-gray-900 active:bg-gamboge-900 dark:active:bg-gamboge-300 dark:active:text-gray-900 focus:outline-none focus:ring-2 focus:ring-gamboge-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 disabled:opacity-50 transition ease-in-out duration-150"
                                 >
                                     Choose This Plan
-                                </button>
-                                <!-- New subscriber → go directly to Stripe checkout -->
+                                </PrimaryButton>
                                 <a
                                     v-else
                                     :href="route('plans.subscribe', { plan: plan.id, period: planFrequency })"
