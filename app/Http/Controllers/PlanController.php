@@ -24,6 +24,8 @@ class PlanController extends Controller
     public function unsubscribe(Request $request)
     {
         $request->user()->subscription('default')->cancel();
+
+        return redirect()->route('plans.index');
     }
 
     public function resume(Request $request)
