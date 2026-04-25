@@ -9,7 +9,7 @@ import InputError from '@/Components/InputError.vue';
 import Alert from '@/Components/Alert.vue';
 import Feature from '../../Plan/Partials/Feature.vue';
 import { Link, router } from '@inertiajs/vue3';
-import { reactive, ref, computed } from 'vue';
+import { reactive, ref, computed, watch } from 'vue';
 
 const props = defineProps({
     plan: Object,
@@ -22,6 +22,17 @@ const props = defineProps({
 
 const isEditing = computed(() => props.plan !== null);
 const pageTitle = computed(() => isEditing.value ? `Edit ${props.plan.name}` : 'New Plan');
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+const minutesToHuman = (minutes) => {
+    const m = Number(minutes) || 0;
+    if (m <= 0) return '0 minutes';
+    if (m % 10080 === 0) { const n = m / 10080; return `${n} ${n === 1 ? 'week' : 'weeks'}`; }
+    if (m % 1440 === 0) { const n = m / 1440; return `${n} ${n === 1 ? 'day' : 'days'}`; }
+    if (m % 60 === 0) { const n = m / 60; return `${n} ${n === 1 ? 'hour' : 'hours'}`; }
+    return `${m} ${m === 1 ? 'minute' : 'minutes'}`;
+};
 
 // ── Feature helpers ──────────────────────────────────────────────────────────
 
@@ -66,7 +77,14 @@ const previewFeatures = computed(() =>
         if (meta?.canBeLimit) {
             label = meta.label;
             for (const [k, v] of Object.entries(feat.config ?? {})) {
-                const formatted = v !== '' && !isNaN(Number(v)) ? Number(v).toLocaleString() : v;
+                let formatted;
+                if (k === 'expiry_minutes') {
+                    formatted = minutesToHuman(v);
+                } else if (v !== '' && !isNaN(Number(v))) {
+                    formatted = Number(v).toLocaleString();
+                } else {
+                    formatted = v;
+                }
                 label = label.replace(`:${k}`, formatted);
             }
         } else {
@@ -139,19 +157,16 @@ const form = reactive({
     stripe_yearly_price_id: props.plan?.stripe_yearly_price_id ?? '',
 });
 
+// Auto-suggest yearly = monthly × 10 in create mode
+watch(() => form.price_per_month, (val) => {
+    if (!isEditing.value) {
+        const monthly = parseFloat(val) || 0;
+        form.price_per_year = Math.round(monthly * 10 * 100) / 100;
+    }
+});
+
 const errors = ref({});
 const processing = ref(false);
-const showUnchangedPriceWarning = ref(false);
-
-const pricesUnchanged = computed(() => {
-    if (!isEditing.value || !form.create_stripe_product) {
-        return false;
-    }
-    return (
-        Number(form.price_per_month) === Number(props.plan?.price_per_month) &&
-        Number(form.price_per_year) === Number(props.plan?.price_per_year)
-    );
-});
 
 const canSubmit = computed(() => includedFeatures.value.length > 0);
 
@@ -167,30 +182,42 @@ const buildPayload = () => {
         };
     });
 
+    if (isEditing.value) {
+        const hasPriceChanged =
+            Number(form.price_per_month) !== Number(props.plan?.price_per_month) ||
+            Number(form.price_per_year) !== Number(props.plan?.price_per_year);
+        const hasStripeIds = !!(props.plan?.stripe_product_id);
+
+        return {
+            name: form.name,
+            price_per_month: Number(form.price_per_month),
+            price_per_year: Number(form.price_per_year),
+            create_stripe_product: hasPriceChanged && hasStripeIds,
+            stripe_product_id: props.plan?.stripe_product_id ?? '',
+            stripe_monthly_price_id: props.plan?.stripe_monthly_price_id ?? '',
+            stripe_yearly_price_id: props.plan?.stripe_yearly_price_id ?? '',
+            features,
+        };
+    }
+
     return {
         name: form.name,
         price_per_month: Number(form.price_per_month),
         price_per_year: Number(form.price_per_year),
-        create_stripe_product: isEditing.value ? false : form.create_stripe_product,
-        stripe_product_id: isEditing.value ? (props.plan?.stripe_product_id ?? '') : form.stripe_product_id,
-        stripe_monthly_price_id: isEditing.value ? (props.plan?.stripe_monthly_price_id ?? '') : form.stripe_monthly_price_id,
-        stripe_yearly_price_id: isEditing.value ? (props.plan?.stripe_yearly_price_id ?? '') : form.stripe_yearly_price_id,
+        create_stripe_product: form.create_stripe_product,
+        stripe_product_id: form.stripe_product_id,
+        stripe_monthly_price_id: form.stripe_monthly_price_id,
+        stripe_yearly_price_id: form.stripe_yearly_price_id,
         features,
     };
 };
 
-const submit = (confirmed = false) => {
+const submit = () => {
     if (!canSubmit.value) {
         errors.value = { ...errors.value, features: 'At least one feature is required.' };
         return;
     }
 
-    if (pricesUnchanged.value && !confirmed) {
-        showUnchangedPriceWarning.value = true;
-        return;
-    }
-
-    showUnchangedPriceWarning.value = false;
     errors.value = {};
     processing.value = true;
 
@@ -253,6 +280,9 @@ const submit = (confirmed = false) => {
                     <!-- Edit mode: read-only -->
                     <div v-if="isEditing" class="space-y-4">
                         <p class="text-xs text-gray-500 dark:text-gray-400">Stripe integration is fixed after plan creation.</p>
+                        <p v-if="plan.stripe_product_id" class="text-xs text-amber-600 dark:text-amber-400">
+                            Changing the monthly or yearly price will automatically create new Stripe prices and archive the existing ones.
+                        </p>
                         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                             <div>
                                 <InputLabel value="Stripe Product ID" />
@@ -451,15 +481,6 @@ const submit = (confirmed = false) => {
 
                     </div>
                 </section>
-
-                <!-- Unchanged price warning -->
-                <Alert v-if="showUnchangedPriceWarning" type="Warning" class="p-4">
-                    The monthly and yearly prices haven't changed. Creating new Stripe prices will still archive the existing ones. This cannot be undone.
-                    <div class="flex gap-3 mt-3">
-                        <PrimaryButton type="button" @click="submit(true)">Proceed Anyway</PrimaryButton>
-                        <SecondaryButton type="button" @click="showUnchangedPriceWarning = false">Cancel</SecondaryButton>
-                    </div>
-                </Alert>
 
                 <div class="flex items-center gap-4">
                     <PrimaryButton
