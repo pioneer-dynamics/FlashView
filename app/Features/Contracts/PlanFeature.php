@@ -17,5 +17,7 @@ interface PlanFeature
     /** @return array<int, array{key: string, type: string, label: string, default: mixed, min?: int}> */
     public function configSchema(): array;
 
+    public function resolveLabel(array $config): string;
+
     public function withinLimit(mixed $value, array $config): bool;
 }

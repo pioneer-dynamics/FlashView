@@ -26,9 +26,8 @@ class PlanResource extends JsonResource
                 $class = $registry->get($key);
 
                 $config = $feature['config'] ?? [];
-                $formattedConfig = collect($config)->map(fn ($v) => is_numeric($v) ? number_format((float) $v) : $v)->all();
                 $label = $feature['type'] === 'limit'
-                    ? __($class->label(), $formattedConfig)
+                    ? $class->resolveLabel($config)
                     : $class->description();
 
                 return [

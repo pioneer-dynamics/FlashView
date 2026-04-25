@@ -92,7 +92,6 @@ class PlanFactory extends Factory
     private function defaultFeatures(
         int $messageLength = 100000,
         int $expiryMinutes = 43200,
-        string $expiryLabel = '30 days',
         bool $includeApi = true,
         bool $includeEmailNotification = true,
         bool $includeWebhookNotification = true,
@@ -100,7 +99,7 @@ class PlanFactory extends Factory
     ): array {
         $features = [
             'messages' => ['order' => 1, 'type' => 'limit',   'config' => ['message_length' => $messageLength]],
-            'expiry' => ['order' => 2, 'type' => 'limit',   'config' => ['expiry_minutes' => $expiryMinutes, 'expiry_label' => $expiryLabel]],
+            'expiry' => ['order' => 2, 'type' => 'limit',   'config' => ['expiry_minutes' => $expiryMinutes]],
             'throttling' => ['order' => 3, 'type' => 'feature', 'config' => []],
             'support' => ['order' => 4, 'type' => 'feature', 'config' => []],
         ];

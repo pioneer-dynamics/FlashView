@@ -73,6 +73,36 @@ class FeatureClassesTest extends TestCase
         $this->assertTrue((new ExpiryFeature)->canBeLimit());
     }
 
+    public function test_expiry_feature_resolves_label_in_weeks(): void
+    {
+        $this->assertSame('Up to 2 weeks expiry', (new ExpiryFeature)->resolveLabel(['expiry_minutes' => 20160]));
+    }
+
+    public function test_expiry_feature_resolves_label_in_days(): void
+    {
+        $this->assertSame('Up to 30 days expiry', (new ExpiryFeature)->resolveLabel(['expiry_minutes' => 43200]));
+    }
+
+    public function test_expiry_feature_resolves_label_singular_day(): void
+    {
+        $this->assertSame('Up to 1 day expiry', (new ExpiryFeature)->resolveLabel(['expiry_minutes' => 1440]));
+    }
+
+    public function test_expiry_feature_resolves_label_in_hours(): void
+    {
+        $this->assertSame('Up to 6 hours expiry', (new ExpiryFeature)->resolveLabel(['expiry_minutes' => 360]));
+    }
+
+    public function test_expiry_feature_resolves_label_in_minutes(): void
+    {
+        $this->assertSame('Up to 90 minutes expiry', (new ExpiryFeature)->resolveLabel(['expiry_minutes' => 90]));
+    }
+
+    public function test_expiry_feature_resolves_label_with_missing_config(): void
+    {
+        $this->assertSame('Up to 0 minutes expiry', (new ExpiryFeature)->resolveLabel([]));
+    }
+
     // ── ThrottlingFeature ─────────────────────────────────────────────────────
 
     public function test_throttling_feature_within_limit_returns_true_when_under_limit(): void

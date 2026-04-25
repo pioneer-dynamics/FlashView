@@ -32,7 +32,7 @@ class PlanSeederProd extends Seeder
                     ],
                     'expiry' => [
                         'order' => 2,
-                        'config' => ['expiry_label' => '14 days', 'expiry_minutes' => 20160],
+                        'config' => ['expiry_minutes' => 20160],
                         'type' => 'limit',
                     ],
                     'throttling' => [
@@ -63,7 +63,7 @@ class PlanSeederProd extends Seeder
                     ],
                     'expiry' => [
                         'order' => 2,
-                        'config' => ['expiry_label' => '30 days', 'expiry_minutes' => 43200],
+                        'config' => ['expiry_minutes' => 43200],
                         'type' => 'limit',
                     ],
                     'throttling' => [
@@ -104,7 +104,7 @@ class PlanSeederProd extends Seeder
                     ],
                     'expiry' => [
                         'order' => 2,
-                        'config' => ['expiry_label' => '30 days', 'expiry_minutes' => 43200],
+                        'config' => ['expiry_minutes' => 43200],
                         'type' => 'limit',
                     ],
                     'throttling' => [

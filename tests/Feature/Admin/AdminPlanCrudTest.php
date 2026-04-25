@@ -38,7 +38,7 @@ class AdminPlanCrudTest extends TestCase
             'stripe_yearly_price_id' => '',
             'features' => [
                 'messages' => ['order' => 1, 'type' => 'limit',   'config' => ['message_length' => 5000]],
-                'expiry' => ['order' => 3, 'type' => 'limit',   'config' => ['expiry_minutes' => 20160, 'expiry_label' => '14 days']],
+                'expiry' => ['order' => 3, 'type' => 'limit',   'config' => ['expiry_minutes' => 20160]],
                 'throttling' => ['order' => 4, 'type' => 'feature', 'config' => []],
                 'support' => ['order' => 5, 'type' => 'feature', 'config' => []],
                 'api' => ['order' => 6, 'type' => 'feature', 'config' => []],
