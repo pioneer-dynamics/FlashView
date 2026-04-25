@@ -51,7 +51,7 @@ const statusClass = (status) => {
                             <th scope="row" class="px-6 py-4 font-semibold text-gray-900 dark:text-white">
                                 {{ user.name }}
                             </th>
-                            <td class="px-6 py-4 font-mono text-xs">
+                            <td class="px-6 py-4 font-mono text-xs dark:text-gray-300">
                                 {{ user.email }}
                             </td>
                             <td class="px-6 py-4 font-mono text-xs dark:text-gray-300">
@@ -67,7 +67,7 @@ const statusClass = (status) => {
                                     {{ user.subscription_status }}
                                 </span>
                             </td>
-                            <td class="px-6 py-4 font-mono text-xs">
+                            <td class="px-6 py-4 font-mono text-xs dark:text-gray-300">
                                 {{ user.joined_at }}
                             </td>
                         </tr>
