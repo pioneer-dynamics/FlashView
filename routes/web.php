@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\AdminPlanController;
+use App\Http\Controllers\Admin\AdminUserController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\CliAuthController;
 use App\Http\Controllers\CliDeviceController;
@@ -213,4 +214,5 @@ Route::middleware([
     'admin',
 ])->prefix('admin')->name('admin.')->group(function () {
     Route::resource('plans', AdminPlanController::class)->except(['show']);
+    Route::get('users', [AdminUserController::class, 'index'])->name('users.index');
 });
