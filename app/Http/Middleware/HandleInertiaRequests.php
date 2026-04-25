@@ -38,10 +38,11 @@ class HandleInertiaRequests extends Middleware
     {
         Inertia::share('auth.hasApiAccess', fn () => $request->user()?->hasApiAccess() ?? false);
         Inertia::share('auth.planSupportsEmailNotifications', fn () => $request->user()?->planSupportsEmailNotifications() ?? false);
+        Inertia::share('auth.hasWebhookAccess', fn () => $request->user()?->planSupportsWebhook() ?? false);
         Inertia::share('auth.senderIdentity', function () use ($request) {
             $user = $request->user();
 
-            if (! $user || ! $user->hasVerifiedSenderIdentity()) {
+            if (! $user || ! $user->hasVerifiedSenderIdentity() || ! $user->resolvePlan()?->hasFeature('sender_identity')) {
                 return null;
             }
 

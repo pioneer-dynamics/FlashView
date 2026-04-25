@@ -15,7 +15,7 @@ import SecondaryButton from '@/Components/SecondaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
 
 const page = usePage();
-const hasApiAccess = computed(() => page.props.auth?.hasApiAccess ?? false);
+const hasWebhookAccess = computed(() => page.props.auth?.hasWebhookAccess ?? false);
 const webhook = computed(() => page.props.auth?.webhook);
 
 const revealedSecret = ref(null);
@@ -106,7 +106,7 @@ const testWebhook = () => {
 </script>
 
 <template>
-    <FormSection v-if="hasApiAccess" @submitted="updateWebhookSettings">
+    <FormSection v-if="hasWebhookAccess" @submitted="updateWebhookSettings">
         <template #title>
             Webhook Settings
         </template>
