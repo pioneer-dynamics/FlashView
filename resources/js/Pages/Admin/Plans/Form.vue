@@ -307,7 +307,7 @@ const submit = (confirmed = false) => {
                                     @dragover.prevent="dropIndex = idx"
                                     @drop.stop.prevent="onDropToPlan(idx)"
                                     :class="[
-                                        'bg-gray-50 dark:bg-gray-900 rounded-lg p-3 border border-gray-100 dark:border-gray-700 space-y-2',
+                                        'bg-gray-50 dark:bg-gray-900 rounded-lg p-3 border border-gray-100 dark:border-gray-700 dark:shadow-neon-cyan-sm space-y-2',
                                         dragKey === feat.key ? 'opacity-50' : ''
                                     ]"
                                 >
@@ -384,7 +384,7 @@ const submit = (confirmed = false) => {
                                 @dragstart="onDragStart(feat.key, 'pool')"
                                 @dragend="onDragEnd"
                                 :class="[
-                                    'flex items-center justify-between bg-gray-50 dark:bg-gray-900 rounded-lg p-3 border border-gray-100 dark:border-gray-700 cursor-grab',
+                                    'flex items-center justify-between bg-gray-50 dark:bg-gray-900 rounded-lg p-3 border border-gray-100 dark:border-gray-700 dark:shadow-neon-cyan-sm cursor-grab',
                                     dragKey === feat.key ? 'opacity-50' : ''
                                 ]"
                             >

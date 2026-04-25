@@ -16,7 +16,10 @@ use Laravel\Cashier\SubscriptionItem;
 
 class AdminPlanController extends Controller
 {
-    public function __construct(private readonly StripePlanService $stripeService) {}
+    public function __construct(
+        private readonly StripePlanService $stripeService,
+        private readonly FeatureRegistry $featureRegistry,
+    ) {}
 
     public function index(): Response
     {
@@ -30,7 +33,7 @@ class AdminPlanController extends Controller
         return Inertia::render('Admin/Plans/Form', [
             'plan' => null,
             'defaultStripeMode' => app()->environment('production') ? 'create' : 'map',
-            'availableFeatures' => app(FeatureRegistry::class)->forFrontend(),
+            'availableFeatures' => $this->featureRegistry->forFrontend(),
         ]);
     }
 
@@ -69,7 +72,7 @@ class AdminPlanController extends Controller
         return Inertia::render('Admin/Plans/Form', [
             'plan' => $plan,
             'defaultStripeMode' => app()->environment('production') ? 'create' : 'map',
-            'availableFeatures' => app(FeatureRegistry::class)->forFrontend(),
+            'availableFeatures' => $this->featureRegistry->forFrontend(),
         ]);
     }
 
