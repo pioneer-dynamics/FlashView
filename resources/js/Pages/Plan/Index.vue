@@ -39,7 +39,7 @@ const isFreePlan = (plan) => plan.price_per_month == 0
             <ToggleButton class="justify-center" :options="[{ label: 'Monthly', value: 'monthly' }, { label: 'Yearly', value: 'yearly' }]" v-model="planFrequency"/>
             <div class="flex flex-col md:flex-row gap-4 justify-center p-4">
                 <div v-for="plan in plans.data" :key="plan.id"
-                    class="w-full max-w-sm p-4 bg-gray-50 border border-gray-200 rounded-lg shadow sm:p-8 dark:bg-gray-800 dark:border-gray-700">
+                    class="w-full max-w-sm p-4 bg-gray-50 border border-gray-200 rounded-lg shadow sm:p-8 dark:bg-gray-800 dark:border-gray-700 flex flex-col">
                     <div class="flex flex-wrap gap-2">
                         <h5 class="mb-4 text-xl font-mono font-medium text-gamboge-700 dark:text-gamboge-200">
                             {{ plan.name }} {{ planFrequency }}
@@ -74,7 +74,7 @@ const isFreePlan = (plan) => plan.price_per_month == 0
                     <ul role="list" class="space-y-5 my-7">
                         <Feature v-for="feature in plan.features" :key="feature" :feature="feature" />
                     </ul>
-                    <span v-if="isFreePlan(plan)">
+                    <span v-if="isFreePlan(plan)" class="mt-auto">
                         <Link 
                             v-if="!$page.props.auth.user" 
                             :href="route('register')"
@@ -83,7 +83,7 @@ const isFreePlan = (plan) => plan.price_per_month == 0
                             Sign Up
                         </Link>
                     </span>
-                    <span v-else> <!-- Not a free plan -->
+                    <span v-else class="mt-auto"> <!-- Not a free plan -->
                         <span v-if="userIsSubscribedTo(plan)">
                             <span class="flex flex-wrap gap-2 justify-center">
                                 <Link

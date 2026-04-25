@@ -25,8 +25,13 @@ class PlanResource extends JsonResource
             ->map(function ($feature, $key) use ($registry) {
                 $class = $registry->get($key);
 
+                $config = $feature['config'] ?? [];
+                $label = $feature['type'] === 'limit'
+                    ? __($class->label(), $config)
+                    : $class->description();
+
                 return [
-                    'label' => __($class->label(), $feature['config'] ?? []),
+                    'label' => $label,
                     'type' => $feature['type'],
                     'order' => $feature['order'],
                 ];
