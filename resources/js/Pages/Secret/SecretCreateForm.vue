@@ -66,11 +66,16 @@
 
     const maxFileUploadSizeMb = computed(() => {
         switch (userType.value) {
-            case 'subscribed': return usePage().props.auth.user.plan.settings.file_upload?.max_file_size_mb ?? 10;
+            case 'subscribed': {
+                const fileUploadSettings = usePage().props.auth.user.plan.settings.file_upload;
+                return fileUploadSettings ? (fileUploadSettings.max_file_size_mb ?? 10) : 0;
+            }
             case 'user': return usePage().props.config.secrets.file_upload?.max_file_size_mb?.user ?? 10;
             case 'guest': return 0;
         }
     });
+
+    const canUploadFile = computed(() => maxFileUploadSizeMb.value > 0);
 
     const allowedMimeTypes = computed(() => {
         return usePage().props.config.secrets.file_upload?.allowed_mime_types ?? [];
@@ -295,7 +300,7 @@
 
             <div class="col-span-12" v-if="stage == 'generating' && !$page.props.jetstream.flash?.secret?.url">
                 <FileUploadZone
-                    v-if="$page.props.auth.user"
+                    v-if="canUploadFile"
                     v-model="selectedFile"
                     v-model:fileError="fileError"
                     :max-file-upload-size-mb="maxFileUploadSizeMb"
@@ -306,10 +311,21 @@
                 <div v-else class="-mt-4">
                     <p class="text-sm text-gray-600 dark:text-gray-300">
                         Want to attach a file?
-                        <Link class="underline text-gamboge-300" :href="route('login')">Log in</Link>
-                        or
-                        <Link class="underline text-gamboge-300" :href="route('register')">create a free account</Link>
-                        to share encrypted files up to 10 MB.
+                        <template v-if="!$page.props.auth.user">
+                            <Link class="underline text-gamboge-300" :href="route('login')">Log in</Link>
+                            or
+                            <Link class="underline text-gamboge-300" :href="route('register')">create a free account</Link>
+                            to share encrypted files up to 10 MB.
+                        </template>
+                        <template v-else-if="!$page.props.auth.user.subscription">
+                            <a class="underline text-gamboge-300" :href="route('plans.index')">Subscribe to a paid plan</a>
+                            to share encrypted files.
+                        </template>
+                        <template v-else>
+                            Your current plan does not include file uploads.
+                            <a class="underline text-gamboge-300" :href="route('plans.index')">Upgrade your plan</a>
+                            to unlock this feature.
+                        </template>
                     </p>
                 </div>
             </div>
