@@ -2,27 +2,36 @@
 
 namespace App\Http\Requests;
 
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdatePlanRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
     public function authorize(): bool
     {
-        return false;
+        return $this->user()->isAdmin();
     }
 
     /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+     * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {
+        $planId = $this->route('plan')?->id;
+
         return [
-            //
+            'name' => ['required', 'string', 'max:255', "unique:plans,name,{$planId}"],
+            'price_per_month' => ['required', 'numeric', 'min:0'],
+            'price_per_year' => ['required', 'numeric', 'min:0'],
+            'create_stripe_product' => ['required', 'boolean'],
+            'stripe_product_id' => ['nullable', 'string', 'max:255'],
+            'stripe_monthly_price_id' => ['nullable', 'string', 'max:255'],
+            'stripe_yearly_price_id' => ['nullable', 'string', 'max:255'],
+            'features' => ['required', 'array'],
+            'features.*.label' => ['required', 'string'],
+            'features.*.order' => ['required', 'numeric'],
+            'features.*.type' => ['required', 'in:feature,limit,missing'],
+            'features.*.config' => ['present', 'array'],
         ];
     }
 }
