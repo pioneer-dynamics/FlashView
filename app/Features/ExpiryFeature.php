@@ -31,8 +31,19 @@ class ExpiryFeature extends AbstractFeature
 
     public function configSchema(): array
     {
+        $options = collect(config('secrets.expiry_options'))
+            ->map(fn ($opt) => ['value' => $opt['value'], 'label' => $opt['label']])
+            ->values()
+            ->all();
+
         return [
-            ['key' => 'expiry_minutes', 'type' => 'number', 'label' => 'Max Expiry (minutes)', 'default' => 43200, 'min' => 1],
+            [
+                'key' => 'expiry_minutes',
+                'type' => 'select',
+                'label' => 'Max Expiry',
+                'options' => $options,
+                'default' => 43200,
+            ],
         ];
     }
 
