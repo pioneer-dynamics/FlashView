@@ -12,6 +12,7 @@ use App\Features\SupportFeature;
 use App\Features\ThrottlingFeature;
 use App\Features\WebhookNotificationFeature;
 use App\Models\PersonalAccessToken;
+use App\Models\User;
 use App\Observers\SubscriptionObserver;
 use App\Services\FeatureRegistry;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -68,26 +69,37 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('secrets', function (Request $request) {
             if ($user = $request->user()) {
                 if ($user->subscribed()) {
-                    return Limit::none();
-                } else {
-                    return Limit::perMinute(config('secrets.rate_limit.user.per_minute'))
-                        ->by($request->ip());
+                    return $this->planThrottleLimit($user) ?? Limit::none();
                 }
-            } else {
-                return Limit::perMinute(config('secrets.rate_limit.guest.per_minute'))
-                    ->perDay(config('secrets.rate_limit.guest.per_day')
-                    )->by($request->ip());
+
+                return Limit::perMinute(config('secrets.rate_limit.user.per_minute'))
+                    ->by($request->ip());
             }
+
+            return Limit::perMinute(config('secrets.rate_limit.guest.per_minute'))
+                ->perDay(config('secrets.rate_limit.guest.per_day'))
+                ->by($request->ip());
         });
 
         RateLimiter::for('api-secrets', function (Request $request) {
             if ($request->user()->subscribed()) {
-                return Limit::none();
+                return $this->planThrottleLimit($request->user()) ?? Limit::none();
             }
 
-            $perMinute = config('secrets.rate_limit.user.per_minute', 60);
-
-            return Limit::perMinute($perMinute)->by($request->user()->id);
+            return Limit::perMinute(config('secrets.rate_limit.user.per_minute', 60))
+                ->by($request->user()->id);
         });
+    }
+
+    private function planThrottleLimit(User $user): ?Limit
+    {
+        $plan = $user->resolvePlan();
+        $config = $plan?->features['throttling']['config'] ?? null;
+
+        if (! isset($config['per_minute'])) {
+            return null;
+        }
+
+        return Limit::perMinute((int) $config['per_minute'])->by($user->id);
     }
 }
