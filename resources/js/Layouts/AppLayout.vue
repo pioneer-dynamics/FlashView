@@ -89,7 +89,7 @@ const logout = () => {
                                             <Dropdown align="right" width="48">
                                                 <template #trigger>
                                                     <button type="button"
-                                                        :class="route().current('admin.*') ? 'border-gamboge-400 text-gamboge-200' : 'border-transparent text-gamboge-300 hover:text-gamboge-200 hover:border-gamboge-300'"
+                                                        :class="route().current('admin.*') ? 'border-gamboge-400 dark:border-gamboge-400 text-gamboge-200 dark:text-gamboge-200' : 'border-transparent text-gamboge-300 dark:text-gamboge-300 hover:text-gamboge-200 dark:hover:text-gamboge-200 hover:border-gamboge-300 dark:hover:border-gamboge-300'"
                                                         class="inline-flex items-center gap-1 px-1 pt-1 border-b-2 text-sm font-medium leading-5 focus:outline-none focus:text-gamboge-200 focus:border-gamboge-300 transition duration-150 ease-in-out">
                                                         Admin
                                                         <svg class="size-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"

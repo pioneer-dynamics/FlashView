@@ -104,11 +104,11 @@ const subscriptionStatusClass = (status) => {
                             </td>
                             <td class="px-6 py-4">
                                 <span v-if="user.is_suspended"
-                                    class="px-2 py-0.5 rounded text-xs font-mono bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300">
+                                    class="px-2 py-0.5 rounded text-xs font-mono bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 line-through">
                                     Suspended
                                 </span>
                                 <span v-else
-                                    class="px-2 py-0.5 rounded text-xs font-mono bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">
+                                    class="px-2 py-0.5 rounded text-xs font-mono bg-gamboge-100 text-gamboge-800 dark:bg-gamboge-900/30 dark:text-gamboge-200">
                                     Active
                                 </span>
                             </td>
