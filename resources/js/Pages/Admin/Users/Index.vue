@@ -14,7 +14,7 @@ const statusClass = (status) => {
         return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300';
     }
     if (status === 'trialing') {
-        return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300';
+        return 'bg-gamboge-100 text-gamboge-800 dark:bg-gamboge-900/30 dark:text-gamboge-200';
     }
     return null;
 };
@@ -54,7 +54,7 @@ const statusClass = (status) => {
                             <td class="px-6 py-4 font-mono text-xs">
                                 {{ user.email }}
                             </td>
-                            <td class="px-6 py-4">
+                            <td class="px-6 py-4 font-mono text-xs dark:text-gray-300">
                                 {{ user.plan_name }}
                             </td>
                             <td class="px-6 py-4">
