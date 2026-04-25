@@ -42,7 +42,7 @@ class HandleInertiaRequests extends Middleware
         Inertia::share('auth.senderIdentity', function () use ($request) {
             $user = $request->user();
 
-            if (! $user || ! $user->hasVerifiedSenderIdentity() || ! $user->resolvePlan()?->hasFeature('sender_identity')) {
+            if (! $user || ! $user->hasVerifiedSenderIdentity() || ! $user->planSupportsSenderIdentity()) {
                 return null;
             }
 
