@@ -84,8 +84,8 @@ class PlanSeederProd extends Seeder
                     ],
                     'support' => [
                         'order' => 6,
-                        'config' => [],
-                        'type' => 'feature',
+                        'config' => ['support_type' => 'standard'],
+                        'type' => 'limit',
                     ],
                 ],
             ]);
@@ -130,8 +130,8 @@ class PlanSeederProd extends Seeder
                     ],
                     'support' => [
                         'order' => 7,
-                        'config' => [],
-                        'type' => 'feature',
+                        'config' => ['support_type' => 'priority'],
+                        'type' => 'limit',
                     ],
                     'api' => [
                         'order' => 8,

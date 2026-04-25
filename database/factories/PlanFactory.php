@@ -117,7 +117,7 @@ class PlanFactory extends Factory
             'messages' => ['order' => 1, 'type' => 'limit',   'config' => ['message_length' => $messageLength]],
             'expiry' => ['order' => 2, 'type' => 'limit',   'config' => ['expiry_minutes' => $expiryMinutes]],
             'throttling' => ['order' => 3, 'type' => 'feature', 'config' => []],
-            'support' => ['order' => 4, 'type' => 'feature', 'config' => []],
+            'support' => ['order' => 4, 'type' => 'limit', 'config' => ['support_type' => 'standard']],
         ];
 
         if ($includeEmailNotification) {

@@ -8,6 +8,7 @@ import InputLabel from '@/Components/InputLabel.vue';
 import InputError from '@/Components/InputError.vue';
 import Alert from '@/Components/Alert.vue';
 import Checkbox from '@/Components/Checkbox.vue';
+import SelectInput from '@/Components/SelectInput.vue';
 import Feature from '../../Plan/Partials/Feature.vue';
 import { Link, router } from '@inertiajs/vue3';
 import { reactive, ref, computed, watch } from 'vue';
@@ -473,7 +474,14 @@ const submit = () => {
                                     >
                                         <div v-for="field in featMeta(feat.key).configSchema" :key="field.key">
                                             <InputLabel :value="field.label" class="text-xs" />
+                                            <SelectInput
+                                                v-if="field.type === 'select'"
+                                                :options="field.options"
+                                                v-model="feat.config[field.key]"
+                                                class="mt-1 block w-full text-xs"
+                                            />
                                             <TextInput
+                                                v-else
                                                 :type="field.type === 'number' ? 'number' : 'text'"
                                                 :min="field.min"
                                                 v-model="feat.config[field.key]"
