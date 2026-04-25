@@ -30,8 +30,9 @@ class ValidFileSize implements ValidationRule
 
     private function getSubscribedLimit(): int
     {
-        $plan = request()->user()?->plan?->jsonSerialize();
-        $maxMb = $plan['settings']['file_upload']['max_file_size_mb'] ?? config('secrets.file_upload.max_file_size_mb.user');
+        $plan = request()->user()?->resolvePlan();
+        $config = $plan?->features['file_upload']['config'] ?? [];
+        $maxMb = $config['max_file_size_mb'] ?? config('secrets.file_upload.max_file_size_mb.user');
 
         return (int) ($maxMb * 1024 * 1024);
     }

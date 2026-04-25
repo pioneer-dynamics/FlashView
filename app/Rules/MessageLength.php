@@ -5,6 +5,7 @@ namespace App\Rules;
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Support\Str;
+use Illuminate\Translation\PotentiallyTranslatedString;
 
 class MessageLength implements ValidationRule
 {
@@ -13,7 +14,7 @@ class MessageLength implements ValidationRule
     /**
      * Run the validation rule.
      *
-     * @param  \Closure(string, ?string=): \Illuminate\Translation\PotentiallyTranslatedString  $fail
+     * @param  Closure(string, ?string=): PotentiallyTranslatedString  $fail
      */
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {
@@ -33,15 +34,16 @@ class MessageLength implements ValidationRule
      */
     private function getAllowedMessageLength(): int
     {
-        $user = request()->user();
+        if ($this->userType !== 'subscribed') {
+            return $this->userType === 'user'
+                ? config('secrets.message_length.user')
+                : config('secrets.message_length.guest');
+        }
 
-        $plan = $user?->plan?->jsonSerialize();
+        $plan = request()->user()?->resolvePlan();
+        $config = $plan?->features['messages']['config'] ?? [];
 
-        return match ($this->userType) {
-            'subscribed' => $plan['settings']['messages']['message_length'],
-            'user' => config('secrets.message_length.user'),
-            'guest' => config('secrets.message_length.guest'),
-        };
+        return $config['message_length'] ?? config('secrets.message_length.user');
     }
 
     /**

@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Services\FeatureRegistry;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -16,26 +17,30 @@ class PlanResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        $features = collect();
+        $registry = app(FeatureRegistry::class);
 
-        if (isset($this->resource['features'])) {
-            $features = collect(array_map(function ($feature) {
+        $features = collect($this->resource['features'] ?? [])
+            ->filter(fn ($feature) => ($feature['type'] ?? 'missing') !== 'missing')
+            ->filter(fn ($feature, $key) => $registry->has($key))
+            ->map(function ($feature, $key) use ($registry) {
+                $class = $registry->get($key);
+
                 return [
-                    'label' => __($feature['label'], $feature['config']),
+                    'label' => __($class->label(), $feature['config'] ?? []),
                     'type' => $feature['type'],
                     'order' => $feature['order'],
                 ];
-            }, $this->resource['features']))->sortBy('order');
-        }
+            })
+            ->sortBy('order')
+            ->values();
 
         return array_merge(parent::toArray($request), [
             'settings' => $this->getSettings(),
             'features' => $features,
         ]);
-
     }
 
-    private function getSettings()
+    private function getSettings(): array
     {
         $settings = [];
 
@@ -44,7 +49,10 @@ class PlanResource extends JsonResource
         }
 
         foreach ($this->resource['features'] as $type => $feature) {
-            $settings[$type] = $feature['config'];
+            if (($feature['type'] ?? 'missing') === 'missing') {
+                continue;
+            }
+            $settings[$type] = $feature['config'] ?? [];
         }
 
         return $settings;

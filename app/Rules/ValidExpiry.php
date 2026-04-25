@@ -4,6 +4,7 @@ namespace App\Rules;
 
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
+use Illuminate\Translation\PotentiallyTranslatedString;
 
 class ValidExpiry implements ValidationRule
 {
@@ -12,7 +13,7 @@ class ValidExpiry implements ValidationRule
     /**
      * Run the validation rule.
      *
-     * @param  \Closure(string, ?string=): \Illuminate\Translation\PotentiallyTranslatedString  $fail
+     * @param  Closure(string, ?string=): PotentiallyTranslatedString  $fail
      */
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {
@@ -34,14 +35,15 @@ class ValidExpiry implements ValidationRule
      */
     private function getMaxAllowedExpiry(): int
     {
-        $user = request()->user();
+        if ($this->userType !== 'subscribed') {
+            return $this->userType === 'user'
+                ? config('secrets.expiry_limits.user')
+                : config('secrets.expiry_limits.guest');
+        }
 
-        $plan = $user?->plan?->jsonSerialize();
+        $plan = request()->user()?->resolvePlan();
+        $config = $plan?->features['expiry']['config'] ?? [];
 
-        return match ($this->userType) {
-            'subscribed' => $plan['settings']['expiry']['expiry_minutes'],
-            'user' => config('secrets.expiry_limits.user'),
-            'guest' => config('secrets.expiry_limits.guest'),
-        };
+        return $config['expiry_minutes'] ?? config('secrets.expiry_limits.user');
     }
 }
