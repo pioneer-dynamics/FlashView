@@ -65,6 +65,8 @@ const proceedWithSwitch = () => {
     }));
 };
 
+const formatDate = (d) => d ? DateTime.fromISO(d).toLocaleString(DateTime.DATE_MED) : null;
+
 </script>
 <template>
     <AppLayout title="Pricing">
@@ -73,7 +75,10 @@ const proceedWithSwitch = () => {
             <div class="flex flex-col md:flex-row gap-4 justify-center p-4">
                 <div v-for="plan in plans.data" :key="plan.id"
                     class="w-full max-w-sm p-4 bg-gray-50 border border-gray-200 rounded-lg shadow sm:p-8 dark:bg-gray-800 flex flex-col transition-colors duration-200"
-                    :class="userIsSubscribedTo(plan) ? 'dark:border-gamboge-300/60' : 'dark:border-gamboge-300/20'">
+                    :class="[
+                        userIsSubscribedTo(plan) ? 'dark:border-gamboge-300/60' : 'dark:border-gamboge-300/20',
+                        !plan.is_available ? 'opacity-60' : '',
+                    ]">
                     <div class="flex flex-wrap gap-2">
                         <h5 class="mb-4 text-xl font-mono font-medium text-gamboge-700 dark:text-gamboge-200">
                             {{ plan.name }} {{ planFrequency }}
@@ -91,6 +96,19 @@ const proceedWithSwitch = () => {
                             Expires on: {{ DateTime.fromISO($page.props?.auth?.user?.subscription?.ends_at).toLocaleString(DateTime.DATEMED) }}
                         </div>
                     </div>
+                    <!-- Availability labels -->
+                    <span v-if="!plan.is_available && plan.start_date"
+                        class="mb-2 text-xs font-mono text-gamboge-300 uppercase tracking-widest border border-gamboge-300/40 px-2 py-0.5 rounded self-start">
+                        Coming Soon — available from {{ formatDate(plan.start_date) }}
+                    </span>
+                    <span v-else-if="!plan.is_available"
+                        class="mb-2 text-xs font-mono text-red-400 uppercase tracking-widest border border-red-400/40 px-2 py-0.5 rounded self-start">
+                        No Longer Available
+                    </span>
+                    <span v-else-if="plan.is_available && plan.end_date"
+                        class="mb-2 text-xs font-mono text-gray-400 dark:text-gray-500 uppercase tracking-widest self-start">
+                        Available until {{ formatDate(plan.end_date) }}
+                    </span>
                     <div class="flex justify-between">
                         <div class="flex items-baseline text-gray-900 dark:text-white">
                             <span class="text-3xl font-semibold">A$</span>
@@ -121,52 +139,59 @@ const proceedWithSwitch = () => {
                         </PrimaryButton>
                     </span>
                     <span v-else class="mt-auto"> <!-- Not a free plan -->
-                        <span v-if="userIsSubscribedTo(plan)">
-                            <span class="flex flex-col gap-2">
-                                <Link
-                                    v-if="$page.props.auth.user.subscription.ends_at"
-                                    method="post"
-                                    :href="route('plans.resume')"
-                                    class="inline-flex w-full items-center justify-center px-4 py-2 bg-green-800 dark:bg-transparent border border-transparent dark:border-green-400/60 rounded-md font-semibold text-xs text-white dark:text-green-400 uppercase tracking-widest hover:bg-green-700 dark:hover:bg-green-400/10 dark:hover:border-green-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 disabled:opacity-50 transition ease-in-out duration-150"
-                                >
-                                    Resume Plan
-                                </Link>
-                                <button
-                                    v-if="!$page.props.auth.user.subscription.ends_at"
-                                    type="button"
-                                    @click="confirmCancellation"
-                                    class="inline-flex w-full items-center justify-center px-4 py-2 bg-transparent border border-red-400/60 rounded-md font-semibold text-xs text-red-400 uppercase tracking-widest hover:bg-red-400/10 hover:border-red-400 dark:hover:shadow-[0_0_8px_rgba(248,113,113,0.3)] focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-offset-2 dark:focus:ring-offset-gray-900 disabled:opacity-50 transition ease-in-out duration-150"
-                                >
-                                    Cancel Plan
-                                </button>
+                        <template v-if="plan.is_available">
+                            <span v-if="userIsSubscribedTo(plan)">
+                                <span class="flex flex-col gap-2">
+                                    <Link
+                                        v-if="$page.props.auth.user.subscription.ends_at"
+                                        method="post"
+                                        :href="route('plans.resume')"
+                                        class="inline-flex w-full items-center justify-center px-4 py-2 bg-green-800 dark:bg-transparent border border-transparent dark:border-green-400/60 rounded-md font-semibold text-xs text-white dark:text-green-400 uppercase tracking-widest hover:bg-green-700 dark:hover:bg-green-400/10 dark:hover:border-green-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 disabled:opacity-50 transition ease-in-out duration-150"
+                                    >
+                                        Resume Plan
+                                    </Link>
+                                    <button
+                                        v-if="!$page.props.auth.user.subscription.ends_at"
+                                        type="button"
+                                        @click="confirmCancellation"
+                                        class="inline-flex w-full items-center justify-center px-4 py-2 bg-transparent border border-red-400/60 rounded-md font-semibold text-xs text-red-400 uppercase tracking-widest hover:bg-red-400/10 hover:border-red-400 dark:hover:shadow-[0_0_8px_rgba(248,113,113,0.3)] focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-offset-2 dark:focus:ring-offset-gray-900 disabled:opacity-50 transition ease-in-out duration-150"
+                                    >
+                                        Cancel Plan
+                                    </button>
+                                </span>
                             </span>
-                        </span>
-                        <span v-else>
-                            <PrimaryButton
-                                v-if="!$page.props.auth.user"
-                                type="button"
-                                disabled
-                                class="opacity-25 w-full justify-center cursor-not-allowed"
-                            >
-                                Login to Subscribe
-                            </PrimaryButton>
-                            <template v-else>
+                            <span v-else>
                                 <PrimaryButton
-                                    v-if="userHasActiveSubscription"
+                                    v-if="!$page.props.auth.user"
                                     type="button"
-                                    class="w-full justify-center"
-                                    @click="confirmPlanSwitch(plan)"
+                                    disabled
+                                    class="opacity-25 w-full justify-center cursor-not-allowed"
                                 >
-                                    Choose This Plan
+                                    Login to Subscribe
                                 </PrimaryButton>
-                                <a
-                                    v-else
-                                    :href="route('plans.subscribe', { plan: plan.id, period: planFrequency })"
-                                    class="w-full justify-center inline-flex items-center px-4 py-2 bg-gamboge-800 dark:bg-transparent border border-transparent dark:border-gamboge-300 rounded-md font-semibold text-xs text-white dark:text-gamboge-300 uppercase tracking-widest hover:bg-gamboge-700 dark:hover:bg-gamboge-300 dark:hover:text-gray-900 dark:hover:shadow-neon-cyan-sm focus:bg-gamboge-700 dark:focus:bg-gamboge-300 dark:focus:text-gray-900 active:bg-gamboge-900 dark:active:bg-gamboge-300 dark:active:text-gray-900 focus:outline-none focus:ring-2 focus:ring-gamboge-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 disabled:opacity-50 transition ease-in-out duration-150"
-                                >
-                                    Choose This Plan
-                                </a>
-                            </template>
+                                <template v-else>
+                                    <PrimaryButton
+                                        v-if="userHasActiveSubscription"
+                                        type="button"
+                                        class="w-full justify-center"
+                                        @click="confirmPlanSwitch(plan)"
+                                    >
+                                        Choose This Plan
+                                    </PrimaryButton>
+                                    <a
+                                        v-else
+                                        :href="route('plans.subscribe', { plan: plan.id, period: planFrequency })"
+                                        class="w-full justify-center inline-flex items-center px-4 py-2 bg-gamboge-800 dark:bg-transparent border border-transparent dark:border-gamboge-300 rounded-md font-semibold text-xs text-white dark:text-gamboge-300 uppercase tracking-widest hover:bg-gamboge-700 dark:hover:bg-gamboge-300 dark:hover:text-gray-900 dark:hover:shadow-neon-cyan-sm focus:bg-gamboge-700 dark:focus:bg-gamboge-300 dark:focus:text-gray-900 active:bg-gamboge-900 dark:active:bg-gamboge-300 dark:active:text-gray-900 focus:outline-none focus:ring-2 focus:ring-gamboge-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 disabled:opacity-50 transition ease-in-out duration-150"
+                                    >
+                                        Choose This Plan
+                                    </a>
+                                </template>
+                            </span>
+                        </template>
+                        <span v-else>
+                            <PrimaryButton disabled class="opacity-50 w-full justify-center cursor-not-allowed">
+                                Not Available
+                            </PrimaryButton>
                         </span>
                     </span>
                 </div>
