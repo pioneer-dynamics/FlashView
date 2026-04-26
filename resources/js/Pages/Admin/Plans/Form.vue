@@ -162,8 +162,8 @@ const form = reactive({
     stripe_product_id: props.plan?.stripe_product_id ?? '',
     stripe_monthly_price_id: props.plan?.stripe_monthly_price_id ?? '',
     stripe_yearly_price_id: props.plan?.stripe_yearly_price_id ?? '',
-    start_date: props.plan?.start_date ?? '',
-    end_date: props.plan?.end_date ?? '',
+    start_date: props.plan?.start_date ? props.plan.start_date.substring(0, 10) : '',
+    end_date: props.plan?.end_date ? props.plan.end_date.substring(0, 10) : '',
 });
 
 // Auto-suggest yearly = monthly × 10 in create mode
