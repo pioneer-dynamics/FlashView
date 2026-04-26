@@ -30,6 +30,8 @@ class StorePlanRequest extends FormRequest
             'features.*.order' => ['required', 'numeric'],
             'features.*.type' => ['required', 'in:feature,limit'],
             'features.*.config' => ['present', 'array'],
+            'start_date' => ['nullable', 'date'],
+            'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
         ];
     }
 }

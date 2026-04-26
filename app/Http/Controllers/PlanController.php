@@ -37,6 +37,17 @@ class PlanController extends Controller
 
     public function subscribe(Request $request, Plan $plan, $period)
     {
+        if (! $plan->isCurrentlyAvailable()) {
+            $reason = $plan->start_date && now()->startOfDay()->lt($plan->start_date)
+                ? 'This plan is not yet available.'
+                : 'This plan is no longer available for subscription.';
+
+            return redirect()->route('plans.index')->with('flash', [
+                'banner' => $reason,
+                'bannerStyle' => 'danger',
+            ]);
+        }
+
         $user = $request->user();
 
         $price_id = match ($period) {

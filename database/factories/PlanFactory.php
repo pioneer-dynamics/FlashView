@@ -101,6 +101,33 @@ class PlanFactory extends Factory
     }
 
     /**
+     * A plan that starts in the future (not yet available).
+     */
+    public function futureWindow(): static
+    {
+        return $this->state(['start_date' => now()->addDay()->toDateString(), 'end_date' => null]);
+    }
+
+    /**
+     * A plan whose window has already expired.
+     */
+    public function expiredWindow(): static
+    {
+        return $this->state(['start_date' => null, 'end_date' => now()->subDay()->toDateString()]);
+    }
+
+    /**
+     * A plan with an active window (started yesterday, ends tomorrow).
+     */
+    public function activeWindow(): static
+    {
+        return $this->state([
+            'start_date' => now()->subDay()->toDateString(),
+            'end_date' => now()->addDay()->toDateString(),
+        ]);
+    }
+
+    /**
      * Build the sparse features array. Only included features are present — no missing entries, no labels.
      *
      * @return array<string, array<string, mixed>>

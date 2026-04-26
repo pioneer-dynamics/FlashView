@@ -162,6 +162,8 @@ const form = reactive({
     stripe_product_id: props.plan?.stripe_product_id ?? '',
     stripe_monthly_price_id: props.plan?.stripe_monthly_price_id ?? '',
     stripe_yearly_price_id: props.plan?.stripe_yearly_price_id ?? '',
+    start_date: props.plan?.start_date ? props.plan.start_date.substring(0, 10) : '',
+    end_date: props.plan?.end_date ? props.plan.end_date.substring(0, 10) : '',
 });
 
 // Auto-suggest yearly = monthly × 10 in create mode
@@ -217,6 +219,8 @@ const buildPayload = () => {
             stripe_monthly_price_id: props.plan?.stripe_monthly_price_id ?? '',
             stripe_yearly_price_id: props.plan?.stripe_yearly_price_id ?? '',
             features,
+            start_date: form.start_date || null,
+            end_date: form.end_date || null,
         };
     }
 
@@ -230,6 +234,8 @@ const buildPayload = () => {
         stripe_monthly_price_id: form.stripe_monthly_price_id,
         stripe_yearly_price_id: form.stripe_yearly_price_id,
         features,
+        start_date: form.start_date || null,
+        end_date: form.end_date || null,
     };
 };
 
@@ -285,6 +291,25 @@ const submit = () => {
                     <Alert v-if="form.is_free_plan && existingFreePlanName" type="warning">
                         <strong>{{ existingFreePlanName }}</strong> is currently the free plan. Saving will replace it.
                     </Alert>
+
+                    <!-- Availability Window -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                        <div>
+                            <InputLabel for="start_date" value="Available From (optional)" />
+                            <TextInput id="start_date" type="date" v-model="form.start_date" class="mt-1 block w-full" />
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Leave blank for no start restriction.</p>
+                            <InputError :message="errors.start_date" class="mt-2" />
+                        </div>
+                        <div>
+                            <InputLabel for="end_date" value="Available Until (optional)" />
+                            <TextInput id="end_date" type="date" v-model="form.end_date" class="mt-1 block w-full" />
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Leave blank for no expiry.</p>
+                            <InputError :message="errors.end_date" class="mt-2" />
+                        </div>
+                    </div>
+                    <p class="text-xs text-gray-400 dark:text-gray-500">
+                        Dates are evaluated in UTC (server time). Boundary days include the full calendar day in UTC.
+                    </p>
                 </section>
 
                 <!-- Pricing -->

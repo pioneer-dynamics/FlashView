@@ -60,6 +60,75 @@ class PlanPageTest extends TestCase
             ->assertRedirectToRoute('login');
     }
 
+    public function test_subscribe_to_unavailable_plan_does_not_reach_stripe(): void
+    {
+        $user = User::factory()->withPersonalTeam()->create();
+        $plan = Plan::factory()->expiredWindow()->create();
+
+        $response = $this->actingAs($user)
+            ->get(route('plans.subscribe', ['plan' => $plan->id, 'period' => 'monthly']));
+
+        // Guard fires before Stripe is touched — no stripe-related exception, just a redirect
+        $response->assertRedirectToRoute('plans.index');
+    }
+
+    public function test_subscribe_to_not_yet_started_plan_redirects_with_banner_error(): void
+    {
+        $user = User::factory()->withPersonalTeam()->create();
+        $plan = Plan::factory()->futureWindow()->create();
+
+        $response = $this->actingAs($user)
+            ->get(route('plans.subscribe', ['plan' => $plan->id, 'period' => 'monthly']));
+
+        $response->assertRedirectToRoute('plans.index');
+        $this->assertEquals('This plan is not yet available.', session('flash.banner'));
+        $this->assertEquals('danger', session('flash.bannerStyle'));
+    }
+
+    public function test_subscribe_to_expired_plan_redirects_with_banner_error(): void
+    {
+        $user = User::factory()->withPersonalTeam()->create();
+        $plan = Plan::factory()->expiredWindow()->create();
+
+        $response = $this->actingAs($user)
+            ->get(route('plans.subscribe', ['plan' => $plan->id, 'period' => 'monthly']));
+
+        $response->assertRedirectToRoute('plans.index');
+        $this->assertEquals('This plan is no longer available for subscription.', session('flash.banner'));
+        $this->assertEquals('danger', session('flash.bannerStyle'));
+    }
+
+    public function test_plan_swap_to_unavailable_plan_is_blocked(): void
+    {
+        $user = User::factory()->withPersonalTeam()->create();
+        $existingPlan = Plan::factory()->create();
+        $expiredPlan = Plan::factory()->expiredWindow()->create();
+
+        $user->subscriptions()->create([
+            'type' => 'default',
+            'stripe_id' => 'sub_test_swap',
+            'stripe_status' => 'active',
+            'stripe_price' => $existingPlan->stripe_monthly_price_id,
+            'quantity' => 1,
+        ]);
+
+        $response = $this->actingAs($user)
+            ->get(route('plans.subscribe', ['plan' => $expiredPlan->id, 'period' => 'monthly']));
+
+        $response->assertRedirectToRoute('plans.index');
+        $this->assertEquals('This plan is no longer available for subscription.', session('flash.banner'));
+    }
+
+    public function test_free_plan_with_date_restrictions_does_not_affect_unsubscribed_users(): void
+    {
+        $freePlan = Plan::factory()->free()->expiredWindow()->create();
+        $user = User::factory()->withPersonalTeam()->create();
+
+        $resolvedPlan = $user->resolvePlan();
+
+        $this->assertEquals($freePlan->id, $resolvedPlan->id);
+    }
+
     public function test_subscribed_user_can_cancel_and_is_redirected_to_plans(): void
     {
         $user = User::factory()->withPersonalTeam()->create();

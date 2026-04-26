@@ -28,6 +28,17 @@ const deletePlan = () => {
 };
 
 const featureCount = (plan) => plan.features ? Object.keys(plan.features).length : 0;
+
+const formatDate = (d) => d ? d.substring(0, 10) : null;
+
+const availabilityLabel = (plan) => {
+    const start = formatDate(plan.start_date);
+    const end = formatDate(plan.end_date);
+    if (!start && !end) { return 'Always available'; }
+    if (start && end) { return `${start} – ${end}`; }
+    if (start) { return `From ${start}`; }
+    return `Until ${end}`;
+};
 </script>
 
 <template>
@@ -51,12 +62,13 @@ const featureCount = (plan) => plan.features ? Object.keys(plan.features).length
                             <th scope="col" class="px-6 py-3">Yearly</th>
                             <th scope="col" class="px-6 py-3">Stripe Product</th>
                             <th scope="col" class="px-6 py-3 text-center">Features</th>
+                            <th scope="col" class="px-6 py-3">Availability</th>
                             <th scope="col" class="px-6 py-3 text-right">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr v-if="plans.length === 0">
-                            <td colspan="6" class="px-6 py-8 text-center text-gray-400 dark:text-gray-500">
+                            <td colspan="7" class="px-6 py-8 text-center text-gray-400 dark:text-gray-500">
                                 No plans yet.
                                 <Link :href="route('admin.plans.create')" class="text-gamboge-300 hover:underline ml-1">Create one.</Link>
                             </td>
@@ -81,6 +93,11 @@ const featureCount = (plan) => plan.features ? Object.keys(plan.features).length
                             <td class="px-6 py-4 text-center">
                                 <span class="font-mono text-xs bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded">
                                     {{ featureCount(plan) }}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4">
+                                <span class="font-mono text-xs text-gray-500 dark:text-gray-400">
+                                    {{ availabilityLabel(plan) }}
                                 </span>
                             </td>
                             <td class="px-6 py-4 text-right">
