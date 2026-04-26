@@ -60,7 +60,7 @@ class PlanController extends Controller
                 ->newSubscription('default', $price_id)
                 ->allowPromotionCodes()
                 ->checkout([
-                    'success_url' => route('dashboard'),
+                    'success_url' => route('payment.confirming').'?session_id={CHECKOUT_SESSION_ID}',
                     'cancel_url' => route('dashboard'),
                 ]);
         } else {
