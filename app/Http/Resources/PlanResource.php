@@ -42,6 +42,9 @@ class PlanResource extends JsonResource
         return array_merge(parent::toArray($request), [
             'settings' => $this->getSettings(),
             'features' => $features,
+            'is_available' => $this->resource?->isCurrentlyAvailable() ?? true,
+            'start_date' => $this->resource ? $this->start_date?->toDateString() : null,
+            'end_date' => $this->resource ? $this->end_date?->toDateString() : null,
         ]);
     }
 
