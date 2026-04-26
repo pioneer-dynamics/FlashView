@@ -307,7 +307,7 @@ const submit = () => {
                             <InputError :message="errors.end_date" class="mt-2" />
                         </div>
                     </div>
-                    <p class="text-xs text-gray-400 dark:text-gray-500 col-span-2">
+                    <p class="text-xs text-gray-400 dark:text-gray-500">
                         Dates are evaluated in UTC (server time). Boundary days include the full calendar day in UTC.
                     </p>
                 </section>
