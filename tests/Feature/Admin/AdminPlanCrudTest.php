@@ -226,4 +226,53 @@ class AdminPlanCrudTest extends TestCase
 
         $response->assertStatus(403);
     }
+
+    public function test_admin_can_save_plan_with_start_and_end_date(): void
+    {
+        $admin = $this->adminUser();
+
+        $response = $this->actingAs($admin)->postJson(route('admin.plans.store'), $this->planPayload([
+            'name' => 'Limited Plan',
+            'start_date' => '2026-06-01',
+            'end_date' => '2026-12-31',
+        ]));
+
+        $response->assertRedirect(route('admin.plans.index'));
+
+        $plan = Plan::where('name', 'Limited Plan')->firstOrFail();
+        $this->assertEquals('2026-06-01', $plan->start_date->toDateString());
+        $this->assertEquals('2026-12-31', $plan->end_date->toDateString());
+    }
+
+    public function test_admin_can_clear_dates_on_plan(): void
+    {
+        $admin = $this->adminUser();
+        $plan = Plan::factory()->activeWindow()->create();
+
+        $response = $this->actingAs($admin)->putJson(route('admin.plans.update', $plan), $this->planPayload([
+            'name' => $plan->name,
+            'price_per_month' => $plan->price_per_month,
+            'price_per_year' => $plan->price_per_year,
+            'start_date' => null,
+            'end_date' => null,
+        ]));
+
+        $response->assertRedirect(route('admin.plans.index'));
+        $plan->refresh();
+        $this->assertNull($plan->start_date);
+        $this->assertNull($plan->end_date);
+    }
+
+    public function test_end_date_before_start_date_returns_validation_error(): void
+    {
+        $admin = $this->adminUser();
+
+        $response = $this->actingAs($admin)->postJson(route('admin.plans.store'), $this->planPayload([
+            'start_date' => '2026-12-31',
+            'end_date' => '2026-06-01',
+        ]));
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['end_date']);
+    }
 }
