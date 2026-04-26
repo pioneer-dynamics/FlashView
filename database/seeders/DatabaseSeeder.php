@@ -13,10 +13,6 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        $plan_seeder = app()->environment('production') ? PlanSeederProd::class : PlanSeederLocal::class;
-        
-        $this->call([
-            $plan_seeder
-        ]);
+        // We don't need to seed anything anymore
     }
 }
