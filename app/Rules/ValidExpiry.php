@@ -2,8 +2,10 @@
 
 namespace App\Rules;
 
+use App\Services\FeatureRegistry;
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
+use Illuminate\Translation\PotentiallyTranslatedString;
 
 class ValidExpiry implements ValidationRule
 {
@@ -12,7 +14,7 @@ class ValidExpiry implements ValidationRule
     /**
      * Run the validation rule.
      *
-     * @param  \Closure(string, ?string=): \Illuminate\Translation\PotentiallyTranslatedString  $fail
+     * @param  Closure(string, ?string=): PotentiallyTranslatedString  $fail
      */
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {
@@ -21,27 +23,23 @@ class ValidExpiry implements ValidationRule
         }
     }
 
-    /**
-     * Get the allowed expiry options for the user
-     */
     private function getAllowedExpiryOptions(): array
     {
-        return array_filter(config('secrets.expiry_options'), fn ($item) => $item['value'] <= $this->getMaxAllowedExpiry());
-    }
+        if ($this->userType === 'guest') {
+            return array_filter(config('secrets.expiry_options'), fn ($item) => $item['value'] <= config('secrets.expiry_limits.guest'));
+        }
 
-    /**
-     * Get the allowed expiry for the user
-     */
-    private function getMaxAllowedExpiry(): int
-    {
-        $user = request()->user();
+        $plan = request()->user()?->resolvePlan();
 
-        $plan = $user?->plan?->jsonSerialize();
+        if (! $plan) {
+            return array_filter(config('secrets.expiry_options'), fn ($item) => $item['value'] <= config('secrets.expiry_limits.user'));
+        }
 
-        return match ($this->userType) {
-            'subscribed' => $plan['settings']['expiry']['expiry_minutes'],
-            'user' => config('secrets.expiry_limits.user'),
-            'guest' => config('secrets.expiry_limits.guest'),
-        };
+        $config = $plan->features['expiry']['config'] ?? [];
+
+        return array_filter(
+            config('secrets.expiry_options'),
+            fn ($item) => app(FeatureRegistry::class)->get('expiry')->withinLimit($item['value'], $config)
+        );
     }
 }

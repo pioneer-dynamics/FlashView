@@ -11,7 +11,7 @@ const page = usePage();
 const user = computed(() => page.props.auth.user);
 
 const planSupportsNotifications = computed(() =>
-    user.value.plan?.settings?.email_notification?.email ?? false
+    page.props.auth.planSupportsEmailNotifications ?? false
 );
 
 const form = useForm({

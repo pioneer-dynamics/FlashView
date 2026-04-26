@@ -45,6 +45,7 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
         'webhook_url',
         'webhook_secret',
         'store_masked_recipient_email',
+        'suspended_at',
     ];
 
     /**
@@ -70,6 +71,8 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
         'subscription',
         'plan',
         'frequency',
+        'is_admin',
+        'is_suspended',
     ];
 
     protected $with = [
@@ -83,20 +86,21 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
     }
 
     /**
-     * Resolve the user's current subscription Plan model.
+     * Resolve the user's current Plan model.
+     * Subscribed users get their paid plan; everyone else gets the free plan.
      */
     public function resolvePlan(): ?Plan
     {
         $stripePrice = $this->subscription?->stripe_price;
 
-        if (! $stripePrice) {
-            return null;
+        if ($stripePrice) {
+            return Plan::where(fn ($q) => $q
+                ->where('stripe_monthly_price_id', $stripePrice)
+                ->orWhere('stripe_yearly_price_id', $stripePrice)
+            )->first();
         }
 
-        return Plan::where(fn ($q) => $q
-            ->where('stripe_monthly_price_id', $stripePrice)
-            ->orWhere('stripe_yearly_price_id', $stripePrice)
-        )->first();
+        return Plan::where('is_free_plan', true)->first();
     }
 
     /**
@@ -110,7 +114,7 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
 
         $plan = $this->resolvePlan();
 
-        return $plan && ($plan->features['api']['type'] ?? 'missing') === 'feature';
+        return $plan && isset($plan->features['api']) && $plan->features['api']['type'] === 'feature';
     }
 
     /**
@@ -124,7 +128,7 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
 
         $plan = $this->resolvePlan();
 
-        return $plan && ($plan->features['email_notification']['config']['email'] ?? false);
+        return $plan && isset($plan->features['email_notification']) && $plan->features['email_notification']['type'] === 'feature';
     }
 
     /**
@@ -138,7 +142,7 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
 
         $plan = $this->resolvePlan();
 
-        return $plan && ($plan->features['webhook_notification']['config']['webhook'] ?? false);
+        return $plan && isset($plan->features['webhook_notification']) && $plan->features['webhook_notification']['type'] === 'feature';
     }
 
     public function getPlanAttribute(): PlanResource
@@ -167,11 +171,32 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
     {
         return [
             'email_verified_at' => 'datetime',
+            'suspended_at' => 'datetime',
             'password' => 'hashed',
             'notify_secret_retrieved' => 'boolean',
             'webhook_secret' => 'encrypted',
             'store_masked_recipient_email' => 'boolean',
         ];
+    }
+
+    public function isAdmin(): bool
+    {
+        return in_array(strtolower($this->email), array_map('strtolower', config('admin.emails', [])));
+    }
+
+    public function getIsAdminAttribute(): bool
+    {
+        return $this->isAdmin();
+    }
+
+    public function isSuspended(): bool
+    {
+        return $this->suspended_at !== null;
+    }
+
+    public function getIsSuspendedAttribute(): bool
+    {
+        return $this->isSuspended();
     }
 
     public function hasWebhookConfigured(): bool
@@ -197,7 +222,7 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
 
         $plan = $this->resolvePlan();
 
-        return $plan && ($plan->features['sender_identity']['type'] ?? 'missing') === 'feature';
+        return $plan && isset($plan->features['sender_identity']) && $plan->features['sender_identity']['type'] === 'feature';
     }
 
     public function secrets(): HasMany

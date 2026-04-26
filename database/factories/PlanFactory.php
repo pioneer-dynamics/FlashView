@@ -24,12 +24,13 @@ class PlanFactory extends Factory
             'stripe_yearly_price_id' => 'price_'.fake()->unique()->bothify('??????????????'),
             'price_per_month' => 25,
             'price_per_year' => 250,
+            'is_free_plan' => false,
             'features' => $this->defaultFeatures(),
         ];
     }
 
     /**
-     * A free plan without API, notifications, or support.
+     * A free plan without API, notifications, or sender identity.
      */
     public function free(): static
     {
@@ -40,24 +41,25 @@ class PlanFactory extends Factory
             'stripe_product_id' => '',
             'stripe_monthly_price_id' => '',
             'stripe_yearly_price_id' => '',
+            'is_free_plan' => true,
             'features' => $this->defaultFeatures(
-                apiType: 'missing',
-                notificationEmail: false,
-                notificationWebhook: false,
+                messageLength: 1000,
+                expiryMinutes: 20160,
+                includeApi: false,
+                includeEmailNotification: false,
+                includeWebhookNotification: false,
             ),
         ]);
     }
 
     /**
-     * A plan with email notifications but no API or webhook.
+     * A plan with email notifications enabled.
      */
     public function withEmailNotifications(): static
     {
         return $this->state(fn (array $attributes) => [
             'features' => $this->defaultFeatures(
-                apiType: 'missing',
-                notificationEmail: true,
-                notificationWebhook: false,
+                includeEmailNotification: true,
             ),
         ]);
     }
@@ -69,10 +71,22 @@ class PlanFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'features' => $this->defaultFeatures(
-                apiType: 'feature',
-                notificationEmail: true,
-                notificationWebhook: true,
+                includeApi: true,
+                includeEmailNotification: true,
+                includeWebhookNotification: true,
             ),
+        ]);
+    }
+
+    /**
+     * A plan with file upload enabled up to $maxMb megabytes.
+     */
+    public function withFileUpload(int $maxMb = 10): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'features' => array_merge($attributes['features'] ?? [], [
+                'file_upload' => ['order' => 4, 'type' => 'limit', 'config' => ['max_file_size_mb' => $maxMb]],
+            ]),
         ]);
     }
 
@@ -82,88 +96,73 @@ class PlanFactory extends Factory
     public function withSenderIdentity(): static
     {
         return $this->state(fn (array $attributes) => [
-            'features' => $this->defaultFeatures(senderIdentityType: 'feature'),
+            'features' => $this->defaultFeatures(includeSenderIdentity: true),
         ]);
     }
 
     /**
-     * Build the default features array with configurable options.
+     * A plan that starts in the future (not yet available).
+     */
+    public function futureWindow(): static
+    {
+        return $this->state(['start_date' => now()->addDay()->toDateString(), 'end_date' => null]);
+    }
+
+    /**
+     * A plan whose window has already expired.
+     */
+    public function expiredWindow(): static
+    {
+        return $this->state(['start_date' => null, 'end_date' => now()->subDay()->toDateString()]);
+    }
+
+    /**
+     * A plan with an active window (started yesterday, ends tomorrow).
+     */
+    public function activeWindow(): static
+    {
+        return $this->state([
+            'start_date' => now()->subDay()->toDateString(),
+            'end_date' => now()->addDay()->toDateString(),
+        ]);
+    }
+
+    /**
+     * Build the sparse features array. Only included features are present — no missing entries, no labels.
      *
      * @return array<string, array<string, mixed>>
      */
     private function defaultFeatures(
         int $messageLength = 100000,
         int $expiryMinutes = 43200,
-        string $expiryLabel = '30 days',
-        string $apiType = 'feature',
-        bool $notificationEmail = true,
-        bool $notificationWebhook = true,
-        string $senderIdentityType = 'missing',
+        bool $includeApi = true,
+        bool $includeEmailNotification = true,
+        bool $includeWebhookNotification = true,
+        bool $includeSenderIdentity = false,
     ): array {
-        return [
-            'untracked' => [
-                'order' => 1,
-                'label' => 'Unlimited messages',
-                'config' => [],
-                'type' => 'feature',
-            ],
-            'messages' => [
-                'order' => 2,
-                'label' => ':message_length character limit per message',
-                'config' => [
-                    'message_length' => $messageLength,
-                ],
-                'type' => 'feature',
-            ],
-            'expiry' => [
-                'order' => 3,
-                'label' => 'Maximum expiry of :expiry_label',
-                'config' => [
-                    'expiry_label' => $expiryLabel,
-                    'expiry_minutes' => $expiryMinutes,
-                ],
-                'type' => 'feature',
-            ],
-            'throttling' => [
-                'order' => 4,
-                'label' => 'No rate limits',
-                'config' => [],
-                'type' => 'feature',
-            ],
-            'email_notification' => [
-                'order' => 4.5,
-                'label' => 'Email Notifications',
-                'config' => [
-                    'email' => $notificationEmail,
-                ],
-                'type' => $notificationEmail ? 'feature' : 'missing',
-            ],
-            'webhook_notification' => [
-                'order' => 4.6,
-                'label' => 'Webhook Notifications',
-                'config' => [
-                    'webhook' => $notificationWebhook,
-                ],
-                'type' => $notificationWebhook ? 'feature' : 'missing',
-            ],
-            'support' => [
-                'order' => 5,
-                'label' => 'Support',
-                'config' => [],
-                'type' => 'feature',
-            ],
-            'api' => [
-                'order' => 6,
-                'label' => 'API Access',
-                'config' => [],
-                'type' => $apiType,
-            ],
-            'sender_identity' => [
-                'order' => 7,
-                'label' => 'Verified Sender Identity (optional)',
-                'config' => [],
-                'type' => $senderIdentityType,
-            ],
+        $features = [
+            'messages' => ['order' => 1, 'type' => 'limit',   'config' => ['message_length' => $messageLength]],
+            'expiry' => ['order' => 2, 'type' => 'limit',   'config' => ['expiry_minutes' => $expiryMinutes]],
+            'throttling' => ['order' => 3, 'type' => 'feature', 'config' => []],
+            'support' => ['order' => 4, 'type' => 'limit', 'config' => ['support_type' => 'standard']],
         ];
+
+        if ($includeEmailNotification) {
+            $features['email_notification'] = ['order' => 4.5, 'type' => 'feature', 'config' => []];
+        }
+
+        if ($includeWebhookNotification) {
+            $features['webhook_notification'] = ['order' => 4.6, 'type' => 'feature', 'config' => []];
+        }
+
+        if ($includeApi) {
+            $features['api'] = ['order' => 6, 'type' => 'feature', 'config' => []];
+        }
+
+        if ($includeSenderIdentity) {
+            $features['sender_identity'] = ['order' => 7, 'type' => 'feature', 'config' => []];
+        }
+
+        return $features;
     }
 }

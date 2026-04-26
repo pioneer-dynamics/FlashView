@@ -8,10 +8,15 @@ use Illuminate\Database\Seeder;
 class PlanSeederProd extends Seeder
 {
     /**
-     * Run the database seeds.
+     * Bootstrap-only seeder. Superseded by the admin UI at /admin/plans.
+     * Only runs when the plans table is empty to avoid overwriting admin-managed data.
      */
     public function run(): void
     {
+        if (Plan::count() > 0) {
+            return;
+        }
+
         Plan::updateOrCreate(['name' => 'Free'],
             [
                 'stripe_monthly_price_id' => '',
@@ -19,77 +24,27 @@ class PlanSeederProd extends Seeder
                 'stripe_product_id' => '',
                 'price_per_month' => 0,
                 'price_per_year' => 0,
+                'is_free_plan' => true,
                 'features' => [
-                    'untracked' => [
-                        'order' => 1,
-                        'label' => 'Unlimited messages',
-                        'config' => [],
-                        'type' => 'feature',
-                    ],
                     'messages' => [
-                        'order' => 2,
-                        'label' => ':message_length character limit per message',
-                        'config' => [
-                            'message_length' => 1000,
-                        ],
-                        'type' => 'feature',
+                        'order' => 1,
+                        'config' => ['message_length' => 1000],
+                        'type' => 'limit',
                     ],
                     'expiry' => [
-                        'order' => 3,
-                        'label' => 'Maximum expiry of :expiry_label',
-                        'config' => [
-                            'expiry_label' => '14 days',
-                            'expiry_minutes' => 20160,
-                        ],
+                        'order' => 2,
+                        'config' => ['expiry_minutes' => 20160],
                         'type' => 'limit',
                     ],
                     'throttling' => [
-                        'order' => 4,
-                        'label' => 'Throttled at :per_minute messages per minute',
-                        'config' => [
-                            'per_minute' => 60,
-                        ],
+                        'order' => 3,
+                        'config' => ['per_minute' => 60],
                         'type' => 'limit',
                     ],
                     'file_upload' => [
-                        'order' => 4.3,
-                        'label' => 'File uploads up to :max_file_size_mb MB',
+                        'order' => 4,
                         'config' => ['max_file_size_mb' => 10],
                         'type' => 'limit',
-                    ],
-                    'email_notification' => [
-                        'order' => 4.5,
-                        'label' => 'Email Notifications',
-                        'config' => [
-                            'email' => false,
-                        ],
-                        'type' => 'missing',
-                    ],
-                    'webhook_notification' => [
-                        'order' => 5.5,
-                        'label' => 'Webhook Notifications',
-                        'config' => [
-                            'webhook' => false,
-                        ],
-                        'type' => 'missing',
-                    ],
-                    'support' => [
-                        'order' => 5,
-                        'label' => 'Support',
-                        'config' => [],
-                        'type' => 'missing',
-                    ],
-                    'api' => [
-                        'order' => 6,
-                        'label' => 'API Access',
-                        'config' => [],
-                        'type' => 'missing',
-                    ],
-                    'sender_identity' => [
-                        'order' => 7,
-                        'label' => 'Verified Sender Identity (optional)',
-                        'config' => [],
-                        'type' => 'missing',
                     ],
                 ],
             ]);
@@ -102,74 +57,35 @@ class PlanSeederProd extends Seeder
                 'price_per_month' => 25,
                 'price_per_year' => 250,
                 'features' => [
-                    'untracked' => [
-                        'order' => 1,
-                        'label' => 'Unlimited messages',
-                        'config' => [],
-                        'type' => 'feature',
-                    ],
                     'messages' => [
-                        'order' => 2,
-                        'label' => ':message_length character limit per message',
-                        'config' => [
-                            'message_length' => 100000,
-                        ],
-                        'type' => 'feature',
+                        'order' => 1,
+                        'config' => ['message_length' => 100000],
+                        'type' => 'limit',
                     ],
                     'expiry' => [
-                        'order' => 3,
-                        'label' => 'Maximum expiry of :expiry_label',
-                        'config' => [
-                            'expiry_label' => '30 days',
-                            'expiry_minutes' => 43200,
-                        ],
-                        'type' => 'feature',
+                        'order' => 2,
+                        'config' => ['expiry_minutes' => 43200],
+                        'type' => 'limit',
                     ],
                     'throttling' => [
-                        'order' => 4,
-                        'label' => 'No rate limits',
-                        'config' => [],
-                        'type' => 'feature',
+                        'order' => 3,
+                        'config' => ['per_minute' => 600],
+                        'type' => 'limit',
                     ],
                     'file_upload' => [
-                        'order' => 4.3,
-                        'label' => 'File uploads up to :max_file_size_mb MB',
+                        'order' => 4,
                         'config' => ['max_file_size_mb' => 50],
-                        'type' => 'feature',
+                        'type' => 'limit',
                     ],
                     'email_notification' => [
-                        'order' => 4.5,
-                        'label' => 'Email Notifications',
-                        'config' => [
-                            'email' => true,
-                        ],
+                        'order' => 5,
+                        'config' => [],
                         'type' => 'feature',
-                    ],
-                    'webhook_notification' => [
-                        'order' => 5.5,
-                        'label' => 'Webhook Notifications',
-                        'config' => [
-                            'webhook' => false,
-                        ],
-                        'type' => 'missing',
                     ],
                     'support' => [
-                        'order' => 5,
-                        'label' => 'Standard Support',
-                        'config' => [],
-                        'type' => 'feature',
-                    ],
-                    'api' => [
                         'order' => 6,
-                        'label' => 'API Access',
-                        'config' => [],
-                        'type' => 'missing',
-                    ],
-                    'sender_identity' => [
-                        'order' => 7,
-                        'label' => 'Verified Sender Identity (optional)',
-                        'config' => [],
-                        'type' => 'missing',
+                        'config' => ['support_type' => 'standard'],
+                        'type' => 'limit',
                     ],
                 ],
             ]);
@@ -182,72 +98,48 @@ class PlanSeederProd extends Seeder
                 'price_per_month' => 50,
                 'price_per_year' => 500,
                 'features' => [
-                    'untracked' => [
-                        'order' => 1,
-                        'label' => 'Unlimited messages',
-                        'config' => [],
-                        'type' => 'feature',
-                    ],
                     'messages' => [
-                        'order' => 2,
-                        'label' => ':message_length character limit per message',
-                        'config' => [
-                            'message_length' => 100000,
-                        ],
-                        'type' => 'feature',
+                        'order' => 1,
+                        'config' => ['message_length' => 100000],
+                        'type' => 'limit',
                     ],
                     'expiry' => [
-                        'order' => 3,
-                        'label' => 'Maximum expiry of :expiry_label',
-                        'config' => [
-                            'expiry_label' => '30 days',
-                            'expiry_minutes' => 43200,
-                        ],
-                        'type' => 'feature',
+                        'order' => 2,
+                        'config' => ['expiry_minutes' => 43200],
+                        'type' => 'limit',
                     ],
                     'throttling' => [
-                        'order' => 4,
-                        'label' => 'No rate limits',
-                        'config' => [],
-                        'type' => 'feature',
+                        'order' => 3,
+                        'config' => ['per_minute' => 600],
+                        'type' => 'limit',
                     ],
                     'file_upload' => [
-                        'order' => 4.3,
-                        'label' => 'File uploads up to :max_file_size_mb MB',
+                        'order' => 4,
                         'config' => ['max_file_size_mb' => 500],
-                        'type' => 'feature',
+                        'type' => 'limit',
                     ],
                     'email_notification' => [
-                        'order' => 4.5,
-                        'label' => 'Email Notifications',
-                        'config' => [
-                            'email' => true,
-                        ],
+                        'order' => 5,
+                        'config' => [],
                         'type' => 'feature',
                     ],
                     'webhook_notification' => [
-                        'order' => 5.5,
-                        'label' => 'Webhook Notifications',
-                        'config' => [
-                            'webhook' => true,
-                        ],
-                        'type' => 'feature',
-                    ],
-                    'support' => [
-                        'order' => 5,
-                        'label' => 'Premium Support',
+                        'order' => 6,
                         'config' => [],
                         'type' => 'feature',
                     ],
+                    'support' => [
+                        'order' => 7,
+                        'config' => ['support_type' => 'priority'],
+                        'type' => 'limit',
+                    ],
                     'api' => [
-                        'order' => 6,
-                        'label' => 'API Access',
+                        'order' => 8,
                         'config' => [],
                         'type' => 'feature',
                     ],
                     'sender_identity' => [
-                        'order' => 7,
-                        'label' => 'Verified Sender Identity (optional)',
+                        'order' => 9,
                         'config' => [],
                         'type' => 'feature',
                     ],

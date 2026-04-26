@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\Admin\AdminPlanController;
+use App\Http\Controllers\Admin\AdminUserController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\CliAuthController;
 use App\Http\Controllers\CliDeviceController;
@@ -9,6 +11,7 @@ use App\Http\Controllers\FileUploadController;
 use App\Http\Controllers\MarkdownDocumentController;
 use App\Http\Controllers\NotificationPreferencesController;
 use App\Http\Controllers\NotificationSettingsController;
+use App\Http\Controllers\PaymentConfirmingController;
 use App\Http\Controllers\PlanController;
 use App\Http\Controllers\SecretController;
 use App\Http\Controllers\SenderIdentityController;
@@ -129,6 +132,10 @@ Route::middleware([
     config('jetstream.auth_session'),
     'verified',
 ])->group(function () {
+    Route::get('/payment/confirming', [PaymentConfirmingController::class, 'show'])
+        ->middleware('throttle:30,1')
+        ->name('payment.confirming');
+
     Route::get('/dashboard', function () {
         return Inertia::render('Dashboard');
     })->name('dashboard');
@@ -203,4 +210,16 @@ Route::middleware([
     Route::get('/billing', function (Request $request) {
         return $request->user()->redirectToBillingPortal(route('dashboard'));
     })->middleware(['auth'])->name('billing');
+});
+
+Route::middleware([
+    'auth:sanctum',
+    config('jetstream.auth_session'),
+    'verified',
+    'admin',
+])->prefix('admin')->name('admin.')->group(function () {
+    Route::resource('plans', AdminPlanController::class)->except(['show']);
+    Route::get('users', [AdminUserController::class, 'index'])->name('users.index');
+    Route::post('users/{user}/suspend', [AdminUserController::class, 'suspend'])->name('users.suspend');
+    Route::delete('users/{user}/suspend', [AdminUserController::class, 'unsuspend'])->name('users.unsuspend');
 });

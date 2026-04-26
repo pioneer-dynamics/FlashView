@@ -38,7 +38,7 @@ class StoreSecretRequest extends FormRequest
         $isFileUpload = $this->hasFile('file') || $this->filled('file_token');
 
         return [
-            'message' => [Rule::requiredIf(! $isFileUpload), 'nullable', 'string', 'min:1', new MessageLength($this->getUserType(), $this->getAllowedMessageLength())],
+            'message' => [Rule::requiredIf(! $isFileUpload), 'nullable', 'string', 'min:1', new MessageLength($this->getUserType())],
             'file' => $this->user()
                 ? ['nullable', 'file', new ValidFileSize($this->getUserType())]
                 : ['prohibited'],
@@ -60,23 +60,9 @@ class StoreSecretRequest extends FormRequest
         ];
     }
 
-    /**
-     * Identify the type of user submitting the request.
-     */
     public function getUserType(): string
     {
-        if ($user = $this->user()) {
-            return $user->subscribed() ? 'subscribed' : 'user';
-        }
-
-        return 'guest';
-    }
-
-    private function getAllowedMessageLength(): int
-    {
-        return $this->user()
-            ? config('secrets.message_length.user')
-            : config('secrets.message_length.guest');
+        return $this->user() ? 'user' : 'guest';
     }
 
     public function attributes(): array

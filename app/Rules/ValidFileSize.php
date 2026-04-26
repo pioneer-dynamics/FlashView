@@ -2,6 +2,7 @@
 
 namespace App\Rules;
 
+use App\Services\FeatureRegistry;
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Translation\PotentiallyTranslatedString;
@@ -17,22 +18,17 @@ class ValidFileSize implements ValidationRule
      */
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {
-        $maxBytes = match ($this->userType) {
-            'subscribed' => $this->getSubscribedLimit(),
-            'user' => config('secrets.file_upload.max_file_size_mb.user') * 1024 * 1024,
-            default => 0,
-        };
+        if ($this->userType !== 'guest') {
+            $plan = request()->user()?->resolvePlan();
+            $config = $plan?->features['file_upload']['config'] ?? [];
 
-        if ($maxBytes === 0 || $value->getSize() > $maxBytes) {
-            $fail('File exceeds the maximum allowed size.');
+            if (! app(FeatureRegistry::class)->get('file_upload')->withinLimit($value->getSize(), $config)) {
+                $fail('File exceeds the maximum allowed size.');
+            }
+
+            return;
         }
-    }
 
-    private function getSubscribedLimit(): int
-    {
-        $plan = request()->user()?->plan?->jsonSerialize();
-        $maxMb = $plan['settings']['file_upload']['max_file_size_mb'] ?? config('secrets.file_upload.max_file_size_mb.user');
-
-        return (int) ($maxMb * 1024 * 1024);
+        $fail('File exceeds the maximum allowed size.');
     }
 }

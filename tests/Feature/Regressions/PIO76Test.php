@@ -12,7 +12,10 @@ use Tests\TestCase;
  * instantly by the generic retrieve-message screen, so the user could not read
  * it. The fix introduces a unified, persistent "destroyed" state driven by
  * local Vue refs (decryptionFailed, decryptionFailureReason), aligned CLI
- * copy, and a DestroyedSecretState.vue component consumed by SecretForm.vue.
+ * copy, and a DestroyedSecretState.vue component consumed by SecretViewForm.vue.
+ *
+ * After PIO-78 the decrypt flow lives in SecretViewForm.vue and the encrypt
+ * flow lives in SecretCreateForm.vue.
  *
  * Note: the shipping user-facing copy uses a U+2014 em dash between "password"
  * and "this secret". The regex assertions below deliberately use \W+ between
@@ -66,92 +69,88 @@ class PIO76Test extends TestCase
 
     public function test_secret_form_uses_local_state_and_imports_destroyed_component(): void
     {
-        $contents = file_get_contents(resource_path('js/Pages/Secret/SecretForm.vue'));
+        $contents = file_get_contents(resource_path('js/Pages/Secret/SecretViewForm.vue'));
 
         $this->assertStringContainsString(
             "import DestroyedSecretState from '@/Components/DestroyedSecretState.vue'",
             $contents,
-            'SecretForm.vue must import DestroyedSecretState.'
+            'SecretViewForm.vue must import DestroyedSecretState.'
         );
 
         $this->assertMatchesRegularExpression(
             '/v-if="[^"]*decryptionFailed[^"]*"[^>]*>\s*<[\w-]+[^>]*>\s*<DestroyedSecretState/s',
             $contents,
-            'SecretForm.vue must render DestroyedSecretState under a top-level v-if on decryptionFailed (single edit point).'
+            'SecretViewForm.vue must render DestroyedSecretState under a top-level v-if on decryptionFailed (single edit point).'
         );
 
         $this->assertMatchesRegularExpression(
             '/<DestroyedSecretState[^>]*:reason="decryptionFailureReason"/',
             $contents,
-            'SecretForm.vue must bind DestroyedSecretState :reason="decryptionFailureReason" so wrong-password and unavailable paths render the correct copy.'
+            'SecretViewForm.vue must bind DestroyedSecretState :reason="decryptionFailureReason" so wrong-password and unavailable paths render the correct copy.'
         );
 
         $this->assertStringContainsString(
             'decryptionFailed',
             $contents,
-            'SecretForm.vue must declare a decryptionFailed reactive ref.'
+            'SecretViewForm.vue must declare a decryptionFailed reactive ref.'
         );
 
         $this->assertStringContainsString(
             'decryptionFailureReason',
             $contents,
-            'SecretForm.vue must declare a decryptionFailureReason reactive ref to differentiate wrong-password from unavailable.'
+            'SecretViewForm.vue must declare a decryptionFailureReason reactive ref to differentiate wrong-password from unavailable.'
         );
 
         $this->assertMatchesRegularExpression(
             "/handleDecryptionFailure\\(\\s*['\"]wrong-password['\"]\\s*\\)/",
             $contents,
-            'SecretForm.vue must call handleDecryptionFailure("wrong-password") on decryption-promise rejections.'
+            'SecretViewForm.vue must call handleDecryptionFailure("wrong-password") on decryption-promise rejections.'
         );
 
         $this->assertMatchesRegularExpression(
             "/handleDecryptionFailure\\(\\s*['\"]unavailable['\"]\\s*\\)/",
             $contents,
-            'SecretForm.vue must call handleDecryptionFailure("unavailable") on Inertia onError / missing-flash paths so expired-link users do not see "Wrong password" copy.'
+            'SecretViewForm.vue must call handleDecryptionFailure("unavailable") on Inertia onError / missing-flash paths so expired-link users do not see "Wrong password" copy.'
         );
     }
 
     /**
      * Regression guard for a bug introduced during PIO-76 where the combined
-     * (message + file) flow deferred updating form.message via a coordinator
-     * that waited for BOTH halves to resolve. On a correct password the
-     * "Note from sender" block could render with the placeholder default
-     * because form.message was never set to the decrypted plaintext.
+     * (message + file) flow deferred updating the decrypted message via a
+     * coordinator. On a correct password the "Note from sender" block could
+     * render with the placeholder default because the message was never set.
      *
-     * The combined branch MUST update form.message directly inside the
+     * The combined branch MUST update decryptedMessage.value directly inside the
      * message-decryption .then callback so the rendered note always reflects
-     * the decrypted content, not the placeholder.
+     * the decrypted content.
+     *
+     * After PIO-78 the decrypted message is stored in a dedicated
+     * decryptedMessage ref (not form.message) in SecretViewForm.vue.
      */
     public function test_combined_flow_sets_form_message_from_decrypted_data(): void
     {
-        $contents = file_get_contents(resource_path('js/Pages/Secret/SecretForm.vue'));
+        $contents = file_get_contents(resource_path('js/Pages/Secret/SecretViewForm.vue'));
 
         // Both the text-only branch and the combined (message+file) branch must
-        // set form.message directly on decryptMessage resolution. If the
-        // combined branch deferred this behind a coordinator, we would see only
-        // the text-only occurrence and the combined "Note from sender" would
-        // render the placeholder default after a correct password.
+        // set decryptedMessage.value = data directly on decryptMessage resolution.
         $this->assertGreaterThanOrEqual(
             2,
-            substr_count($contents, 'form.message = data'),
-            'SecretForm.vue must assign form.message = data inside BOTH the combined (message+file) and text-only decryptMessage .then callbacks — otherwise the combined "Note from sender" shows the placeholder default on a correct password.'
+            substr_count($contents, 'decryptedMessage.value = data'),
+            'SecretViewForm.vue must assign decryptedMessage.value = data inside BOTH the combined (message+file) and text-only decryptMessage .then callbacks — otherwise the combined "Note from sender" shows the placeholder default on a correct password.'
         );
 
-        // The combined branch must NOT reintroduce a deferred-reveal coordinator
-        // that sets form.message from an intermediate variable (e.g.
-        // combinedFlow.decryptedMessage). Direct assignment from the .then data
-        // argument is the only shape that is safe.
+        // The combined branch must NOT reintroduce a deferred-reveal coordinator.
         $this->assertStringNotContainsString(
             'combinedFlow.decryptedMessage',
             $contents,
-            'SecretForm.vue must not use a combinedFlow.decryptedMessage coordinator — a previous iteration of the fix left form.message as the placeholder because the coordinator never revealed the decrypted data.'
+            'SecretViewForm.vue must not use a combinedFlow.decryptedMessage coordinator — a previous iteration of the fix left the message as the placeholder because the coordinator never revealed the decrypted data.'
         );
 
         // Sanity-check: the combined branch exists and still reaches decryptMessage.
         $this->assertMatchesRegularExpression(
             '/props\.isFileSecret\s*&&\s*props\.hasMessage/',
             $contents,
-            'SecretForm.vue must still contain an explicit combined-secret (file + message) branch.'
+            'SecretViewForm.vue must still contain an explicit combined-secret (file + message) branch.'
         );
     }
 
@@ -258,12 +257,12 @@ class PIO76Test extends TestCase
             'encryption.js encryptFile() must call this.validatePassphrase() so a short passphrase is rejected before upload (parity with encryptMessage()).'
         );
 
-        $formContents = file_get_contents(resource_path('js/Pages/Secret/SecretForm.vue'));
+        $formContents = file_get_contents(resource_path('js/Pages/Secret/SecretCreateForm.vue'));
 
         $this->assertMatchesRegularExpression(
             '/encryptFileData\s*=\s*async[\s\S]*?e\.validatePassphrase\(\s*passphrase\s*\)[\s\S]*?other\.setError\(\s*[\'"]password[\'"]\s*,\s*err\.message\s*\)/s',
             $formContents,
-            'SecretForm.vue encryptFileData() must validate the passphrase upfront and route the error to other.errors.password so the "Passphrase must be at least 8 characters" message renders under the password input when a file is attached.'
+            'SecretCreateForm.vue encryptFileData() must validate the passphrase upfront and route the error to other.errors.password so the "Passphrase must be at least 8 characters" message renders under the password input when a file is attached.'
         );
     }
 
@@ -276,12 +275,12 @@ class PIO76Test extends TestCase
      */
     public function test_clearing_password_field_clears_stale_passphrase_error(): void
     {
-        $contents = file_get_contents(resource_path('js/Pages/Secret/SecretForm.vue'));
+        $contents = file_get_contents(resource_path('js/Pages/Secret/SecretCreateForm.vue'));
 
         $this->assertMatchesRegularExpression(
             '/watch\(\s*\(\)\s*=>\s*other\.password[\s\S]*?other\.clearErrors\(\s*[\'"]password[\'"]\s*\)/s',
             $contents,
-            'SecretForm.vue must watch other.password and call other.clearErrors("password") when the value becomes falsy — so the "Passphrase must be at least 8 characters" error disappears once the user clears the field (empty password triggers auto-generation which bypasses the min-length check).'
+            'SecretCreateForm.vue must watch other.password and call other.clearErrors("password") when the value becomes falsy — so the "Passphrase must be at least 8 characters" error disappears once the user clears the field (empty password triggers auto-generation which bypasses the min-length check).'
         );
     }
 

@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Middleware\EnsureEnvironmentSubscriptionAllowed;
+use App\Http\Middleware\EnsureUserIsAdmin;
+use App\Http\Middleware\EnsureUserIsNotSuspended;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\SecurityHeadersMiddleware;
 use Illuminate\Foundation\Application;
@@ -32,6 +34,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(append: [
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
+            EnsureUserIsNotSuspended::class,
         ]);
 
         $middleware->validateCsrfTokens(except: [
@@ -44,6 +47,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'ability' => CheckForAnyAbility::class,
             'abilities' => CheckAbilities::class,
+            'admin' => EnsureUserIsAdmin::class,
             'environment.subscription' => EnsureEnvironmentSubscriptionAllowed::class,
         ]);
     })

@@ -113,27 +113,22 @@ class Secret extends Model
                 // ]);
 
                 if ($user = $secret->user) {
-                    $plan = $user->plan->jsonSerialize();
-
                     /**
                      * @var User $user
                      */
-                    if (isset($plan['id'])) {
-                        if (($plan['settings']['email_notification']['email'] ?? false) && $user->notify_secret_retrieved) {
-                            $user->notify(new SecretRetrievedNotification($secret));
-                        }
+                    if ($user->planSupportsEmailNotifications() && $user->notify_secret_retrieved) {
+                        $user->notify(new SecretRetrievedNotification($secret));
+                    }
 
-                        $planSupportsWebhook = ($plan['settings']['webhook_notification']['webhook'] ?? false);
-                        if ($planSupportsWebhook && $user->hasWebhookConfigured()) {
-                            dispatch(new SendWebhookNotification(
-                                webhookUrl: $user->webhook_url,
-                                webhookSecret: $user->webhook_secret,
-                                hashId: $secret->hash_id,
-                                createdAt: $secret->created_at->toIso8601String(),
-                                retrievedAt: now()->toIso8601String(),
-                                userId: $user->id,
-                            ));
-                        }
+                    if ($user->planSupportsWebhook() && $user->hasWebhookConfigured()) {
+                        dispatch(new SendWebhookNotification(
+                            webhookUrl: $user->webhook_url,
+                            webhookSecret: $user->webhook_secret,
+                            hashId: $secret->hash_id,
+                            createdAt: $secret->created_at->toIso8601String(),
+                            retrievedAt: now()->toIso8601String(),
+                            userId: $user->id,
+                        ));
                     }
                 }
             }

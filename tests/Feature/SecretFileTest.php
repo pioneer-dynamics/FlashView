@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Jobs\ClearExpiredSecrets;
+use App\Models\Plan;
 use App\Models\Scopes\ActiveScope;
 use App\Models\Secret;
 use App\Models\User;
@@ -18,6 +19,12 @@ use Tests\TestCase;
 class SecretFileTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        Plan::factory()->free()->withFileUpload(10)->create();
+    }
 
     // --- Unit: Secret model helpers ---
 

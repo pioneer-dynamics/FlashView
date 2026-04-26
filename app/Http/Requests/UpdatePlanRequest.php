@@ -2,27 +2,38 @@
 
 namespace App\Http\Requests;
 
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdatePlanRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
     public function authorize(): bool
     {
-        return false;
+        return $this->user()->isAdmin();
     }
 
     /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+     * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {
+        $planId = $this->route('plan')?->id;
+
         return [
-            //
+            'name' => ['required', 'string', 'max:255', "unique:plans,name,{$planId}"],
+            'price_per_month' => ['required', 'numeric', 'min:0'],
+            'price_per_year' => ['required', 'numeric', 'min:0'],
+            'is_free_plan' => ['boolean', 'nullable'],
+            'create_stripe_product' => ['required', 'boolean'],
+            'stripe_product_id' => ['nullable', 'string', 'max:255'],
+            'stripe_monthly_price_id' => ['nullable', 'string', 'max:255'],
+            'stripe_yearly_price_id' => ['nullable', 'string', 'max:255'],
+            'features' => ['required', 'array', 'min:1'],
+            'features.*.order' => ['required', 'numeric'],
+            'features.*.type' => ['required', 'in:feature,limit'],
+            'features.*.config' => ['present', 'array'],
+            'start_date' => ['nullable', 'date'],
+            'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
         ];
     }
 }
