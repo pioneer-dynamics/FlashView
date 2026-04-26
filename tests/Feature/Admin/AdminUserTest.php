@@ -3,8 +3,10 @@
 namespace Tests\Feature\Admin;
 
 use App\Models\User;
+use App\Notifications\AccountSuspendedNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Notification;
 use Inertia\Testing\AssertableInertia;
 use Tests\TestCase;
 
@@ -65,6 +67,8 @@ class AdminUserTest extends TestCase
 
     public function test_admin_can_suspend_a_user(): void
     {
+        Notification::fake();
+
         $admin = $this->adminUser();
         $target = $this->nonAdminUser();
 
@@ -73,6 +77,46 @@ class AdminUserTest extends TestCase
             ->assertRedirect(route('admin.users.index'));
 
         $this->assertNotNull($target->fresh()->suspended_at);
+    }
+
+    public function test_suspended_user_receives_email_notification(): void
+    {
+        Notification::fake();
+
+        $admin = $this->adminUser();
+        $target = $this->nonAdminUser();
+
+        $this->actingAs($admin)
+            ->post(route('admin.users.suspend', $target));
+
+        Notification::assertSentTo($target, AccountSuspendedNotification::class);
+    }
+
+    public function test_notification_is_not_sent_when_admin_suspends_themselves(): void
+    {
+        Notification::fake();
+
+        $admin = $this->adminUser();
+
+        $this->actingAs($admin)
+            ->post(route('admin.users.suspend', $admin))
+            ->assertForbidden();
+
+        Notification::assertNothingSent();
+    }
+
+    public function test_notification_is_not_sent_when_non_admin_attempts_suspend(): void
+    {
+        Notification::fake();
+
+        $nonAdmin = $this->nonAdminUser();
+        $target = $this->nonAdminUser();
+
+        $this->actingAs($nonAdmin)
+            ->post(route('admin.users.suspend', $target))
+            ->assertForbidden();
+
+        Notification::assertNothingSent();
     }
 
     public function test_admin_can_unsuspend_a_user(): void
