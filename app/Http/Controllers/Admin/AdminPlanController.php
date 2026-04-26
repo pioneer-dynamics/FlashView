@@ -69,6 +69,8 @@ class AdminPlanController extends Controller
                 'stripe_yearly_price_id' => $stripeIds['yearly_price_id'],
                 'is_free_plan' => $request->boolean('is_free_plan'),
                 'features' => $request->features,
+                'start_date' => $request->start_date ?: null,
+                'end_date' => $request->end_date ?: null,
             ]);
         });
 
@@ -113,6 +115,8 @@ class AdminPlanController extends Controller
                     'stripe_yearly_price_id' => $stripeIds['yearly_price_id'],
                     'is_free_plan' => $request->boolean('is_free_plan'),
                     'features' => $request->features,
+                    'start_date' => $request->start_date ?: null,
+                    'end_date' => $request->end_date ?: null,
                 ]);
             });
 
@@ -135,6 +139,8 @@ class AdminPlanController extends Controller
                     'stripe_yearly_price_id' => $request->stripe_yearly_price_id ?? $plan->stripe_yearly_price_id ?? '',
                     'is_free_plan' => $request->boolean('is_free_plan'),
                     'features' => $request->features,
+                    'start_date' => $request->start_date ?: null,
+                    'end_date' => $request->end_date ?: null,
                 ]);
             });
         }
