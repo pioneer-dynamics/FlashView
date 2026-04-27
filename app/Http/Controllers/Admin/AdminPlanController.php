@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StorePlanRequest;
 use App\Http\Requests\UpdatePlanRequest;
+use App\Jobs\NotifyUsersOfHigherValuePlan;
 use App\Models\Plan;
 use App\Services\FeatureRegistry;
 use App\Services\StripePlanService;
@@ -55,12 +56,14 @@ class AdminPlanController extends Controller
             ];
         }
 
-        DB::transaction(function () use ($request, $stripeIds) {
+        $plan = null;
+
+        DB::transaction(function () use ($request, $stripeIds, &$plan) {
             if ($request->boolean('is_free_plan')) {
                 Plan::query()->update(['is_free_plan' => false]);
             }
 
-            Plan::create([
+            $plan = Plan::create([
                 'name' => $request->name,
                 'price_per_month' => $request->price_per_month,
                 'price_per_year' => $request->price_per_year,
@@ -73,6 +76,8 @@ class AdminPlanController extends Controller
                 'end_date' => $request->end_date ?: null,
             ]);
         });
+
+        NotifyUsersOfHigherValuePlan::dispatch($plan);
 
         return redirect()->route('admin.plans.index')->with('flash', ['success' => 'Plan created.']);
     }
