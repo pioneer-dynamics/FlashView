@@ -3,7 +3,6 @@
 namespace Tests\Feature\Admin;
 
 use App\Models\User;
-use App\Notifications\AccountSuspendedNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Notification;
@@ -77,19 +76,6 @@ class AdminUserTest extends TestCase
             ->assertRedirect(route('admin.users.index'));
 
         $this->assertNotNull($target->fresh()->suspended_at);
-    }
-
-    public function test_suspended_user_receives_email_notification(): void
-    {
-        Notification::fake();
-
-        $admin = $this->adminUser();
-        $target = $this->nonAdminUser();
-
-        $this->actingAs($admin)
-            ->post(route('admin.users.suspend', $target));
-
-        Notification::assertSentTo($target, AccountSuspendedNotification::class);
     }
 
     public function test_notification_is_not_sent_when_admin_suspends_themselves(): void

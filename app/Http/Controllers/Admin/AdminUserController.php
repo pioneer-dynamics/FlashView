@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Plan;
 use App\Models\User;
-use App\Notifications\AccountSuspendedNotification;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
@@ -56,7 +55,6 @@ class AdminUserController extends Controller
         abort_if($user->is($this->currentAdmin()), 403, 'You cannot suspend your own account.');
 
         $user->update(['suspended_at' => now()]);
-        $user->notify(new AccountSuspendedNotification);
 
         return redirect()->route('admin.users.index')
             ->with('flash', ['success' => "Account for {$user->name} has been suspended."]);
