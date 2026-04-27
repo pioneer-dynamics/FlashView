@@ -233,7 +233,7 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
     protected static function booted(): void
     {
         static::updated(queueable(function (User $customer) {
-            if ($customer->hasStripeId()) {
+            if (filled($customer->stripe_id)) {
                 $customer->syncStripeCustomerDetails();
             }
         }));
