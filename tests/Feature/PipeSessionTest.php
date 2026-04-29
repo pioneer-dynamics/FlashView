@@ -48,6 +48,52 @@ class PipeSessionTest extends TestCase
         ]);
     }
 
+    public function test_custom_expires_in_is_honoured(): void
+    {
+        $response = $this->postJson('/api/v1/pipe', [
+            'session_id' => $this->sessionId,
+            'transfer_mode' => 'relay',
+            'expires_in' => 120,
+        ]);
+
+        $response->assertStatus(201);
+        $session = PipeSession::where('session_id', $this->sessionId)->first();
+        $this->assertNotNull($session);
+        $this->assertEqualsWithDelta(120, now()->diffInSeconds($session->expires_at), 5);
+    }
+
+    public function test_expires_in_below_minimum_returns_422(): void
+    {
+        $this->postJson('/api/v1/pipe', [
+            'session_id' => $this->sessionId,
+            'transfer_mode' => 'relay',
+            'expires_in' => 59,
+        ])->assertStatus(422);
+    }
+
+    public function test_expires_in_above_maximum_returns_422(): void
+    {
+        $this->postJson('/api/v1/pipe', [
+            'session_id' => $this->sessionId,
+            'transfer_mode' => 'relay',
+            'expires_in' => 3601,
+        ])->assertStatus(422);
+    }
+
+    public function test_omitting_expires_in_uses_config_default(): void
+    {
+        $response = $this->postJson('/api/v1/pipe', [
+            'session_id' => $this->sessionId,
+            'transfer_mode' => 'relay',
+        ]);
+
+        $response->assertStatus(201);
+        $session = PipeSession::where('session_id', $this->sessionId)->first();
+        $this->assertNotNull($session);
+        $expected = config('pipe.session_ttl_seconds');
+        $this->assertEqualsWithDelta($expected, now()->diffInSeconds($session->expires_at), 5);
+    }
+
     public function test_duplicate_session_id_returns_422(): void
     {
         PipeSession::factory()->create(['session_id' => $this->sessionId]);
