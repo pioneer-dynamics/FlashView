@@ -2,11 +2,16 @@
 
 namespace App\Models;
 
+use Database\Factories\PipePairingFactory;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class PipePairing extends Model
 {
+    /** @use HasFactory<PipePairingFactory> */
+    use HasFactory;
+
     protected $fillable = [
         'sender_device_id',
         'receiver_device_id',

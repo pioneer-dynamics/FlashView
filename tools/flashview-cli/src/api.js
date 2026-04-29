@@ -252,6 +252,359 @@ export class FlashViewClient {
         return result;
     }
 
+    // ─── Pipe Pairing API ────────────────────────────────────────────────────────
+
+    /**
+     * Register this device's P-256 public key for PKI-based pairing.
+     *
+     * @param {string} publicKeyBase64 - JWK base64
+     * @returns {Promise<{ device_id: string, expires_at: string }>}
+     */
+    async registerDevice(publicKeyBase64) {
+        return this.request('POST', '/api/v1/pipe/devices', { public_key: publicKeyBase64 });
+    }
+
+    /**
+     * List devices registered to this account that are waiting to be paired.
+     *
+     * @returns {Promise<{ devices: Array<{ device_id: string, public_key: string, created_at: string }> }>}
+     */
+    async listWaitingDevices() {
+        return this.request('GET', '/api/v1/pipe/devices/waiting');
+    }
+
+    /**
+     * De-register a device (used when the receiver rejects the pairing code).
+     *
+     * @param {string} deviceId
+     * @returns {Promise<void>}
+     */
+    async destroyDevice(deviceId) {
+        const url = `${this.baseUrl}/api/v1/pipe/devices/${encodeURIComponent(deviceId)}`;
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), this.timeout);
+        try {
+            const response = await fetch(url, {
+                method: 'DELETE',
+                signal: controller.signal,
+                headers: { 'Authorization': `Bearer ${this.token}`, 'Accept': 'application/json' },
+            });
+            if (!response.ok && response.status !== 204) {
+                const error = await response.json().catch(() => ({}));
+                throw new ApiError(error.message || `HTTP ${response.status}`, response.status, error.errors);
+            }
+        } catch (err) {
+            if (err.name === 'AbortError') { throw new ApiError('Request timed out', 0); }
+            throw err;
+        } finally {
+            clearTimeout(timeout);
+        }
+    }
+
+    /**
+     * Send an ECIES-encrypted pipe seed to a waiting device.
+     *
+     * @param {string} receiverDeviceId
+     * @param {string} encryptedSeedBase64
+     * @returns {Promise<{ pairing_id: number }>}
+     */
+    async sendEncryptedSeed(receiverDeviceId, encryptedSeedBase64) {
+        return this.request('POST', '/api/v1/pipe/pairings', {
+            receiver_device_id: receiverDeviceId,
+            encrypted_seed: encryptedSeedBase64,
+        });
+    }
+
+    /**
+     * Poll for an incoming pairing offer for a specific device.
+     *
+     * @param {string} deviceId
+     * @returns {Promise<{ pairing_id: number, sender_device_id: string, sender_public_key: string, encrypted_seed: string }|null>}
+     */
+    async pollPairingPending(deviceId) {
+        const url = `${this.baseUrl}/api/v1/pipe/pairings/pending?device_id=${encodeURIComponent(deviceId)}`;
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), this.timeout);
+        let response;
+        try {
+            response = await fetch(url, {
+                signal: controller.signal,
+                headers: { 'Authorization': `Bearer ${this.token}`, 'Accept': 'application/json' },
+            });
+        } catch (err) {
+            if (err.name === 'AbortError') { throw new ApiError('Request timed out', 0); }
+            throw err;
+        } finally {
+            clearTimeout(timeout);
+        }
+        if (response.status === 204) { return null; }
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new ApiError(error.message || `HTTP ${response.status}`, response.status);
+        }
+        return response.json();
+    }
+
+    /**
+     * Get pairing status (sender polls until receiver accepts).
+     *
+     * @param {number} pairingId
+     * @returns {Promise<{ pairing_id: number, is_accepted: boolean, expires_at: string }>}
+     */
+    async getPairingStatus(pairingId) {
+        return this.request('GET', `/api/v1/pipe/pairings/${pairingId}`);
+    }
+
+    /**
+     * Mark a pairing as accepted (receiver confirms the pairing code).
+     *
+     * @param {number} pairingId
+     * @returns {Promise<{ accepted: boolean }>}
+     */
+    async acceptPairing(pairingId) {
+        return this.request('POST', `/api/v1/pipe/pairings/${pairingId}/accept`);
+    }
+
+    // ─── Pipe Transfer API ───────────────────────────────────────────────────────
+
+    /**
+     * Create a new pipe transfer session.
+     *
+     * @param {string} sessionId - HKDF-derived hex session ID
+     * @param {'relay'|'p2p'} transferMode
+     * @returns {Promise<{ session_id: string, expires_at: string, transfer_mode: string }>}
+     */
+    async createPipeSession(sessionId, transferMode = 'relay') {
+        return this.request('POST', '/api/v1/pipe', { session_id: sessionId, transfer_mode: transferMode });
+    }
+
+    /**
+     * Get pipe session status.
+     *
+     * @param {string} sessionId
+     * @returns {Promise<{ session_id: string, is_complete: boolean, chunk_count: number, total_chunks: number|null, expires_at: string }|null>}
+     */
+    async getPipeSessionStatus(sessionId) {
+        const url = `${this.baseUrl}/api/v1/pipe/${encodeURIComponent(sessionId)}`;
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), this.timeout);
+        let response;
+        try {
+            response = await fetch(url, {
+                signal: controller.signal,
+                headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+            });
+        } catch (err) {
+            if (err.name === 'AbortError') { throw new ApiError('Request timed out', 0); }
+            throw err;
+        } finally {
+            clearTimeout(timeout);
+        }
+        if (response.status === 404) { return null; }
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new ApiError(error.message || `HTTP ${response.status}`, response.status);
+        }
+        return response.json();
+    }
+
+    /**
+     * Upload an encrypted chunk.
+     *
+     * @param {string} sessionId
+     * @param {number} chunkIndex
+     * @param {string} chunkBase64
+     * @returns {Promise<{ chunk_index: number }>}
+     */
+    async uploadChunk(sessionId, chunkIndex, chunkBase64) {
+        const url = `${this.baseUrl}/api/v1/pipe/${encodeURIComponent(sessionId)}/chunk`;
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), this.timeout);
+        let response;
+        try {
+            response = await fetch(url, {
+                method: 'POST',
+                signal: controller.signal,
+                headers: {
+                    ...(this.token ? { 'Authorization': `Bearer ${this.token}` } : {}),
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ chunk_index: chunkIndex, payload: chunkBase64 }),
+            });
+        } catch (err) {
+            if (err.name === 'AbortError') { throw new ApiError('Request timed out', 0); }
+            throw err;
+        } finally {
+            clearTimeout(timeout);
+        }
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new ApiError(error.message || `HTTP ${response.status}`, response.status, error.errors);
+        }
+        return response.json();
+    }
+
+    /**
+     * Download a chunk, returning null if not yet available (202 Accepted).
+     *
+     * @param {string} sessionId
+     * @param {number} chunkIndex
+     * @returns {Promise<string|null>} base64 payload or null if pending
+     */
+    async downloadChunk(sessionId, chunkIndex) {
+        const url = `${this.baseUrl}/api/v1/pipe/${encodeURIComponent(sessionId)}/chunk/${chunkIndex}`;
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), this.timeout);
+        let response;
+        try {
+            response = await fetch(url, {
+                signal: controller.signal,
+                headers: { 'Accept': 'application/json' },
+            });
+        } catch (err) {
+            if (err.name === 'AbortError') { throw new ApiError('Request timed out', 0); }
+            throw err;
+        } finally {
+            clearTimeout(timeout);
+        }
+        if (response.status === 202) { return null; }
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new ApiError(error.message || `HTTP ${response.status}`, response.status);
+        }
+        const data = await response.json();
+        return data.payload;
+    }
+
+    /**
+     * Mark the upload complete.
+     *
+     * @param {string} sessionId
+     * @param {number} totalChunks
+     * @returns {Promise<{ total_chunks: number, is_complete: boolean }>}
+     */
+    async completePipeSession(sessionId, totalChunks) {
+        const url = `${this.baseUrl}/api/v1/pipe/${encodeURIComponent(sessionId)}/complete`;
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), this.timeout);
+        let response;
+        try {
+            response = await fetch(url, {
+                method: 'POST',
+                signal: controller.signal,
+                headers: {
+                    ...(this.token ? { 'Authorization': `Bearer ${this.token}` } : {}),
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ total_chunks: totalChunks }),
+            });
+        } catch (err) {
+            if (err.name === 'AbortError') { throw new ApiError('Request timed out', 0); }
+            throw err;
+        } finally {
+            clearTimeout(timeout);
+        }
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new ApiError(error.message || `HTTP ${response.status}`, response.status, error.errors);
+        }
+        return response.json();
+    }
+
+    /**
+     * Burn (delete) a pipe session.
+     *
+     * @param {string} sessionId
+     * @returns {Promise<void>}
+     */
+    async burnPipeSession(sessionId) {
+        const url = `${this.baseUrl}/api/v1/pipe/${encodeURIComponent(sessionId)}`;
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), this.timeout);
+        try {
+            await fetch(url, {
+                method: 'DELETE',
+                signal: controller.signal,
+                headers: {
+                    ...(this.token ? { 'Authorization': `Bearer ${this.token}` } : {}),
+                    'Accept': 'application/json',
+                },
+            });
+        } catch (err) {
+            if (err.name === 'AbortError') { throw new ApiError('Request timed out', 0); }
+            throw err;
+        } finally {
+            clearTimeout(timeout);
+        }
+    }
+
+    /**
+     * Send a WebRTC signaling message.
+     *
+     * @param {string} sessionId
+     * @param {'sender'|'receiver'} role
+     * @param {'offer'|'answer'|'ice-candidate'} type
+     * @param {object} payload
+     * @returns {Promise<{ signal_id: number }>}
+     */
+    async sendSignal(sessionId, role, type, payload) {
+        const url = `${this.baseUrl}/api/v1/pipe/${encodeURIComponent(sessionId)}/signal`;
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), this.timeout);
+        let response;
+        try {
+            response = await fetch(url, {
+                method: 'POST',
+                signal: controller.signal,
+                headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+                body: JSON.stringify({ role, type, payload }),
+            });
+        } catch (err) {
+            if (err.name === 'AbortError') { throw new ApiError('Request timed out', 0); }
+            throw err;
+        } finally {
+            clearTimeout(timeout);
+        }
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new ApiError(error.message || `HTTP ${response.status}`, response.status, error.errors);
+        }
+        return response.json();
+    }
+
+    /**
+     * Poll for WebRTC signals.
+     *
+     * @param {string} sessionId
+     * @param {'sender'|'receiver'} role
+     * @param {number} afterId - Return only signals with ID greater than this
+     * @returns {Promise<{ signals: Array<{ id: number, type: string, payload: object }> }>}
+     */
+    async pollSignals(sessionId, role, afterId = 0) {
+        const url = `${this.baseUrl}/api/v1/pipe/${encodeURIComponent(sessionId)}/signal?role=${encodeURIComponent(role)}&after=${afterId}`;
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), this.timeout);
+        let response;
+        try {
+            response = await fetch(url, {
+                signal: controller.signal,
+                headers: { 'Accept': 'application/json' },
+            });
+        } catch (err) {
+            if (err.name === 'AbortError') { throw new ApiError('Request timed out', 0); }
+            throw err;
+        } finally {
+            clearTimeout(timeout);
+        }
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new ApiError(error.message || `HTTP ${response.status}`, response.status);
+        }
+        return response.json();
+    }
+
     /**
      * Confirm that the client has downloaded the file so the server can delete the S3 object.
      *

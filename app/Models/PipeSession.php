@@ -2,12 +2,17 @@
 
 namespace App\Models;
 
+use Database\Factories\PipeSessionFactory;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class PipeSession extends Model
 {
+    /** @use HasFactory<PipeSessionFactory> */
+    use HasFactory;
+
     protected $fillable = [
         'session_id',
         'user_id',

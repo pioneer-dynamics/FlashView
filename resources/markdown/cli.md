@@ -224,11 +224,127 @@ flashview burn <message_id> --yes
 flashview burn <message_id> --json
 ```
 
+## Pipe — E2E Encrypted Data Transfer Between Machines
+
+The `pipe` command streams end-to-end encrypted data directly between two paired machines — composable with Unix pipes. No token is ever printed, shared, or typed after initial setup.
+
+### How It Works
+
+Both machines share a **pipe seed** (a 256-bit random key stored at `~/.flashview/pipe_config.json`). Each transfer consumes a monotonic counter:
+
+- **Sender** derives a unique session key and session ID from the seed + counter, encrypts stdin in 64 KB chunks (AES-256-GCM), and uploads to the server.
+- **Receiver** tries up to 20 counter values (look-ahead window), finds the session, derives the same session key, decrypts, and streams to stdout.
+
+The server stores only `session_id` (a derived lookup key) and encrypted ciphertext — it never holds the seed or encryption key.
+
+> **Dedicated pair model:** Each `flashview pipe setup` creates a dedicated two-machine pair. For a third machine, run `flashview pipe setup` again to create a separate pair.
+
+### Initial Setup
+
+**Primary: PKI-based pairing (both machines logged in to the same account)**
+
+Run `flashview pipe setup` on both machines (Machine B first, Machine A second). The CLI exchanges identity keys via the server and displays a 6-digit pairing code on each side:
+
+```
+# Machine B (no seed yet) — run this first
+flashview pipe setup
+→ Device DEVB4E1 ready. Waiting for Machine A to pair... (Ctrl+C to cancel)
+
+# Machine A (already has a seed, or first-time setup)
+flashview pipe setup
+→ Pairing code: 047-283 — confirm this matches Machine B, then press Enter to continue (Ctrl+C to abort)
+
+# Machine B (after Machine A presses Enter)
+→ Pairing code: 047-283 — does this match what Machine A shows? [y/N]
+→ y
+→ Paired! You can now use 'flashview pipe'.
+```
+
+Visually confirming the pairing code prevents server-in-the-middle attacks.
+
+**Fallback: Manual export code (air-gapped or no account)**
+
+```
+# Machine A
+flashview pipe setup export
+→ FVPIPE-ABCD-EFGH-IJKL-MNOP
+→ Copy this code to Machine B.
+
+# Machine B
+flashview pipe setup import FVPIPE-ABCD-EFGH-IJKL-MNOP
+→ Paired via export code. You can now use 'flashview pipe'.
+```
+
+### Sending and Receiving
+
+```bash
+# Send text
+echo "hello world" | flashview pipe
+
+# Send a tarball
+tar cz ./my-directory | flashview pipe
+
+# Send a file
+cat large-file.bin | flashview pipe
+
+# Receive to stdout
+flashview pipe
+
+# Receive and decompress
+flashview pipe | tar xz
+
+# Receive to a file
+flashview pipe > output.bin
+```
+
+The receiver auto-discovers the session — no token needs to be copy-pasted.
+
+### Options
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--verbose` | off | Show chunk count and transfer stats |
+| `--chunk-size <kb>` | 64 | Chunk size in KB |
+| `--expires-in <s>` | 600 | Session TTL in seconds |
+
+```bash
+# Verbose output (stats to stderr)
+echo "data" | flashview pipe --verbose
+flashview pipe --verbose
+```
+
+### Counter Drift Recovery
+
+If the sender has run many transfers the receiver never consumed (drift beyond the 20-counter window), the receiver prints a recovery message. To resync:
+
+```bash
+# On the sender machine
+flashview pipe setup sync
+→ FVPIPE-XXXX-XXXX-XXXX-XXXX
+
+# On the receiver machine
+flashview pipe setup import FVPIPE-XXXX-XXXX-XXXX-XXXX
+```
+
+### Maintenance Commands
+
+```bash
+# Show current seed status and counter
+flashview pipe setup show
+
+# Re-export current seed+counter (for counter drift recovery)
+flashview pipe setup sync
+```
+
+---
+
 ## Security
 
 - **End-to-end encryption:** Secrets are encrypted locally using AES-256-GCM with PBKDF2 key derivation (SHA-512, 64,000 iterations). The server never sees your plaintext.
+- **Pipe encryption:** Pipe transfers use HKDF-SHA-256 (per-counter key derivation) + AES-256-GCM. The server stores only encrypted ciphertext and a derived session ID — never the seed or key.
 - **Passphrases stay local:** Encryption passphrases are never sent to the server.
 - **Token storage:** API tokens are stored in plaintext in your OS config directory (e.g., `~/.config/flashview-cli/config.json`). On shared systems, set appropriate file permissions: `chmod 600 ~/.config/flashview-cli/config.json`.
+- **Pipe seed storage:** The pipe seed is stored at `~/.flashview/pipe_config.json` with mode `0600`. Keep this file private — anyone with the seed can derive session keys for past and future transfers.
 
 ## Source Code
 
