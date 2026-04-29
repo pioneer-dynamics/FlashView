@@ -4,10 +4,10 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\CreatePipeSignalRequest;
+use App\Http\Requests\Api\ListPipeSignalsRequest;
 use App\Models\PipeSession;
 use App\Models\PipeSignal;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
 class PipeSignalController extends Controller
 {
@@ -33,13 +33,8 @@ class PipeSignalController extends Controller
     /**
      * Poll for WebRTC signals for a given role after a given ID.
      */
-    public function index(Request $request, string $sessionId): JsonResponse
+    public function index(ListPipeSignalsRequest $request, string $sessionId): JsonResponse
     {
-        $request->validate([
-            'role' => ['required', 'string', 'in:sender,receiver'],
-            'after' => ['nullable', 'integer', 'min:0'],
-        ]);
-
         $session = PipeSession::where('session_id', $sessionId)
             ->where('expires_at', '>', now())
             ->firstOrFail();

@@ -9,7 +9,7 @@ use App\Models\PipeSession;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
-class ClearExpiredPipeSessionsTest extends TestCase
+class ClearExpiredPipeJobsTest extends TestCase
 {
     use RefreshDatabase;
 

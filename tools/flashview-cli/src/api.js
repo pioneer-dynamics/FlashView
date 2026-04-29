@@ -374,8 +374,10 @@ export class FlashViewClient {
      * @param {'relay'|'p2p'} transferMode
      * @returns {Promise<{ session_id: string, expires_at: string, transfer_mode: string }>}
      */
-    async createPipeSession(sessionId, transferMode = 'relay') {
-        return this.request('POST', '/api/v1/pipe', { session_id: sessionId, transfer_mode: transferMode });
+    async createPipeSession(sessionId, transferMode = 'relay', expiresIn = null) {
+        const body = { session_id: sessionId, transfer_mode: transferMode };
+        if (expiresIn !== null) { body.expires_in = expiresIn; }
+        return this.request('POST', '/api/v1/pipe', body);
     }
 
     /**

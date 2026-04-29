@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\PollPendingSeedRequest;
 use App\Http\Requests\Api\RegisterPipeDeviceRequest;
 use App\Http\Requests\Api\SendPipeSeedRequest;
 use App\Models\PipeDevice;
@@ -93,12 +94,8 @@ class PipePairingController extends Controller
     /**
      * Poll for an incoming pairing offer for a specific device.
      */
-    public function pendingSeed(Request $request): JsonResponse
+    public function pendingSeed(PollPendingSeedRequest $request): JsonResponse
     {
-        $request->validate([
-            'device_id' => ['required', 'string'],
-        ]);
-
         $device = PipeDevice::where('device_id', $request->device_id)
             ->where('user_id', $request->user()->id)
             ->firstOrFail();

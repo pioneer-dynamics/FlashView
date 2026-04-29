@@ -9,7 +9,6 @@ use App\Http\Requests\Api\UploadPipeChunkRequest;
 use App\Models\PipeChunk;
 use App\Models\PipeSession;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
 class PipeController extends Controller
 {
@@ -18,11 +17,13 @@ class PipeController extends Controller
      */
     public function store(CreatePipeSessionRequest $request): JsonResponse
     {
+        $ttl = $request->expires_in ?? config('pipe.session_ttl_seconds');
+
         $session = PipeSession::create([
             'session_id' => $request->session_id,
             'user_id' => $request->user()?->id,
             'transfer_mode' => $request->transfer_mode,
-            'expires_at' => now()->addSeconds(config('pipe.session_ttl_seconds')),
+            'expires_at' => now()->addSeconds($ttl),
         ]);
 
         return response()->json([
@@ -133,7 +134,7 @@ class PipeController extends Controller
     /**
      * Burn (delete) a session and all its chunks.
      */
-    public function destroy(Request $request, string $sessionId): JsonResponse
+    public function destroy(string $sessionId): JsonResponse
     {
         $session = PipeSession::where('session_id', $sessionId)->first();
 
