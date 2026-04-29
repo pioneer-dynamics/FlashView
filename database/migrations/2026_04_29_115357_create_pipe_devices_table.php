@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('pipe_devices', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
-            $table->string('device_id', 16)->unique()->index();
+            $table->string('device_id', 16)->unique();
             $table->text('public_key');
             $table->timestamp('expires_at');
             $table->timestamps();

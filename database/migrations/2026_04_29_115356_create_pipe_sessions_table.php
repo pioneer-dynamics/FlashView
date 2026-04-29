@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('pipe_sessions', function (Blueprint $table) {
             $table->id();
-            $table->string('session_id', 40)->unique()->index();
+            $table->string('session_id', 40)->unique();
             $table->foreignId('user_id')->nullable()->constrained()->nullOnDelete();
             $table->boolean('is_complete')->default(false);
             $table->unsignedInteger('total_chunks')->nullable();

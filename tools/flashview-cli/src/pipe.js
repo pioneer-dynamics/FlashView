@@ -1,3 +1,4 @@
+import { homedir } from 'node:os';
 import { createInterface } from 'node:readline';
 
 import {
@@ -461,7 +462,7 @@ export function registerPipeCommands(program) {
                 console.log(`Pipe seed: configured`);
                 console.log(`Counter:   ${config.counter}`);
                 console.log(`Created:   ${config.created_at}`);
-                console.log(`Config:    ${require('node:os').homedir()}/.flashview/pipe_config.json`);
+                console.log(`Config:    ${homedir()}/.flashview/pipe_config.json`);
             }
         }));
 }

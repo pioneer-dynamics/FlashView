@@ -19,7 +19,6 @@ return new class extends Migration
             $table->timestamp('created_at')->useCurrent();
 
             $table->unique(['pipe_session_id', 'chunk_index']);
-            $table->index(['pipe_session_id', 'chunk_index']);
         });
     }
 
