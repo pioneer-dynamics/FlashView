@@ -306,6 +306,7 @@ The receiver auto-discovers the session — no token needs to be copy-pasted.
 | `--verbose` | off | Show chunk count and transfer stats |
 | `--chunk-size <kb>` | 64 | Chunk size in KB |
 | `--expires-in <s>` | 600 | Session TTL in seconds |
+| `--json` | off | Machine-readable output (sender confirms in JSON) |
 
 ```bash
 # Verbose output (stats to stderr)
