@@ -429,13 +429,10 @@ export class FlashViewClient {
      * @returns {Promise<void>}
      */
     async uploadPayload(uploadUrl, uploadHeaders, payload) {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), this.timeout);
         let response;
         try {
             response = await fetch(uploadUrl, {
                 method: 'PUT',
-                signal: controller.signal,
                 headers: {
                     'Content-Type': 'application/octet-stream',
                     ...uploadHeaders,
@@ -443,10 +440,10 @@ export class FlashViewClient {
                 body: payload,
             });
         } catch (err) {
-            if (err.name === 'AbortError') { throw new ApiError('Request timed out', 0); }
+            if (err.code === 'ECONNREFUSED' || err.code === 'ENOTFOUND') {
+                throw new ApiError('Could not connect to storage. Check your network.', 0);
+            }
             throw err;
-        } finally {
-            clearTimeout(timeout);
         }
         if (!response.ok) {
             throw new ApiError(`Upload failed (HTTP ${response.status})`, response.status);
@@ -471,19 +468,16 @@ export class FlashViewClient {
      */
     async downloadPayload(sessionId) {
         const url = `${this.baseUrl}/api/v1/pipe/${encodeURIComponent(sessionId)}/download`;
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), this.timeout);
         let response;
         try {
             response = await fetch(url, {
-                signal: controller.signal,
                 headers: { 'Accept': 'application/octet-stream' },
             });
         } catch (err) {
-            if (err.name === 'AbortError') { throw new ApiError('Request timed out', 0); }
+            if (err.code === 'ECONNREFUSED' || err.code === 'ENOTFOUND') {
+                throw new ApiError('Could not connect to server. Check your URL and network.', 0);
+            }
             throw err;
-        } finally {
-            clearTimeout(timeout);
         }
         if (!response.ok) {
             const error = await response.json().catch(() => ({}));
