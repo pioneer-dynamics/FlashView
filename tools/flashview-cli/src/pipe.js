@@ -352,7 +352,7 @@ async function runPkiSetup(client, { hasSeed }) {
         while (devices.length === 0) {
             await new Promise(r => setTimeout(r, pollIntervalMs));
             const waitingResult = await client.listWaitingDevices();
-            devices = waitingResult.devices ?? [];
+            devices = (waitingResult.devices ?? []).filter(d => d.device_id !== deviceId);
         }
 
         let targetDevice;
@@ -375,6 +375,11 @@ async function runPkiSetup(client, { hasSeed }) {
             targetDevice = devices[idx];
         }
 
+        const config = loadPipeConfig();
+        const encryptedSeed = await encryptSeedForPeer(config.seed, targetDevice.public_key, keypair.privateKeyBase64);
+        const pairingResult = await client.sendEncryptedSeed(targetDevice.device_id, encryptedSeed);
+        const pairingId = pairingResult.pairing_id;
+
         const pairingCode = await computePairingCode(keypair.publicKeyBase64, targetDevice.public_key);
 
         process.stderr.write(`\nPairing code: ${pairingCode} — confirm this matches Machine B, then press Enter to continue (Ctrl+C to abort)\n`);
@@ -383,11 +388,6 @@ async function runPkiSetup(client, { hasSeed }) {
             const rl = createInterface({ input: process.stdin, output: process.stdout });
             rl.question('', () => { rl.close(); resolve(); });
         });
-
-        const config = loadPipeConfig();
-        const encryptedSeed = await encryptSeedForPeer(config.seed, targetDevice.public_key, keypair.privateKeyBase64);
-        const pairingResult = await client.sendEncryptedSeed(targetDevice.device_id, encryptedSeed);
-        const pairingId = pairingResult.pairing_id;
 
         process.stderr.write('Waiting for Machine B to confirm...\n');
 
