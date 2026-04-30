@@ -12,6 +12,7 @@ import {
     encryptChunk,
     decryptChunk,
 } from './crypto.js';
+
 import { FlashViewClient, ApiError } from './api.js';
 import { getConfig } from './config.js';
 import {
@@ -25,7 +26,6 @@ import {
 } from './pipeConfig.js';
 import { loadIdentityKeypair, saveIdentityKeypair } from './identityConfig.js';
 
-const PIPE_CHUNK_SIZE = 65536; // 64 KB
 const PIPE_LOOK_AHEAD = 20;
 const PIPE_POLL_INITIAL_MS = 100;
 const PIPE_POLL_MAX_MS = 2000;
@@ -75,30 +75,10 @@ function withErrorHandling(fn) {
 }
 
 /**
- * Uint8Array → base64 string (Node.js compat).
- *
- * @param {Uint8Array} bytes
- * @returns {string}
- */
-function uint8ToBase64(bytes) {
-    return Buffer.from(bytes).toString('base64');
-}
-
-/**
- * base64 string → Uint8Array.
- *
- * @param {string} b64
- * @returns {Uint8Array}
- */
-function base64ToUint8(b64) {
-    return new Uint8Array(Buffer.from(b64, 'base64'));
-}
-
-/**
- * Run the pipe sender flow: encrypt stdin in chunks and upload to server.
+ * Run the pipe sender flow: encrypt stdin and upload to S3 (or server fallback).
  *
  * @param {FlashViewClient} client
- * @param {{ verbose: boolean, chunkSize: number, expiresIn: number|null }} options
+ * @param {{ verbose: boolean, expiresIn: number|null }} options
  */
 async function runPipeSender(client, options) {
     const config = loadPipeConfig();
@@ -119,9 +99,8 @@ async function runPipeSender(client, options) {
     const sessionKey = await deriveSessionKey(config.seed, counter);
     const sessionId = await deriveSessionId(config.seed, counter);
 
-    let session;
     try {
-        session = await client.createPipeSession(sessionId, 'relay', options.expiresIn ?? null);
+        await client.createPipeSession(sessionId, 'relay', options.expiresIn ?? null);
     } catch (err) {
         if (err instanceof ApiError && err.status === 409) {
             console.error('A session for this counter already exists. The counter has already advanced — try running again.');
@@ -130,43 +109,32 @@ async function runPipeSender(client, options) {
         throw err;
     }
 
-    const chunkSize = options.chunkSize ?? PIPE_CHUNK_SIZE;
     const chunks = [];
     for await (const chunk of process.stdin) {
         chunks.push(chunk);
     }
     const stdinBuffer = Buffer.concat(chunks);
 
-    let totalBytes = 0;
-    let chunkIndex = 0;
-
-    for (let offset = 0; offset < stdinBuffer.length || (stdinBuffer.length === 0 && chunkIndex === 0); offset += chunkSize) {
-        const slice = stdinBuffer.slice(offset, Math.min(offset + chunkSize, stdinBuffer.length));
-        const encrypted = await encryptChunk(new Uint8Array(slice), sessionKey, chunkIndex);
-        const payload = uint8ToBase64(encrypted);
-
-        await client.uploadChunk(sessionId, chunkIndex, payload);
-        totalBytes += slice.length;
-        chunkIndex++;
-
-        if (options.verbose) {
-            process.stderr.write(`\r  Uploading... [${chunkIndex} chunk${chunkIndex !== 1 ? 's' : ''}, ${humanBytes(totalBytes)}]`);
-        }
-
-        if (stdinBuffer.length === 0) { break; }
+    if (options.verbose) {
+        process.stderr.write(`  Encrypting... [${humanBytes(stdinBuffer.length)}]\n`);
     }
 
-    if (options.verbose) { process.stderr.write('\n'); }
+    const encrypted = await encryptChunk(new Uint8Array(stdinBuffer), sessionKey, 0);
 
-    await client.completePipeSession(sessionId, chunkIndex);
+    const { upload_type, upload_url, upload_headers } = await client.prepareUpload(sessionId);
 
-    if (session) {
-        process.stderr.write('Transfer ready. Run \'flashview pipe\' on the receiving machine.\n');
+    if (options.verbose) {
+        process.stderr.write(`  Uploading via ${upload_type}... [${humanBytes(encrypted.length)}]\n`);
     }
+
+    await client.uploadPayload(upload_url, upload_headers, encrypted);
+    await client.completePipeSession(sessionId);
+
+    process.stderr.write('Transfer ready. Run \'flashview pipe\' on the receiving machine.\n');
 }
 
 /**
- * Run the pipe receiver flow: discover session via look-ahead, decrypt, stream to stdout.
+ * Run the pipe receiver flow: discover session via look-ahead, download, decrypt, stream to stdout.
  *
  * @param {FlashViewClient} client
  * @param {{ verbose: boolean }} options
@@ -203,56 +171,34 @@ async function runPipeReceiver(client, options) {
 
     await advanceCounterTo(foundCounter);
 
-    const totalChunks = sessionStatus.total_chunks;
     const expiresAt = new Date(sessionStatus.expires_at).getTime();
-    let chunkIndex = 0;
-    let totalBytes = 0;
     let pollDelay = PIPE_POLL_INITIAL_MS;
 
-    while (true) {
+    while (!sessionStatus.is_complete) {
         if (Date.now() > expiresAt) {
-            process.stderr.write('\nTransfer stalled: session expired. The sender may have disconnected.\n');
+            process.stderr.write('Transfer stalled: session expired. The sender may have disconnected.\n');
             process.exit(1);
         }
-
-        const payloadBase64 = await client.downloadChunk(sessionId, chunkIndex);
-
-        if (payloadBase64 === null) {
-            await new Promise(r => setTimeout(r, pollDelay));
-            pollDelay = Math.min(pollDelay * 2, PIPE_POLL_MAX_MS);
-            continue;
-        }
-
-        pollDelay = PIPE_POLL_INITIAL_MS;
-
-        const encrypted = base64ToUint8(payloadBase64);
-        const plaintext = await decryptChunk(encrypted, sessionKey, chunkIndex);
-        process.stdout.write(Buffer.from(plaintext));
-
-        totalBytes += plaintext.length;
-        chunkIndex++;
-
-        if (options.verbose) {
-            process.stderr.write(`\r  Receiving... [${chunkIndex} chunk${chunkIndex !== 1 ? 's' : ''}, ${humanBytes(totalBytes)}]`);
-        }
-
-        if (sessionStatus.is_complete && totalChunks !== null && chunkIndex >= totalChunks) {
-            break;
-        }
-
-        if (!sessionStatus.is_complete || totalChunks === null) {
-            // Re-fetch status to see if complete flag was set
-            const updated = await client.getPipeSessionStatus(sessionId);
-            if (updated) {
-                sessionStatus = updated;
-            }
-            if (sessionStatus.is_complete && totalChunks !== null && chunkIndex >= sessionStatus.total_chunks) {
-                break;
-            }
-        }
+        await new Promise(r => setTimeout(r, pollDelay));
+        pollDelay = Math.min(pollDelay * 2, PIPE_POLL_MAX_MS);
+        const updated = await client.getPipeSessionStatus(sessionId);
+        if (updated) { sessionStatus = updated; }
     }
 
-    if (options.verbose) { process.stderr.write('\n'); }
+    if (options.verbose) {
+        process.stderr.write('  Downloading...\n');
+    }
+
+    const encrypted = await client.downloadPayload(sessionId);
+
+    if (options.verbose) {
+        process.stderr.write(`  Decrypting... [${humanBytes(encrypted.length)}]\n`);
+    }
+
+    const plaintext = await decryptChunk(encrypted, sessionKey, 0);
+    process.stdout.write(Buffer.from(plaintext));
+
+    await client.burnPipeSession(sessionId);
 }
 
 /**
@@ -408,19 +354,17 @@ export function registerPipeCommands(program) {
     const pipeCmd = program
         .command('pipe')
         .description('Send or receive encrypted data between paired machines')
-        .option('--verbose', 'Show connection path and transfer stats')
-        .option('--chunk-size <kb>', 'Chunk size in KB', '64')
+        .option('--verbose', 'Show upload type and transfer stats')
         .option('--expires-in <s>', 'Session TTL in seconds', '600')
         .option('--json', 'Machine-readable output')
         .action(withErrorHandling(async (options) => {
             const config = getConfig();
             const client = new FlashViewClient(config.url, config.token);
-            const chunkSize = parseInt(options.chunkSize, 10) * 1024;
             const expiresIn = options.expiresIn ? parseInt(options.expiresIn, 10) : null;
             const verbose = !!options.verbose;
 
             if (!process.stdin.isTTY) {
-                await runPipeSender(client, { verbose, chunkSize, expiresIn });
+                await runPipeSender(client, { verbose, expiresIn });
             } else {
                 await runPipeReceiver(client, { verbose });
             }

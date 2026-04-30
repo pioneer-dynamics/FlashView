@@ -12,6 +12,6 @@ class ClearExpiredPipeSessions implements ShouldQueue
 
     public function handle(): void
     {
-        PipeSession::where('expires_at', '<', now())->delete();
+        PipeSession::where('expires_at', '<', now())->each(fn (PipeSession $session) => $session->delete());
     }
 }

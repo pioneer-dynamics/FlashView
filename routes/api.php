@@ -64,9 +64,10 @@ Route::prefix('v1')->as('api.v1.')->group(function () {
     // Transfer routes — session_id as capability token (no auth required)
     Route::post('pipe', [PipeController::class, 'store'])->name('pipe.store')->middleware('throttle:pipe-sessions');
     Route::get('pipe/{sessionId}', [PipeController::class, 'show'])->name('pipe.show');
-    Route::post('pipe/{sessionId}/chunk', [PipeController::class, 'uploadChunk'])->name('pipe.chunk.upload');
-    Route::get('pipe/{sessionId}/chunk/{index}', [PipeController::class, 'downloadChunk'])->name('pipe.chunk.download');
+    Route::post('pipe/{sessionId}/prepare-upload', [PipeController::class, 'prepareUpload'])->name('pipe.prepare-upload');
+    Route::put('pipe/{sessionId}/payload', [PipeController::class, 'serverUpload'])->name('api.v1.pipe.payload.upload');
     Route::post('pipe/{sessionId}/complete', [PipeController::class, 'complete'])->name('pipe.complete');
+    Route::get('pipe/{sessionId}/download', [PipeController::class, 'download'])->name('pipe.download');
     Route::delete('pipe/{sessionId}', [PipeController::class, 'destroy'])->name('pipe.destroy');
     Route::post('pipe/{sessionId}/signal', [PipeSignalController::class, 'store'])->name('pipe.signal.store');
     Route::get('pipe/{sessionId}/signal', [PipeSignalController::class, 'index'])->name('pipe.signal.index');

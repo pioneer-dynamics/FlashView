@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Storage;
 
 class PipeSession extends Model
 {
@@ -17,8 +18,8 @@ class PipeSession extends Model
         'session_id',
         'user_id',
         'is_complete',
-        'total_chunks',
         'transfer_mode',
+        'storage_path',
         'expires_at',
     ];
 
@@ -30,14 +31,20 @@ class PipeSession extends Model
         ];
     }
 
+    protected static function boot(): void
+    {
+        parent::boot();
+
+        static::deleting(function (PipeSession $session): void {
+            if ($session->storage_path && Storage::exists($session->storage_path)) {
+                Storage::delete($session->storage_path);
+            }
+        });
+    }
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
-    }
-
-    public function chunks(): HasMany
-    {
-        return $this->hasMany(PipeChunk::class);
     }
 
     public function signals(): HasMany

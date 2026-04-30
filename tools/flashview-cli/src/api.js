@@ -384,7 +384,7 @@ export class FlashViewClient {
      * Get pipe session status.
      *
      * @param {string} sessionId
-     * @returns {Promise<{ session_id: string, is_complete: boolean, chunk_count: number, total_chunks: number|null, expires_at: string }|null>}
+     * @returns {Promise<{ session_id: string, is_complete: boolean, expires_at: string }|null>}
      */
     async getPipeSessionStatus(sessionId) {
         const url = `${this.baseUrl}/api/v1/pipe/${encodeURIComponent(sessionId)}`;
@@ -394,7 +394,7 @@ export class FlashViewClient {
         try {
             response = await fetch(url, {
                 signal: controller.signal,
-                headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+                headers: { 'Accept': 'application/json' },
             });
         } catch (err) {
             if (err.name === 'AbortError') { throw new ApiError('Request timed out', 0); }
@@ -411,58 +411,36 @@ export class FlashViewClient {
     }
 
     /**
-     * Upload an encrypted chunk.
+     * Request a presigned S3 upload URL (or server fallback URL) for the session payload.
      *
      * @param {string} sessionId
-     * @param {number} chunkIndex
-     * @param {string} chunkBase64
-     * @returns {Promise<{ chunk_index: number }>}
+     * @returns {Promise<{ upload_type: 's3_direct'|'server', upload_url: string, upload_headers: object }>}
      */
-    async uploadChunk(sessionId, chunkIndex, chunkBase64) {
-        const url = `${this.baseUrl}/api/v1/pipe/${encodeURIComponent(sessionId)}/chunk`;
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), this.timeout);
-        let response;
-        try {
-            response = await fetch(url, {
-                method: 'POST',
-                signal: controller.signal,
-                headers: {
-                    ...(this.token ? { 'Authorization': `Bearer ${this.token}` } : {}),
-                    'Accept': 'application/json',
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ chunk_index: chunkIndex, payload: chunkBase64 }),
-            });
-        } catch (err) {
-            if (err.name === 'AbortError') { throw new ApiError('Request timed out', 0); }
-            throw err;
-        } finally {
-            clearTimeout(timeout);
-        }
-        if (!response.ok) {
-            const error = await response.json().catch(() => ({}));
-            throw new ApiError(error.message || `HTTP ${response.status}`, response.status, error.errors);
-        }
-        return response.json();
+    async prepareUpload(sessionId) {
+        return this.request('POST', `/api/v1/pipe/${encodeURIComponent(sessionId)}/prepare-upload`);
     }
 
     /**
-     * Download a chunk, returning null if not yet available (202 Accepted).
+     * Upload the encrypted payload directly to the given URL (S3 presigned or server fallback).
      *
-     * @param {string} sessionId
-     * @param {number} chunkIndex
-     * @returns {Promise<string|null>} base64 payload or null if pending
+     * @param {string} uploadUrl
+     * @param {object} uploadHeaders
+     * @param {Uint8Array} payload
+     * @returns {Promise<void>}
      */
-    async downloadChunk(sessionId, chunkIndex) {
-        const url = `${this.baseUrl}/api/v1/pipe/${encodeURIComponent(sessionId)}/chunk/${chunkIndex}`;
+    async uploadPayload(uploadUrl, uploadHeaders, payload) {
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), this.timeout);
         let response;
         try {
-            response = await fetch(url, {
+            response = await fetch(uploadUrl, {
+                method: 'PUT',
                 signal: controller.signal,
-                headers: { 'Accept': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/octet-stream',
+                    ...uploadHeaders,
+                },
+                body: payload,
             });
         } catch (err) {
             if (err.name === 'AbortError') { throw new ApiError('Request timed out', 0); }
@@ -470,37 +448,36 @@ export class FlashViewClient {
         } finally {
             clearTimeout(timeout);
         }
-        if (response.status === 202) { return null; }
         if (!response.ok) {
-            const error = await response.json().catch(() => ({}));
-            throw new ApiError(error.message || `HTTP ${response.status}`, response.status);
+            throw new ApiError(`Upload failed (HTTP ${response.status})`, response.status);
         }
-        const data = await response.json();
-        return data.payload;
     }
 
     /**
      * Mark the upload complete.
      *
      * @param {string} sessionId
-     * @param {number} totalChunks
-     * @returns {Promise<{ total_chunks: number, is_complete: boolean }>}
+     * @returns {Promise<{ is_complete: boolean }>}
      */
-    async completePipeSession(sessionId, totalChunks) {
-        const url = `${this.baseUrl}/api/v1/pipe/${encodeURIComponent(sessionId)}/complete`;
+    async completePipeSession(sessionId) {
+        return this.request('POST', `/api/v1/pipe/${encodeURIComponent(sessionId)}/complete`);
+    }
+
+    /**
+     * Download the encrypted payload for a completed session.
+     *
+     * @param {string} sessionId
+     * @returns {Promise<Uint8Array>}
+     */
+    async downloadPayload(sessionId) {
+        const url = `${this.baseUrl}/api/v1/pipe/${encodeURIComponent(sessionId)}/download`;
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), this.timeout);
         let response;
         try {
             response = await fetch(url, {
-                method: 'POST',
                 signal: controller.signal,
-                headers: {
-                    ...(this.token ? { 'Authorization': `Bearer ${this.token}` } : {}),
-                    'Accept': 'application/json',
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ total_chunks: totalChunks }),
+                headers: { 'Accept': 'application/octet-stream' },
             });
         } catch (err) {
             if (err.name === 'AbortError') { throw new ApiError('Request timed out', 0); }
@@ -510,9 +487,9 @@ export class FlashViewClient {
         }
         if (!response.ok) {
             const error = await response.json().catch(() => ({}));
-            throw new ApiError(error.message || `HTTP ${response.status}`, response.status, error.errors);
+            throw new ApiError(error.message || `HTTP ${response.status}`, response.status);
         }
-        return response.json();
+        return new Uint8Array(await response.arrayBuffer());
     }
 
     /**

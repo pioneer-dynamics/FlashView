@@ -3,12 +3,11 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Api\CompletePipeSessionRequest;
 use App\Http\Requests\Api\CreatePipeSessionRequest;
-use App\Http\Requests\Api\UploadPipeChunkRequest;
-use App\Models\PipeChunk;
 use App\Models\PipeSession;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class PipeController extends Controller
 {
@@ -45,94 +44,108 @@ class PipeController extends Controller
         return response()->json([
             'session_id' => $session->session_id,
             'is_complete' => $session->is_complete,
-            'chunk_count' => $session->chunks()->count(),
-            'total_chunks' => $session->total_chunks,
             'expires_at' => $session->expires_at->toIso8601String(),
             'transfer_mode' => $session->transfer_mode,
         ]);
     }
 
     /**
-     * Upload an encrypted chunk.
+     * Return a presigned S3 upload URL, or a signed server-side upload URL as fallback.
      */
-    public function uploadChunk(UploadPipeChunkRequest $request, string $sessionId): JsonResponse
+    public function prepareUpload(string $sessionId): JsonResponse
     {
         $session = PipeSession::where('session_id', $sessionId)
             ->where('expires_at', '>', now())
             ->firstOrFail();
 
-        if ($session->chunks()->count() >= config('pipe.max_chunks_per_session')) {
-            return response()->json(['error' => 'max_chunks_exceeded'], 422);
-        }
+        abort_if($session->is_complete, 422, 'Session is already complete.');
 
-        $existingChunk = PipeChunk::where('pipe_session_id', $session->id)
-            ->where('chunk_index', $request->chunk_index)
-            ->first();
+        $storagePath = "pipe-payloads/{$sessionId}.bin";
 
-        if ($existingChunk) {
-            return response()->json(['error' => 'chunk_already_exists'], 409);
-        }
+        try {
+            ['url' => $uploadUrl, 'headers' => $uploadHeaders] = Storage::temporaryUploadUrl(
+                $storagePath,
+                now()->addMinutes(15),
+                ['ContentType' => 'application/octet-stream']
+            );
 
-        PipeChunk::create([
-            'pipe_session_id' => $session->id,
-            'chunk_index' => $request->chunk_index,
-            'payload' => $request->payload,
-        ]);
-
-        return response()->json(['chunk_index' => $request->chunk_index], 201);
-    }
-
-    /**
-     * Download a chunk; returns 202 if not yet available.
-     */
-    public function downloadChunk(string $sessionId, int $index): JsonResponse
-    {
-        $session = PipeSession::where('session_id', $sessionId)
-            ->where('expires_at', '>', now())
-            ->firstOrFail();
-
-        $chunk = PipeChunk::where('pipe_session_id', $session->id)
-            ->where('chunk_index', $index)
-            ->first();
-
-        if (! $chunk) {
-            return response()->json(['status' => 'pending'], 202);
-        }
-
-        return response()->json(['payload' => $chunk->payload]);
-    }
-
-    /**
-     * Mark upload complete after verifying chunk count matches.
-     */
-    public function complete(CompletePipeSessionRequest $request, string $sessionId): JsonResponse
-    {
-        $session = PipeSession::where('session_id', $sessionId)
-            ->where('expires_at', '>', now())
-            ->firstOrFail();
-
-        $actualCount = $session->chunks()->count();
-
-        if ($actualCount !== (int) $request->total_chunks) {
             return response()->json([
-                'error' => 'chunk_count_mismatch',
-                'message' => "Expected {$request->total_chunks} chunks but found {$actualCount}.",
-            ], 422);
+                'upload_type' => 's3_direct',
+                'upload_url' => $uploadUrl,
+                'upload_headers' => $uploadHeaders,
+            ]);
+        } catch (\RuntimeException) {
+            return response()->json([
+                'upload_type' => 'server',
+                'upload_url' => route('api.v1.pipe.payload.upload', ['sessionId' => $sessionId]),
+                'upload_headers' => [],
+            ]);
         }
+    }
+
+    /**
+     * Server-side fallback: receive raw encrypted binary and store it.
+     */
+    public function serverUpload(Request $request, string $sessionId): JsonResponse
+    {
+        $session = PipeSession::where('session_id', $sessionId)
+            ->where('expires_at', '>', now())
+            ->firstOrFail();
+
+        abort_if($session->is_complete, 422, 'Session is already complete.');
+
+        $storagePath = "pipe-payloads/{$sessionId}.bin";
+        Storage::put($storagePath, $request->getContent());
+
+        return response()->json(['status' => 'ok']);
+    }
+
+    /**
+     * Mark upload complete.
+     */
+    public function complete(string $sessionId): JsonResponse
+    {
+        $session = PipeSession::where('session_id', $sessionId)
+            ->where('expires_at', '>', now())
+            ->firstOrFail();
+
+        $storagePath = "pipe-payloads/{$sessionId}.bin";
+
+        abort_unless(Storage::exists($storagePath), 422, 'Payload has not been uploaded yet.');
 
         $session->update([
             'is_complete' => true,
-            'total_chunks' => $request->total_chunks,
+            'storage_path' => $storagePath,
         ]);
 
-        return response()->json([
-            'total_chunks' => $session->total_chunks,
-            'is_complete' => true,
-        ]);
+        return response()->json(['is_complete' => true]);
     }
 
     /**
-     * Burn (delete) a session and all its chunks.
+     * Download the encrypted payload — redirects to a presigned S3 URL or streams from local disk.
+     */
+    public function download(string $sessionId): mixed
+    {
+        $session = PipeSession::where('session_id', $sessionId)
+            ->where('expires_at', '>', now())
+            ->firstOrFail();
+
+        abort_unless($session->is_complete, 202, 'Transfer not yet complete.');
+        abort_unless($session->storage_path && Storage::exists($session->storage_path), 404, 'Payload not found.');
+
+        try {
+            $url = Storage::temporaryUrl($session->storage_path, now()->addMinutes(5));
+
+            return redirect($url);
+        } catch (\RuntimeException) {
+            return response(Storage::get($session->storage_path), 200, [
+                'Content-Type' => 'application/octet-stream',
+            ]);
+        }
+    }
+
+    /**
+     * Burn (delete) a session and its stored payload.
      */
     public function destroy(string $sessionId): JsonResponse
     {

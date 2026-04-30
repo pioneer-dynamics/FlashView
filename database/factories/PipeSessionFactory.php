@@ -16,7 +16,7 @@ class PipeSessionFactory extends Factory
             'session_id' => str_pad(bin2hex(random_bytes(16)), 32, '0'),
             'user_id' => null,
             'is_complete' => false,
-            'total_chunks' => null,
+            'storage_path' => null,
             'transfer_mode' => 'relay',
             'expires_at' => now()->addMinutes(10),
         ];
