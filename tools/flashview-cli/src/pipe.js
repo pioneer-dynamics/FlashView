@@ -324,11 +324,9 @@ async function runPkiSetup(client, { hasSeed }) {
 
         const code = await computePairingCode(senderPublicKey, keypair.publicKeyBase64);
 
-        process.stderr.write(`\nPairing code: ${code} — does this match what Machine A shows? [y/N] `);
-
         const answer = await new Promise((resolve) => {
-            const rl = createInterface({ input: process.stdin, output: process.stdout });
-            rl.question('', (a) => { rl.close(); resolve(a.trim().toLowerCase()); });
+            const rl = createInterface({ input: process.stdin, output: process.stderr });
+            rl.question(`\nPairing code: ${code} — does this match what Machine A shows? [y/N] `, (a) => { rl.close(); resolve(a.trim().toLowerCase()); });
         });
 
         if (answer !== 'y') {
@@ -382,11 +380,9 @@ async function runPkiSetup(client, { hasSeed }) {
 
         const pairingCode = await computePairingCode(keypair.publicKeyBase64, targetDevice.public_key);
 
-        process.stderr.write(`\nPairing code: ${pairingCode} — confirm this matches Machine B, then press Enter to continue (Ctrl+C to abort)\n`);
-
         await new Promise((resolve) => {
-            const rl = createInterface({ input: process.stdin, output: process.stdout });
-            rl.question('', () => { rl.close(); resolve(); });
+            const rl = createInterface({ input: process.stdin, output: process.stderr });
+            rl.question(`\nPairing code: ${pairingCode} — confirm this matches Machine B, then press Enter to continue (Ctrl+C to abort)\n`, () => { rl.close(); resolve(); });
         });
 
         process.stderr.write('Waiting for Machine B to confirm...\n');
