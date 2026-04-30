@@ -2,6 +2,7 @@ import { homedir } from 'node:os';
 import { createInterface } from 'node:readline';
 
 import {
+    generatePipeSeed,
     generateIdentityKeypair,
     encryptSeedForPeer,
     decryptSeedFromPeer,
@@ -255,6 +256,28 @@ async function runPipeReceiver(client, options) {
 }
 
 /**
+ * Prompt the user to select their role when no seed exists on this machine.
+ *
+ * @returns {Promise<'initiate'|'join'>}
+ */
+async function promptRole() {
+    process.stderr.write('\nNo pipe seed found on this machine.\n');
+    process.stderr.write('  (1) Create a new pair — this machine generates the seed and waits for the other machine\n');
+    process.stderr.write('  (2) Join an existing pair — wait for the other machine to send you the seed\n');
+
+    const answer = await new Promise((resolve) => {
+        const rl = createInterface({ input: process.stdin, output: process.stdout });
+        rl.question('Choice [1/2]: ', (a) => { rl.close(); resolve(a.trim()); });
+    });
+
+    if (answer === '1') { return 'initiate'; }
+    if (answer === '2') { return 'join'; }
+
+    process.stderr.write('Invalid selection. Please enter 1 or 2.\n');
+    return promptRole();
+}
+
+/**
  * Run the PKI pairing setup flow.
  *
  * @param {FlashViewClient} client
@@ -268,10 +291,21 @@ async function runPkiSetup(client, { hasSeed }) {
         saveIdentityKeypair(keypair);
     }
 
+    let isSeedHolder = hasSeed;
+
+    if (!hasSeed) {
+        const role = await promptRole();
+        if (role === 'initiate') {
+            const newSeed = await generatePipeSeed();
+            savePipeConfig({ seed: newSeed, counter: 0 });
+            isSeedHolder = true;
+        }
+    }
+
     const deviceResult = await client.registerDevice(keypair.publicKeyBase64);
     const deviceId = deviceResult.device_id;
 
-    if (!hasSeed) {
+    if (!isSeedHolder) {
         process.stderr.write(`Device ${deviceId} ready. Waiting for Machine A to pair... (Ctrl+C to cancel)\n`);
 
         const pollIntervalMs = 3000;
@@ -310,12 +344,15 @@ async function runPkiSetup(client, { hasSeed }) {
         process.stderr.write('\nPaired! You can now use \'flashview pipe\'.\n');
 
     } else {
-        const waitingResult = await client.listWaitingDevices();
-        const devices = waitingResult.devices ?? [];
+        const pollIntervalMs = 3000;
 
-        if (devices.length === 0) {
-            console.error('No devices waiting to pair. Run \'flashview pipe setup\' on Machine B first, then retry.');
-            process.exit(1);
+        process.stderr.write(`Device ${deviceId} ready. Waiting for Machine B to run 'flashview pipe setup'... (Ctrl+C to cancel)\n`);
+
+        let devices = [];
+        while (devices.length === 0) {
+            await new Promise(r => setTimeout(r, pollIntervalMs));
+            const waitingResult = await client.listWaitingDevices();
+            devices = waitingResult.devices ?? [];
         }
 
         let targetDevice;
@@ -354,7 +391,6 @@ async function runPkiSetup(client, { hasSeed }) {
 
         process.stderr.write('Waiting for Machine B to confirm...\n');
 
-        const pollIntervalMs = 3000;
         let isAccepted = false;
 
         while (!isAccepted) {
