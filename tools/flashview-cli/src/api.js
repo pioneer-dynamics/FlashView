@@ -252,10 +252,10 @@ export class FlashViewClient {
         return result;
     }
 
-    // ─── Pipe Pairing API ────────────────────────────────────────────────────────
+    // ─── Pipe Device API ─────────────────────────────────────────────────────────
 
     /**
-     * Register this device's P-256 public key for PKI-based pairing.
+     * Register this device's P-256 public key.
      *
      * @param {string} publicKeyBase64 - JWK base64
      * @returns {Promise<{ device_id: string, expires_at: string }>}
@@ -265,16 +265,26 @@ export class FlashViewClient {
     }
 
     /**
-     * List devices registered to this account that are waiting to be paired.
+     * List all active devices on this account (for sender to pick a receiver).
      *
-     * @returns {Promise<{ devices: Array<{ device_id: string, public_key: string, created_at: string }> }>}
+     * @returns {Promise<{ devices: Array<{ device_id: string, public_key: string, created_at: string, expires_at: string }> }>}
      */
-    async listWaitingDevices() {
-        return this.request('GET', '/api/v1/pipe/devices/waiting');
+    async listMyDevices() {
+        return this.request('GET', '/api/v1/pipe/devices');
     }
 
     /**
-     * De-register a device (used when the receiver rejects the pairing code).
+     * Get a specific device's public key.
+     *
+     * @param {string} deviceId
+     * @returns {Promise<{ device_id: string, public_key: string, expires_at: string }>}
+     */
+    async getDevicePublicKey(deviceId) {
+        return this.request('GET', `/api/v1/pipe/devices/${encodeURIComponent(deviceId)}`);
+    }
+
+    /**
+     * De-register a device.
      *
      * @param {string} deviceId
      * @returns {Promise<void>}
@@ -302,27 +312,13 @@ export class FlashViewClient {
     }
 
     /**
-     * Send an ECIES-encrypted pipe seed to a waiting device.
-     *
-     * @param {string} receiverDeviceId
-     * @param {string} encryptedSeedBase64
-     * @returns {Promise<{ pairing_id: number }>}
-     */
-    async sendEncryptedSeed(receiverDeviceId, encryptedSeedBase64) {
-        return this.request('POST', '/api/v1/pipe/pairings', {
-            receiver_device_id: receiverDeviceId,
-            encrypted_seed: encryptedSeedBase64,
-        });
-    }
-
-    /**
-     * Poll for an incoming pairing offer for a specific device.
+     * Poll for pending sessions addressed to this device.
      *
      * @param {string} deviceId
-     * @returns {Promise<{ pairing_id: number, sender_device_id: string, sender_public_key: string, encrypted_seed: string }|null>}
+     * @returns {Promise<{ session_id: string, encrypted_transfer_key: string, sender_device_id: string, sender_public_key: string, expires_at: string }|null>}
      */
-    async pollPairingPending(deviceId) {
-        const url = `${this.baseUrl}/api/v1/pipe/pairings/pending?device_id=${encodeURIComponent(deviceId)}`;
+    async pollPendingSessions(deviceId) {
+        const url = `${this.baseUrl}/api/v1/pipe/sessions/pending?device_id=${encodeURIComponent(deviceId)}`;
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), this.timeout);
         let response;
@@ -345,37 +341,19 @@ export class FlashViewClient {
         return response.json();
     }
 
-    /**
-     * Get pairing status (sender polls until receiver accepts).
-     *
-     * @param {number} pairingId
-     * @returns {Promise<{ pairing_id: number, is_accepted: boolean, expires_at: string }>}
-     */
-    async getPairingStatus(pairingId) {
-        return this.request('GET', `/api/v1/pipe/pairings/${pairingId}`);
-    }
-
-    /**
-     * Mark a pairing as accepted (receiver confirms the pairing code).
-     *
-     * @param {number} pairingId
-     * @returns {Promise<{ accepted: boolean }>}
-     */
-    async acceptPairing(pairingId) {
-        return this.request('POST', `/api/v1/pipe/pairings/${pairingId}/accept`);
-    }
-
     // ─── Pipe Transfer API ───────────────────────────────────────────────────────
 
     /**
      * Create a new pipe transfer session.
      *
-     * @param {string} sessionId - HKDF-derived hex session ID
+     * @param {string} sessionId - Random 32-char hex session ID
      * @param {'relay'|'p2p'} transferMode
+     * @param {number|null} expiresIn - TTL in seconds
+     * @param {{ receiver_device_id?: string, sender_device_id?: string, encrypted_transfer_key?: string }} deviceFields
      * @returns {Promise<{ session_id: string, expires_at: string, transfer_mode: string }>}
      */
-    async createPipeSession(sessionId, transferMode = 'relay', expiresIn = null) {
-        const body = { session_id: sessionId, transfer_mode: transferMode };
+    async createPipeSession(sessionId, transferMode = 'relay', expiresIn = null, deviceFields = {}) {
+        const body = { session_id: sessionId, transfer_mode: transferMode, ...deviceFields };
         if (expiresIn !== null) { body.expires_in = expiresIn; }
         return this.request('POST', '/api/v1/pipe', body);
     }

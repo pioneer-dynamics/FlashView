@@ -13,7 +13,7 @@ function ensureDir() {
 /**
  * Load the identity keypair from disk.
  *
- * @returns {{ publicKeyBase64: string, privateKeyBase64: string }|null}
+ * @returns {{ publicKeyBase64: string, privateKeyBase64: string, deviceId: string|null }|null}
  */
 export function loadIdentityKeypair() {
     try {
@@ -21,7 +21,11 @@ export function loadIdentityKeypair() {
         if (!raw.publicKeyBase64 || !raw.privateKeyBase64) {
             return null;
         }
-        return { publicKeyBase64: raw.publicKeyBase64, privateKeyBase64: raw.privateKeyBase64 };
+        return {
+            publicKeyBase64: raw.publicKeyBase64,
+            privateKeyBase64: raw.privateKeyBase64,
+            deviceId: raw.deviceId ?? null,
+        };
     } catch {
         return null;
     }
@@ -30,11 +34,11 @@ export function loadIdentityKeypair() {
 /**
  * Atomically save the identity keypair to disk (mode 0o600).
  *
- * @param {{ publicKeyBase64: string, privateKeyBase64: string }} keypair
+ * @param {{ publicKeyBase64: string, privateKeyBase64: string, deviceId?: string }} keypair
  */
-export function saveIdentityKeypair({ publicKeyBase64, privateKeyBase64 }) {
+export function saveIdentityKeypair({ publicKeyBase64, privateKeyBase64, deviceId = null }) {
     ensureDir();
-    const data = { publicKeyBase64, privateKeyBase64 };
+    const data = { publicKeyBase64, privateKeyBase64, ...(deviceId ? { deviceId } : {}) };
     writeFileSync(IDENTITY_TMP, JSON.stringify(data, null, 2), { encoding: 'utf8', mode: 0o600 });
     renameSync(IDENTITY_TMP, IDENTITY_FILE);
 }

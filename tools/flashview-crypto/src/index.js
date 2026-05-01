@@ -171,78 +171,29 @@ export async function decryptBuffer(encryptedBuffer, passphrase) {
 
 // ─── Pipe Crypto Primitives ───────────────────────────────────────────────────
 
-const PIPE_SALT = new TextEncoder().encode('flashview-pipe-v1');
 const PIPE_CHUNK_IV_LENGTH = 12;
 
 /**
- * Generate a cryptographically random pipe seed (32 bytes, base64-encoded).
+ * Generate a cryptographically random 32-byte transfer key (base64-encoded).
+ * Used once per transfer; never reused or stored.
  *
- * @returns {Promise<string>}
+ * @returns {string}
  */
-export async function generatePipeSeed() {
-    const seed = new Uint8Array(32);
-    globalThis.crypto.getRandomValues(seed);
-    return uint8ArrayToBase64(seed);
+export function generateTransferKey() {
+    const key = new Uint8Array(32);
+    globalThis.crypto.getRandomValues(key);
+    return uint8ArrayToBase64(key);
 }
 
 /**
- * Derive a 32-byte AES-256-GCM key from a pipe seed and transfer counter using HKDF-SHA-256.
+ * Generate a cryptographically random session ID (32-char lowercase hex).
  *
- * ikm  = pipeSeedBytes
- * salt = UTF-8("flashview-pipe-v1")
- * info = UTF-8("flashview-pipe-key-v1") + uint64BE(counter)
- *
- * @param {string} pipeSeedBase64
- * @param {bigint|number} counter
- * @returns {Promise<string>} base64-encoded 32-byte key material
+ * @returns {string}
  */
-export async function deriveSessionKey(pipeSeedBase64, counter) {
-    const seedBytes = base64ToUint8Array(pipeSeedBase64);
-    const counterBig = BigInt(counter);
-    const infoPrefix = new TextEncoder().encode('flashview-pipe-key-v1');
-    const counterBytes = new Uint8Array(8);
-    const view = new DataView(counterBytes.buffer);
-    view.setBigUint64(0, counterBig, false);
-    const info = new Uint8Array(infoPrefix.length + 8);
-    info.set(infoPrefix);
-    info.set(counterBytes, infoPrefix.length);
-
-    const ikmKey = await globalThis.crypto.subtle.importKey('raw', seedBytes, 'HKDF', false, ['deriveBits']);
-    const bits = await globalThis.crypto.subtle.deriveBits(
-        { name: 'HKDF', hash: 'SHA-256', salt: PIPE_SALT, info },
-        ikmKey,
-        256,
-    );
-    return uint8ArrayToBase64(new Uint8Array(bits));
-}
-
-/**
- * Derive a 16-byte session ID (32 hex chars) from a pipe seed and counter using HKDF-SHA-256.
- *
- * Uses info prefix "flashview-pipe-sid-v1" — cryptographically independent from deriveSessionKey.
- *
- * @param {string} pipeSeedBase64
- * @param {bigint|number} counter
- * @returns {Promise<string>} 32 hex character string
- */
-export async function deriveSessionId(pipeSeedBase64, counter) {
-    const seedBytes = base64ToUint8Array(pipeSeedBase64);
-    const counterBig = BigInt(counter);
-    const infoPrefix = new TextEncoder().encode('flashview-pipe-sid-v1');
-    const counterBytes = new Uint8Array(8);
-    const view = new DataView(counterBytes.buffer);
-    view.setBigUint64(0, counterBig, false);
-    const info = new Uint8Array(infoPrefix.length + 8);
-    info.set(infoPrefix);
-    info.set(counterBytes, infoPrefix.length);
-
-    const ikmKey = await globalThis.crypto.subtle.importKey('raw', seedBytes, 'HKDF', false, ['deriveBits']);
-    const bits = await globalThis.crypto.subtle.deriveBits(
-        { name: 'HKDF', hash: 'SHA-256', salt: PIPE_SALT, info },
-        ikmKey,
-        128,
-    );
-    return Array.from(new Uint8Array(bits)).map(b => b.toString(16).padStart(2, '0')).join('');
+export function generateSessionId() {
+    const bytes = new Uint8Array(16);
+    globalThis.crypto.getRandomValues(bytes);
+    return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
 /**
@@ -327,21 +278,21 @@ export async function generateIdentityKeypair() {
 }
 
 /**
- * ECIES: encrypt a pipe seed for a peer device using ECDH + HKDF + AES-256-GCM.
+ * ECIES: encrypt a transfer key for a peer device using ECDH + HKDF + AES-256-GCM.
  *
  * Algorithm:
  *   1. sharedSecret = ECDH(ownPrivateKey, peerPublicKey)
- *   2. key = HKDF-SHA-256(ikm=sharedSecret, salt=UTF-8("flashview-pipe-pairing-v1"), info=UTF-8("encryptSeedForPeer"), length=32)
+ *   2. key = HKDF-SHA-256(ikm=sharedSecret, salt=UTF-8("flashview-pipe-pairing-v1"), info=UTF-8("encryptKeyForDevice"), length=32)
  *   3. iv = 12 random bytes
- *   4. ciphertext+tag = AES-256-GCM encrypt(plaintext=pipeSeedBytes, key, iv, aad=none)
+ *   4. ciphertext+tag = AES-256-GCM encrypt(plaintext=transferKeyBytes, key, iv, aad=none)
  *   5. blob = base64( iv[12] || ciphertext || tag[16] )
  *
- * @param {string} pipeSeedBase64
+ * @param {string} transferKeyBase64 - 32-byte transfer key, base64-encoded
  * @param {string} peerPublicKeyBase64 - JWK base64
  * @param {string} ownPrivateKeyBase64 - JWK base64
  * @returns {Promise<string>} base64-encoded ECIES blob
  */
-export async function encryptSeedForPeer(pipeSeedBase64, peerPublicKeyBase64, ownPrivateKeyBase64) {
+export async function encryptKeyForDevice(transferKeyBase64, peerPublicKeyBase64, ownPrivateKeyBase64) {
     const peerPublicKey = await globalThis.crypto.subtle.importKey(
         'jwk',
         JSON.parse(atob(peerPublicKeyBase64)),
@@ -369,7 +320,7 @@ export async function encryptSeedForPeer(pipeSeedBase64, peerPublicKeyBase64, ow
             name: 'HKDF',
             hash: 'SHA-256',
             salt: PAIRING_HKDF_SALT,
-            info: new TextEncoder().encode('encryptSeedForPeer'),
+            info: new TextEncoder().encode('encryptKeyForDevice'),
         },
         sharedKey,
         { name: 'AES-GCM', length: 256 },
@@ -380,8 +331,8 @@ export async function encryptSeedForPeer(pipeSeedBase64, peerPublicKeyBase64, ow
     const iv = new Uint8Array(12);
     globalThis.crypto.getRandomValues(iv);
 
-    const seedBytes = base64ToUint8Array(pipeSeedBase64);
-    const ciphertext = await globalThis.crypto.subtle.encrypt({ name: 'AES-GCM', iv }, aesKey, seedBytes);
+    const keyBytes = base64ToUint8Array(transferKeyBase64);
+    const ciphertext = await globalThis.crypto.subtle.encrypt({ name: 'AES-GCM', iv }, aesKey, keyBytes);
 
     const blob = new Uint8Array(12 + ciphertext.byteLength);
     blob.set(iv);
@@ -390,16 +341,16 @@ export async function encryptSeedForPeer(pipeSeedBase64, peerPublicKeyBase64, ow
 }
 
 /**
- * ECIES: decrypt a pipe seed from a peer using ECDH + HKDF + AES-256-GCM.
+ * ECIES: decrypt a transfer key from a peer device using ECDH + HKDF + AES-256-GCM.
  *
  * Blob format: first 12 bytes = IV, remainder = ciphertext + 16-byte auth tag.
  *
  * @param {string} encryptedBase64 - base64-encoded blob
  * @param {string} ownPrivateKeyBase64 - JWK base64
  * @param {string} peerPublicKeyBase64 - JWK base64
- * @returns {Promise<string>} pipe seed as base64
+ * @returns {Promise<string>} transfer key as base64
  */
-export async function decryptSeedFromPeer(encryptedBase64, ownPrivateKeyBase64, peerPublicKeyBase64) {
+export async function decryptKeyFromDevice(encryptedBase64, ownPrivateKeyBase64, peerPublicKeyBase64) {
     const peerPublicKey = await globalThis.crypto.subtle.importKey(
         'jwk',
         JSON.parse(atob(peerPublicKeyBase64)),
@@ -427,7 +378,7 @@ export async function decryptSeedFromPeer(encryptedBase64, ownPrivateKeyBase64, 
             name: 'HKDF',
             hash: 'SHA-256',
             salt: PAIRING_HKDF_SALT,
-            info: new TextEncoder().encode('encryptSeedForPeer'),
+            info: new TextEncoder().encode('encryptKeyForDevice'),
         },
         sharedKey,
         { name: 'AES-GCM', length: 256 },
