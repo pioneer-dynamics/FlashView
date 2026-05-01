@@ -84,7 +84,6 @@ class PipeController extends Controller
 
         $session = PipeSession::with(['senderDevice:id,device_id,public_key'])
             ->where('receiver_device_id', $device->id)
-            ->where('is_complete', false)
             ->where('expires_at', '>', now())
             ->oldest()
             ->first();

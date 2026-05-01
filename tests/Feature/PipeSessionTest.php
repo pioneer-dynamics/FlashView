@@ -367,8 +367,10 @@ class PipeSessionTest extends TestCase
         $response->assertStatus(204);
     }
 
-    public function test_pending_sessions_does_not_return_complete_sessions(): void
+    public function test_pending_sessions_returns_complete_sessions(): void
     {
+        // When the sender uploads fast, the session may already be complete by the time
+        // the receiver polls. The endpoint must return it so the receiver can download.
         $user = User::factory()->create();
         Sanctum::actingAs($user);
 
@@ -386,7 +388,8 @@ class PipeSessionTest extends TestCase
         ]);
 
         $this->getJson("/api/v1/pipe/sessions/pending?device_id={$receiverDevice->device_id}")
-            ->assertStatus(204);
+            ->assertStatus(200)
+            ->assertJsonPath('session_id', $this->sessionId);
     }
 
     public function test_pending_sessions_requires_authentication(): void
