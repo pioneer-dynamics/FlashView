@@ -19,7 +19,7 @@ class PipeController extends Controller
     public function store(CreatePipeSessionRequest $request): JsonResponse
     {
         $ttl = $request->expires_in ?? config('pipe.session_ttl_seconds');
-        $userId = $request->user('sanctum')?->id;
+        $userId = $request->user()->id;
 
         $senderDeviceId = null;
         $receiverDeviceId = null;

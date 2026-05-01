@@ -16,26 +16,27 @@ class PipeSessionTest extends TestCase
 
     private string $sessionId = 'abcdef1234567890abcdef1234567890'; // 32-char hex
 
+    private User $user;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->user = User::factory()->create();
+    }
+
     // ─── Create session ───────────────────────────────────────────────────────
 
-    public function test_guest_can_create_pipe_session(): void
+    public function test_guest_cannot_create_pipe_session(): void
     {
-        $response = $this->postJson('/api/v1/pipe', [
+        $this->postJson('/api/v1/pipe', [
             'session_id' => $this->sessionId,
             'transfer_mode' => 'relay',
-        ]);
-
-        $response->assertStatus(201)
-            ->assertJsonPath('session_id', $this->sessionId)
-            ->assertJsonStructure(['session_id', 'expires_at', 'transfer_mode']);
-
-        $this->assertDatabaseHas('pipe_sessions', ['session_id' => $this->sessionId]);
+        ])->assertStatus(401);
     }
 
     public function test_authenticated_user_can_create_session(): void
     {
-        $user = User::factory()->create();
-        Sanctum::actingAs($user);
+        Sanctum::actingAs($this->user);
 
         $response = $this->postJson('/api/v1/pipe', [
             'session_id' => $this->sessionId,
@@ -45,12 +46,14 @@ class PipeSessionTest extends TestCase
         $response->assertStatus(201);
         $this->assertDatabaseHas('pipe_sessions', [
             'session_id' => $this->sessionId,
-            'user_id' => $user->id,
+            'user_id' => $this->user->id,
         ]);
     }
 
     public function test_custom_expires_in_is_honoured(): void
     {
+        Sanctum::actingAs($this->user);
+
         $response = $this->postJson('/api/v1/pipe', [
             'session_id' => $this->sessionId,
             'transfer_mode' => 'relay',
@@ -65,6 +68,8 @@ class PipeSessionTest extends TestCase
 
     public function test_expires_in_below_minimum_returns_422(): void
     {
+        Sanctum::actingAs($this->user);
+
         $this->postJson('/api/v1/pipe', [
             'session_id' => $this->sessionId,
             'transfer_mode' => 'relay',
@@ -74,6 +79,8 @@ class PipeSessionTest extends TestCase
 
     public function test_expires_in_above_maximum_returns_422(): void
     {
+        Sanctum::actingAs($this->user);
+
         $this->postJson('/api/v1/pipe', [
             'session_id' => $this->sessionId,
             'transfer_mode' => 'relay',
@@ -83,6 +90,8 @@ class PipeSessionTest extends TestCase
 
     public function test_omitting_expires_in_uses_config_default(): void
     {
+        Sanctum::actingAs($this->user);
+
         $response = $this->postJson('/api/v1/pipe', [
             'session_id' => $this->sessionId,
             'transfer_mode' => 'relay',
@@ -97,44 +106,46 @@ class PipeSessionTest extends TestCase
 
     public function test_duplicate_session_id_returns_422(): void
     {
+        Sanctum::actingAs($this->user);
         PipeSession::factory()->create(['session_id' => $this->sessionId]);
 
-        $response = $this->postJson('/api/v1/pipe', [
+        $this->postJson('/api/v1/pipe', [
             'session_id' => $this->sessionId,
             'transfer_mode' => 'relay',
-        ]);
-
-        $response->assertStatus(422);
+        ])->assertStatus(422);
     }
 
     public function test_invalid_session_id_format_returns_422(): void
     {
-        $response = $this->postJson('/api/v1/pipe', [
+        Sanctum::actingAs($this->user);
+
+        $this->postJson('/api/v1/pipe', [
             'session_id' => 'not-hex!',
             'transfer_mode' => 'relay',
-        ]);
-
-        $response->assertStatus(422);
+        ])->assertStatus(422);
     }
 
     // ─── Session status ───────────────────────────────────────────────────────
 
     public function test_can_get_session_status(): void
     {
+        Sanctum::actingAs($this->user);
+
         PipeSession::factory()->create([
             'session_id' => $this->sessionId,
             'expires_at' => now()->addMinutes(10),
         ]);
 
-        $response = $this->getJson("/api/v1/pipe/{$this->sessionId}");
-
-        $response->assertStatus(200)
+        $this->getJson("/api/v1/pipe/{$this->sessionId}")
+            ->assertStatus(200)
             ->assertJsonPath('session_id', $this->sessionId)
             ->assertJsonPath('is_complete', false);
     }
 
     public function test_expired_session_returns_404(): void
     {
+        Sanctum::actingAs($this->user);
+
         PipeSession::factory()->create([
             'session_id' => $this->sessionId,
             'expires_at' => now()->subMinute(),
@@ -145,6 +156,8 @@ class PipeSessionTest extends TestCase
 
     public function test_unknown_session_returns_404(): void
     {
+        Sanctum::actingAs($this->user);
+
         $this->getJson('/api/v1/pipe/0000000000000000000000000000000a')->assertStatus(404);
     }
 
@@ -152,6 +165,7 @@ class PipeSessionTest extends TestCase
 
     public function test_can_prepare_upload(): void
     {
+        Sanctum::actingAs($this->user);
         Storage::fake();
 
         PipeSession::factory()->create([
@@ -169,6 +183,7 @@ class PipeSessionTest extends TestCase
 
     public function test_prepare_upload_on_expired_session_returns_404(): void
     {
+        Sanctum::actingAs($this->user);
         Storage::fake();
 
         PipeSession::factory()->create([
@@ -181,6 +196,7 @@ class PipeSessionTest extends TestCase
 
     public function test_prepare_upload_on_complete_session_returns_422(): void
     {
+        Sanctum::actingAs($this->user);
         Storage::fake();
         Storage::put("pipe-payloads/{$this->sessionId}.bin", 'data');
 
@@ -198,6 +214,7 @@ class PipeSessionTest extends TestCase
 
     public function test_can_upload_payload_via_server(): void
     {
+        Sanctum::actingAs($this->user);
         Storage::fake();
 
         PipeSession::factory()->create([
@@ -205,7 +222,13 @@ class PipeSessionTest extends TestCase
             'expires_at' => now()->addMinutes(10),
         ]);
 
-        $this->call('PUT', "/api/v1/pipe/{$this->sessionId}/payload", [], [], [], [], 'binary-payload-data')
+        $this->call(
+            'PUT',
+            "/api/v1/pipe/{$this->sessionId}/payload",
+            [], [], [],
+            ['HTTP_ACCEPT' => 'application/json'],
+            'binary-payload-data'
+        )
             ->assertStatus(200)
             ->assertJsonPath('status', 'ok');
 
@@ -216,6 +239,7 @@ class PipeSessionTest extends TestCase
 
     public function test_can_complete_session_after_upload(): void
     {
+        Sanctum::actingAs($this->user);
         Storage::fake();
         Storage::put("pipe-payloads/{$this->sessionId}.bin", 'encrypted-data');
 
@@ -237,6 +261,7 @@ class PipeSessionTest extends TestCase
 
     public function test_complete_without_upload_returns_422(): void
     {
+        Sanctum::actingAs($this->user);
         Storage::fake();
 
         PipeSession::factory()->create([
@@ -251,6 +276,7 @@ class PipeSessionTest extends TestCase
 
     public function test_can_download_payload(): void
     {
+        Sanctum::actingAs($this->user);
         Storage::fake();
         Storage::put("pipe-payloads/{$this->sessionId}.bin", 'encrypted-data');
 
@@ -268,6 +294,7 @@ class PipeSessionTest extends TestCase
 
     public function test_download_before_complete_returns_202(): void
     {
+        Sanctum::actingAs($this->user);
         Storage::fake();
 
         PipeSession::factory()->create([
@@ -283,6 +310,7 @@ class PipeSessionTest extends TestCase
 
     public function test_can_burn_session(): void
     {
+        Sanctum::actingAs($this->user);
         Storage::fake();
         Storage::put("pipe-payloads/{$this->sessionId}.bin", 'encrypted-data');
 
@@ -301,6 +329,8 @@ class PipeSessionTest extends TestCase
 
     public function test_burning_unknown_session_returns_204(): void
     {
+        Sanctum::actingAs($this->user);
+
         $this->deleteJson('/api/v1/pipe/0000000000000000000000000000000b')->assertStatus(204);
     }
 
@@ -308,11 +338,10 @@ class PipeSessionTest extends TestCase
 
     public function test_authenticated_user_can_create_session_with_device_fields(): void
     {
-        $user = User::factory()->create();
-        Sanctum::actingAs($user);
+        Sanctum::actingAs($this->user);
 
-        $senderDevice = PipeDevice::factory()->create(['user_id' => $user->id, 'expires_at' => now()->addYear()]);
-        $receiverDevice = PipeDevice::factory()->create(['user_id' => $user->id, 'expires_at' => now()->addYear()]);
+        $senderDevice = PipeDevice::factory()->create(['user_id' => $this->user->id, 'expires_at' => now()->addYear()]);
+        $receiverDevice = PipeDevice::factory()->create(['user_id' => $this->user->id, 'expires_at' => now()->addYear()]);
 
         $response = $this->postJson('/api/v1/pipe', [
             'session_id' => $this->sessionId,
@@ -332,15 +361,14 @@ class PipeSessionTest extends TestCase
 
     public function test_pending_sessions_returns_session_for_receiver_device(): void
     {
-        $user = User::factory()->create();
-        Sanctum::actingAs($user);
+        Sanctum::actingAs($this->user);
 
-        $senderDevice = PipeDevice::factory()->create(['user_id' => $user->id, 'expires_at' => now()->addYear()]);
-        $receiverDevice = PipeDevice::factory()->create(['user_id' => $user->id, 'expires_at' => now()->addYear()]);
+        $senderDevice = PipeDevice::factory()->create(['user_id' => $this->user->id, 'expires_at' => now()->addYear()]);
+        $receiverDevice = PipeDevice::factory()->create(['user_id' => $this->user->id, 'expires_at' => now()->addYear()]);
 
         PipeSession::factory()->create([
             'session_id' => $this->sessionId,
-            'user_id' => $user->id,
+            'user_id' => $this->user->id,
             'sender_device_id' => $senderDevice->id,
             'receiver_device_id' => $receiverDevice->id,
             'encrypted_transfer_key' => base64_encode('fake-key'),
@@ -348,38 +376,34 @@ class PipeSessionTest extends TestCase
             'expires_at' => now()->addMinutes(10),
         ]);
 
-        $response = $this->getJson("/api/v1/pipe/sessions/pending?device_id={$receiverDevice->device_id}");
-
-        $response->assertStatus(200)
+        $this->getJson("/api/v1/pipe/sessions/pending?device_id={$receiverDevice->device_id}")
+            ->assertStatus(200)
             ->assertJsonPath('session_id', $this->sessionId)
             ->assertJsonStructure(['session_id', 'encrypted_transfer_key', 'sender_device_id', 'sender_public_key']);
     }
 
     public function test_pending_sessions_returns_204_when_none_pending(): void
     {
-        $user = User::factory()->create();
-        Sanctum::actingAs($user);
+        Sanctum::actingAs($this->user);
 
-        $device = PipeDevice::factory()->create(['user_id' => $user->id, 'expires_at' => now()->addYear()]);
+        $device = PipeDevice::factory()->create(['user_id' => $this->user->id, 'expires_at' => now()->addYear()]);
 
-        $response = $this->getJson("/api/v1/pipe/sessions/pending?device_id={$device->device_id}");
-
-        $response->assertStatus(204);
+        $this->getJson("/api/v1/pipe/sessions/pending?device_id={$device->device_id}")
+            ->assertStatus(204);
     }
 
     public function test_pending_sessions_returns_complete_sessions(): void
     {
         // When the sender uploads fast, the session may already be complete by the time
         // the receiver polls. The endpoint must return it so the receiver can download.
-        $user = User::factory()->create();
-        Sanctum::actingAs($user);
+        Sanctum::actingAs($this->user);
 
-        $senderDevice = PipeDevice::factory()->create(['user_id' => $user->id, 'expires_at' => now()->addYear()]);
-        $receiverDevice = PipeDevice::factory()->create(['user_id' => $user->id, 'expires_at' => now()->addYear()]);
+        $senderDevice = PipeDevice::factory()->create(['user_id' => $this->user->id, 'expires_at' => now()->addYear()]);
+        $receiverDevice = PipeDevice::factory()->create(['user_id' => $this->user->id, 'expires_at' => now()->addYear()]);
 
         PipeSession::factory()->create([
             'session_id' => $this->sessionId,
-            'user_id' => $user->id,
+            'user_id' => $this->user->id,
             'sender_device_id' => $senderDevice->id,
             'receiver_device_id' => $receiverDevice->id,
             'encrypted_transfer_key' => base64_encode('fake-key'),
@@ -400,9 +424,8 @@ class PipeSessionTest extends TestCase
 
     public function test_pending_sessions_cannot_access_another_users_device(): void
     {
-        $user = User::factory()->create();
         $otherUser = User::factory()->create();
-        Sanctum::actingAs($user);
+        Sanctum::actingAs($this->user);
 
         $otherDevice = PipeDevice::factory()->create(['user_id' => $otherUser->id, 'expires_at' => now()->addYear()]);
 
