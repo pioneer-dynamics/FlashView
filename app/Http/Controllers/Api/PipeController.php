@@ -19,27 +19,28 @@ class PipeController extends Controller
     public function store(CreatePipeSessionRequest $request): JsonResponse
     {
         $ttl = $request->expires_in ?? config('pipe.session_ttl_seconds');
+        $userId = $request->user('sanctum')?->id;
 
         $senderDeviceId = null;
         $receiverDeviceId = null;
 
         if ($request->sender_device_id) {
             $senderDevice = PipeDevice::where('device_id', $request->sender_device_id)
-                ->where('user_id', $request->user()?->id)
+                ->where('user_id', $userId)
                 ->first();
             $senderDeviceId = $senderDevice?->id;
         }
 
         if ($request->receiver_device_id) {
             $receiverDevice = PipeDevice::where('device_id', $request->receiver_device_id)
-                ->where('user_id', $request->user()?->id)
+                ->where('user_id', $userId)
                 ->first();
             $receiverDeviceId = $receiverDevice?->id;
         }
 
         $session = PipeSession::create([
             'session_id' => $request->session_id,
-            'user_id' => $request->user()?->id,
+            'user_id' => $userId,
             'sender_device_id' => $senderDeviceId,
             'receiver_device_id' => $receiverDeviceId,
             'encrypted_transfer_key' => $request->encrypted_transfer_key,
