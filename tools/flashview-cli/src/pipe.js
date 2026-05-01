@@ -276,7 +276,7 @@ async function runReset(client) {
     const answer = await new Promise((resolve) => {
         const rl = createInterface({ input: process.stdin, output: process.stderr });
         rl.question(
-            `\nThis will unregister device ${identity.deviceId} from all pipe transfers.\nAre you sure? [y/N] `,
+            `\nThis will unregister this machine from all pipe transfers.\nThe other machine(s) in any existing pair will need to run 'flashview pipe setup' again.\nAre you sure? [y/N] `,
             (a) => { rl.close(); resolve(a.trim().toLowerCase()); }
         );
     });
@@ -296,7 +296,7 @@ async function runReset(client) {
         // file already gone — that's fine
     }
 
-    process.stderr.write(`Device ${identity.deviceId} unregistered. Run 'flashview pipe setup' to re-register.\n`);
+    process.stderr.write(`This machine has been unregistered. Future senders cannot address transfers to it. Run 'flashview pipe setup' to re-register.\n`);
 }
 
 /**

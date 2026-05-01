@@ -2,6 +2,7 @@
 
 return [
     'session_ttl_seconds' => env('PIPE_SESSION_TTL', 600),
+    'device_ttl_days' => env('PIPE_DEVICE_TTL_DAYS', 365),
     'max_chunk_size_bytes' => env('PIPE_MAX_CHUNK_SIZE', 65536),
     'max_chunks_per_session' => env('PIPE_MAX_CHUNKS', 10000),
     'p2p_timeout_seconds' => env('PIPE_P2P_TIMEOUT', 10),
