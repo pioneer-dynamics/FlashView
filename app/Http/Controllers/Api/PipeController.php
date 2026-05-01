@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\CreatePipeSessionRequest;
+use App\Http\Requests\Api\PendingSessionsRequest;
 use App\Models\PipeDevice;
 use App\Models\PipeSession;
 use Illuminate\Http\JsonResponse;
@@ -73,10 +74,9 @@ class PipeController extends Controller
     /**
      * Poll for pending sessions addressed to this device (Task 17 receiver flow).
      */
-    public function pendingSessions(Request $request): JsonResponse
+    public function pendingSessions(PendingSessionsRequest $request): JsonResponse
     {
-        $deviceId = $request->query('device_id');
-        abort_if(! $deviceId, 422, 'device_id query parameter is required.');
+        $deviceId = $request->validated('device_id');
 
         $device = PipeDevice::where('device_id', $deviceId)
             ->where('user_id', $request->user()->id)
