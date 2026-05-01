@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\PipeDevice;
 use App\Models\PipeSession;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -301,5 +302,108 @@ class PipeSessionTest extends TestCase
     public function test_burning_unknown_session_returns_204(): void
     {
         $this->deleteJson('/api/v1/pipe/0000000000000000000000000000000b')->assertStatus(204);
+    }
+
+    // ─── Task 17: per-transfer key fields ─────────────────────────────────────
+
+    public function test_authenticated_user_can_create_session_with_device_fields(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        $senderDevice = PipeDevice::factory()->create(['user_id' => $user->id, 'expires_at' => now()->addYear()]);
+        $receiverDevice = PipeDevice::factory()->create(['user_id' => $user->id, 'expires_at' => now()->addYear()]);
+
+        $response = $this->postJson('/api/v1/pipe', [
+            'session_id' => $this->sessionId,
+            'transfer_mode' => 'relay',
+            'sender_device_id' => $senderDevice->device_id,
+            'receiver_device_id' => $receiverDevice->device_id,
+            'encrypted_transfer_key' => base64_encode('fake-encrypted-key'),
+        ]);
+
+        $response->assertStatus(201);
+        $this->assertDatabaseHas('pipe_sessions', [
+            'session_id' => $this->sessionId,
+            'sender_device_id' => $senderDevice->id,
+            'receiver_device_id' => $receiverDevice->id,
+        ]);
+    }
+
+    public function test_pending_sessions_returns_session_for_receiver_device(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        $senderDevice = PipeDevice::factory()->create(['user_id' => $user->id, 'expires_at' => now()->addYear()]);
+        $receiverDevice = PipeDevice::factory()->create(['user_id' => $user->id, 'expires_at' => now()->addYear()]);
+
+        PipeSession::factory()->create([
+            'session_id' => $this->sessionId,
+            'user_id' => $user->id,
+            'sender_device_id' => $senderDevice->id,
+            'receiver_device_id' => $receiverDevice->id,
+            'encrypted_transfer_key' => base64_encode('fake-key'),
+            'is_complete' => false,
+            'expires_at' => now()->addMinutes(10),
+        ]);
+
+        $response = $this->getJson("/api/v1/pipe/sessions/pending?device_id={$receiverDevice->device_id}");
+
+        $response->assertStatus(200)
+            ->assertJsonPath('session_id', $this->sessionId)
+            ->assertJsonStructure(['session_id', 'encrypted_transfer_key', 'sender_device_id', 'sender_public_key']);
+    }
+
+    public function test_pending_sessions_returns_204_when_none_pending(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        $device = PipeDevice::factory()->create(['user_id' => $user->id, 'expires_at' => now()->addYear()]);
+
+        $response = $this->getJson("/api/v1/pipe/sessions/pending?device_id={$device->device_id}");
+
+        $response->assertStatus(204);
+    }
+
+    public function test_pending_sessions_does_not_return_complete_sessions(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        $senderDevice = PipeDevice::factory()->create(['user_id' => $user->id, 'expires_at' => now()->addYear()]);
+        $receiverDevice = PipeDevice::factory()->create(['user_id' => $user->id, 'expires_at' => now()->addYear()]);
+
+        PipeSession::factory()->create([
+            'session_id' => $this->sessionId,
+            'user_id' => $user->id,
+            'sender_device_id' => $senderDevice->id,
+            'receiver_device_id' => $receiverDevice->id,
+            'encrypted_transfer_key' => base64_encode('fake-key'),
+            'is_complete' => true,
+            'expires_at' => now()->addMinutes(10),
+        ]);
+
+        $this->getJson("/api/v1/pipe/sessions/pending?device_id={$receiverDevice->device_id}")
+            ->assertStatus(204);
+    }
+
+    public function test_pending_sessions_requires_authentication(): void
+    {
+        $this->getJson('/api/v1/pipe/sessions/pending?device_id=DEVABCD')
+            ->assertStatus(401);
+    }
+
+    public function test_pending_sessions_cannot_access_another_users_device(): void
+    {
+        $user = User::factory()->create();
+        $otherUser = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        $otherDevice = PipeDevice::factory()->create(['user_id' => $otherUser->id, 'expires_at' => now()->addYear()]);
+
+        $this->getJson("/api/v1/pipe/sessions/pending?device_id={$otherDevice->device_id}")
+            ->assertStatus(404);
     }
 }

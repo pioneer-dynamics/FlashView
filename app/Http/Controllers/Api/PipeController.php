@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\CreatePipeSessionRequest;
+use App\Models\PipeDevice;
 use App\Models\PipeSession;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -18,9 +19,29 @@ class PipeController extends Controller
     {
         $ttl = $request->expires_in ?? config('pipe.session_ttl_seconds');
 
+        $senderDeviceId = null;
+        $receiverDeviceId = null;
+
+        if ($request->sender_device_id) {
+            $senderDevice = PipeDevice::where('device_id', $request->sender_device_id)
+                ->where('user_id', $request->user()?->id)
+                ->first();
+            $senderDeviceId = $senderDevice?->id;
+        }
+
+        if ($request->receiver_device_id) {
+            $receiverDevice = PipeDevice::where('device_id', $request->receiver_device_id)
+                ->where('user_id', $request->user()?->id)
+                ->first();
+            $receiverDeviceId = $receiverDevice?->id;
+        }
+
         $session = PipeSession::create([
             'session_id' => $request->session_id,
             'user_id' => $request->user()?->id,
+            'sender_device_id' => $senderDeviceId,
+            'receiver_device_id' => $receiverDeviceId,
+            'encrypted_transfer_key' => $request->encrypted_transfer_key,
             'transfer_mode' => $request->transfer_mode,
             'expires_at' => now()->addSeconds($ttl),
         ]);
@@ -46,6 +67,38 @@ class PipeController extends Controller
             'is_complete' => $session->is_complete,
             'expires_at' => $session->expires_at->toIso8601String(),
             'transfer_mode' => $session->transfer_mode,
+        ]);
+    }
+
+    /**
+     * Poll for pending sessions addressed to this device (Task 17 receiver flow).
+     */
+    public function pendingSessions(Request $request): JsonResponse
+    {
+        $deviceId = $request->query('device_id');
+        abort_if(! $deviceId, 422, 'device_id query parameter is required.');
+
+        $device = PipeDevice::where('device_id', $deviceId)
+            ->where('user_id', $request->user()->id)
+            ->firstOrFail();
+
+        $session = PipeSession::with(['senderDevice:id,device_id,public_key'])
+            ->where('receiver_device_id', $device->id)
+            ->where('is_complete', false)
+            ->where('expires_at', '>', now())
+            ->oldest()
+            ->first();
+
+        if (! $session) {
+            return response()->json(null, 204);
+        }
+
+        return response()->json([
+            'session_id' => $session->session_id,
+            'encrypted_transfer_key' => $session->encrypted_transfer_key,
+            'sender_device_id' => $session->senderDevice?->device_id,
+            'sender_public_key' => $session->senderDevice?->public_key,
+            'expires_at' => $session->expires_at->toIso8601String(),
         ]);
     }
 

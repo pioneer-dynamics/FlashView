@@ -49,16 +49,21 @@ Route::prefix('v1')->as('api.v1.')->group(function () {
         });
     });
 
-    // Pairing routes — require authentication (identity is account-linked)
+    // Pairing + device routes — require authentication (identity is account-linked)
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('pipe/devices', [PipePairingController::class, 'registerDevice'])->name('pipe.devices.store');
+        // NOTE: static paths must come before {deviceId} wildcard
         Route::get('pipe/devices/waiting', [PipePairingController::class, 'waitingDevices'])->name('pipe.devices.waiting');
+        Route::get('pipe/devices', [PipePairingController::class, 'listDevices'])->name('pipe.devices.index');
+        Route::get('pipe/devices/{deviceId}', [PipePairingController::class, 'showDevice'])->name('pipe.devices.show');
         Route::delete('pipe/devices/{deviceId}', [PipePairingController::class, 'destroyDevice'])->name('pipe.devices.destroy');
         Route::post('pipe/pairings', [PipePairingController::class, 'sendSeed'])->name('pipe.pairings.store');
         // NOTE: /pairings/pending MUST be before /{pairing} to avoid route conflict
         Route::get('pipe/pairings/pending', [PipePairingController::class, 'pendingSeed'])->name('pipe.pairings.pending');
         Route::get('pipe/pairings/{pairing}', [PipePairingController::class, 'show'])->name('pipe.pairings.show');
         Route::post('pipe/pairings/{pairing}/accept', [PipePairingController::class, 'accept'])->name('pipe.pairings.accept');
+        // NOTE: /sessions/pending MUST be before pipe/{sessionId} wildcard below
+        Route::get('pipe/sessions/pending', [PipeController::class, 'pendingSessions'])->name('pipe.sessions.pending');
     });
 
     // Transfer routes — session_id as capability token (no auth required)

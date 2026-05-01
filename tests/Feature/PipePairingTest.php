@@ -94,7 +94,10 @@ class PipePairingTest extends TestCase
 
         $device = PipeDevice::factory()->create(['user_id' => $otherUser->id]);
 
-        $this->deleteJson("/api/v1/pipe/devices/{$device->device_id}")->assertStatus(404);
+        // Returns 204 (idempotent delete) but the device is NOT removed (user_id scope prevents it)
+        $this->deleteJson("/api/v1/pipe/devices/{$device->device_id}")->assertStatus(204);
+
+        $this->assertDatabaseHas('pipe_devices', ['id' => $device->id]);
     }
 
     // ─── Send seed ────────────────────────────────────────────────────────────
@@ -264,5 +267,72 @@ class PipePairingTest extends TestCase
         ]);
 
         $this->getJson("/api/v1/pipe/pairings/{$pairing->id}")->assertStatus(404);
+    }
+
+    // ─── Task 17: list + show device endpoints ────────────────────────────────
+
+    public function test_can_list_own_active_devices(): void
+    {
+        $user = User::factory()->create();
+        $otherUser = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        PipeDevice::factory()->create(['user_id' => $user->id, 'expires_at' => now()->addYear()]);
+        PipeDevice::factory()->create(['user_id' => $user->id, 'expires_at' => now()->addYear()]);
+        PipeDevice::factory()->create(['user_id' => $otherUser->id, 'expires_at' => now()->addYear()]);
+        PipeDevice::factory()->create(['user_id' => $user->id, 'expires_at' => now()->subMinute()]);
+
+        $response = $this->getJson('/api/v1/pipe/devices');
+
+        $response->assertStatus(200)
+            ->assertJsonCount(2, 'devices');
+    }
+
+    public function test_unauthenticated_user_cannot_list_devices(): void
+    {
+        $this->getJson('/api/v1/pipe/devices')->assertStatus(401);
+    }
+
+    public function test_can_show_own_device(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        $device = PipeDevice::factory()->create(['user_id' => $user->id, 'expires_at' => now()->addYear()]);
+
+        $response = $this->getJson("/api/v1/pipe/devices/{$device->device_id}");
+
+        $response->assertStatus(200)
+            ->assertJsonPath('device_id', $device->device_id)
+            ->assertJsonStructure(['device_id', 'public_key', 'expires_at']);
+    }
+
+    public function test_cannot_show_other_users_device(): void
+    {
+        $user = User::factory()->create();
+        $otherUser = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        $device = PipeDevice::factory()->create(['user_id' => $otherUser->id, 'expires_at' => now()->addYear()]);
+
+        $this->getJson("/api/v1/pipe/devices/{$device->device_id}")->assertStatus(404);
+    }
+
+    public function test_show_expired_device_returns_404(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        $device = PipeDevice::factory()->create(['user_id' => $user->id, 'expires_at' => now()->subMinute()]);
+
+        $this->getJson("/api/v1/pipe/devices/{$device->device_id}")->assertStatus(404);
+    }
+
+    public function test_destroy_device_returns_204_even_if_not_found(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        $this->deleteJson('/api/v1/pipe/devices/DEVXXXX')->assertStatus(204);
     }
 }

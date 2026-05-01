@@ -15,6 +15,9 @@ class PipeSessionFactory extends Factory
         return [
             'session_id' => str_pad(bin2hex(random_bytes(16)), 32, '0'),
             'user_id' => null,
+            'sender_device_id' => null,
+            'receiver_device_id' => null,
+            'encrypted_transfer_key' => null,
             'is_complete' => false,
             'storage_path' => null,
             'transfer_mode' => 'relay',

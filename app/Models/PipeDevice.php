@@ -36,4 +36,14 @@ class PipeDevice extends Model
     {
         return $this->hasMany(PipePairing::class, 'receiver_device_id');
     }
+
+    public function sentSessions(): HasMany
+    {
+        return $this->hasMany(PipeSession::class, 'sender_device_id');
+    }
+
+    public function receivedSessions(): HasMany
+    {
+        return $this->hasMany(PipeSession::class, 'receiver_device_id');
+    }
 }

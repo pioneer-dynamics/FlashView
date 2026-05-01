@@ -15,7 +15,7 @@ use Illuminate\Support\Str;
 class PipePairingController extends Controller
 {
     /**
-     * Register a device's public key for pairing.
+     * Register a device's public key (Task 17 model: long-lived registration).
      */
     public function registerDevice(RegisterPipeDeviceRequest $request): JsonResponse
     {
@@ -29,7 +29,7 @@ class PipePairingController extends Controller
             'user_id' => $request->user()->id,
             'device_id' => $deviceId,
             'public_key' => $request->public_key,
-            'expires_at' => now()->addMinutes(30),
+            'expires_at' => now()->addDays(config('pipe.device_ttl_days', 365)),
         ]);
 
         return response()->json([
@@ -39,7 +39,37 @@ class PipePairingController extends Controller
     }
 
     /**
-     * List devices waiting to be paired (no accepted pairing yet, not expired).
+     * List all active devices registered for this account.
+     */
+    public function listDevices(Request $request): JsonResponse
+    {
+        $devices = PipeDevice::where('user_id', $request->user()->id)
+            ->where('expires_at', '>', now())
+            ->orderByDesc('created_at')
+            ->get(['device_id', 'public_key', 'created_at', 'expires_at']);
+
+        return response()->json(['devices' => $devices]);
+    }
+
+    /**
+     * Get a specific device's public key (sender uses this to encrypt the transfer key).
+     */
+    public function showDevice(Request $request, string $deviceId): JsonResponse
+    {
+        $device = PipeDevice::where('device_id', $deviceId)
+            ->where('user_id', $request->user()->id)
+            ->where('expires_at', '>', now())
+            ->firstOrFail();
+
+        return response()->json([
+            'device_id' => $device->device_id,
+            'public_key' => $device->public_key,
+            'expires_at' => $device->expires_at->toIso8601String(),
+        ]);
+    }
+
+    /**
+     * List devices waiting to be paired (legacy pairing dance — kept for backward compat).
      */
     public function waitingDevices(Request $request): JsonResponse
     {
@@ -52,21 +82,21 @@ class PipePairingController extends Controller
     }
 
     /**
-     * De-register a device (used when receiver rejects the pairing code).
+     * De-register a device.
      */
     public function destroyDevice(Request $request, string $deviceId): JsonResponse
     {
         $device = PipeDevice::where('device_id', $deviceId)
             ->where('user_id', $request->user()->id)
-            ->firstOrFail();
+            ->first();
 
-        $device->delete();
+        $device?->delete();
 
         return response()->json(null, 204);
     }
 
     /**
-     * Send an ECIES-encrypted pipe seed to a waiting device.
+     * Send an ECIES-encrypted pipe seed to a waiting device (legacy pairing dance).
      */
     public function sendSeed(SendPipeSeedRequest $request): JsonResponse
     {
@@ -92,7 +122,7 @@ class PipePairingController extends Controller
     }
 
     /**
-     * Poll for an incoming pairing offer for a specific device.
+     * Poll for an incoming pairing offer for a specific device (legacy pairing dance).
      */
     public function pendingSeed(PollPendingSeedRequest $request): JsonResponse
     {
@@ -120,7 +150,7 @@ class PipePairingController extends Controller
     }
 
     /**
-     * Get pairing status (sender polls to detect receiver acceptance).
+     * Get pairing status (legacy pairing dance).
      */
     public function show(Request $request, int $pairing): JsonResponse
     {
@@ -140,7 +170,7 @@ class PipePairingController extends Controller
     }
 
     /**
-     * Mark a pairing as accepted (receiver confirms the pairing code).
+     * Mark a pairing as accepted (legacy pairing dance).
      */
     public function accept(Request $request, int $pairing): JsonResponse
     {

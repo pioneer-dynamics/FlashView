@@ -17,6 +17,9 @@ class PipeSession extends Model
     protected $fillable = [
         'session_id',
         'user_id',
+        'sender_device_id',
+        'receiver_device_id',
+        'encrypted_transfer_key',
         'is_complete',
         'transfer_mode',
         'storage_path',
@@ -45,6 +48,16 @@ class PipeSession extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function senderDevice(): BelongsTo
+    {
+        return $this->belongsTo(PipeDevice::class, 'sender_device_id');
+    }
+
+    public function receiverDevice(): BelongsTo
+    {
+        return $this->belongsTo(PipeDevice::class, 'receiver_device_id');
     }
 
     public function signals(): HasMany
