@@ -12,6 +12,7 @@ import {
     encryptChunk,
     decryptChunk,
 } from './crypto.js';
+import { trySendP2P, tryReceiveP2P } from './pipeP2p.js';
 
 import { FlashViewClient, ApiError } from './api.js';
 import { getConfig } from './config.js';
@@ -153,6 +154,14 @@ async function runPipeSender(client, options) {
 
     const encrypted = await encryptChunk(new Uint8Array(stdinBuffer), transferKey, 0);
 
+    const p2pOk = await trySendP2P(client, sessionId, encrypted, { verbose: options.verbose });
+
+    if (p2pOk) {
+        process.stderr.write('Transfer complete.\n');
+        return;
+    }
+
+    // P2P unavailable or timed out — fall back to S3 relay
     const { upload_type, upload_url, upload_headers } = await client.prepareUpload(sessionId);
 
     if (options.verbose) {
@@ -204,6 +213,20 @@ async function runPipeReceiver(client, options) {
         sender_public_key,
     );
 
+    // Attempt P2P delivery first; fall back to S3 relay if unavailable
+    const p2pPayload = await tryReceiveP2P(client, sessionId, { verbose: options.verbose });
+
+    if (p2pPayload) {
+        if (options.verbose) {
+            process.stderr.write(`  Decrypting... [${humanBytes(p2pPayload.length)}]\n`);
+        }
+        const plaintext = await decryptChunk(p2pPayload, transferKey, 0);
+        process.stdout.write(Buffer.from(plaintext));
+        await client.burnPipeSession(sessionId).catch(() => {});
+        return;
+    }
+
+    // P2P unavailable — wait for S3 relay upload to complete
     let sessionStatus = await client.getPipeSessionStatus(sessionId);
     const expiresAt = new Date(sessionStatus?.expires_at ?? 0).getTime();
 
