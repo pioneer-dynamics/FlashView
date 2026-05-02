@@ -372,7 +372,7 @@ export class FlashViewClient {
         try {
             response = await fetch(url, {
                 signal: controller.signal,
-                headers: { 'Accept': 'application/json' },
+                headers: { 'Accept': 'application/json', 'Authorization': `Bearer ${this.token}` },
             });
         } catch (err) {
             if (err.name === 'AbortError') { throw new ApiError('Request timed out', 0); }
@@ -449,7 +449,7 @@ export class FlashViewClient {
         let response;
         try {
             response = await fetch(url, {
-                headers: { 'Accept': 'application/octet-stream' },
+                headers: { 'Accept': 'application/octet-stream', 'Authorization': `Bearer ${this.token}` },
             });
         } catch (err) {
             if (err.code === 'ECONNREFUSED' || err.code === 'ENOTFOUND') {
@@ -479,7 +479,7 @@ export class FlashViewClient {
                 method: 'DELETE',
                 signal: controller.signal,
                 headers: {
-                    ...(this.token ? { 'Authorization': `Bearer ${this.token}` } : {}),
+                    'Authorization': `Bearer ${this.token}`,
                     'Accept': 'application/json',
                 },
             });
@@ -509,7 +509,7 @@ export class FlashViewClient {
             response = await fetch(url, {
                 method: 'POST',
                 signal: controller.signal,
-                headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+                headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.token}` },
                 body: JSON.stringify({ role, type, payload }),
             });
         } catch (err) {
@@ -541,7 +541,7 @@ export class FlashViewClient {
         try {
             response = await fetch(url, {
                 signal: controller.signal,
-                headers: { 'Accept': 'application/json' },
+                headers: { 'Accept': 'application/json', 'Authorization': `Bearer ${this.token}` },
             });
         } catch (err) {
             if (err.name === 'AbortError') { throw new ApiError('Request timed out', 0); }

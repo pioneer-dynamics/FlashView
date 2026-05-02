@@ -298,12 +298,11 @@ When both machines run simultaneously, the transfer completes peer-to-peer and t
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--to <deviceId>` | (prompted) | Device ID of the receiving machine |
-| `--verbose` | off | Show upload type and transfer stats |
+| `--verbose` | off | Show delivery mode (`p2p_webrtc`, `s3_direct`, or `server`) and transfer size to stderr |
 | `--expires-in <s>` | 600 | Session TTL in seconds (60–3600) |
-| `--json` | off | Machine-readable output |
 
 ```bash
-# Verbose output — shows delivery mode (p2p_webrtc or s3_direct) and size to stderr
+# Verbose output — shows delivery mode (p2p_webrtc, s3_direct, or server) and size to stderr
 echo "data" | flashview pipe --to DEVB4E1 --verbose
 flashview pipe --verbose
 ```

@@ -4,7 +4,9 @@ namespace Tests\Feature;
 
 use App\Models\PipeSession;
 use App\Models\PipeSignal;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 class PipeSignalTest extends TestCase
@@ -15,11 +17,16 @@ class PipeSignalTest extends TestCase
 
     private PipeSession $session;
 
+    private User $user;
+
     protected function setUp(): void
     {
         parent::setUp();
+        $this->user = User::factory()->create();
+        Sanctum::actingAs($this->user);
         $this->session = PipeSession::factory()->create([
             'session_id' => $this->sessionId,
+            'user_id' => $this->user->id,
             'expires_at' => now()->addMinutes(10),
         ]);
     }

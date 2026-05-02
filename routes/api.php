@@ -67,7 +67,7 @@ Route::prefix('v1')->as('api.v1.')->group(function () {
         Route::post('pipe', [PipeController::class, 'store'])->name('pipe.store')->middleware('throttle:pipe-sessions');
         Route::get('pipe/{sessionId}', [PipeController::class, 'show'])->name('pipe.show');
         Route::post('pipe/{sessionId}/prepare-upload', [PipeController::class, 'prepareUpload'])->name('pipe.prepare-upload');
-        Route::put('pipe/{sessionId}/payload', [PipeController::class, 'serverUpload'])->name('api.v1.pipe.payload.upload');
+        Route::put('pipe/{sessionId}/payload', [PipeController::class, 'serverUpload'])->name('pipe.payload.upload');
         Route::post('pipe/{sessionId}/complete', [PipeController::class, 'complete'])->name('pipe.complete');
         Route::get('pipe/{sessionId}/download', [PipeController::class, 'download'])->name('pipe.download');
         Route::delete('pipe/{sessionId}', [PipeController::class, 'destroy'])->name('pipe.destroy');
