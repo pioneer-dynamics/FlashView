@@ -30,15 +30,16 @@ async function waitForIceGathered(pc) {
 /**
  * Attempt to deliver an already-encrypted payload to the peer via P2P WebRTC.
  * Returns true if the full payload was delivered; false to fall back to S3.
+ * Falls back only on genuine ICE failure or API error — never on a timer.
  *
  * @param {import('./api.js').FlashViewClient} client
  * @param {string} sessionId
  * @param {Uint8Array} encryptedPayload
- * @param {{ verbose?: boolean, timeoutMs?: number }} [options]
+ * @param {{ verbose?: boolean }} [options]
  * @returns {Promise<boolean>}
  */
 export async function trySendP2P(client, sessionId, encryptedPayload, options = {}) {
-    const { verbose = false, timeoutMs = 10_000 } = options;
+    const { verbose = false } = options;
 
     return new Promise((resolve) => {
         let settled = false;
@@ -47,18 +48,20 @@ export async function trySendP2P(client, sessionId, encryptedPayload, options = 
         const finish = (result) => {
             if (settled) { return; }
             settled = true;
-            clearTimeout(timer);
             try { pc?.close(); } catch { /* ignore */ }
             resolve(result);
         };
-
-        const timer = setTimeout(() => finish(false), timeoutMs);
 
         (async () => {
             try {
                 pc = new RTCPeerConnection({
                     iceServers: STUN_SERVERS.map(urls => ({ urls })),
                 });
+
+                // Fall back to S3 only on genuine ICE failure, not a timer.
+                pc.onconnectionstatechange = () => {
+                    if (pc.connectionState === 'failed') { finish(false); }
+                };
 
                 const dc = pc.createDataChannel('payload', { ordered: true });
 
@@ -68,9 +71,6 @@ export async function trySendP2P(client, sessionId, encryptedPayload, options = 
                 dc.onclose = () => { if (!settled) { finish(allSent); } };
 
                 dc.onopen = async () => {
-                    // P2P connection established — cancel the negotiation timeout so large
-                    // payloads are not abandoned mid-transfer.
-                    clearTimeout(timer);
                     try {
                         if (verbose) {
                             process.stderr.write(`  Uploading via p2p_webrtc... [${humanBytes(encryptedPayload.length)}]\n`);
@@ -124,7 +124,7 @@ export async function trySendP2P(client, sessionId, encryptedPayload, options = 
                 const { type, sdp } = pc.localDescription;
                 await client.sendSignal(sessionId, 'sender', 'offer', { type, sdp });
 
-                // Poll for the receiver's answer
+                // Poll for the receiver's answer — no timeout; ICE failure triggers finish(false)
                 let lastId = 0;
                 while (!settled) {
                     const { signals } = await client.pollSignals(sessionId, 'receiver', lastId);
@@ -150,23 +150,28 @@ export async function trySendP2P(client, sessionId, encryptedPayload, options = 
 /**
  * Attempt to receive an encrypted payload from the peer via P2P WebRTC.
  * Returns the received Uint8Array if successful, null to fall back to S3.
+ * Falls back only on genuine ICE failure or API error — never on a timer.
  *
  * @param {import('./api.js').FlashViewClient} client
  * @param {string} sessionId
- * @param {{ verbose?: boolean, timeoutMs?: number }} [options]
+ * @param {{ verbose?: boolean }} [options]
  * @returns {Promise<Uint8Array|null>}
  */
 export async function tryReceiveP2P(client, sessionId, options = {}) {
-    const { verbose = false, timeoutMs = 10_000 } = options;
+    const { verbose = false } = options;
 
-    const deadline = Date.now() + timeoutMs;
-
-    // Poll for the sender's offer — sender may not have posted it yet
+    // Poll for the sender's offer — no deadline; falls back only on API error
+    // (e.g. session expired), meaning the sender must have used the S3 relay.
     let offerSignal = null;
     let lastId = 0;
-    while (!offerSignal && Date.now() < deadline) {
-        const { signals } = await client.pollSignals(sessionId, 'sender', lastId);
-        for (const sig of signals) {
+    while (!offerSignal) {
+        let result;
+        try {
+            result = await client.pollSignals(sessionId, 'sender', lastId);
+        } catch {
+            return null; // Session gone or network error — fall back to S3
+        }
+        for (const sig of result.signals) {
             lastId = Math.max(lastId, sig.id);
             if (sig.type === 'offer') { offerSignal = sig; break; }
         }
@@ -175,11 +180,6 @@ export async function tryReceiveP2P(client, sessionId, options = {}) {
         }
     }
 
-    if (!offerSignal) { return null; }
-
-    const remaining = deadline - Date.now();
-    if (remaining <= 0) { return null; }
-
     return new Promise((resolve) => {
         let settled = false;
         let pc;
@@ -187,12 +187,9 @@ export async function tryReceiveP2P(client, sessionId, options = {}) {
         const finish = (result) => {
             if (settled) { return; }
             settled = true;
-            clearTimeout(timer);
             try { pc?.close(); } catch { /* ignore */ }
             resolve(result);
         };
-
-        const timer = setTimeout(() => finish(null), remaining);
 
         (async () => {
             try {
@@ -200,14 +197,17 @@ export async function tryReceiveP2P(client, sessionId, options = {}) {
                     iceServers: STUN_SERVERS.map(urls => ({ urls })),
                 });
 
+                // Fall back to S3 only on genuine ICE failure, not a timer.
+                pc.onconnectionstatechange = () => {
+                    if (pc.connectionState === 'failed') { finish(null); }
+                };
+
                 const chunks = [];
                 let expectedSize = null;
                 let receivedBytes = 0;
                 let lastRender = 0;
 
                 pc.ondatachannel = ({ channel }) => {
-                    // P2P connection established — cancel the negotiation timeout.
-                    clearTimeout(timer);
                     channel.onmessage = ({ data }) => {
                         const buf = data instanceof Uint8Array
                             ? data
