@@ -157,4 +157,4 @@ Full documentation is on the [CLI page](/cli).
 
 ---
 
-FlashView Pipe is available today for all paid plan subscribers. [See pricing](/plans) to get started.
+FlashView Pipe is available today on plans that include CLI and API access. [See pricing](/plans) to find the right plan for you.
