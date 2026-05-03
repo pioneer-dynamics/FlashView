@@ -48,7 +48,12 @@ export async function trySendP2P(client, sessionId, encryptedPayload, options = 
         const finish = (result) => {
             if (settled) { return; }
             settled = true;
-            try { pc?.close(); } catch { /* ignore */ }
+            if (!result) {
+                // Failure — tear down immediately.
+                // On success we let dc.close() drive the SCTP shutdown; pc is
+                // cleaned up when dc.onclose fires after the handshake completes.
+                try { pc?.close(); } catch { /* ignore */ }
+            }
             resolve(result);
         };
 
@@ -65,10 +70,15 @@ export async function trySendP2P(client, sessionId, encryptedPayload, options = 
 
                 const dc = pc.createDataChannel('payload', { ordered: true });
 
-                // Set before dc.close() is called so onclose knows it's a clean finish.
-                let allSent = false;
-
-                dc.onclose = () => { if (!settled) { finish(allSent); } };
+                dc.onclose = () => {
+                    if (!settled) {
+                        // Premature close before we resolved — treat as failure.
+                        finish(false);
+                    } else {
+                        // SCTP shutdown complete after successful send — clean up pc.
+                        try { pc?.close(); } catch { /* ignore */ }
+                    }
+                };
 
                 dc.onopen = async () => {
                     try {
@@ -103,15 +113,18 @@ export async function trySendP2P(client, sessionId, encryptedPayload, options = 
 
                         if (verbose) { process.stderr.write('\n'); }
 
-                        // Drain the local send buffer before initiating graceful close, then
-                        // wait for the SCTP SHUTDOWN handshake to complete (dc.onclose fires
-                        // only after the receiver has ACKed all data).
+                        // Drain the local WebRTC send buffer. Once empty, all bytes have
+                        // been handed to the OS network stack; SCTP reliability guarantees
+                        // they will reach the receiver. Resolve now rather than waiting for
+                        // the SCTP shutdown ACK to avoid a race where the receiver closes
+                        // its side first, causing dc.onclose to fire prematurely.
                         while (dc.bufferedAmount > 0) {
                             if (settled) { return; }
                             await new Promise(r => setTimeout(r, 10));
                         }
-                        allSent = true;
-                        dc.close(); // triggers dc.onclose → finish(true) after receiver ACKs
+
+                        finish(true); // All data in OS stack — success.
+                        dc.close();   // Initiate graceful SCTP shutdown (fire-and-forget).
                     } catch {
                         if (verbose) { process.stderr.write('\n'); }
                         finish(false);
@@ -187,7 +200,12 @@ export async function tryReceiveP2P(client, sessionId, options = {}) {
         const finish = (result) => {
             if (settled) { return; }
             settled = true;
-            try { pc?.close(); } catch { /* ignore */ }
+            if (result === null) {
+                // Failure — tear down immediately.
+                // On success we deliberately leave pc open so the sender can
+                // complete its SCTP shutdown; pc is closed by channel.onclose.
+                try { pc?.close(); } catch { /* ignore */ }
+            }
             resolve(result);
         };
 
@@ -243,12 +261,18 @@ export async function tryReceiveP2P(client, sessionId, options = {}) {
                             const out = new Uint8Array(expectedSize);
                             let off = 0;
                             for (const c of chunks) { out.set(c, off); off += c.length; }
+                            // Resolve with data but keep pc open — the sender will initiate
+                            // SCTP shutdown; channel.onclose handles final pc cleanup.
                             finish(out);
                         }
                     };
 
                     channel.onclose = () => {
-                        if (!settled && receivedBytes < (expectedSize ?? Infinity)) {
+                        if (settled) {
+                            // Sender completed SCTP shutdown after successful transfer — clean up.
+                            try { pc?.close(); } catch { /* ignore */ }
+                        } else {
+                            // Premature close before all data arrived.
                             finish(null);
                         }
                     };
