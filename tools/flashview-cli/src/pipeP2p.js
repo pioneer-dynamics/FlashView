@@ -62,6 +62,11 @@ export async function trySendP2P(client, sessionId, encryptedPayload, options = 
 
                 const dc = pc.createDataChannel('payload', { ordered: true });
 
+                // Set before dc.close() is called so onclose knows it's a clean finish.
+                let allSent = false;
+
+                dc.onclose = () => { if (!settled) { finish(allSent); } };
+
                 dc.onopen = async () => {
                     // P2P connection established — cancel the negotiation timeout so large
                     // payloads are not abandoned mid-transfer.
@@ -97,15 +102,21 @@ export async function trySendP2P(client, sessionId, encryptedPayload, options = 
                         }
 
                         if (verbose) { process.stderr.write('\n'); }
-                        dc.close();
-                        finish(true);
+
+                        // Drain the local send buffer before initiating graceful close, then
+                        // wait for the SCTP SHUTDOWN handshake to complete (dc.onclose fires
+                        // only after the receiver has ACKed all data).
+                        while (dc.bufferedAmount > 0) {
+                            if (settled) { return; }
+                            await new Promise(r => setTimeout(r, 10));
+                        }
+                        allSent = true;
+                        dc.close(); // triggers dc.onclose → finish(true) after receiver ACKs
                     } catch {
                         if (verbose) { process.stderr.write('\n'); }
                         finish(false);
                     }
                 };
-
-                dc.onclose = () => { if (!settled) { finish(false); } };
 
                 await pc.setLocalDescription(await pc.createOffer());
                 await waitForIceGathered(pc);
