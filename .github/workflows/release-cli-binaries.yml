@@ -49,10 +49,15 @@ jobs:
 
       - name: Install crypto package dependencies
         working-directory: tools/flashview-crypto
-        run: npm ci
+        run: |
+          npm ci
+          npm pack
 
       - name: Install CLI dependencies
-        run: npm ci
+        shell: bash
+        run: |
+          npm ci
+          npm install ../flashview-crypto/pioneer-dynamics-flashview-crypto-*.tgz
 
       - run: npm test
 

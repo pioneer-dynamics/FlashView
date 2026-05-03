@@ -69,12 +69,18 @@ const MIME_TYPES = {
     '.mp3': 'audio/mpeg',
     '.wav': 'audio/wav',
 };
-import { encryptMessage, decryptMessage, encryptBuffer, decryptBuffer } from './crypto.js';
+import {
+    encryptMessage,
+    decryptMessage,
+    encryptBuffer,
+    decryptBuffer,
+} from './crypto.js';
 import { FlashViewClient, ApiError } from './api.js';
 import { getConfig, getConfigInfo, setConfig, clearConfig, getCachedLatestVersion } from './config.js';
 import { parseExpiry, getServerConfig, FALLBACK_EXPIRY_OPTIONS } from './expiry.js';
 import { renameHashIdKey } from './transform.js';
 import { fetchLatestVersion, isNewerVersion, refreshVersionCache } from './version.js';
+import { registerPipeCommands } from './pipe.js';
 
 /* eslint-disable no-undef */
 const VERSION = typeof __VERSION__ !== 'undefined'
@@ -973,6 +979,8 @@ program.hook('postAction', async (thisCommand, actionCommand) => {
         // Never block on version check errors
     }
 });
+
+registerPipeCommands(program);
 
 export function run() {
     program.parse();

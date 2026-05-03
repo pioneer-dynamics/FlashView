@@ -77,6 +77,9 @@ const logout = () => {
                                         <NavLink :href="route('plans.index')" :active="route().current('plans.index')">
                                             Pricing
                                         </NavLink>
+                                        <NavLink :href="route('blog.index')" :active="route().current('blog.*')">
+                                            Blog
+                                        </NavLink>
                                         <NavLink :href="route('faq.index')" :active="route().current('faq.index')">
                                             F.A.Q.
                                         </NavLink>
@@ -315,6 +318,9 @@ const logout = () => {
                                 <ResponsiveNavLink :href="route('plans.index')" :active="route().current('plans.index')">
                                     Pricing
                                 </ResponsiveNavLink>
+                                <ResponsiveNavLink :href="route('blog.index')" :active="route().current('blog.*')">
+                                    Blog
+                                </ResponsiveNavLink>
                                 <ResponsiveNavLink :href="route('faq.index')" :active="route().current('faq.index')">
                                     F.A.Q.
                                 </ResponsiveNavLink>
@@ -472,6 +478,9 @@ const logout = () => {
                             <div>
                                 <h2 class="mb-6 text-sm font-semibold text-gray-900 uppercase dark:text-white">Resources</h2>
                                 <ul class="text-gray-700 dark:text-gray-400 font-medium space-y-4">
+                                    <li>
+                                        <Link :href="route('blog.index')" class="hover:underline">Blog</Link>
+                                    </li>
                                     <li>
                                         <Link :href="route('faq.index')" class="hover:underline">F.A.Q</Link>
                                     </li>

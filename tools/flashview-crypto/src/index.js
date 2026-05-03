@@ -169,6 +169,263 @@ export async function decryptBuffer(encryptedBuffer, passphrase) {
     return new Uint8Array(decrypted);
 }
 
+// ─── Pipe Crypto Primitives ───────────────────────────────────────────────────
+
+const PIPE_CHUNK_IV_LENGTH = 12;
+
+/**
+ * Generate a cryptographically random 32-byte transfer key (base64-encoded).
+ * Used once per transfer; never reused or stored.
+ *
+ * @returns {string}
+ */
+export function generateTransferKey() {
+    const key = new Uint8Array(32);
+    globalThis.crypto.getRandomValues(key);
+    return uint8ArrayToBase64(key);
+}
+
+/**
+ * Generate a cryptographically random session ID (32-char lowercase hex).
+ *
+ * @returns {string}
+ */
+export function generateSessionId() {
+    const bytes = new Uint8Array(16);
+    globalThis.crypto.getRandomValues(bytes);
+    return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+/**
+ * Encrypt a chunk with AES-256-GCM; chunkIndex in AAD prevents reordering attacks.
+ *
+ * Output format: [12 bytes random IV][ciphertext + 16 bytes auth tag]
+ *
+ * @param {Uint8Array} plaintextBuffer
+ * @param {string} sessionKeyBase64
+ * @param {number} chunkIndex
+ * @returns {Promise<Uint8Array>}
+ */
+export async function encryptChunk(plaintextBuffer, sessionKeyBase64, chunkIndex) {
+    const keyBytes = base64ToUint8Array(sessionKeyBase64);
+    const aesKey = await globalThis.crypto.subtle.importKey('raw', keyBytes, { name: 'AES-GCM' }, false, ['encrypt']);
+
+    const iv = new Uint8Array(PIPE_CHUNK_IV_LENGTH);
+    globalThis.crypto.getRandomValues(iv);
+
+    const aad = new TextEncoder().encode(`flashview-pipe-chunk-v1:${chunkIndex}`);
+    const ciphertext = await globalThis.crypto.subtle.encrypt(
+        { name: 'AES-GCM', iv, additionalData: aad },
+        aesKey,
+        plaintextBuffer,
+    );
+
+    const result = new Uint8Array(PIPE_CHUNK_IV_LENGTH + ciphertext.byteLength);
+    result.set(iv);
+    result.set(new Uint8Array(ciphertext), PIPE_CHUNK_IV_LENGTH);
+    return result;
+}
+
+/**
+ * Decrypt a chunk encrypted by encryptChunk; validates AAD chunkIndex.
+ *
+ * @param {Uint8Array} ciphertextBuffer - [12-byte IV][ciphertext + 16-byte auth tag]
+ * @param {string} sessionKeyBase64
+ * @param {number} chunkIndex
+ * @returns {Promise<Uint8Array>}
+ */
+export async function decryptChunk(ciphertextBuffer, sessionKeyBase64, chunkIndex) {
+    const keyBytes = base64ToUint8Array(sessionKeyBase64);
+    const aesKey = await globalThis.crypto.subtle.importKey('raw', keyBytes, { name: 'AES-GCM' }, false, ['decrypt']);
+
+    const iv = ciphertextBuffer.slice(0, PIPE_CHUNK_IV_LENGTH);
+    const ciphertext = ciphertextBuffer.slice(PIPE_CHUNK_IV_LENGTH);
+    const aad = new TextEncoder().encode(`flashview-pipe-chunk-v1:${chunkIndex}`);
+
+    const decrypted = await globalThis.crypto.subtle.decrypt(
+        { name: 'AES-GCM', iv, additionalData: aad },
+        aesKey,
+        ciphertext,
+    );
+    return new Uint8Array(decrypted);
+}
+
+// ─── Identity Keypair + ECIES Pairing ─────────────────────────────────────────
+
+const PAIRING_HKDF_SALT = new TextEncoder().encode('flashview-pipe-pairing-v1');
+
+/**
+ * Generate a P-256 ECDH identity keypair for PKI-based pairing.
+ *
+ * @returns {Promise<{ publicKeyBase64: string, privateKeyBase64: string }>} JWK-format, base64-encoded
+ */
+export async function generateIdentityKeypair() {
+    const keypair = await globalThis.crypto.subtle.generateKey(
+        { name: 'ECDH', namedCurve: 'P-256' },
+        true,
+        ['deriveBits'],
+    );
+
+    const [publicJwk, privateJwk] = await Promise.all([
+        globalThis.crypto.subtle.exportKey('jwk', keypair.publicKey),
+        globalThis.crypto.subtle.exportKey('jwk', keypair.privateKey),
+    ]);
+
+    return {
+        publicKeyBase64: btoa(JSON.stringify(publicJwk)),
+        privateKeyBase64: btoa(JSON.stringify(privateJwk)),
+    };
+}
+
+/**
+ * ECIES: encrypt a transfer key for a peer device using ECDH + HKDF + AES-256-GCM.
+ *
+ * Algorithm:
+ *   1. sharedSecret = ECDH(ownPrivateKey, peerPublicKey)
+ *   2. key = HKDF-SHA-256(ikm=sharedSecret, salt=UTF-8("flashview-pipe-pairing-v1"), info=UTF-8("encryptKeyForDevice"), length=32)
+ *   3. iv = 12 random bytes
+ *   4. ciphertext+tag = AES-256-GCM encrypt(plaintext=transferKeyBytes, key, iv, aad=none)
+ *   5. blob = base64( iv[12] || ciphertext || tag[16] )
+ *
+ * @param {string} transferKeyBase64 - 32-byte transfer key, base64-encoded
+ * @param {string} peerPublicKeyBase64 - JWK base64
+ * @param {string} ownPrivateKeyBase64 - JWK base64
+ * @returns {Promise<string>} base64-encoded ECIES blob
+ */
+export async function encryptKeyForDevice(transferKeyBase64, peerPublicKeyBase64, ownPrivateKeyBase64) {
+    const peerPublicKey = await globalThis.crypto.subtle.importKey(
+        'jwk',
+        JSON.parse(atob(peerPublicKeyBase64)),
+        { name: 'ECDH', namedCurve: 'P-256' },
+        false,
+        [],
+    );
+    const ownPrivateKey = await globalThis.crypto.subtle.importKey(
+        'jwk',
+        JSON.parse(atob(ownPrivateKeyBase64)),
+        { name: 'ECDH', namedCurve: 'P-256' },
+        false,
+        ['deriveBits'],
+    );
+
+    const sharedBits = await globalThis.crypto.subtle.deriveBits(
+        { name: 'ECDH', public: peerPublicKey },
+        ownPrivateKey,
+        256,
+    );
+
+    const sharedKey = await globalThis.crypto.subtle.importKey('raw', sharedBits, 'HKDF', false, ['deriveKey']);
+    const aesKey = await globalThis.crypto.subtle.deriveKey(
+        {
+            name: 'HKDF',
+            hash: 'SHA-256',
+            salt: PAIRING_HKDF_SALT,
+            info: new TextEncoder().encode('encryptKeyForDevice'),
+        },
+        sharedKey,
+        { name: 'AES-GCM', length: 256 },
+        false,
+        ['encrypt'],
+    );
+
+    const iv = new Uint8Array(12);
+    globalThis.crypto.getRandomValues(iv);
+
+    const keyBytes = base64ToUint8Array(transferKeyBase64);
+    const ciphertext = await globalThis.crypto.subtle.encrypt({ name: 'AES-GCM', iv }, aesKey, keyBytes);
+
+    const blob = new Uint8Array(12 + ciphertext.byteLength);
+    blob.set(iv);
+    blob.set(new Uint8Array(ciphertext), 12);
+    return uint8ArrayToBase64(blob);
+}
+
+/**
+ * ECIES: decrypt a transfer key from a peer device using ECDH + HKDF + AES-256-GCM.
+ *
+ * Blob format: first 12 bytes = IV, remainder = ciphertext + 16-byte auth tag.
+ *
+ * @param {string} encryptedBase64 - base64-encoded blob
+ * @param {string} ownPrivateKeyBase64 - JWK base64
+ * @param {string} peerPublicKeyBase64 - JWK base64
+ * @returns {Promise<string>} transfer key as base64
+ */
+export async function decryptKeyFromDevice(encryptedBase64, ownPrivateKeyBase64, peerPublicKeyBase64) {
+    const peerPublicKey = await globalThis.crypto.subtle.importKey(
+        'jwk',
+        JSON.parse(atob(peerPublicKeyBase64)),
+        { name: 'ECDH', namedCurve: 'P-256' },
+        false,
+        [],
+    );
+    const ownPrivateKey = await globalThis.crypto.subtle.importKey(
+        'jwk',
+        JSON.parse(atob(ownPrivateKeyBase64)),
+        { name: 'ECDH', namedCurve: 'P-256' },
+        false,
+        ['deriveBits'],
+    );
+
+    const sharedBits = await globalThis.crypto.subtle.deriveBits(
+        { name: 'ECDH', public: peerPublicKey },
+        ownPrivateKey,
+        256,
+    );
+
+    const sharedKey = await globalThis.crypto.subtle.importKey('raw', sharedBits, 'HKDF', false, ['deriveKey']);
+    const aesKey = await globalThis.crypto.subtle.deriveKey(
+        {
+            name: 'HKDF',
+            hash: 'SHA-256',
+            salt: PAIRING_HKDF_SALT,
+            info: new TextEncoder().encode('encryptKeyForDevice'),
+        },
+        sharedKey,
+        { name: 'AES-GCM', length: 256 },
+        false,
+        ['decrypt'],
+    );
+
+    const blob = base64ToUint8Array(encryptedBase64);
+    const iv = blob.slice(0, 12);
+    const ciphertext = blob.slice(12);
+
+    const decrypted = await globalThis.crypto.subtle.decrypt({ name: 'AES-GCM', iv }, aesKey, ciphertext);
+    return uint8ArrayToBase64(new Uint8Array(decrypted));
+}
+
+/**
+ * Compute the pairing verification code for MITM detection.
+ *
+ * CANONICAL ARG ORDER: senderPublicKeyBase64 = device with seed (Machine A),
+ *   receiverPublicKeyBase64 = device waiting for seed (Machine B).
+ * Both machines must call with the same argument order.
+ *
+ * Algorithm: SHA-256(rawBytesA || rawBytesB) → first 3 bytes as 24-bit big-endian uint
+ *   → mod 1_000_000 → zero-pad to 6 decimal digits → insert dash at position 3 → "NNN-NNN"
+ *
+ * @param {string} senderPublicKeyBase64 - JWK base64 (sender = device with seed)
+ * @param {string} receiverPublicKeyBase64 - JWK base64 (receiver = device waiting)
+ * @returns {Promise<string>} e.g. "047-283"
+ */
+export async function computePairingCode(senderPublicKeyBase64, receiverPublicKeyBase64) {
+    const senderBytes = base64ToUint8Array(senderPublicKeyBase64);
+    const receiverBytes = base64ToUint8Array(receiverPublicKeyBase64);
+
+    const combined = new Uint8Array(senderBytes.length + receiverBytes.length);
+    combined.set(senderBytes);
+    combined.set(receiverBytes, senderBytes.length);
+
+    const hashBuffer = await globalThis.crypto.subtle.digest('SHA-256', combined);
+    const hashBytes = new Uint8Array(hashBuffer);
+
+    const num = ((hashBytes[0] << 16) | (hashBytes[1] << 8) | hashBytes[2]) % 1_000_000;
+    const padded = num.toString().padStart(6, '0');
+    return `${padded.slice(0, 3)}-${padded.slice(3)}`;
+}
+
+// ─── Message Encryption (legacy PBKDF2 / OpenCrypto) ─────────────────────────
+
 /**
  * Decrypt a ciphertext string using AES-256-GCM with PBKDF2-SHA-512 key derivation.
  *

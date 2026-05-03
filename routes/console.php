@@ -1,11 +1,15 @@
 <?php
 
+use App\Jobs\ClearExpiredPipeDevices;
+use App\Jobs\ClearExpiredPipeSessions;
 use App\Jobs\ClearExpiredSecrets;
 use App\Jobs\PurgeMetadataForExpiredMessages;
 use Illuminate\Support\Facades\Schedule;
 
 Schedule::job(new ClearExpiredSecrets)->daily();
 Schedule::job(new PurgeMetadataForExpiredMessages)->daily();
+Schedule::job(new ClearExpiredPipeSessions)->everyFiveMinutes();
+Schedule::job(new ClearExpiredPipeDevices)->everyFiveMinutes();
 Schedule::command('cloudflare:reload')->daily();
 Schedule::command('sender-identity:reverify')->daily();
 Schedule::command('horizon:snapshot')->everyFiveMinutes();

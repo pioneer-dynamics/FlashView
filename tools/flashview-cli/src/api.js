@@ -252,6 +252,333 @@ export class FlashViewClient {
         return result;
     }
 
+    // ─── Pipe Device API ─────────────────────────────────────────────────────────
+
+    /**
+     * Register this device's P-256 public key.
+     *
+     * @param {string} publicKeyBase64 - JWK base64
+     * @returns {Promise<{ device_id: string, expires_at: string }>}
+     */
+    async registerDevice(publicKeyBase64) {
+        return this.request('POST', '/api/v1/pipe/devices', { public_key: publicKeyBase64 });
+    }
+
+    /**
+     * List all active devices on this account (for sender to pick a receiver).
+     *
+     * @returns {Promise<{ devices: Array<{ device_id: string, public_key: string, created_at: string, expires_at: string }> }>}
+     */
+    async listMyDevices() {
+        return this.request('GET', '/api/v1/pipe/devices');
+    }
+
+    /**
+     * Get a specific device's public key.
+     *
+     * @param {string} deviceId
+     * @returns {Promise<{ device_id: string, public_key: string, expires_at: string }>}
+     */
+    async getDevicePublicKey(deviceId) {
+        return this.request('GET', `/api/v1/pipe/devices/${encodeURIComponent(deviceId)}`);
+    }
+
+    /**
+     * De-register a device.
+     *
+     * @param {string} deviceId
+     * @returns {Promise<void>}
+     */
+    async destroyDevice(deviceId) {
+        const url = `${this.baseUrl}/api/v1/pipe/devices/${encodeURIComponent(deviceId)}`;
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), this.timeout);
+        try {
+            const response = await fetch(url, {
+                method: 'DELETE',
+                signal: controller.signal,
+                headers: { 'Authorization': `Bearer ${this.token}`, 'Accept': 'application/json' },
+            });
+            if (!response.ok && response.status !== 204) {
+                const error = await response.json().catch(() => ({}));
+                throw new ApiError(error.message || `HTTP ${response.status}`, response.status, error.errors);
+            }
+        } catch (err) {
+            if (err.name === 'AbortError') { throw new ApiError('Request timed out', 0); }
+            throw err;
+        } finally {
+            clearTimeout(timeout);
+        }
+    }
+
+    /**
+     * Poll for pending sessions addressed to this device.
+     *
+     * @param {string} deviceId
+     * @returns {Promise<{ session_id: string, encrypted_transfer_key: string, sender_device_id: string, sender_public_key: string, expires_at: string }|null>}
+     */
+    async pollPendingSessions(deviceId) {
+        const url = `${this.baseUrl}/api/v1/pipe/sessions/pending?device_id=${encodeURIComponent(deviceId)}`;
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), this.timeout);
+        let response;
+        try {
+            response = await fetch(url, {
+                signal: controller.signal,
+                headers: { 'Authorization': `Bearer ${this.token}`, 'Accept': 'application/json' },
+            });
+        } catch (err) {
+            if (err.name === 'AbortError') { throw new ApiError('Request timed out', 0); }
+            throw err;
+        } finally {
+            clearTimeout(timeout);
+        }
+        if (response.status === 204) { return null; }
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new ApiError(error.message || `HTTP ${response.status}`, response.status);
+        }
+        return response.json();
+    }
+
+    // ─── Pipe Transfer API ───────────────────────────────────────────────────────
+
+    /**
+     * Create a new pipe transfer session.
+     *
+     * @param {string} sessionId - Random 32-char hex session ID
+     * @param {'relay'|'p2p'} transferMode
+     * @param {number|null} expiresIn - TTL in seconds
+     * @param {{ receiver_device_id?: string, sender_device_id?: string, encrypted_transfer_key?: string }} deviceFields
+     * @returns {Promise<{ session_id: string, expires_at: string, transfer_mode: string }>}
+     */
+    async createPipeSession(sessionId, transferMode = 'relay', expiresIn = null, deviceFields = {}) {
+        const body = { session_id: sessionId, transfer_mode: transferMode, ...deviceFields };
+        if (expiresIn !== null) { body.expires_in = expiresIn; }
+        return this.request('POST', '/api/v1/pipe', body);
+    }
+
+    /**
+     * Get pipe session status.
+     *
+     * @param {string} sessionId
+     * @returns {Promise<{ session_id: string, is_complete: boolean, expires_at: string }|null>}
+     */
+    async getPipeSessionStatus(sessionId) {
+        const url = `${this.baseUrl}/api/v1/pipe/${encodeURIComponent(sessionId)}`;
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), this.timeout);
+        let response;
+        try {
+            response = await fetch(url, {
+                signal: controller.signal,
+                headers: { 'Accept': 'application/json', 'Authorization': `Bearer ${this.token}` },
+            });
+        } catch (err) {
+            if (err.name === 'AbortError') { throw new ApiError('Request timed out', 0); }
+            throw err;
+        } finally {
+            clearTimeout(timeout);
+        }
+        if (response.status === 404) { return null; }
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new ApiError(error.message || `HTTP ${response.status}`, response.status);
+        }
+        return response.json();
+    }
+
+    /**
+     * Request a presigned S3 upload URL (or server fallback URL) for the session payload.
+     *
+     * @param {string} sessionId
+     * @returns {Promise<{ upload_type: 's3_direct'|'server', upload_url: string, upload_headers: object }>}
+     */
+    async prepareUpload(sessionId) {
+        return this.request('POST', `/api/v1/pipe/${encodeURIComponent(sessionId)}/prepare-upload`);
+    }
+
+    /**
+     * Upload the encrypted payload directly to the given URL (S3 presigned or server fallback).
+     *
+     * @param {string} uploadUrl
+     * @param {object} uploadHeaders
+     * @param {Uint8Array} payload
+     * @param {((sent: number, total: number) => void) | null} [onProgress]
+     * @returns {Promise<void>}
+     */
+    async uploadPayload(uploadUrl, uploadHeaders, payload, onProgress = null) {
+        let body;
+        const fetchOptions = {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/octet-stream',
+                ...uploadHeaders,
+            },
+        };
+
+        if (onProgress) {
+            const total = payload.length;
+            let offset = 0;
+            body = new ReadableStream({
+                pull(controller) {
+                    if (offset >= total) { controller.close(); return; }
+                    const end = Math.min(offset + 65536, total);
+                    controller.enqueue(payload.subarray(offset, end));
+                    offset = end;
+                    onProgress(offset, total);
+                },
+            });
+            fetchOptions.headers['Content-Length'] = String(total);
+            fetchOptions.duplex = 'half';
+        } else {
+            body = payload;
+        }
+
+        fetchOptions.body = body;
+
+        let response;
+        try {
+            response = await fetch(uploadUrl, fetchOptions);
+        } catch (err) {
+            if (err.code === 'ECONNREFUSED' || err.code === 'ENOTFOUND') {
+                throw new ApiError('Could not connect to storage. Check your network.', 0);
+            }
+            throw err;
+        }
+        if (!response.ok) {
+            throw new ApiError(`Upload failed (HTTP ${response.status})`, response.status);
+        }
+    }
+
+    /**
+     * Mark the upload complete.
+     *
+     * @param {string} sessionId
+     * @returns {Promise<{ is_complete: boolean }>}
+     */
+    async completePipeSession(sessionId) {
+        return this.request('POST', `/api/v1/pipe/${encodeURIComponent(sessionId)}/complete`);
+    }
+
+    /**
+     * Download the encrypted payload for a completed session.
+     *
+     * @param {string} sessionId
+     * @returns {Promise<Uint8Array>}
+     */
+    async downloadPayload(sessionId) {
+        const url = `${this.baseUrl}/api/v1/pipe/${encodeURIComponent(sessionId)}/download`;
+        let response;
+        try {
+            response = await fetch(url, {
+                headers: { 'Accept': 'application/octet-stream', 'Authorization': `Bearer ${this.token}` },
+            });
+        } catch (err) {
+            if (err.code === 'ECONNREFUSED' || err.code === 'ENOTFOUND') {
+                throw new ApiError('Could not connect to server. Check your URL and network.', 0);
+            }
+            throw err;
+        }
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new ApiError(error.message || `HTTP ${response.status}`, response.status);
+        }
+        return new Uint8Array(await response.arrayBuffer());
+    }
+
+    /**
+     * Burn (delete) a pipe session.
+     *
+     * @param {string} sessionId
+     * @returns {Promise<void>}
+     */
+    async burnPipeSession(sessionId) {
+        const url = `${this.baseUrl}/api/v1/pipe/${encodeURIComponent(sessionId)}`;
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), this.timeout);
+        try {
+            await fetch(url, {
+                method: 'DELETE',
+                signal: controller.signal,
+                headers: {
+                    'Authorization': `Bearer ${this.token}`,
+                    'Accept': 'application/json',
+                },
+            });
+        } catch (err) {
+            if (err.name === 'AbortError') { throw new ApiError('Request timed out', 0); }
+            throw err;
+        } finally {
+            clearTimeout(timeout);
+        }
+    }
+
+    /**
+     * Send a WebRTC signaling message.
+     *
+     * @param {string} sessionId
+     * @param {'sender'|'receiver'} role
+     * @param {'offer'|'answer'|'ice-candidate'} type
+     * @param {object} payload
+     * @returns {Promise<{ signal_id: number }>}
+     */
+    async sendSignal(sessionId, role, type, payload) {
+        const url = `${this.baseUrl}/api/v1/pipe/${encodeURIComponent(sessionId)}/signal`;
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), this.timeout);
+        let response;
+        try {
+            response = await fetch(url, {
+                method: 'POST',
+                signal: controller.signal,
+                headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.token}` },
+                body: JSON.stringify({ role, type, payload }),
+            });
+        } catch (err) {
+            if (err.name === 'AbortError') { throw new ApiError('Request timed out', 0); }
+            throw err;
+        } finally {
+            clearTimeout(timeout);
+        }
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new ApiError(error.message || `HTTP ${response.status}`, response.status, error.errors);
+        }
+        return response.json();
+    }
+
+    /**
+     * Poll for WebRTC signals.
+     *
+     * @param {string} sessionId
+     * @param {'sender'|'receiver'} role
+     * @param {number} afterId - Return only signals with ID greater than this
+     * @returns {Promise<{ signals: Array<{ id: number, type: string, payload: object }> }>}
+     */
+    async pollSignals(sessionId, role, afterId = 0) {
+        const url = `${this.baseUrl}/api/v1/pipe/${encodeURIComponent(sessionId)}/signal?role=${encodeURIComponent(role)}&after=${afterId}`;
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), this.timeout);
+        let response;
+        try {
+            response = await fetch(url, {
+                signal: controller.signal,
+                headers: { 'Accept': 'application/json', 'Authorization': `Bearer ${this.token}` },
+            });
+        } catch (err) {
+            if (err.name === 'AbortError') { throw new ApiError('Request timed out', 0); }
+            throw err;
+        } finally {
+            clearTimeout(timeout);
+        }
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new ApiError(error.message || `HTTP ${response.status}`, response.status);
+        }
+        return response.json();
+    }
+
     /**
      * Confirm that the client has downloaded the file so the server can delete the S3 object.
      *

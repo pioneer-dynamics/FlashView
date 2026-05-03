@@ -31,7 +31,8 @@
     "dependencies": {
         "@pioneer-dynamics/flashview-crypto": "^1.1.1",
         "commander": "^12.0.0",
-        "qrcode-terminal": "^0.12.0"
+        "qrcode-terminal": "^0.12.0",
+        "werift": "0.23.0"
     },
     "devDependencies": {
         "esbuild": "^0.25.0",
