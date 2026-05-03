@@ -56,6 +56,9 @@ export async function trySendP2P(client, sessionId, encryptedPayload, options = 
                 const dc = pc.createDataChannel('payload', { ordered: true });
 
                 dc.onopen = async () => {
+                    // P2P connection established — cancel the negotiation timeout so large
+                    // payloads are not abandoned mid-transfer.
+                    clearTimeout(timer);
                     try {
                         if (verbose) {
                             process.stderr.write(`  Uploading via p2p_webrtc... [${humanBytes(encryptedPayload.length)}]\n`);
@@ -173,6 +176,8 @@ export async function tryReceiveP2P(client, sessionId, options = {}) {
                 let receivedBytes = 0;
 
                 pc.ondatachannel = ({ channel }) => {
+                    // P2P connection established — cancel the negotiation timeout.
+                    clearTimeout(timer);
                     channel.onmessage = ({ data }) => {
                         const buf = data instanceof Uint8Array
                             ? data
