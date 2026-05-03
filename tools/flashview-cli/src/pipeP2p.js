@@ -13,6 +13,13 @@ function humanBytes(bytes) {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+function renderProgress(current, total, width = 30) {
+    const pct = total > 0 ? Math.min(current / total, 1) : 0;
+    const filled = Math.round(pct * width);
+    const bar = '█'.repeat(filled) + '░'.repeat(width - filled);
+    return `  [${bar}] ${(pct * 100).toFixed(1).padStart(5)}% (${humanBytes(current)} / ${humanBytes(total)})`;
+}
+
 async function waitForIceGathered(pc) {
     while (pc.iceGatheringState !== 'complete') {
         const [state] = await pc.iceGatheringStateChange.asPromise(6000);
@@ -70,6 +77,7 @@ export async function trySendP2P(client, sessionId, encryptedPayload, options = 
                         dc.send(header);
 
                         let offset = 0;
+                        let lastRender = 0;
                         while (offset < encryptedPayload.length) {
                             if (settled) { return; }
                             while (dc.bufferedAmount > CHUNK_SIZE * 8) {
@@ -78,11 +86,21 @@ export async function trySendP2P(client, sessionId, encryptedPayload, options = 
                             }
                             dc.send(encryptedPayload.subarray(offset, offset + CHUNK_SIZE));
                             offset += CHUNK_SIZE;
+                            if (verbose) {
+                                const now = Date.now();
+                                const progress = Math.min(offset, encryptedPayload.length);
+                                if (now - lastRender >= 80 || progress === encryptedPayload.length) {
+                                    lastRender = now;
+                                    process.stderr.write(`\r${renderProgress(progress, encryptedPayload.length)}`);
+                                }
+                            }
                         }
 
+                        if (verbose) { process.stderr.write('\n'); }
                         dc.close();
                         finish(true);
                     } catch {
+                        if (verbose) { process.stderr.write('\n'); }
                         finish(false);
                     }
                 };
@@ -174,6 +192,7 @@ export async function tryReceiveP2P(client, sessionId, options = {}) {
                 const chunks = [];
                 let expectedSize = null;
                 let receivedBytes = 0;
+                let lastRender = 0;
 
                 pc.ondatachannel = ({ channel }) => {
                     // P2P connection established — cancel the negotiation timeout.
@@ -200,7 +219,16 @@ export async function tryReceiveP2P(client, sessionId, options = {}) {
                         chunks.push(buf);
                         receivedBytes += buf.length;
 
+                        if (verbose) {
+                            const now = Date.now();
+                            if (now - lastRender >= 80 || receivedBytes >= expectedSize) {
+                                lastRender = now;
+                                process.stderr.write(`\r${renderProgress(receivedBytes, expectedSize)}`);
+                            }
+                        }
+
                         if (receivedBytes >= expectedSize) {
+                            if (verbose) { process.stderr.write('\n'); }
                             const out = new Uint8Array(expectedSize);
                             let off = 0;
                             for (const c of chunks) { out.set(c, off); off += c.length; }

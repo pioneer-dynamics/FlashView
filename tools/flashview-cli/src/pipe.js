@@ -28,6 +28,13 @@ function humanBytes(bytes) {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+function renderProgress(current, total, width = 30) {
+    const pct = total > 0 ? Math.min(current / total, 1) : 0;
+    const filled = Math.round(pct * width);
+    const bar = '█'.repeat(filled) + '░'.repeat(width - filled);
+    return `  [${bar}] ${(pct * 100).toFixed(1).padStart(5)}% (${humanBytes(current)} / ${humanBytes(total)})`;
+}
+
 function withErrorHandling(fn) {
     return async (...args) => {
         try {
@@ -168,7 +175,16 @@ async function runPipeSender(client, options) {
         process.stderr.write(`  Uploading via ${upload_type}... [${humanBytes(encrypted.length)}]\n`);
     }
 
-    await client.uploadPayload(upload_url, upload_headers, encrypted);
+    let lastRender = 0;
+    await client.uploadPayload(upload_url, upload_headers, encrypted, options.verbose ? (sent, total) => {
+        const now = Date.now();
+        if (now - lastRender >= 80 || sent === total) {
+            lastRender = now;
+            process.stderr.write(`\r${renderProgress(sent, total)}`);
+        }
+    } : null);
+    if (options.verbose) { process.stderr.write('\n'); }
+
     await client.completePipeSession(sessionId);
 
     process.stderr.write('Transfer ready. Run \'flashview pipe\' on the receiving machine.\n');

@@ -404,19 +404,42 @@ export class FlashViewClient {
      * @param {string} uploadUrl
      * @param {object} uploadHeaders
      * @param {Uint8Array} payload
+     * @param {((sent: number, total: number) => void) | null} [onProgress]
      * @returns {Promise<void>}
      */
-    async uploadPayload(uploadUrl, uploadHeaders, payload) {
+    async uploadPayload(uploadUrl, uploadHeaders, payload, onProgress = null) {
+        let body;
+        const fetchOptions = {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/octet-stream',
+                ...uploadHeaders,
+            },
+        };
+
+        if (onProgress) {
+            const total = payload.length;
+            let offset = 0;
+            body = new ReadableStream({
+                pull(controller) {
+                    if (offset >= total) { controller.close(); return; }
+                    const end = Math.min(offset + 65536, total);
+                    controller.enqueue(payload.subarray(offset, end));
+                    offset = end;
+                    onProgress(offset, total);
+                },
+            });
+            fetchOptions.headers['Content-Length'] = String(total);
+            fetchOptions.duplex = 'half';
+        } else {
+            body = payload;
+        }
+
+        fetchOptions.body = body;
+
         let response;
         try {
-            response = await fetch(uploadUrl, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/octet-stream',
-                    ...uploadHeaders,
-                },
-                body: payload,
-            });
+            response = await fetch(uploadUrl, fetchOptions);
         } catch (err) {
             if (err.code === 'ECONNREFUSED' || err.code === 'ENOTFOUND') {
                 throw new ApiError('Could not connect to storage. Check your network.', 0);
