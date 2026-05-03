@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\AdminPlanController;
 use App\Http\Controllers\Admin\AdminUserController;
 use App\Http\Controllers\Auth\RegisterController;
+use App\Http\Controllers\BlogController;
 use App\Http\Controllers\CliAuthController;
 use App\Http\Controllers\CliDeviceController;
 use App\Http\Controllers\CliInstallationController;
@@ -18,6 +19,7 @@ use App\Http\Controllers\SenderIdentityController;
 use App\Http\Controllers\WebhookSettingsController;
 use App\Http\Middleware\EnsurePlanHasApiAccess;
 use App\Http\Middleware\EnsurePlanHasSenderIdentity;
+use App\Support\BlogRepository;
 use Illuminate\Foundation\Application;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -31,6 +33,7 @@ Route::get('/', function () {
         'canRegister' => Route::has('register'),
         'laravelVersion' => Application::VERSION,
         'phpVersion' => PHP_VERSION,
+        'latestPost' => app(BlogRepository::class)->latest(),
     ]);
 })->name('welcome');
 
@@ -48,6 +51,9 @@ Route::get('secret/{secret}/file', [SecretController::class, 'downloadFile'])->n
 Route::post('secret/{secret}/file/downloaded', [SecretController::class, 'confirmFileDownloaded'])->name('secret.file.downloaded');
 
 Route::get('plans', [PlanController::class, 'index'])->name('plans.index');
+
+Route::get('/blog', [BlogController::class, 'index'])->name('blog.index');
+Route::get('/blog/{slug}', [BlogController::class, 'show'])->name('blog.show');
 
 Route::controller(MarkdownDocumentController::class)->group(function () {
     Route::get('/terms-of-service', 'terms')->name('terms.show');
