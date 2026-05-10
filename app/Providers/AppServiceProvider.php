@@ -79,6 +79,14 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('api-secrets', function (Request $request) {
             return $this->planThrottleLimit($request->user());
         });
+
+        RateLimiter::for('pipe-sessions', function (Request $request) {
+            if ($user = $request->user()) {
+                return Limit::perMinute(config('pipe.rate_limits.user.create_per_minute'))->by($user->id);
+            }
+
+            return Limit::perMinute(config('pipe.rate_limits.guest.create_per_minute'))->by($request->ip());
+        });
     }
 
     private function planThrottleLimit(User $user): Limit

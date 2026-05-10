@@ -1,1 +1,15 @@
-export { generatePassphrase, encryptMessage, decryptMessage, encryptBuffer, decryptBuffer } from '@pioneer-dynamics/flashview-crypto';
+export {
+    generatePassphrase,
+    encryptMessage,
+    decryptMessage,
+    encryptBuffer,
+    decryptBuffer,
+    generateTransferKey,
+    generateSessionId,
+    generateIdentityKeypair,
+    encryptKeyForDevice,
+    decryptKeyFromDevice,
+    computePairingCode,
+    encryptChunk,
+    decryptChunk,
+} from '@pioneer-dynamics/flashview-crypto';

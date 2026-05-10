@@ -30,7 +30,9 @@ jobs:
 
       - name: Install crypto dependencies
         working-directory: tools/flashview-crypto
-        run: npm ci
+        run: |
+          npm ci
+          npm pack
 
       - name: Check if crypto version already published
         id: crypto-version-check
@@ -55,7 +57,9 @@ jobs:
 
       - name: Install CLI dependencies
         working-directory: tools/flashview-cli
-        run: npm ci
+        run: |
+          npm ci
+          npm install ../flashview-crypto/pioneer-dynamics-flashview-crypto-*.tgz
 
       - name: Run CLI tests
         working-directory: tools/flashview-cli
