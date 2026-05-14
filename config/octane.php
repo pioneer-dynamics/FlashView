@@ -222,4 +222,17 @@ return [
 
     'max_execution_time' => 30,
 
+    /*
+    |--------------------------------------------------------------------------
+    | Maximum Requests Per Worker
+    |--------------------------------------------------------------------------
+    |
+    | After the specified number of requests have been handled by a worker,
+    | the worker will be terminated and restarted. This option can help
+    | manage long-lived memory usage. Set to 0 to disable restarting.
+    |
+    */
+
+    'max_requests' => env('OCTANE_MAX_REQUESTS', 500),
+
 ];
