@@ -409,6 +409,17 @@ php artisan migrate
 
 **Validation Rules:** `MessageLength` and `ValidExpiry` — both enforce different limits for guest vs. authenticated users.
 
+## Laravel Octane (MANDATORY)
+
+This application runs **Laravel Octane with FrankenPHP** in production. You must account for this in all planning, implementation, and review:
+
+- **No static state between requests** — never store request-specific data in static properties, singletons resolved at boot, or class-level variables. Octane keeps the application alive across many requests; stale state will bleed between them.
+- **No `$_SERVER`/`$_REQUEST` globals** — always use the injected `Request` object; globals are not refreshed per-request under Octane.
+- **Service provider `boot()` vs `register()`** — bindings registered in `register()` are resolved once at boot. If a binding captures request state, it must be scoped to the request lifecycle or resolved fresh each time.
+- **Avoid request-scoped data in long-lived objects** — listeners, observers, middleware, and jobs that are resolved at boot must not cache request data as instance properties.
+- **Test for Octane compatibility** — when writing or reviewing code that touches service providers, middleware, singletons, or global state, explicitly verify it is stateless across requests.
+- **Config** — Octane configuration lives in `config/octane.php`. The `max_requests` setting controls worker recycling; do not tune it without understanding memory implications.
+
 ## Git Workflow
 
 - `master` is the main/release branch
