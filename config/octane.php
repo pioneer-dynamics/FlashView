@@ -56,6 +56,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Octane Workers
+    |--------------------------------------------------------------------------
+    |
+    | This value controls the number of worker processes that will be spawned
+    | to handle requests. Set to null to use the number of CPU cores available
+    | on the machine. You may set this value as needed based on your server.
+    |
+    */
+
+    'workers' => env('OCTANE_WORKERS', null),
+
+    /*
+    |--------------------------------------------------------------------------
     | Octane Listeners
     |--------------------------------------------------------------------------
     |
