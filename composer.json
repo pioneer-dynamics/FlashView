@@ -155,6 +155,7 @@
         "laravel/jetstream": "^5.3",
         "laravel/mcp": "^0.6.0",
         "laravel/nightwatch": "^1.24.4",
+        "laravel/octane": "^2.17",
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^3.0",
         "league/commonmark": "^2.8.1",
