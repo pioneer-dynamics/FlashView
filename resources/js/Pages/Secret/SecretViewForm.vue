@@ -2,6 +2,7 @@
     import { useForm, usePage } from '@inertiajs/vue3';
     import { encryption } from '../../encryption';
     import { computed, ref } from 'vue';
+    import { captureEvent } from '../../posthog';
     import FlatFormSection from '@/Components/FlatFormSection.vue';
     import PrimaryButton from '@/Components/PrimaryButton.vue';
     import TextInput from '@/Components/TextInput.vue';
@@ -73,6 +74,7 @@
                                 if (decryptionFailed.value) { return; }
                                 decryptedMessage.value = data;
                                 decryptionSuccess.value = true;
+                                captureEvent('secret_decrypted', { is_file_secret: true });
                             })
                             .catch(() => handleDecryptionFailure('wrong-password'));
                     }
@@ -100,6 +102,7 @@
                     .then((data) => {
                         decryptedMessage.value = data;
                         decryptionSuccess.value = true;
+                        captureEvent('secret_decrypted', { is_file_secret: false });
                     })
                     .catch(() => handleDecryptionFailure('wrong-password'));
             },
