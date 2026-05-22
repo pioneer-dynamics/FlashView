@@ -22,6 +22,7 @@ use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Cashier\Subscription;
 use Laravel\Sanctum\Sanctum;
+use PostHog\PostHog;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -62,6 +63,10 @@ class AppServiceProvider extends ServiceProvider
         Subscription::observe(SubscriptionObserver::class);
 
         Sanctum::usePersonalAccessTokenModel(PersonalAccessToken::class);
+
+        if (! config('posthog.disabled') && config('posthog.api_key')) {
+            PostHog::init(config('posthog.api_key'), ['host' => config('posthog.host')]);
+        }
     }
 
     private function defineRateLimits(): void
