@@ -22,7 +22,7 @@ class PostHogService
             PostHog::capture([
                 'distinctId' => $distinctId,
                 'event' => $event,
-                'properties' => $properties,
+                'properties' => array_merge(['environment' => config('app.env')], $properties),
             ]);
         } catch (Throwable) {
             // Never let analytics failures affect the application.
