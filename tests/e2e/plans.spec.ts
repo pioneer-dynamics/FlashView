@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import { resetDatabase } from './helpers/db';
 import { createTestUser, login } from './helpers/auth';
 
-test.beforeEach(async () => {
+test.beforeEach(() => {
     resetDatabase();
 });
 

@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import { resetDatabase, expireAllSecrets } from './helpers/db';
 import { createSecret } from './helpers/secrets';
 
-test.beforeEach(async () => {
+test.beforeEach(() => {
     resetDatabase();
 });
 

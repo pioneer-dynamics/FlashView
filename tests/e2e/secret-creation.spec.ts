@@ -1,7 +1,8 @@
 import { test, expect } from '@playwright/test';
 import { resetDatabase } from './helpers/db';
+import { createTestUser, login } from './helpers/auth';
 
-test.beforeEach(async () => {
+test.beforeEach(() => {
     resetDatabase();
 });
 
@@ -23,4 +24,17 @@ test('guest creates a secret with a custom password', async ({ page }) => {
 
     await expect(page.locator('text=Please share the link and password separately')).toBeVisible();
     await expect(page.getByTestId('share-url')).toBeVisible();
+});
+
+test('authenticated user creates a text secret', async ({ page }) => {
+    const { email, password } = createTestUser();
+    await login(page, email, password);
+
+    await page.goto('/');
+    await page.fill('#message', 'Authenticated user secret');
+    await page.click('button:has-text("Generate link")');
+
+    await expect(page.locator('text=Please share the link and password separately')).toBeVisible();
+    await expect(page.getByTestId('share-url')).toBeVisible();
+    await expect(page.getByTestId('passphrase')).toBeVisible();
 });
