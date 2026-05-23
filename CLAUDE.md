@@ -378,6 +378,29 @@ cp .env.example .env && php artisan key:generate
 php artisan migrate
 ```
 
+## E2E Tests (Playwright)
+
+E2E tests live in `tests/e2e/` and require the app to be running on `http://localhost:8000`.
+
+```bash
+# Run all E2E tests (app must already be running locally)
+vendor/bin/sail npm run test:e2e
+
+# Run a specific spec file
+vendor/bin/sail npx playwright test tests/e2e/secret-creation.spec.ts
+
+# Open Playwright UI for interactive debugging (run outside Sail — --ui mode is incompatible inside the container)
+npx playwright test --ui
+
+# View last HTML report
+npx playwright show-report
+```
+
+**Important notes:**
+- Each spec calls `php artisan migrate:fresh` before every test — this resets the SQLite DB. Test runtime will grow as the suite expands; consider switching to per-test fixture seeding when that becomes a bottleneck.
+- File upload E2E tests are tracked separately in PIO-94 (require S3 or file storage backend in test env).
+- Registration E2E is deferred (PIO-45 two-step email verification requires a real mailbox or email stub to automate).
+
 ## Architecture
 
 **Backend:** Laravel 13 with Inertia.js 2.0 bridge to Vue 3. Routes are in `routes/web.php` (primary) and `routes/api.php` (minimal, Sanctum-protected).
