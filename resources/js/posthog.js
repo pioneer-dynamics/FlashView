@@ -8,6 +8,7 @@ export function initPostHog() {
     const host = import.meta.env.VITE_POSTHOG_HOST;
     if (!key || !host) { return; }
     posthog.init(key, { api_host: host, person_profiles: 'identified_only' });
+    posthog.register({ environment: import.meta.env.MODE });
     initialised = true;
 }
 
