@@ -25,7 +25,7 @@ const body = computed(() => props.reason === 'wrong-password'
 </script>
 
 <template>
-    <div class="space-y-4">
+    <div class="space-y-4" data-testid="destroyed-state">
         <Alert type="Error" hide-title>
             <div class="space-y-2">
                 <p class="font-mono text-xs uppercase tracking-widest text-gamboge-300">
