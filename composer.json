@@ -164,6 +164,7 @@
         "mathewparet/laravel-policy-abilities-export": "^2.0",
         "monicahq/laravel-cloudflare": "3.8.1",
         "pioneer-dynamics/laravel-passkey": "2.0.9",
+        "posthog/posthog-php": "*",
         "resend/resend-laravel": "^1.0",
         "spatie/laravel-googletagmanager": "^3.0",
         "symfony/http-client": "^7.4|^8.0",

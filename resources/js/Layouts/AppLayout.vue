@@ -1,12 +1,13 @@
 <script setup>
-import { ref } from 'vue';
-import { Head, Link, router } from '@inertiajs/vue3';
+import { ref, onMounted } from 'vue';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import ApplicationMark from '@/Components/ApplicationMark.vue';
 import Banner from '@/Components/Banner.vue';
 import Dropdown from '@/Components/Dropdown.vue';
 import DropdownLink from '@/Components/DropdownLink.vue';
 import NavLink from '@/Components/NavLink.vue';
 import ResponsiveNavLink from '@/Components/ResponsiveNavLink.vue';
+import { initPostHog, identifyUser, resetUser } from '../posthog';
 
 import { DateTime } from 'luxon';
 
@@ -15,6 +16,14 @@ defineProps({
 });
 
 const showingNavigationDropdown = ref(false);
+
+onMounted(() => {
+    initPostHog();
+    const user = usePage().props?.auth?.user;
+    if (user?.id) {
+        identifyUser(user.id, { email: user.email, name: user.name });
+    }
+});
 
 const switchToTeam = (team) => {
     router.put(route('current-team.update'), {
@@ -25,6 +34,7 @@ const switchToTeam = (team) => {
 };
 
 const logout = () => {
+    resetUser();
     router.post(route('logout'));
 };
 </script>

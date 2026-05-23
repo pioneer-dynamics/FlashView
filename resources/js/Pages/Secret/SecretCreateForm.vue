@@ -2,6 +2,7 @@
     import { Link, useForm, usePage, router } from '@inertiajs/vue3';
     import { encryption } from '../../encryption';
     import { computed, ref, watch } from 'vue';
+    import { captureEvent } from '../../posthog';
     import Checkbox from '@/Components/Checkbox.vue';
     import TextAreaInput from '@/Components/TextAreaInput.vue';
     import PrimaryButton from '@/Components/PrimaryButton.vue';
@@ -167,6 +168,10 @@
                         fileError.value = getErrorMessage(usePage().props.jetstream.flash.error);
                         return;
                     }
+                    captureEvent('secret_link_generated', {
+                        is_file_secret: true,
+                        user_type: userType.value,
+                    });
                     stage.value = 'generated';
                 },
                 onError: () => {
@@ -201,6 +206,10 @@
                             if (data.passphrase != other.password) {
                                 other.password = data.passphrase;
                             }
+                            captureEvent('secret_link_generated', {
+                                is_file_secret: false,
+                                user_type: userType.value,
+                            });
                             stage.value = 'generated';
                         },
                     });

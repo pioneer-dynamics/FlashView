@@ -8,6 +8,7 @@ use App\Http\Requests\Auth\InitiateRegistrationRequest;
 use App\Models\User;
 use App\Notifications\DuplicateRegistrationAttemptNotification;
 use App\Notifications\RegistrationVerificationNotification;
+use App\Services\PostHogService;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\RedirectResponse;
@@ -22,6 +23,8 @@ use Inertia\Response;
 
 class RegisterController extends Controller
 {
+    public function __construct(private PostHogService $postHog) {}
+
     /**
      * Step 1: Show email-only registration form.
      */
@@ -109,6 +112,14 @@ class RegisterController extends Controller
             Auth::login($user);
 
             $request->session()->regenerate();
+
+            $this->postHog->identify((string) $user->id, [
+                'email' => $user->email,
+                'name' => $user->name,
+            ]);
+            $this->postHog->capture((string) $user->id, 'user_registered', [
+                'email' => $user->email,
+            ]);
 
             return redirect()->route('dashboard');
         } catch (UniqueConstraintViolationException) {
