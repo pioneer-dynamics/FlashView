@@ -17,6 +17,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class SecretService
 {
+    public function __construct(private PostHogService $postHog) {}
+
     /**
      * Create a new secret and generate a signed URL.
      *
@@ -68,6 +70,19 @@ class SecretService
 
         $url = URL::temporarySignedRoute('secret.show', $expiresAt, ['secret' => $secret->hash_id]);
 
+        $isFileSecret = $filepath !== null;
+        $distinctId = $userId ? (string) $userId : 'guest';
+        $eventName = $isFileSecret ? 'file_secret_created' : 'secret_created';
+
+        $this->postHog->capture($distinctId, $eventName, [
+            'expires_in_minutes' => $expiresInMinutes,
+            'has_recipient_email' => $maskedRecipientEmail !== null,
+            'has_sender_identity' => $senderCompanyName !== null || $senderEmail !== null,
+            'user_type' => $userId ? 'user' : 'guest',
+            'file_mime_type' => $fileMimeType,
+            'file_size_bytes' => $fileSize,
+        ]);
+
         return ['secret' => $secret, 'url' => $url];
     }
 
@@ -97,8 +112,9 @@ class SecretService
     public function downloadFileSecret(string $hashId): RedirectResponse|StreamedResponse
     {
         $filepath = null;
+        $secretUserId = null;
 
-        DB::transaction(function () use ($hashId, &$filepath) {
+        DB::transaction(function () use ($hashId, &$filepath, &$secretUserId) {
             $record = Secret::withoutEvents(
                 fn () => Secret::withoutGlobalScopes()
                     ->lockForUpdate()
@@ -110,12 +126,16 @@ class SecretService
             }
 
             $filepath = $record->filepath;
+            $secretUserId = $record->user_id;
 
             DB::table($record->getTable())->where('id', $record->id)->update([
                 'retrieved_at' => now(),
                 'ip_address_retrieved' => encrypt(request()->ip(), false),
             ]);
         });
+
+        $distinctId = $secretUserId ? (string) $secretUserId : 'guest';
+        $this->postHog->capture($distinctId, 'file_secret_downloaded');
 
         $ttlHours = config('secrets.file_upload.presigned_url_ttl_hours', 12);
 
@@ -179,5 +199,10 @@ class SecretService
     public function burnSecret(Secret $secret): void
     {
         $secret->markSilentlyAsRetrieved();
+
+        $distinctId = $secret->user_id ? (string) $secret->user_id : 'guest';
+        $this->postHog->capture($distinctId, 'secret_burned', [
+            'is_file_secret' => $secret->isFileSecret(),
+        ]);
     }
 }

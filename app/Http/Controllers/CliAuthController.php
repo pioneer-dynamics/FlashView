@@ -6,6 +6,7 @@ use App\Http\Requests\CliAuthorizeRequest;
 use App\Http\Requests\CliTokenExchangeRequest;
 use App\Http\Resources\CliTokenResource;
 use App\Models\User;
+use App\Services\PostHogService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
@@ -15,6 +16,8 @@ use Laravel\Jetstream\Jetstream;
 
 class CliAuthController extends Controller
 {
+    public function __construct(private PostHogService $postHog) {}
+
     /**
      * Show the CLI authorization page.
      */
@@ -125,6 +128,10 @@ class CliAuthController extends Controller
 
         $token = $user->createToken($tokenName, $data['permissions'] ?? Jetstream::$defaultPermissions);
         $token->accessToken->update(['type' => 'cli']);
+
+        $this->postHog->capture((string) $user->id, 'cli_token_issued', [
+            'installation_name' => $tokenName,
+        ]);
 
         return new CliTokenResource([
             'token' => $token->plainTextToken,

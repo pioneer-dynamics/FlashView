@@ -22,6 +22,7 @@
     "dependencies": {
         "@pioneer-dynamics/flashview-crypto": "file:tools/flashview-crypto",
         "@simplewebauthn/browser": "^9.0.1",
-        "luxon": "^3.4.4"
+        "luxon": "^3.4.4",
+        "posthog-js": "^1.375.0"
     }
 }

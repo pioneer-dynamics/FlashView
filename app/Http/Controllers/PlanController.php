@@ -7,12 +7,15 @@ use App\Http\Requests\UnsubscribeRequest;
 use App\Http\Requests\UpdatePlanRequest;
 use App\Http\Resources\PlanResource;
 use App\Models\Plan;
+use App\Services\PostHogService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class PlanController extends Controller
 {
+    public function __construct(private PostHogService $postHog) {}
+
     /**
      * Display a listing of the resource.
      */
@@ -26,6 +29,8 @@ class PlanController extends Controller
     public function unsubscribe(UnsubscribeRequest $request): RedirectResponse
     {
         $request->user()->subscription('default')->cancel();
+
+        $this->postHog->capture((string) $request->user()->id, 'subscription_cancelled');
 
         return redirect()->route('plans.index');
     }
@@ -56,6 +61,11 @@ class PlanController extends Controller
         };
 
         if ($user->subscriptions()->active()->count() == 0) {
+            $this->postHog->capture((string) $user->id, 'subscription_started', [
+                'plan_name' => $plan->name,
+                'period' => $period,
+            ]);
+
             return $user
                 ->newSubscription('default', $price_id)
                 ->allowPromotionCodes()
@@ -65,6 +75,11 @@ class PlanController extends Controller
                 ]);
         } else {
             $user->subscription('default')->swap($price_id);
+
+            $this->postHog->capture((string) $user->id, 'subscription_changed', [
+                'plan_name' => $plan->name,
+                'period' => $period,
+            ]);
 
             return redirect()->route('plans.index');
         }

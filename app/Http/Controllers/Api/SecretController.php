@@ -13,6 +13,7 @@ use App\Http\Resources\SecretMessageResource;
 use App\Http\Resources\SecretResource;
 use App\Models\Secret;
 use App\Services\EmailMaskingService;
+use App\Services\PostHogService;
 use App\Services\SecretService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -28,6 +29,7 @@ class SecretController extends Controller implements HasMiddleware
     public function __construct(
         private SecretService $secretService,
         private EmailMaskingService $emailMaskingService,
+        private PostHogService $postHog,
     ) {}
 
     public static function middleware(): array
@@ -142,6 +144,11 @@ class SecretController extends Controller implements HasMiddleware
 
             return response()->json(['data' => $data]);
         }
+
+        $distinctId = $secretRecord->user_id ? (string) $secretRecord->user_id : 'guest';
+        $this->postHog->capture($distinctId, 'secret_retrieved', [
+            'is_file_secret' => false,
+        ]);
 
         return (new SecretMessageResource([
             'hash_id' => $secretRecord->hash_id,

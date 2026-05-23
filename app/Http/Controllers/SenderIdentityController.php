@@ -6,12 +6,16 @@ use App\Http\Requests\StoreSenderIdentityRequest;
 use App\Jobs\RetryDomainVerification;
 use App\Notifications\DomainVerifiedNotification;
 use App\Services\DomainVerificationService;
+use App\Services\PostHogService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
 class SenderIdentityController extends Controller
 {
-    public function __construct(private DomainVerificationService $verificationService) {}
+    public function __construct(
+        private DomainVerificationService $verificationService,
+        private PostHogService $postHog,
+    ) {}
 
     public function store(StoreSenderIdentityRequest $request): RedirectResponse
     {
@@ -36,6 +40,10 @@ class SenderIdentityController extends Controller
             } else {
                 $identity->update($data);
             }
+
+            $this->postHog->capture((string) $user->id, 'sender_identity_configured', [
+                'type' => 'email',
+            ]);
 
             return back();
         }
@@ -63,6 +71,10 @@ class SenderIdentityController extends Controller
             $identity->update($data);
         }
 
+        $this->postHog->capture((string) $user->id, 'sender_identity_configured', [
+            'type' => 'domain',
+        ]);
+
         return back();
     }
 
@@ -80,6 +92,10 @@ class SenderIdentityController extends Controller
                 'verification_retry_dispatched_at' => null,
             ]);
             $request->user()->notify(new DomainVerifiedNotification($identity));
+
+            $this->postHog->capture((string) $request->user()->id, 'sender_domain_verified', [
+                'domain' => $identity->domain,
+            ]);
 
             return back()->with('status', 'domain-verified');
         }
