@@ -39,6 +39,19 @@ Additional information we collect include:
 
 When the **"Store Masked Email"** privacy setting is enabled by an authenticated user, only a masked version of the recipient's email address (e.g. `j***@e***.com`) is stored alongside the secret. The original, unmasked email address is never stored on our servers. This setting is disabled by default, and enabling or disabling it requires password or passkey confirmation.
 
+## Analytics
+
+We use [PostHog](https://posthog.com) to collect product analytics that help us understand how the application is used and improve our services. PostHog operates as a data processor on our behalf.
+
+**What we collect via PostHog:**
+
+- For **authenticated users**: your user ID, email address, and display name are associated with your analytics profile.
+- For **guest users**: no personal profile is created. PostHog is configured with `person_profiles: 'identified_only'`, meaning anonymous usage is not linked to any individual.
+- **Usage events** such as when a secret link is generated, when a secret is decrypted, when a file is downloaded, and when a secret is burned. These events include metadata such as the secret expiry duration, secret type, and whether optional features (recipient email, sender identity) were used — but never the content of any secret.
+- **Registration events**: when you create an account, your email address is captured as part of the registration event.
+
+PostHog data is retained and processed in accordance with [PostHog's Privacy Policy](https://posthog.com/privacy). You may contact us if you wish to request deletion of your analytics data.
+
 ## Third Parties
 
 Where reasonable and practicable to do so, we will collect your Personal Information only from you. However, in some circumstances we may be provided with information by third parties (such as sharing your personal information with Stripe to help with payment processing). In such a case we will take reasonable steps to ensure that you are made aware of the information provided to us by the third party.
