@@ -19,14 +19,14 @@ export default defineConfig({
             use: { ...devices['Desktop Chrome'] },
         },
     ],
-    // In CI the server is started explicitly in the workflow before tests run; we just reuse it.
-    // Locally, Sail's nginx serves the app on port 80.
+    // In CI there is no pre-running server, so we start one. Locally, Sail's nginx serves the app.
     ...(process.env.CI
         ? {
               webServer: {
-                  command: 'php artisan serve --port=8000',
+                  command: 'php artisan serve --env=testing --port=8000',
                   url: 'http://localhost:8000',
-                  reuseExistingServer: true,
+                  reuseExistingServer: false,
+                  timeout: 30000,
               },
           }
         : {}),
