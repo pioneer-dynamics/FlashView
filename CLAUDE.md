@@ -400,7 +400,7 @@ npx playwright show-report
 ```
 
 **Important notes:**
-- Each spec calls `vendor/bin/sail artisan migrate:fresh --env=testing` before every test — this resets the database. **Do not run E2E tests while you have local data you want to keep.**
+- Each spec resets the database before every test (`vendor/bin/sail artisan migrate:fresh` locally, `php artisan migrate:fresh` in CI). **Do not run E2E tests while you have local data you want to keep.**
 - File upload E2E tests are tracked separately in PIO-94 (require S3 or file storage backend in test env).
 - Registration E2E is deferred (PIO-45 two-step email verification requires a real mailbox or email stub to automate).
 
