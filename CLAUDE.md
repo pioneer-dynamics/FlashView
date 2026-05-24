@@ -380,16 +380,19 @@ php artisan migrate
 
 ## E2E Tests (Playwright)
 
-E2E tests live in `tests/e2e/` and require the app to be running on `http://localhost:8000`.
+E2E tests live in `tests/e2e/`. Tests run on the **host machine** (not inside Sail) and hit the Sail nginx server at `http://localhost`. Sail must be running before executing tests.
 
 ```bash
-# Run all E2E tests (app must already be running locally)
-vendor/bin/sail npm run test:e2e
+# First-time setup: install the Playwright browser on the host
+npx playwright install chromium
+
+# Run all E2E tests (host machine, Sail must be running)
+npx playwright test
 
 # Run a specific spec file
-vendor/bin/sail npx playwright test tests/e2e/secret-creation.spec.ts
+npx playwright test tests/e2e/secret-creation.spec.ts
 
-# Open Playwright UI for interactive debugging (run outside Sail — --ui mode is incompatible inside the container)
+# Open Playwright UI for interactive debugging
 npx playwright test --ui
 
 # View last HTML report
@@ -397,7 +400,7 @@ npx playwright show-report
 ```
 
 **Important notes:**
-- Each spec calls `php artisan migrate:fresh` before every test — this resets the SQLite DB. Test runtime will grow as the suite expands; consider switching to per-test fixture seeding when that becomes a bottleneck.
+- Each spec calls `vendor/bin/sail artisan migrate:fresh --env=testing` before every test — this resets the database. **Do not run E2E tests while you have local data you want to keep.**
 - File upload E2E tests are tracked separately in PIO-94 (require S3 or file storage backend in test env).
 - Registration E2E is deferred (PIO-45 two-step email verification requires a real mailbox or email stub to automate).
 

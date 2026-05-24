@@ -1,6 +1,8 @@
 import { Page } from '@playwright/test';
 import { execSync } from 'child_process';
 
+const ARTISAN = process.env.CI ? 'php artisan' : 'vendor/bin/sail artisan';
+
 export async function login(page: Page, email: string, password: string): Promise<void> {
     await page.goto('/login');
     await page.fill('#email', email);
@@ -21,7 +23,7 @@ export function createTestUser(): { email: string; password: string } {
     const email = `e2e-${Date.now()}@example.com`;
     const password = 'password';
     execSync(
-        `php artisan tinker --no-interaction --env=testing --execute="App\\\\Models\\\\User::factory()->create(['email' => '${email}', 'password' => bcrypt('${password}')])"`,
+        `${ARTISAN} tinker --no-interaction --env=testing --execute="App\\\\Models\\\\User::factory()->create(['email' => '${email}', 'password' => bcrypt('${password}')])"`,
         { stdio: 'pipe' }
     );
     return { email, password };
