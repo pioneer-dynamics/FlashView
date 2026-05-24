@@ -264,7 +264,7 @@
             <div class="col-span-12">
                 <span v-if="stage == 'generated'">
                     <InputLabel value="Retrieval Link"/>
-                    <CodeBlock :value="$page.props.jetstream.flash?.secret?.url" class="break-words mt-1"/>
+                    <CodeBlock :value="$page.props.jetstream.flash?.secret?.url" class="break-words mt-1" data-testid="share-url"/>
                 </span>
                 <span v-else>
                     <TextAreaInput autofocus id="message" rows="7" v-model="form.message" type="text" class="font-mono mt-1 block w-full" placeholder="Your secret message..." :max-length="maxLength" :disabled="isEncryptBusy"/>
@@ -332,7 +332,7 @@
                     <div class="w-full">
                         <span v-if="stage == 'generated' && !isEncryptBusy">
                             <InputLabel value="Password"/>
-                            <CodeBlock :value="other.password" class="mt-1"/>
+                            <CodeBlock :value="other.password" class="mt-1" data-testid="passphrase"/>
                         </span>
                         <span v-else>
                             <TextInput id="password" ref="passwordInput" :model-value="isEncryptBusy ? '' : other.password" @update:model-value="other.password = $event" type="text" class="font-mono mt-1 block w-full dark:shadow-neon-cyan-sm" placeholder="Enter a password, or leave blank to auto generate a password for you." :disabled="passwordInputDisabled" />
