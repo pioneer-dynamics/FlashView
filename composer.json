@@ -151,7 +151,7 @@
         "aws/aws-sdk-php": "^3.383",
         "inertiajs/inertia-laravel": "^2.0",
         "laravel/cashier": "^16.0",
-        "laravel/framework": "^13.0",
+        "laravel/framework": "13.11.2",
         "laravel/horizon": "^5.33",
         "laravel/jetstream": "^5.3",
         "laravel/mcp": "^0.6.0",
