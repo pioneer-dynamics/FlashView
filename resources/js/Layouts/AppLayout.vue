@@ -206,6 +206,7 @@ const logout = () => {
                                     <Dropdown align="right" width="48" v-if="$page.props?.auth?.user">
                                         <template #trigger>
                                             <button v-if="$page.props.jetstream.managesProfilePhotos"
+                                                data-testid="user-menu-trigger"
                                                 class="flex text-sm border-2 border-transparent rounded-full focus:outline-none focus:border-gray-300 transition">
                                                 <img class="size-8 rounded-full object-cover"
                                                     :src="$page.props?.auth?.user?.profile_photo_url"
@@ -214,6 +215,7 @@ const logout = () => {
 
                                             <span v-else class="inline-flex rounded-md">
                                                 <button type="button"
+                                                    data-testid="user-menu-trigger"
                                                     class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-300 focus:outline-none focus:bg-gray-50 dark:focus:bg-gray-700 active:bg-gray-50 dark:active:bg-gray-700 transition ease-in-out duration-150">
                                                     {{ $page.props?.auth?.user?.name }}
 

@@ -128,6 +128,42 @@ services:
             retries: 3
             timeout: 5s
     
+    minio:
+        image: 'minio/minio:latest'
+        ports:
+            - '${FORWARD_MINIO_PORT:-9000}:9000'
+            - '${FORWARD_MINIO_DASHBOARD_PORT:-8900}:8900'
+        environment:
+            MINIO_ROOT_USER: sail
+            MINIO_ROOT_PASSWORD: password
+        volumes:
+            - 'sail-minio:/data/minio'
+        networks:
+            - sail
+        command: minio server /data/minio --console-address ":8900"
+        healthcheck:
+            test:
+                - CMD
+                - curl
+                - '-f'
+                - 'http://localhost:9000/minio/health/live'
+            retries: 3
+            timeout: 5s
+            interval: 5s
+            start_period: 10s
+    createbuckets:
+        image: 'minio/mc:latest'
+        networks:
+            - sail
+        depends_on:
+            minio:
+                condition: service_healthy
+        entrypoint: >
+            /bin/sh -c "
+            /usr/bin/mc alias set myminio http://minio:9000 sail password;
+            /usr/bin/mc mb --ignore-existing myminio/local;
+            exit 0;
+            "
     soketi:
         image: 'quay.io/soketi/soketi:latest-16-alpine'
         environment:
@@ -152,4 +188,6 @@ volumes:
     sail-meilisearch:
         driver: local
     sail-pgsql:
+        driver: local
+    sail-minio:
         driver: local
