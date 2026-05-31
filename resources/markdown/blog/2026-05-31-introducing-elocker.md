@@ -41,42 +41,56 @@ After payment, Stripe delivers a one-time credit token to your browser. That tok
 
 ### Creating Your Locker
 
-Creating a locker is a three-step process in the browser:
+Creating a locker takes three steps in the browser:
 
 1. **Choose your account ID** — any 10-digit number you can remember
 2. **Choose your passphrase** — use the generator for a strong random one, or bring your own
 3. **Enter your content or upload your file**
 
-When you click *Encrypt & Create*, everything happens locally in your browser. Your content is encrypted with AES-256-GCM using a key derived from your passphrase via PBKDF2 (100,000 iterations, SHA-512). The resulting ciphertext — a self-contained hex blob with version byte, type byte, salt, and IV all embedded — is what gets stored on our server.
+When you click *Encrypt & Create*, everything happens locally in your browser. Your content is encrypted with AES-256-GCM using a key derived from your passphrase via PBKDF2 (100,000 iterations, SHA-512). The resulting ciphertext — a self-contained blob with a version byte, type byte, salt, and IV all embedded — is what gets stored on our server.
 
-We never see your passphrase. We never see your plaintext. The only thing we store is an opaque blob that is mathematically useless without the passphrase.
+We never see your passphrase. We never see your plaintext.
 
-After creation, you receive three credentials:
+After creation, save your two credentials:
 
 - **Account ID** — your locker's address
-- **Passphrase** — the only key to decrypt your content
-- **Update Token** — a one-time token required to modify or delete the locker
+- **Passphrase** — the only key to decrypt, update, or delete your content
 
-**Save all three immediately.** None can be recovered from the server. The update token is shown once, never stored in plaintext, and we cannot help you if it's lost.
+That's it. Your passphrase does everything. There is no separate "update token" to track — the same passphrase you use to read your locker is used to authorise modifications.
 
 ### Unlocking Your Locker
 
-Navigate to `/lockers/your-account-id`, enter your passphrase, and click *Unlock*. The payload is fetched from the server, decrypted in your browser, and displayed. The server never receives your passphrase — authentication is entirely client-side.
+Click **eLocker → Access My Locker** in the navigation, enter your 10-digit account ID, and click *Open Locker*. On the locker page, enter your passphrase and click *Unlock*.
 
-For renewals, a challenge-response mechanism proves you know the passphrase without transmitting it. The server issues a random challenge; your browser computes an HMAC-SHA-256 verifier from your passphrase and the challenge; only the verifier is sent.
+The unlock process uses a cryptographic challenge-response: the server issues a random challenge; your browser derives an HMAC-SHA-256 verifier from your passphrase and the challenge; only the verifier is sent to the server. Your passphrase never leaves your device. If the verifier matches, the encrypted payload is returned and decrypted locally in your browser.
+
+Because passphrase verification is challenge-based, there is no rate limit for correct passwords. Only wrong attempts count toward the protection thresholds:
+
+- Three wrong attempts → 5-minute cooldown per attempt
+- After three consecutive failures → locker locked for 1 hour
+
+Entering an account ID that doesn't exist produces the same response as a wrong passphrase, preventing account enumeration.
+
+### Updating Your Locker
+
+Once unlocked, an *Update Content* panel appears below the decrypted content. For text lockers, paste new text. For file lockers, pick a replacement file. Your passphrase — already entered during unlock — authorises the update. No extra token is needed.
+
+### Renewing Your Locker
+
+When your expiry is approaching, click **Renew** next to the expiry badge, or use **eLocker → Access My Locker** and choose *Renew* before opening. Enter your passphrase to complete a challenge-response authentication, choose a duration, and you'll be directed to Stripe to complete a new one-time payment.
 
 ## Zero-Knowledge by Design
 
 We can verify this claim concretely. Here is the full list of what the server stores for each locker:
 
-- `account_id` — a 10-digit number you chose
-- `payload` — an opaque hex blob, the encrypted ciphertext
-- `auth_challenge` — a random nonce for renewal authentication
-- `auth_verifier` — an HMAC-SHA-256 of the challenge, derived from your passphrase
-- `update_token_hash` — a SHA-256 hash of the update token
+- `account_id` — the 10-digit number you chose
+- `payload` — an opaque encrypted blob, useless without your passphrase
+- `auth_challenge` — a random nonce, rotated after each renewal
+- `auth_verifier` — an HMAC-SHA-256 of the challenge, derived from your passphrase (proves identity without revealing the passphrase)
+- `update_token_hash` — a SHA-256 hash of a key derived from your passphrase (used to authorise updates and deletes)
 - `expires_at` — the expiry timestamp
 
-The server **does not store**: your passphrase, the encryption salt, the encryption IV, or any plaintext. The salt and IV are embedded inside the ciphertext blob itself, so they travel encrypted with the data and never exist separately on the server.
+The server **does not store**: your passphrase, the encryption salt, the encryption IV, or any plaintext. The salt and IV are embedded inside the ciphertext blob itself, so they travel with the data and never exist separately on the server.
 
 This means that even a complete compromise of our database would expose only encrypted ciphertext and a challenge verifier — both useless without the passphrase that never left your device.
 
@@ -84,7 +98,7 @@ This means that even a complete compromise of our database would expose only enc
 
 There is no user account associated with an eLocker. No email address. No phone number. No identity verification. This is intentional: anonymity is the product, not a side effect.
 
-Because there is no contact information on file, we cannot send expiry reminders. If your locker expires, it becomes inaccessible. We recommend noting your expiry date somewhere safe. Renewal is straightforward — navigate to your locker, click *Renew*, enter your passphrase, and complete the Stripe payment.
+Because there is no contact information on file, we cannot send expiry reminders. If your locker expires, it becomes inaccessible. We recommend noting your expiry date somewhere safe. Renewal is straightforward — click *Renew* on your locker page, enter your passphrase, and complete the Stripe payment.
 
 ## CLI Support
 
@@ -94,7 +108,7 @@ eLocker is fully supported in the FlashView CLI from day one:
 # Open the pricing page
 flashview locker buy
 
-# Create a locker (interactive)
+# Create a locker (interactive — prompts for account ID, passphrase, content)
 flashview locker create
 
 # Create a file locker
@@ -106,11 +120,11 @@ flashview locker open 4815162342
 # Save decrypted file to disk
 flashview locker open 4815162342 --output ./document.pdf
 
-# Update content
-echo "Updated content" | flashview locker update 4815162342 --update-token <token>
+# Update content (passphrase authorises the update — no separate token)
+echo "Updated content" | flashview locker update 4815162342
 
-# Delete permanently
-flashview locker delete 4815162342 --update-token <token>
+# Delete permanently (passphrase required to confirm)
+flashview locker delete 4815162342
 
 # Renew expiry
 flashview locker renew 4815162342
@@ -126,7 +140,7 @@ eLockers are for data you want to persist, access repeatedly, and update over ti
 
 ## Get Started
 
-[Buy an eLocker &rarr;](/lockers/buy)
+Click **eLocker → Buy a Locker** in the navigation to see pricing and get started.
 
 Text lockers start at $20 for one year. No account required.
 
