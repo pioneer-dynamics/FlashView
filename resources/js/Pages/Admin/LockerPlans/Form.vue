@@ -50,6 +50,24 @@ const submit = () => {
 };
 
 const FILE_SIZE_PRESETS = [10, 25, 50, 100, 250, 500];
+
+// Preview helpers
+const previewPrice = computed(() =>
+    form.amount_cents ? `$${(form.amount_cents / 100).toFixed(0)}` : '$—'
+);
+
+const previewFileSizeLabel = computed(() => {
+    const mb = form.file_size_mb;
+    if (!mb) return '';
+    return mb >= 1024 ? `${(mb / 1024).toFixed(1)} GB` : `${mb} MB`;
+});
+
+const previewTierIcon = computed(() => form.tier === 'file' ? '🗂' : '📄');
+const previewTierLabel = computed(() => form.tier === 'file' ? 'File Locker' : 'Text Locker');
+const previewButtonLabel = computed(() => {
+    const y = form.years || 1;
+    return `Buy ${y}-Year Locker`;
+});
 </script>
 
 <template>
@@ -57,13 +75,16 @@ const FILE_SIZE_PRESETS = [10, 25, 50, 100, 250, 500];
         <template #title>{{ isEditing ? 'Edit Locker Plan' : 'New Locker Plan' }}</template>
 
         <Page>
-            <div class="max-w-lg">
-                <div class="mb-6">
-                    <Link :href="route('admin.locker-plans.index')" class="text-sm text-gamboge-300 hover:text-gamboge-200">
-                        ← Back to Locker Plans
-                    </Link>
-                </div>
+            <div class="mb-6">
+                <Link :href="route('admin.locker-plans.index')" class="text-sm text-gamboge-300 hover:text-gamboge-200">
+                    ← Back to Locker Plans
+                </Link>
+            </div>
 
+            <div class="flex gap-10 items-start">
+
+            <!-- Form (left) -->
+            <div class="flex-1 max-w-lg">
                 <form @submit.prevent="submit" class="space-y-6">
 
                     <!-- Tier — radio buttons -->
@@ -231,6 +252,65 @@ const FILE_SIZE_PRESETS = [10, 25, 50, 100, 250, 500];
                     </div>
                 </form>
             </div>
+
+            <!-- Preview (right) -->
+            <div class="w-72 shrink-0 sticky top-8">
+                <div class="text-xs uppercase tracking-widest text-gamboge-300 font-mono mb-4">Live Preview</div>
+
+                <!-- Tier header (as shown on Buy page) -->
+                <div class="flex items-center gap-2 mb-3">
+                    <span class="text-xl">{{ previewTierIcon }}</span>
+                    <div>
+                        <div class="text-sm font-semibold text-gray-900 dark:text-white">{{ previewTierLabel }}</div>
+                    </div>
+                </div>
+
+                <!-- Card preview -->
+                <div class="dark relative bg-gray-800 border border-gray-700 rounded-xl p-6 flex flex-col gap-4 shadow-neon-cyan-sm">
+
+                    <!-- Status badge -->
+                    <div v-if="!form.is_active" class="absolute -top-3 left-1/2 -translate-x-1/2">
+                        <span class="bg-gray-600 text-gray-200 text-xs font-bold px-3 py-1 rounded-full font-mono uppercase tracking-wide">
+                            Inactive
+                        </span>
+                    </div>
+
+                    <div>
+                        <div class="text-gamboge-300 font-mono text-xs uppercase tracking-widest mb-1">
+                            {{ form.years || 1 }} {{ form.years === 1 ? 'Year' : 'Years' }}
+                        </div>
+                        <div class="text-3xl font-bold text-white">
+                            {{ previewPrice }}
+                        </div>
+                        <div class="text-gray-400 text-xs mt-1">
+                            one-time payment — no subscription
+                        </div>
+                        <div v-if="form.tier === 'file' && previewFileSizeLabel" class="text-gray-500 text-xs mt-0.5">
+                            up to {{ previewFileSizeLabel }}
+                        </div>
+                    </div>
+
+                    <div class="w-full text-center bg-gamboge-300 text-gray-900 font-semibold py-2.5 px-4 rounded-lg font-mono text-sm shadow-neon-cyan-sm cursor-default select-none">
+                        {{ previewButtonLabel }}
+                    </div>
+                </div>
+
+                <!-- Stripe status indicator -->
+                <div class="mt-4 text-xs">
+                    <div v-if="form.create_stripe_price" class="flex items-center gap-1.5 text-gamboge-300">
+                        <span>⚡</span> Stripe price created automatically on save
+                    </div>
+                    <div v-else-if="form.stripe_price_id" class="flex items-center gap-1.5 text-green-400">
+                        <span>✓</span>
+                        <span class="font-mono truncate">{{ form.stripe_price_id }}</span>
+                    </div>
+                    <div v-else class="flex items-center gap-1.5 text-red-400">
+                        <span>✗</span> No Stripe price — checkout will be blocked
+                    </div>
+                </div>
+            </div>
+
+            </div><!-- end two-column -->
         </Page>
     </AdminLayout>
 </template>
