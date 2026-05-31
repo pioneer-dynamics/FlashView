@@ -20,7 +20,7 @@ use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
-use Stripe\Checkout\Session;
+use Laravel\Cashier\Cashier;
 use Stripe\Exception\ApiErrorException;
 
 class LockerController extends Controller
@@ -61,7 +61,7 @@ class LockerController extends Controller
         $priceId = $plan->stripe_price_id;
 
         try {
-            $session = Session::create([
+            $session = Cashier::stripe()->checkout->sessions->create([
                 'mode' => 'payment',
                 'line_items' => [['price' => $priceId, 'quantity' => 1]],
                 'metadata' => ['action' => 'create', 'years' => $years, 'tier' => $tier],
@@ -465,7 +465,7 @@ class LockerController extends Controller
         $priceId = $plan->stripe_price_id;
 
         try {
-            $session = Session::create([
+            $session = Cashier::stripe()->checkout->sessions->create([
                 'mode' => 'payment',
                 'line_items' => [['price' => $priceId, 'quantity' => 1]],
                 'metadata' => [
