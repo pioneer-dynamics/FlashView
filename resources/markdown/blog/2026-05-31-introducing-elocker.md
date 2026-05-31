@@ -30,12 +30,7 @@ Think of it like a Swiss numbered bank account, online. The number is your ident
 
 ### Buying a Locker
 
-eLockers are pre-paid via a one-time Stripe payment. No subscription, no recurring charges.
-
-| | 1 Year | 3 Years | 5 Years |
-|---|---|---|---|
-| Text (up to 100 KB — about 50 pages) | $20 | $50 | $80 |
-| File (up to 50 MB — documents, images, archives) | $35 | $88 | $140 |
+eLockers are pre-paid via a one-time Stripe payment. No subscription, no recurring charges. Current pricing is available on the [eLocker pricing page](/lockers/buy).
 
 After payment, Stripe delivers a one-time credit token to your browser. That token is used exactly once to create your locker.
 
@@ -108,9 +103,7 @@ eLockers are for data you want to persist, access repeatedly, and update over ti
 
 ## Get Started
 
-Click **eLocker → Buy a Locker** in the navigation to see pricing and get started.
-
-Text lockers start at $20 for one year. No account required.
+Click **eLocker → Buy a Locker** in the navigation to see current pricing and get started. No account required.
 
 ---
 
