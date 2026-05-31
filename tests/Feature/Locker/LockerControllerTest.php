@@ -57,6 +57,7 @@ class LockerControllerTest extends TestCase
             'account_id' => '1234567890',
             'credit_token' => 'tok123',
             'payload' => str_repeat('a', 100),
+            'auth_challenge' => str_repeat('c', 64),
             'auth_verifier' => str_repeat('a', 64),
             'update_token' => str_repeat('b', 64),
             'tier' => 'text',
