@@ -9,6 +9,8 @@ use App\Http\Controllers\CliDeviceController;
 use App\Http\Controllers\CliInstallationController;
 use App\Http\Controllers\ConfigurationController;
 use App\Http\Controllers\FileUploadController;
+use App\Http\Controllers\LockerController;
+use App\Http\Controllers\LockerWebhookController;
 use App\Http\Controllers\MarkdownDocumentController;
 use App\Http\Controllers\NotificationPreferencesController;
 use App\Http\Controllers\NotificationSettingsController;
@@ -229,3 +231,33 @@ Route::middleware([
     Route::post('users/{user}/suspend', [AdminUserController::class, 'suspend'])->name('users.suspend');
     Route::delete('users/{user}/suspend', [AdminUserController::class, 'unsuspend'])->name('users.unsuspend');
 });
+
+// eLocker routes — no auth required; all anonymous
+Route::prefix('lockers')->name('lockers.')->group(function () {
+    // Static routes must precede /{accountId} wildcard
+    Route::get('/buy', [LockerController::class, 'buy'])->name('buy');
+    Route::post('/checkout', [LockerController::class, 'checkout'])->name('checkout');
+    Route::get('/await-credit', [LockerController::class, 'awaitCredit'])->name('await-credit');
+    Route::get('/credit-status', [LockerController::class, 'creditStatus'])
+        ->middleware('throttle:30,1')->name('credit-status');
+    Route::get('/create', [LockerController::class, 'create'])->name('create');
+    Route::post('/', [LockerController::class, 'store'])
+        ->middleware('throttle:6,1')->name('store');
+
+    // Wildcard routes
+    Route::get('/{accountId}', [LockerController::class, 'show'])
+        ->middleware('throttle:6,1')->name('show');
+    Route::get('/{accountId}/payload', [LockerController::class, 'payload'])
+        ->middleware('throttle:locker-payload')->name('payload');
+    Route::put('/{accountId}', [LockerController::class, 'update'])
+        ->middleware('throttle:6,1')->name('update');
+    Route::delete('/{accountId}', [LockerController::class, 'destroy'])
+        ->middleware('throttle:6,1')->name('destroy');
+    Route::get('/{accountId}/renew', [LockerController::class, 'renewChallenge'])
+        ->middleware('throttle:6,1')->name('renew.challenge');
+    Route::post('/{accountId}/renew', [LockerController::class, 'renewPurchase'])
+        ->middleware('throttle:6,1')->name('renew.purchase');
+});
+
+Route::post('/stripe/locker-webhook', [LockerWebhookController::class, 'handle'])
+    ->name('locker.webhook');

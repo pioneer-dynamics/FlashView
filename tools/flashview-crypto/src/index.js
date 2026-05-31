@@ -426,6 +426,171 @@ export async function computePairingCode(senderPublicKeyBase64, receiverPublicKe
 
 // ─── Message Encryption (legacy PBKDF2 / OpenCrypto) ─────────────────────────
 
+// ─── eLocker Crypto ───────────────────────────────────────────────────────────
+
+const LOCKER_PBKDF2_ITERATIONS = 100_000;
+const LOCKER_SALT_LENGTH = 32;       // bytes → 64 hex chars
+const LOCKER_BLOB_VERSION = '01';    // 2 hex chars
+const LOCKER_TYPE_TEXT = '54';       // hex for ASCII 'T'
+const LOCKER_TYPE_FILE = '46';       // hex for ASCII 'F'
+
+export class LockerBlobVersionError extends Error {}
+export class LockerDecryptionError extends Error {}
+
+function bufferToHex(bytes) {
+    return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+function hexToBuffer(hex) {
+    const bytes = new Uint8Array(hex.length / 2);
+    for (let i = 0; i < hex.length; i += 2) {
+        bytes[i / 2] = parseInt(hex.slice(i, i + 2), 16);
+    }
+    return bytes;
+}
+
+async function deriveLockerEncKey(passphrase, salt) {
+    const keyMaterial = await globalThis.crypto.subtle.importKey(
+        'raw',
+        new TextEncoder().encode(passphrase),
+        'PBKDF2',
+        false,
+        ['deriveKey']
+    );
+    return globalThis.crypto.subtle.deriveKey(
+        { name: 'PBKDF2', salt, iterations: LOCKER_PBKDF2_ITERATIONS, hash: 'SHA-512' },
+        keyMaterial,
+        { name: 'AES-GCM', length: 256 },
+        false,
+        ['encrypt', 'decrypt']
+    );
+}
+
+/**
+ * Encrypt a text string to a self-contained hex blob for eLocker storage.
+ *
+ * Blob layout: version(2) + type(2) + salt(64) + iv(24) + AES-GCM ciphertext
+ *
+ * @param {string} content
+ * @param {string} passphrase
+ * @returns {Promise<string>} hex blob
+ */
+export async function encryptToBlob(content, passphrase) {
+    const salt = globalThis.crypto.getRandomValues(new Uint8Array(LOCKER_SALT_LENGTH));
+    const iv = globalThis.crypto.getRandomValues(new Uint8Array(IV_LENGTH));
+    const key = await deriveLockerEncKey(passphrase, salt);
+    const ciphertext = await globalThis.crypto.subtle.encrypt(
+        { name: 'AES-GCM', iv },
+        key,
+        new TextEncoder().encode(content)
+    );
+    return LOCKER_BLOB_VERSION
+        + LOCKER_TYPE_TEXT
+        + bufferToHex(salt)
+        + bufferToHex(iv)
+        + bufferToHex(new Uint8Array(ciphertext));
+}
+
+/**
+ * Encrypt a binary buffer (file) to a self-contained hex blob for eLocker storage.
+ *
+ * Blob layout: version(2) + type(2) + salt(64) + iv(24) + AES-GCM ciphertext
+ *
+ * @param {ArrayBuffer} buffer
+ * @param {string} passphrase
+ * @returns {Promise<string>} hex blob
+ */
+export async function encryptFileToBlob(buffer, passphrase) {
+    const salt = globalThis.crypto.getRandomValues(new Uint8Array(LOCKER_SALT_LENGTH));
+    const iv = globalThis.crypto.getRandomValues(new Uint8Array(IV_LENGTH));
+    const key = await deriveLockerEncKey(passphrase, salt);
+    const ciphertext = await globalThis.crypto.subtle.encrypt(
+        { name: 'AES-GCM', iv },
+        key,
+        buffer
+    );
+    return LOCKER_BLOB_VERSION
+        + LOCKER_TYPE_FILE
+        + bufferToHex(salt)
+        + bufferToHex(iv)
+        + bufferToHex(new Uint8Array(ciphertext));
+}
+
+/**
+ * Decrypt an eLocker hex blob back to its original content.
+ *
+ * @param {string} blob - hex blob produced by encryptToBlob or encryptFileToBlob
+ * @param {string} passphrase
+ * @returns {Promise<{ type: 'text'|'file', data: ArrayBuffer }>}
+ * @throws {LockerBlobVersionError} on unknown version or type byte
+ * @throws {LockerDecryptionError} on AES-GCM authentication failure
+ */
+export async function decryptFromBlob(blob, passphrase) {
+    const version = blob.slice(0, 2);
+    if (version !== LOCKER_BLOB_VERSION) {
+        throw new LockerBlobVersionError(`Unsupported blob version: ${version}`);
+    }
+    const typeHex = blob.slice(2, 4);
+    const type = typeHex === LOCKER_TYPE_TEXT ? 'text' : typeHex === LOCKER_TYPE_FILE ? 'file' : null;
+    if (!type) {
+        throw new LockerBlobVersionError(`Unsupported blob type: ${typeHex}`);
+    }
+    const salt = hexToBuffer(blob.slice(4, 68));
+    const iv = hexToBuffer(blob.slice(68, 92));
+    const ciphertext = hexToBuffer(blob.slice(92));
+    const key = await deriveLockerEncKey(passphrase, salt);
+    const data = await globalThis.crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ciphertext)
+        .catch(() => { throw new LockerDecryptionError('Decryption failed — incorrect passphrase or corrupted data'); });
+    return { type, data };
+}
+
+/**
+ * Derive an HMAC-SHA-256 key from passphrase and accountId for challenge-response auth.
+ *
+ * @param {string} passphrase
+ * @param {string} accountId
+ * @returns {Promise<CryptoKey>}
+ */
+export async function deriveAuthKey(passphrase, accountId) {
+    const keyMaterial = await globalThis.crypto.subtle.importKey(
+        'raw',
+        new TextEncoder().encode(passphrase),
+        'PBKDF2',
+        false,
+        ['deriveKey']
+    );
+    return globalThis.crypto.subtle.deriveKey(
+        {
+            name: 'PBKDF2',
+            salt: new TextEncoder().encode(accountId + ':auth'),
+            iterations: LOCKER_PBKDF2_ITERATIONS,
+            hash: 'SHA-512',
+        },
+        keyMaterial,
+        { name: 'HMAC', hash: 'SHA-256', length: 256 },
+        false,
+        ['sign']
+    );
+}
+
+/**
+ * Compute HMAC-SHA-256 verifier for the given challenge.
+ *
+ * @param {CryptoKey} authKey - from deriveAuthKey
+ * @param {string} challenge
+ * @returns {Promise<string>} hex verifier
+ */
+export async function computeVerifier(authKey, challenge) {
+    const sig = await globalThis.crypto.subtle.sign(
+        'HMAC',
+        authKey,
+        new TextEncoder().encode(challenge)
+    );
+    return bufferToHex(new Uint8Array(sig));
+}
+
+// ─── Message Decryption (legacy PBKDF2 / OpenCrypto) ─────────────────────────
+
 /**
  * Decrypt a ciphertext string using AES-256-GCM with PBKDF2-SHA-512 key derivation.
  *

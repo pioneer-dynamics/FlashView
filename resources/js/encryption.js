@@ -1,4 +1,4 @@
-import { encryptMessage as sharedEncrypt, decryptMessage as sharedDecrypt, generatePassphrase, encryptBuffer, decryptBuffer } from '@pioneer-dynamics/flashview-crypto';
+import { encryptMessage as sharedEncrypt, decryptMessage as sharedDecrypt, generatePassphrase, encryptBuffer, decryptBuffer, encryptToBlob, decryptFromBlob, encryptFileToBlob, deriveAuthKey, computeVerifier } from '@pioneer-dynamics/flashview-crypto';
 
 export class encryption {
 
@@ -62,5 +62,26 @@ export class encryption {
     async decryptFile(encryptedUint8Array, passphrase) {
         this.validatePassphrase(passphrase);
         return decryptBuffer(encryptedUint8Array, passphrase);
+    }
+
+    async encryptLockerContent(content, passphrase) {
+        return encryptToBlob(content, passphrase);
+    }
+
+    async decryptLockerContent(blob, passphrase) {
+        return decryptFromBlob(blob, passphrase);
+    }
+
+    async encryptLockerFile(file, passphrase) {
+        const buffer = await file.arrayBuffer();
+        return encryptFileToBlob(buffer, passphrase);
+    }
+
+    async deriveLockerAuthKey(passphrase, accountId) {
+        return deriveAuthKey(passphrase, accountId);
+    }
+
+    async computeLockerVerifier(authKey, challenge) {
+        return computeVerifier(authKey, challenge);
     }
 }

@@ -12,4 +12,11 @@ export {
     computePairingCode,
     encryptChunk,
     decryptChunk,
+    encryptToBlob,
+    encryptFileToBlob,
+    decryptFromBlob,
+    deriveAuthKey,
+    computeVerifier,
+    LockerBlobVersionError,
+    LockerDecryptionError,
 } from '@pioneer-dynamics/flashview-crypto';
