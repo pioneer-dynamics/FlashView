@@ -7,19 +7,15 @@ const props = defineProps({
 });
 
 const tiers = [
-    {
-        key: 'text',
-        name: 'Text Locker',
-        description: 'Stores up to 100 KB of text or structured data — approximately 50 pages.',
-        icon: '📄',
-    },
-    {
-        key: 'file',
-        name: 'File Locker',
-        description: 'Stores any file up to 50 MB — documents, images, small archives. Can also hold text.',
-        icon: '🗂',
-    },
+    { key: 'text', name: 'Text Locker', description: 'Stores up to 100 KB of text or structured data — approximately 50 pages.', icon: '📄' },
+    { key: 'file', name: 'File Locker', description: 'Stores files — documents, images, small archives. Can also hold text.', icon: '🗂' },
 ];
+
+const fileSizeLabel = (plan) => {
+    if (!plan || !plan.file_size_mb) return '';
+    const mb = plan.file_size_mb;
+    return mb >= 1024 ? `${(mb / 1024).toFixed(1)} GB` : `${mb} MB`;
+};
 
 const durations = [1, 3, 5];
 
@@ -100,6 +96,9 @@ const savingsPercent = (tier, years) => {
                                     </div>
                                     <div class="text-gray-400 text-xs mt-1">
                                         one-time payment — no subscription
+                                    </div>
+                                    <div v-if="tier.key === 'file' && fileSizeLabel(planFor(tier.key, years))" class="text-gray-500 text-xs mt-0.5">
+                                        up to {{ fileSizeLabel(planFor(tier.key, years)) }}
                                     </div>
                                 </div>
 

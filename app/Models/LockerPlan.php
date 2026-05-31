@@ -9,6 +9,7 @@ class LockerPlan extends Model
     protected $fillable = [
         'tier',
         'years',
+        'file_size_mb',
         'amount_cents',
         'stripe_price_id',
         'is_active',
