@@ -18,6 +18,7 @@ const poll = async () => {
         const data = await res.json();
         if (data.token) {
             clearInterval(pollInterval);
+            sessionStorage.setItem('locker_pending_token', data.token);
             router.visit(route('lockers.create') + '?token=' + encodeURIComponent(data.token));
         }
     } catch {
@@ -25,7 +26,9 @@ const poll = async () => {
     }
 };
 
-onMounted(() => {
+const startPolling = () => {
+    elapsed = 0;
+    timedOut.value = false;
     pollInterval = setInterval(() => {
         elapsed += 2;
         if (elapsed >= 60) {
@@ -36,8 +39,9 @@ onMounted(() => {
         poll();
     }, 2000);
     poll();
-});
+};
 
+onMounted(startPolling);
 onUnmounted(() => clearInterval(pollInterval));
 </script>
 
@@ -55,16 +59,14 @@ onUnmounted(() => clearInterval(pollInterval));
                         <div class="text-gamboge-300 font-mono text-xs uppercase tracking-widest mb-2">Payment Reference</div>
                         <div class="font-mono text-xs text-white break-all">{{ session_id }}</div>
                         <p class="text-gray-400 text-xs mt-2">
-                            Save or bookmark this page before leaving — you'll need this reference if something goes wrong.
+                            Bookmark this page — if anything goes wrong, returning here will resume automatically.
                         </p>
                     </div>
 
                     <!-- Shimmer while polling -->
                     <div v-if="!timedOut" class="space-y-3">
-                        <div class="relative overflow-hidden h-3 bg-gray-700 rounded-full">
-                            <div class="absolute inset-0 bg-gamboge-300/30 rounded-full">
-                                <div class="absolute inset-y-0 w-1/3 bg-gamboge-300/60 rounded-full animate-shimmer" />
-                            </div>
+                        <div class="relative h-1.5 w-full rounded-sm bg-gray-700 border border-gamboge-300/20 overflow-hidden">
+                            <div class="absolute inset-y-0 w-1/3 bg-gradient-to-r from-transparent via-gamboge-300 to-transparent animate-shimmer" />
                         </div>
                         <p class="text-gray-500 text-sm text-center">Waiting for Stripe confirmation…</p>
                     </div>
@@ -74,12 +76,12 @@ onUnmounted(() => clearInterval(pollInterval));
                         <div class="bg-yellow-900/20 border border-yellow-600/30 rounded-lg p-4 text-yellow-300 text-sm">
                             <p class="font-semibold mb-2">Payment is taking longer than expected.</p>
                             <ul class="list-disc list-inside space-y-1 text-yellow-300/80">
-                                <li>Wait a few minutes, then return to this page via browser back/history and it may appear.</li>
+                                <li>If you've completed payment, wait a moment and click <strong>Try again</strong> below.</li>
                                 <li>Quote your payment reference above when contacting support — no account is needed.</li>
                             </ul>
                         </div>
                         <button
-                            @click="timedOut = false; elapsed = 0; pollInterval = setInterval(() => { elapsed += 2; if (elapsed >= 60) { clearInterval(pollInterval); timedOut = true; return; } poll(); }, 2000); poll();"
+                            @click="startPolling"
                             class="w-full text-center border border-gamboge-300 text-gamboge-300 hover:bg-gamboge-300/10 font-mono text-sm py-2.5 rounded-lg transition-colors"
                         >
                             Try again

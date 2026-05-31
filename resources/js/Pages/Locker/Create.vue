@@ -2,13 +2,22 @@
 import AppLayout from '@/Layouts/AppLayout.vue';
 import FileProgressBar from '@/Components/FileProgressBar.vue';
 import { router } from '@inertiajs/vue3';
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { encryption } from '@/encryption.js';
 
 const props = defineProps({
     credit_token: String,
     tier: String,
     years: Number,
+});
+
+onMounted(() => {
+    if (!props.credit_token) {
+        const saved = sessionStorage.getItem('locker_pending_token');
+        if (saved) {
+            router.visit(route('lockers.create') + '?token=' + encodeURIComponent(saved));
+        }
+    }
 });
 
 const enc = new encryption();
@@ -194,6 +203,7 @@ const submit = async () => {
             return;
         }
 
+        sessionStorage.removeItem('locker_pending_token');
         credentials.value = {
             account_id:  data.account_id,
             passphrase:  passphrase.value,
