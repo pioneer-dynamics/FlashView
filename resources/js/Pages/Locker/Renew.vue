@@ -32,7 +32,9 @@ const submit = async () => {
         });
 
         if (!challengeRes.ok) {
-            error.value = 'Could not fetch challenge. Please try again.';
+            error.value = challengeRes.status === 429
+                ? 'Too many attempts. Please wait a few minutes before trying again.'
+                : 'Could not fetch challenge. Please try again.';
             return;
         }
 
@@ -60,7 +62,11 @@ const submit = async () => {
         const data = await renewRes.json();
 
         if (!renewRes.ok) {
-            error.value = data.error ?? 'Renewal failed. Please try again.';
+            if (renewRes.status === 429) {
+                error.value = 'Too many attempts. Please wait a few minutes before trying again.';
+            } else {
+                error.value = data.error ?? 'Renewal failed. Please try again.';
+            }
             return;
         }
 
