@@ -100,38 +100,6 @@ There is no user account associated with an eLocker. No email address. No phone 
 
 Because there is no contact information on file, we cannot send expiry reminders. If your locker expires, it becomes inaccessible. We recommend noting your expiry date somewhere safe. Renewal is straightforward — click *Renew* on your locker page, enter your passphrase, and complete the Stripe payment.
 
-## CLI Support
-
-eLocker is fully supported in the FlashView CLI from day one:
-
-```bash
-# Open the pricing page
-flashview locker buy
-
-# Create a locker (interactive — prompts for account ID, passphrase, content)
-flashview locker create
-
-# Create a file locker
-flashview locker create --file ./my-document.pdf
-
-# Unlock and print content
-flashview locker open 4815162342
-
-# Save decrypted file to disk
-flashview locker open 4815162342 --output ./document.pdf
-
-# Update content (passphrase authorises the update — no separate token)
-echo "Updated content" | flashview locker update 4815162342
-
-# Delete permanently (passphrase required to confirm)
-flashview locker delete 4815162342
-
-# Renew expiry
-flashview locker renew 4815162342
-```
-
-The CLI handles all encryption locally — the same AES-256-GCM + PBKDF2 implementation as the browser, via our shared `flashview-crypto` package. Your passphrase stays on your machine.
-
 ## What Lockers Are Not
 
 eLockers are not a replacement for one-time secrets. If you need to share a password with someone once, use [the secret flow](/). That's still the right tool for ephemeral, self-destructing messages.
