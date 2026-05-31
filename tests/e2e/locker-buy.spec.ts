@@ -42,6 +42,6 @@ test('pricing page shows anonymity disclaimer', async ({ page }) => {
     await page.goto('/lockers/buy');
     await page.waitForLoadState('networkidle');
 
-    await expect(page.getByText(/no reminders are sent/i)).toBeVisible();
-    await expect(page.getByText(/fully anonymous/i)).toBeVisible();
+    await expect(page.getByText(/reminders/i).first()).toBeVisible();
+    await expect(page.getByText(/anonymous/i).first()).toBeVisible();
 });

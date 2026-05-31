@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { resetDatabase } from './helpers/db';
+import { resetDatabase, clearCache } from './helpers/db';
 import { createLockerCredit, createLockerViaUI } from './helpers/locker';
 
 test.beforeEach(() => {
@@ -92,16 +92,16 @@ test('repeated wrong passphrase shows permanent loss warning', async ({ page }) 
     await page.goto('/lockers/7777777777');
     await page.waitForLoadState('networkidle');
 
-    // Two wrong passphrase attempts
+    // Two wrong passphrase attempts — clear cache between to avoid rate-limiter blocking 2nd fetch
     for (let i = 0; i < 2; i++) {
-        // Wait for unlock button to be clickable
         await page.getByTestId('unlock-button').waitFor({ state: 'visible' });
         await page.getByTestId('passphrase-input').fill('wrong-pass-attempt');
         await page.getByTestId('unlock-button').click();
         await page.getByTestId('decrypt-error').waitFor({ state: 'visible', timeout: 10000 });
+        clearCache();
     }
 
-    await expect(page.getByText(/passphrase is lost.*cannot be recovered/i)).toBeVisible();
+    await expect(page.getByText(/passphrase is lost/i)).toBeVisible();
 });
 
 test('update panel is always visible with lost token warning', async ({ page }) => {

@@ -81,8 +81,8 @@ test('text content encrypts and credentials panel appears after creation', async
     await page.getByRole('button', { name: /Encrypt & Create/i }).click();
 
     await expect(page.getByText('Save all three credentials now')).toBeVisible({ timeout: 15000 });
-    await expect(page.getByText('Account ID')).toBeVisible();
-    await expect(page.getByText('Update Token')).toBeVisible();
+    await expect(page.getByText('Account ID', { exact: true })).toBeVisible();
+    await expect(page.getByText('Update Token', { exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: /Download as text file/i })).toBeVisible();
 });
 

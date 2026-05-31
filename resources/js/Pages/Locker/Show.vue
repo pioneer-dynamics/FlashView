@@ -61,7 +61,11 @@ const unlock = async () => {
         if (!res.ok) {
             const elapsed = Date.now() - animationStart;
             if (elapsed < 600) await sleep(600 - elapsed);
-            triggerShake('Failed to fetch locker. Please try again.');
+            failCount.value++;
+            const msg = res.status === 429
+                ? 'Too many attempts. Please wait 5 minutes.'
+                : 'Failed to fetch locker. Please try again.';
+            triggerShake(msg);
             return;
         }
 
