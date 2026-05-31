@@ -44,7 +44,7 @@ class LockerController extends Controller
         ]);
     }
 
-    public function checkout(CheckoutLockerRequest $request): RedirectResponse
+    public function checkout(CheckoutLockerRequest $request): RedirectResponse|Response
     {
         $tier = $request->input('tier');
         $years = (int) $request->input('years');
@@ -74,7 +74,7 @@ class LockerController extends Controller
             return redirect()->route('lockers.buy')->with('error', 'Payment service unavailable. Please try again.');
         }
 
-        return redirect($session->url);
+        return Inertia::location($session->url);
     }
 
     public function awaitCredit(Request $request): Response
