@@ -15,6 +15,10 @@ export function seedPlans(): void {
     });
 }
 
+export function clearCache(): void {
+    execSync(`${ARTISAN} cache:clear --env=testing --no-interaction`, { stdio: 'pipe' });
+}
+
 export function expireAllSecrets(): void {
     // Replicates what ClearExpiredSecrets job does for text secrets.
     // There is no artisan command for this — use tinker directly.

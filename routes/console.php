@@ -1,5 +1,6 @@
 <?php
 
+use App\Jobs\ClearExpiredLockers;
 use App\Jobs\ClearExpiredPipeDevices;
 use App\Jobs\ClearExpiredPipeSessions;
 use App\Jobs\ClearExpiredSecrets;
@@ -7,6 +8,7 @@ use App\Jobs\PurgeMetadataForExpiredMessages;
 use Illuminate\Support\Facades\Schedule;
 
 Schedule::job(new ClearExpiredSecrets)->daily();
+Schedule::job(new ClearExpiredLockers)->hourly();
 Schedule::job(new PurgeMetadataForExpiredMessages)->daily();
 Schedule::job(new ClearExpiredPipeSessions)->everyFiveMinutes();
 Schedule::job(new ClearExpiredPipeDevices)->everyFiveMinutes();
