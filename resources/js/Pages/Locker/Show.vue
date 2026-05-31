@@ -331,7 +331,10 @@ const confirmDelete = async () => {
                     </div>
 
                     <div v-else class="space-y-3">
-                        <p class="text-red-300 text-xs">This action is permanent and cannot be undone.</p>
+                        <div class="bg-red-900/20 border border-red-500/50 rounded-lg p-3 space-y-1">
+                            <p class="text-red-200 text-xs font-semibold">This will permanently delete your locker and forfeit your remaining paid time.</p>
+                            <p class="text-red-300/80 text-xs">Your locker expires on {{ new Date(expires_at).toLocaleDateString() }}. Deleting it now means that time is lost — there is no refund or credit. To store content again, you would need to purchase a new locker.</p>
+                        </div>
                         <input
                             v-model="deleteToken"
                             type="text"
