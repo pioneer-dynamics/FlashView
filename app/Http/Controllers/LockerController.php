@@ -44,7 +44,7 @@ class LockerController extends Controller
         ]);
     }
 
-    public function checkout(CheckoutLockerRequest $request): RedirectResponse|Response
+    public function checkout(CheckoutLockerRequest $request): RedirectResponse|Response|HttpResponse
     {
         $tier = $request->input('tier');
         $years = (int) $request->input('years');
