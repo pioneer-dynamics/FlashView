@@ -18,7 +18,7 @@ const poll = async () => {
         const data = await res.json();
         if (data.token) {
             clearInterval(pollInterval);
-            sessionStorage.setItem('locker_pending_token', data.token);
+            localStorage.setItem('locker_pending_token', data.token);
             router.visit(route('lockers.create') + '?token=' + encodeURIComponent(data.token));
         }
     } catch {

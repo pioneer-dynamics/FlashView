@@ -13,7 +13,7 @@ const props = defineProps({
 
 onMounted(() => {
     if (!props.credit_token) {
-        const saved = sessionStorage.getItem('locker_pending_token');
+        const saved = localStorage.getItem('locker_pending_token');
         if (saved) {
             router.visit(route('lockers.create') + '?token=' + encodeURIComponent(saved));
         }
@@ -203,7 +203,7 @@ const submit = async () => {
             return;
         }
 
-        sessionStorage.removeItem('locker_pending_token');
+        localStorage.removeItem('locker_pending_token');
         credentials.value = {
             account_id:  data.account_id,
             passphrase:  passphrase.value,
