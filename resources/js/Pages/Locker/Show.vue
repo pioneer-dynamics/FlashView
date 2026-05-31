@@ -70,6 +70,25 @@ const newPassphraseStrengthWidth = computed(() => ['w-0', 'w-1/4', 'w-2/4', 'w-3
 const newPassphraseStrengthBg    = computed(() => ['', 'bg-red-400', 'bg-yellow-400', 'bg-blue-400', 'bg-gamboge-300'][newPassphraseStrength.value] ?? '');
 const generateNewPassphrase = () => { newPassphrase.value = enc.generatePasssphrase(); };
 
+const lockLocker = () => {
+    passphrase.value          = '';
+    decryptedText.value       = '';
+    decryptedFileMeta.value   = null;
+    downloadUrl.value         = '';
+    authChallenge.value       = '';
+    decryptError.value        = '';
+    updateError.value         = '';
+    updateSuccess.value       = false;
+    newContent.value          = '';
+    replacementFile.value     = null;
+    passphraseChangeError.value   = '';
+    passphraseChangeSuccess.value = false;
+    newPassphrase.value       = '';
+    deleteError.value         = '';
+    showDeleteConfirm.value   = false;
+    lockState.value           = 'locked';
+};
+
 const daysRemaining = computed(() => {
     if (!expiresAt.value) return null;
     const ms = new Date(expiresAt.value).getTime() - Date.now();
@@ -470,9 +489,20 @@ const confirmDelete = async () => {
                         <div class="text-gamboge-300 font-mono text-xs uppercase tracking-widest mb-0.5">eLocker</div>
                         <div class="text-white font-mono text-xl tracking-widest">{{ account_id }}</div>
                     </div>
-                    <div v-if="expiresAt" class="text-right">
-                        <div :class="daysRemaining <= 30 ? 'text-red-400' : 'text-gray-400'" class="text-xs font-mono">{{ expiryLabel }}</div>
-                        <a :href="route('lockers.renew.challenge', account_id)" class="text-gamboge-300 hover:text-gamboge-200 text-xs font-mono underline">Renew</a>
+                    <div class="flex items-center gap-3">
+                        <div v-if="expiresAt" class="text-right">
+                            <div :class="daysRemaining <= 30 ? 'text-red-400' : 'text-gray-400'" class="text-xs font-mono">{{ expiryLabel }}</div>
+                            <a :href="route('lockers.renew.challenge', account_id)" class="text-gamboge-300 hover:text-gamboge-200 text-xs font-mono underline">Renew</a>
+                        </div>
+                        <button
+                            v-if="lockState === 'unlocked'"
+                            @click="lockLocker"
+                            class="flex items-center gap-1.5 border border-gray-600 hover:border-gray-400 text-gray-400 hover:text-white font-mono text-xs px-3 py-1.5 rounded-lg transition-colors"
+                            title="Lock locker"
+                        >
+                            <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/></svg>
+                            Lock
+                        </button>
                     </div>
                 </div>
 
