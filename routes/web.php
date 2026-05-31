@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\AdminLockerPlanController;
 use App\Http\Controllers\Admin\AdminPlanController;
 use App\Http\Controllers\Admin\AdminUserController;
 use App\Http\Controllers\Auth\RegisterController;
@@ -9,6 +10,7 @@ use App\Http\Controllers\CliDeviceController;
 use App\Http\Controllers\CliInstallationController;
 use App\Http\Controllers\ConfigurationController;
 use App\Http\Controllers\FileUploadController;
+use App\Http\Controllers\LockerController;
 use App\Http\Controllers\MarkdownDocumentController;
 use App\Http\Controllers\NotificationPreferencesController;
 use App\Http\Controllers\NotificationSettingsController;
@@ -225,7 +227,43 @@ Route::middleware([
     'admin',
 ])->prefix('admin')->name('admin.')->group(function () {
     Route::resource('plans', AdminPlanController::class)->except(['show']);
+    Route::resource('locker-plans', AdminLockerPlanController::class)->except(['show']);
     Route::get('users', [AdminUserController::class, 'index'])->name('users.index');
     Route::post('users/{user}/suspend', [AdminUserController::class, 'suspend'])->name('users.suspend');
     Route::delete('users/{user}/suspend', [AdminUserController::class, 'unsuspend'])->name('users.unsuspend');
+});
+
+// eLocker routes — no auth required; all anonymous
+Route::prefix('lockers')->name('lockers.')->group(function () {
+    // Static routes must precede /{accountId} wildcard
+    Route::get('/', [LockerController::class, 'index'])->name('index');
+    Route::get('/buy', [LockerController::class, 'buy'])->name('buy');
+    Route::post('/file/prepare', [LockerController::class, 'prepareFile'])->name('file.prepare');
+    Route::post('/file/upload/{token}', [LockerController::class, 'handleFileUpload'])->name('file.upload');
+    Route::post('/checkout', [LockerController::class, 'checkout'])->name('checkout');
+    Route::get('/await-credit', [LockerController::class, 'awaitCredit'])->name('await-credit');
+    Route::get('/credit-status', [LockerController::class, 'creditStatus'])
+        ->middleware('throttle:30,1')->name('credit-status');
+    Route::get('/create', [LockerController::class, 'create'])->name('create');
+    Route::post('/', [LockerController::class, 'store'])
+        ->middleware('throttle:6,1')->name('store');
+
+    // Wildcard routes
+    Route::get('/{accountId}', [LockerController::class, 'show'])->name('show');
+    Route::get('/{accountId}/challenge', [LockerController::class, 'challenge'])
+        ->middleware('throttle:30,1')->name('challenge');
+    Route::post('/{accountId}/unlock', [LockerController::class, 'unlock'])
+        ->middleware('throttle:6,1')->name('unlock');
+    Route::get('/{accountId}/payload', [LockerController::class, 'payload'])
+        ->middleware('throttle:locker-payload')->name('payload');
+    Route::put('/{accountId}', [LockerController::class, 'update'])
+        ->middleware('throttle:6,1')->name('update');
+    Route::delete('/{accountId}', [LockerController::class, 'destroy'])
+        ->middleware('throttle:6,1')->name('destroy');
+    Route::get('/{accountId}/renew', [LockerController::class, 'renewChallenge'])
+        ->middleware('throttle:6,1')->name('renew.challenge');
+    Route::post('/{accountId}/renew', [LockerController::class, 'renewPurchase'])
+        ->middleware('throttle:6,1')->name('renew.purchase');
+    Route::get('/{accountId}/file', [LockerController::class, 'downloadFile'])
+        ->middleware(['throttle:locker-payload', 'signed'])->name('file.download');
 });

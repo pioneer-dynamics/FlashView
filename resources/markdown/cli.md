@@ -336,6 +336,7 @@ You can also manage registered devices and view recent transfers from the web in
 - **Token storage:** API tokens are stored in plaintext in your OS config directory (e.g., `~/.config/flashview-cli/config.json`). On shared systems, set appropriate file permissions: `chmod 600 ~/.config/flashview-cli/config.json`.
 - **Pipe identity key storage:** The machine's P-256 private key is stored at `~/.flashview/identity_key.json` with mode `0600`. Keep this file private — anyone with this key can decrypt transfers addressed to this machine.
 
+
 ## Source Code
 
 The CLI is open source. View the source and report issues on <a href="https://github.com/pioneer-dynamics/FlashView/tree/master/tools/flashview-cli" target="_blank" rel="noopener noreferrer">GitHub</a>.

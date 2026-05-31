@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import ApplicationMark from '@/Components/ApplicationMark.vue';
 import Banner from '@/Components/Banner.vue';
@@ -16,6 +16,10 @@ defineProps({
 });
 
 const showingNavigationDropdown = ref(false);
+const lockerMenuOpen = ref(false);
+const closeLockerMenu = (e) => { if (!e.target.closest('[data-locker-menu]')) lockerMenuOpen.value = false; };
+onMounted(() => document.addEventListener('click', closeLockerMenu));
+onUnmounted(() => document.removeEventListener('click', closeLockerMenu));
 
 onMounted(() => {
     initPostHog();
@@ -87,6 +91,38 @@ const logout = () => {
                                         <NavLink :href="route('plans.index')" :active="route().current('plans.index')">
                                             Pricing
                                         </NavLink>
+                                        <div class="relative" data-locker-menu>
+                                            <button
+                                                type="button"
+                                                @click.stop="lockerMenuOpen = !lockerMenuOpen"
+                                                :class="route().current('lockers.*')
+                                                    ? 'border-gamboge-700 dark:border-gamboge-200 text-gray-900 dark:text-gray-100'
+                                                    : 'border-transparent text-gray-700 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-700'"
+                                                class="inline-flex items-center gap-1 px-1 pt-1 border-b-2 text-sm font-medium leading-5 focus:outline-none transition duration-150 ease-in-out h-full"
+                                            >
+                                                eLocker
+                                                <svg class="size-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                                                </svg>
+                                            </button>
+                                            <div
+                                                v-show="lockerMenuOpen"
+                                                class="absolute start-0 z-50 mt-2 w-48 rounded-md shadow-lg"
+                                            >
+                                                <div class="rounded-md ring-1 ring-black ring-opacity-5 py-1 bg-white dark:bg-gray-700">
+                                                    <Link
+                                                        :href="route('lockers.index')"
+                                                        class="block w-full px-4 py-2 text-start text-sm leading-5 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 focus:outline-none focus:bg-gray-100 dark:focus:bg-gray-800 transition duration-150 ease-in-out"
+                                                        @click="lockerMenuOpen = false"
+                                                    >Access My Locker</Link>
+                                                    <Link
+                                                        :href="route('lockers.buy')"
+                                                        class="block w-full px-4 py-2 text-start text-sm leading-5 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 focus:outline-none focus:bg-gray-100 dark:focus:bg-gray-800 transition duration-150 ease-in-out"
+                                                        @click="lockerMenuOpen = false"
+                                                    >Buy a Locker</Link>
+                                                </div>
+                                            </div>
+                                        </div>
                                         <NavLink :href="route('blog.index')" :active="route().current('blog.*')">
                                             Blog
                                         </NavLink>
@@ -113,7 +149,10 @@ const logout = () => {
                                                 </template>
                                                 <template #content>
                                                     <DropdownLink :href="route('admin.plans.index')">
-                                                        Plans
+                                                        Subscription Plans
+                                                    </DropdownLink>
+                                                    <DropdownLink :href="route('admin.locker-plans.index')">
+                                                        eLocker Plans
                                                     </DropdownLink>
                                                     <DropdownLink :href="route('admin.users.index')">
                                                         Manage Users
@@ -329,6 +368,12 @@ const logout = () => {
                             <template v-if="true">
                                 <ResponsiveNavLink :href="route('plans.index')" :active="route().current('plans.index')">
                                     Pricing
+                                </ResponsiveNavLink>
+                                <ResponsiveNavLink :href="route('lockers.index')" :active="route().current('lockers.index')">
+                                    eLocker — Access
+                                </ResponsiveNavLink>
+                                <ResponsiveNavLink :href="route('lockers.buy')" :active="route().current('lockers.buy')">
+                                    eLocker — Buy
                                 </ResponsiveNavLink>
                                 <ResponsiveNavLink :href="route('blog.index')" :active="route().current('blog.*')">
                                     Blog

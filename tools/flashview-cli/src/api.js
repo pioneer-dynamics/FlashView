@@ -682,6 +682,7 @@ export class FlashViewClient {
 
         return response.json();
     }
+
 }
 
 export class ApiError extends Error {

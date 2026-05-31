@@ -28,18 +28,43 @@ export default {
                     '0%': { transform: 'translateX(-100%)' },
                     '100%': { transform: 'translateX(400%)' },
                 },
+                'shackle-rise': {
+                    '0%':   { transform: 'translateY(0)' },
+                    '100%': { transform: 'translateY(-6px)' },
+                },
+                'shackle-swing': {
+                    '0%':   { transform: 'translateY(-6px) rotate(0deg)' },
+                    '100%': { transform: 'translateY(-6px) rotate(45deg)' },
+                },
+                'glow-burst': {
+                    '0%':   { filter: 'drop-shadow(0 0 0px rgba(0,212,245,0))' },
+                    '50%':  { filter: 'drop-shadow(0 0 16px rgba(0,212,245,0.9))' },
+                    '100%': { filter: 'drop-shadow(0 0 4px rgba(0,212,245,0.3))' },
+                },
+                shake: {
+                    '0%, 100%': { transform: 'translateX(0)' },
+                    '20%':      { transform: 'translateX(-8px)' },
+                    '40%':      { transform: 'translateX(8px)' },
+                    '60%':      { transform: 'translateX(-6px)' },
+                    '80%':      { transform: 'translateX(6px)' },
+                },
               },
               animation: {
                 typing: "infinite alternate, blink 1s infinite",
                 shimmer: 'shimmer 1.5s ease-in-out infinite',
+                'shackle-rise':  'shackle-rise 0.2s ease-out forwards',
+                'shackle-swing': 'shackle-swing 0.2s ease-in-out 0.2s forwards',
+                'glow-burst':    'glow-burst 0.4s ease-in-out 0.4s forwards',
+                shake:           'shake 0.4s ease-in-out',
               },
             fontFamily: {
                 sans: ['Figtree', ...defaultTheme.fontFamily.sans],
                 mono: ['JetBrains Mono', ...defaultTheme.fontFamily.mono],
             },
             boxShadow: {
-                'neon-cyan': '0 0 8px 0 rgba(0, 212, 245, 0.4), 0 0 20px 0 rgba(0, 212, 245, 0.15)',
-                'neon-cyan-sm': '0 0 4px 0 rgba(0, 212, 245, 0.3)',
+                'neon-cyan':     '0 0 8px 0 rgba(0, 212, 245, 0.4), 0 0 20px 0 rgba(0, 212, 245, 0.15)',
+                'neon-cyan-sm':  '0 0 4px 0 rgba(0, 212, 245, 0.3)',
+                'neon-cyan-lg':  '0 0 20px 0 rgba(0, 212, 245, 0.7), 0 0 60px 0 rgba(0, 212, 245, 0.3)',
                 'neon-cyan-hairline': '0 1px 0 0 rgba(0, 212, 245, 0.15)',
             },
             colors: {

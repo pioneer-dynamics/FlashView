@@ -11,15 +11,18 @@ use App\Features\SenderIdentityFeature;
 use App\Features\SupportFeature;
 use App\Features\ThrottlingFeature;
 use App\Features\WebhookNotificationFeature;
+use App\Listeners\HandleLockerStripeWebhook;
 use App\Models\PersonalAccessToken;
 use App\Models\User;
 use App\Observers\SubscriptionObserver;
 use App\Services\FeatureRegistry;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
+use Laravel\Cashier\Events\WebhookReceived;
 use Laravel\Cashier\Subscription;
 use Laravel\Sanctum\Sanctum;
 use PostHog\PostHog;
@@ -62,6 +65,8 @@ class AppServiceProvider extends ServiceProvider
 
         Subscription::observe(SubscriptionObserver::class);
 
+        Event::listen(WebhookReceived::class, HandleLockerStripeWebhook::class);
+
         Sanctum::usePersonalAccessTokenModel(PersonalAccessToken::class);
 
         if (! config('posthog.disabled') && config('posthog.api_key')) {
@@ -92,6 +97,14 @@ class AppServiceProvider extends ServiceProvider
 
             return Limit::perMinute(config('pipe.rate_limits.guest.create_per_minute'))->by($request->ip());
         });
+
+        RateLimiter::for('locker-payload', fn (Request $request) => Limit::perMinutes(
+            config('lockers.rate_limit.payload_fetch.decay_minutes', 5),
+            config('lockers.rate_limit.payload_fetch.max_attempts', 1)
+        )
+            ->by('locker:'.$request->route('accountId'))
+            ->response(fn () => response()->json(['error' => 'Too many attempts. Please wait 5 minutes.'], 429))
+        );
     }
 
     private function planThrottleLimit(User $user): Limit
