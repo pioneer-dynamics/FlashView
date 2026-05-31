@@ -88,11 +88,13 @@ const logout = () => {
                                             Pricing
                                         </NavLink>
                                         <div class="flex items-center">
-                                            <Dropdown align="left" width="44">
+                                            <Dropdown align="left" width="48">
                                                 <template #trigger>
                                                     <button type="button"
-                                                        :class="route().current('lockers.*') ? 'border-gamboge-400 dark:border-gamboge-400 text-gamboge-200 dark:text-gamboge-200' : 'border-transparent text-gamboge-300 dark:text-gamboge-300 hover:text-gamboge-200 dark:hover:text-gamboge-200 hover:border-gamboge-300 dark:hover:border-gamboge-300'"
-                                                        class="inline-flex items-center gap-1 px-1 pt-1 border-b-2 text-sm font-medium leading-5 focus:outline-none transition duration-150 ease-in-out font-mono">
+                                                        :class="route().current('lockers.*')
+                                                            ? 'border-gamboge-700 dark:border-gamboge-200 text-gray-900 dark:text-gray-100 focus:border-gamboge-700'
+                                                            : 'border-transparent text-gray-700 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-700 focus:text-gray-900 dark:focus:text-gray-300 focus:border-gray-300 dark:focus:border-gray-700'"
+                                                        class="inline-flex items-center gap-1 px-1 pt-1 border-b-2 text-sm font-medium leading-5 focus:outline-none transition duration-150 ease-in-out">
                                                         eLocker
                                                         <svg class="size-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                                                             <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
