@@ -48,12 +48,27 @@ const deleting          = ref(false);
 const showDeleteConfirm = ref(false);
 
 // Passphrase change state
-const newPassphrase          = ref('');
-const confirmNewPassphrase   = ref('');
-const passphraseChangeError  = ref('');
-const passphraseChangeSuccess = ref(false);
-const passphraseChangeState  = ref(null); // null | 're-encrypting' | 'uploading'
+const newPassphrase            = ref('');
+const passphraseChangeError    = ref('');
+const passphraseChangeSuccess  = ref(false);
+const passphraseChangeState    = ref(null); // null | 're-encrypting' | 'uploading'
 const passphraseChangeProgress = ref(0);
+
+const newPassphraseStrength = computed(() => {
+    const p = newPassphrase.value;
+    if (!p) return 0;
+    let score = 0;
+    if (p.length >= 12) score++;
+    if (p.length >= 20) score++;
+    if (/[A-Z]/.test(p) || /\d/.test(p)) score++;
+    if (/[^a-z0-9]/i.test(p)) score++;
+    return score;
+});
+const newPassphraseStrengthLabel = computed(() => ['', 'Weak', 'Fair', 'Good', 'Strong'][newPassphraseStrength.value] ?? '');
+const newPassphraseStrengthColor = computed(() => ['', 'text-red-400', 'text-yellow-400', 'text-blue-400', 'text-gamboge-300'][newPassphraseStrength.value] ?? '');
+const newPassphraseStrengthWidth = computed(() => ['w-0', 'w-1/4', 'w-2/4', 'w-3/4', 'w-full'][newPassphraseStrength.value] ?? 'w-0');
+const newPassphraseStrengthBg    = computed(() => ['', 'bg-red-400', 'bg-yellow-400', 'bg-blue-400', 'bg-gamboge-300'][newPassphraseStrength.value] ?? '');
+const generateNewPassphrase = () => { newPassphrase.value = enc.generatePasssphrase(); };
 
 const daysRemaining = computed(() => {
     if (!expiresAt.value) return null;
@@ -315,10 +330,6 @@ const changePassphrase = async () => {
         passphraseChangeError.value = 'New passphrase must be at least 8 characters.';
         return;
     }
-    if (newPassphrase.value !== confirmNewPassphrase.value) {
-        passphraseChangeError.value = 'Passphrases do not match.';
-        return;
-    }
     if (newPassphrase.value === passphrase.value) {
         passphraseChangeError.value = 'New passphrase must be different from the current one.';
         return;
@@ -406,8 +417,7 @@ const changePassphrase = async () => {
 
         passphrase.value = newPassphrase.value;
         if (newStoragePath) downloadUrl.value = '';
-        newPassphrase.value        = '';
-        confirmNewPassphrase.value = '';
+        newPassphrase.value           = '';
         passphraseChangeSuccess.value = true;
 
     } catch (err) {
@@ -601,24 +611,30 @@ const confirmDelete = async () => {
                     <h2 class="text-gamboge-300 font-mono text-xs uppercase tracking-widest">Change Passphrase</h2>
                     <p class="text-gray-400 text-xs">Your content will be re-encrypted with the new passphrase. This cannot be undone.</p>
 
-                    <div class="space-y-3">
-                        <input
-                            v-model="newPassphrase"
-                            type="password"
-                            placeholder="New passphrase (min. 8 characters)"
-                            class="w-full bg-gray-900 border border-gray-700 text-white font-mono rounded-lg px-3 py-2.5 text-sm focus:border-gamboge-300 focus:outline-none"
-                        />
-                        <input
-                            v-model="confirmNewPassphrase"
-                            type="password"
-                            placeholder="Confirm new passphrase"
-                            class="w-full bg-gray-900 border border-gray-700 text-white font-mono rounded-lg px-3 py-2.5 text-sm focus:border-gamboge-300 focus:outline-none"
-                        />
+                    <div>
+                        <div class="flex gap-2">
+                            <input
+                                v-model="newPassphrase"
+                                type="text"
+                                placeholder="Enter or generate a passphrase"
+                                class="flex-1 bg-gray-900 border border-gray-700 text-white font-mono rounded-lg px-3 py-2.5 text-sm focus:border-gamboge-300 focus:outline-none"
+                            />
+                            <button
+                                @click="generateNewPassphrase"
+                                class="shrink-0 border border-gamboge-300/50 text-gamboge-300 hover:border-gamboge-300 text-xs font-mono px-3 rounded-lg transition-colors"
+                            >Generate</button>
+                        </div>
+                        <div v-if="newPassphrase" class="mt-2">
+                            <div class="h-1 bg-gray-700 rounded-full overflow-hidden">
+                                <div class="h-full rounded-full transition-all duration-300" :class="[newPassphraseStrengthWidth, newPassphraseStrengthBg]" />
+                            </div>
+                            <p class="text-xs mt-1" :class="newPassphraseStrengthColor">{{ newPassphraseStrengthLabel }}</p>
+                        </div>
                     </div>
 
                     <FileProgressBar v-if="passphraseChangeState" :state="passphraseChangeState" :progress="passphraseChangeProgress" />
                     <p v-if="passphraseChangeError" class="text-red-400 text-xs">{{ passphraseChangeError }}</p>
-                    <p v-if="passphraseChangeSuccess" class="text-gamboge-300 text-xs">Passphrase changed successfully. Use your new passphrase next time you unlock.</p>
+                    <p v-if="passphraseChangeSuccess" class="text-gamboge-300 text-xs">Passphrase changed. Use your new passphrase next time you unlock.</p>
 
                     <button
                         v-if="!passphraseChangeState"
