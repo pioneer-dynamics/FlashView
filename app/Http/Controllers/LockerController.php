@@ -122,13 +122,11 @@ class LockerController extends Controller
     {
         $credit = LockerCredit::where('token', $request->input('credit_token'))->unused()->firstOrFail();
 
-        $challenge = bin2hex(random_bytes(32));
-
         $locker = Locker::create([
             'account_id' => $request->input('account_id'),
             'payload' => $request->input('payload'),
             'storage_path' => $request->input('storage_path'),
-            'auth_challenge' => $challenge,
+            'auth_challenge' => $request->input('auth_challenge'),
             'auth_verifier' => $request->input('auth_verifier'),
             'update_token_hash' => hash('sha256', $request->input('update_token')),
             'expires_at' => now()->addYears($credit->years),

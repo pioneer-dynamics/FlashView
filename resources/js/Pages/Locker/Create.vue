@@ -182,6 +182,7 @@ const submit = async () => {
                 account_id:    accountId.value,
                 credit_token:  props.credit_token,
                 payload,
+                auth_challenge: challengeHex,
                 auth_verifier: verifier,
                 update_token:  updateToken,
                 tier:          props.tier,

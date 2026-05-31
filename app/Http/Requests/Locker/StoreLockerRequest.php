@@ -24,6 +24,7 @@ class StoreLockerRequest extends FormRequest
             'account_id' => ['required', 'string', 'size:10', 'regex:/^\d{10}$/', 'unique:lockers,account_id'],
             'credit_token' => ['required', 'string', 'exists:locker_credits,token'],
             'payload' => ['required', 'string', "max:{$maxHexLength}"],
+            'auth_challenge' => ['required', 'string', 'size:64'],
             'auth_verifier' => ['required', 'string', 'size:64'],
             'update_token' => ['required', 'string', 'size:64'],
             'tier' => ['required', 'in:text,file'],
