@@ -13,8 +13,9 @@ const props = defineProps({
 const enc = new encryption();
 
 // Populated after successful unlock — not passed from server initially (prevents enumeration)
-const isFileLocker = ref(false);
-const expiresAt    = ref(null); // ISO string or null
+const isFileLocker  = ref(false);
+const expiresAt     = ref(null); // ISO string or null
+const authChallenge = ref('');
 
 // Unlock state
 const passphrase        = ref('');
@@ -45,6 +46,14 @@ const onReplacementFileChange = (e) => { replacementFile.value = e.target.files[
 const deleteError       = ref('');
 const deleting          = ref(false);
 const showDeleteConfirm = ref(false);
+
+// Passphrase change state
+const newPassphrase          = ref('');
+const confirmNewPassphrase   = ref('');
+const passphraseChangeError  = ref('');
+const passphraseChangeSuccess = ref(false);
+const passphraseChangeState  = ref(null); // null | 're-encrypting' | 'uploading'
+const passphraseChangeProgress = ref(0);
 
 const daysRemaining = computed(() => {
     if (!expiresAt.value) return null;
@@ -119,8 +128,9 @@ const unlock = async () => {
         }
 
         // Success — populate state from unlock response (server uses snake_case JSON)
-        isFileLocker.value = data.is_file_locker ?? false;
-        expiresAt.value    = data.expires_at ?? null;
+        isFileLocker.value  = data.is_file_locker ?? false;
+        expiresAt.value     = data.expires_at ?? null;
+        authChallenge.value = data.auth_challenge ?? '';
 
         const result = await enc.decryptLockerContent(data.payload, passphrase.value);
 
@@ -294,6 +304,116 @@ const submitFileUpdate = async () => {
     } finally {
         updating.value    = false;
         updateState.value = null;
+    }
+};
+
+const changePassphrase = async () => {
+    passphraseChangeError.value   = '';
+    passphraseChangeSuccess.value = false;
+
+    if (newPassphrase.value.length < 8) {
+        passphraseChangeError.value = 'New passphrase must be at least 8 characters.';
+        return;
+    }
+    if (newPassphrase.value !== confirmNewPassphrase.value) {
+        passphraseChangeError.value = 'Passphrases do not match.';
+        return;
+    }
+    if (newPassphrase.value === passphrase.value) {
+        passphraseChangeError.value = 'New passphrase must be different from the current one.';
+        return;
+    }
+
+    passphraseChangeState.value = 're-encrypting';
+    passphraseChangeProgress.value = 0;
+
+    try {
+        const newAuthKey      = await enc.deriveLockerAuthKey(newPassphrase.value, props.account_id);
+        const newVerifier     = await enc.computeLockerVerifier(newAuthKey, authChallenge.value);
+        const newUpdateToken  = await enc.deriveLockerUpdateToken(newPassphrase.value, props.account_id);
+        const oldUpdateToken  = await enc.deriveLockerUpdateToken(passphrase.value, props.account_id);
+
+        let newPayload;
+        let newStoragePath = null;
+
+        if (isFileLocker.value) {
+            // Re-encrypt metadata payload
+            const meta = JSON.stringify(decryptedFileMeta.value);
+            newPayload = await enc.encryptLockerContent(meta, newPassphrase.value);
+
+            // Fetch encrypted file, decrypt with old passphrase, re-encrypt with new
+            const encryptedBytes = await new Promise((resolve, reject) => {
+                const xhr = new XMLHttpRequest();
+                xhr.open('GET', downloadUrl.value);
+                xhr.responseType = 'arraybuffer';
+                xhr.onprogress = (e) => {
+                    if (e.lengthComputable) passphraseChangeProgress.value = Math.round((e.loaded / e.total) * 50);
+                };
+                xhr.onload  = () => (xhr.status >= 200 && xhr.status < 300) ? resolve(new Uint8Array(xhr.response)) : reject(new Error('Could not download file for re-encryption.'));
+                xhr.onerror = () => reject(new Error('Could not download file for re-encryption.'));
+                xhr.send();
+            });
+
+            const hexBlob = Array.from(encryptedBytes).map(b => b.toString(16).padStart(2, '0')).join('');
+            const { data: fileBuffer } = await enc.decryptLockerContent(hexBlob, passphrase.value);
+            const file = new File([fileBuffer], decryptedFileMeta.value?.name ?? 'file', { type: decryptedFileMeta.value?.type ?? 'application/octet-stream' });
+            const reEncryptedHex = await enc.encryptLockerFile(file, newPassphrase.value);
+
+            const bytes = new Uint8Array(reEncryptedHex.length / 2);
+            for (let i = 0; i < reEncryptedHex.length; i += 2) {
+                bytes[i / 2] = parseInt(reEncryptedHex.slice(i, i + 2), 16);
+            }
+
+            const prepRes = await fetch(route('lockers.file.prepare'), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-XSRF-TOKEN': getXsrf() },
+                body: JSON.stringify({}),
+            });
+            if (!prepRes.ok) throw new Error('Could not prepare file upload.');
+            const { upload_type, upload_url, upload_headers, storage_path } = await prepRes.json();
+            newStoragePath = storage_path;
+
+            passphraseChangeState.value = 'uploading';
+            await new Promise((resolve, reject) => {
+                const xhr = new XMLHttpRequest();
+                xhr.open(upload_type === 's3_direct' ? 'PUT' : 'POST', upload_url);
+                if (upload_type === 'server') xhr.setRequestHeader('X-XSRF-TOKEN', getXsrf());
+                for (const [k, v] of Object.entries(upload_headers ?? {})) xhr.setRequestHeader(k, v);
+                xhr.upload.onprogress = (e) => {
+                    if (e.lengthComputable) passphraseChangeProgress.value = 50 + Math.round((e.loaded / e.total) * 50);
+                };
+                xhr.onload  = () => (xhr.status >= 200 && xhr.status < 300) ? resolve() : reject(new Error('Upload failed.'));
+                xhr.onerror = () => reject(new Error('Upload failed.'));
+                xhr.send(new Blob([bytes], { type: 'application/octet-stream' }));
+            });
+        } else {
+            newPayload = await enc.encryptLockerContent(decryptedText.value, newPassphrase.value);
+        }
+
+        const res = await fetch(route('lockers.update', props.account_id), {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-Update-Token': oldUpdateToken, 'X-XSRF-TOKEN': getXsrf() },
+            body: JSON.stringify({
+                payload: newPayload,
+                storage_path: newStoragePath,
+                new_auth_verifier: newVerifier,
+                new_update_token: newUpdateToken,
+            }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) { passphraseChangeError.value = data.error ?? 'Failed to change passphrase.'; return; }
+
+        passphrase.value = newPassphrase.value;
+        if (newStoragePath) downloadUrl.value = '';
+        newPassphrase.value        = '';
+        confirmNewPassphrase.value = '';
+        passphraseChangeSuccess.value = true;
+
+    } catch (err) {
+        passphraseChangeError.value = err.message || 'Failed to change passphrase. Please try again.';
+    } finally {
+        passphraseChangeState.value = null;
     }
 };
 
@@ -474,6 +594,37 @@ const confirmDelete = async () => {
                 <!-- Update hint when locked -->
                 <div v-if="lockState !== 'unlocked'" class="bg-gray-800 border border-gray-700 rounded-xl p-4 text-center">
                     <p class="text-gray-500 text-xs">Unlock your locker with your passphrase to update or delete it.</p>
+                </div>
+
+                <!-- Change Passphrase panel — only when unlocked -->
+                <div v-if="lockState === 'unlocked'" class="bg-gray-800 border border-gray-700 rounded-xl p-6 space-y-4">
+                    <h2 class="text-gamboge-300 font-mono text-xs uppercase tracking-widest">Change Passphrase</h2>
+                    <p class="text-gray-400 text-xs">Your content will be re-encrypted with the new passphrase. This cannot be undone.</p>
+
+                    <div class="space-y-3">
+                        <input
+                            v-model="newPassphrase"
+                            type="password"
+                            placeholder="New passphrase (min. 8 characters)"
+                            class="w-full bg-gray-900 border border-gray-700 text-white font-mono rounded-lg px-3 py-2.5 text-sm focus:border-gamboge-300 focus:outline-none"
+                        />
+                        <input
+                            v-model="confirmNewPassphrase"
+                            type="password"
+                            placeholder="Confirm new passphrase"
+                            class="w-full bg-gray-900 border border-gray-700 text-white font-mono rounded-lg px-3 py-2.5 text-sm focus:border-gamboge-300 focus:outline-none"
+                        />
+                    </div>
+
+                    <FileProgressBar v-if="passphraseChangeState" :state="passphraseChangeState" :progress="passphraseChangeProgress" />
+                    <p v-if="passphraseChangeError" class="text-red-400 text-xs">{{ passphraseChangeError }}</p>
+                    <p v-if="passphraseChangeSuccess" class="text-gamboge-300 text-xs">Passphrase changed successfully. Use your new passphrase next time you unlock.</p>
+
+                    <button
+                        v-if="!passphraseChangeState"
+                        @click="changePassphrase"
+                        class="w-full border border-gamboge-300 text-gamboge-300 hover:bg-gamboge-300/10 font-mono text-xs py-2 rounded-lg transition-colors"
+                    >Change Passphrase</button>
                 </div>
 
                 <!-- Delete panel — only when unlocked -->

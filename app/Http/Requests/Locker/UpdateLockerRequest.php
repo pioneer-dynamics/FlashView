@@ -24,6 +24,8 @@ class UpdateLockerRequest extends FormRequest
         return [
             'payload' => ['required', 'string', "max:{$maxHexLength}"],
             'storage_path' => $isFileLocker ? ['required', 'string'] : ['nullable', 'string'],
+            'new_auth_verifier' => ['nullable', 'string', 'size:64'],
+            'new_update_token' => ['nullable', 'string', 'size:64'],
         ];
     }
 

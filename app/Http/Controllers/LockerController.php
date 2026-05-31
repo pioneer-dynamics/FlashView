@@ -382,10 +382,17 @@ class LockerController extends Controller
             }
         }
 
-        $locker->update([
+        $updates = [
             'payload' => $request->input('payload'),
             'storage_path' => $request->input('storage_path'),
-        ]);
+        ];
+
+        if ($request->filled('new_auth_verifier') && $request->filled('new_update_token')) {
+            $updates['auth_verifier'] = $request->input('new_auth_verifier');
+            $updates['update_token_hash'] = hash('sha256', $request->input('new_update_token'));
+        }
+
+        $locker->update($updates);
 
         return response()->json(['ok' => true]);
     }
