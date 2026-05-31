@@ -641,10 +641,9 @@ export class FlashViewClient {
      * @param {string} method
      * @param {string} path
      * @param {Object|null} body
-     * @param {Object} extraHeaders
      * @returns {Promise<Object>}
      */
-    async request(method, path, body = null, extraHeaders = {}) {
+    async request(method, path, body = null) {
         const url = `${this.baseUrl}${path}`;
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), this.timeout);
@@ -656,7 +655,6 @@ export class FlashViewClient {
                 'Authorization': `Bearer ${this.token}`,
                 'Accept': 'application/json',
                 'Content-Type': 'application/json',
-                ...extraHeaders,
             },
         };
 
@@ -685,83 +683,6 @@ export class FlashViewClient {
         return response.json();
     }
 
-    // ─── eLocker API ─────────────────────────────────────────────────────────
-
-    /**
-     * Fetch locker payload (ciphertext blob) — rate-limited to 1/5min per account.
-     *
-     * @param {string} accountId
-     * @returns {Promise<{ payload: string, auth_challenge: string, storage_path?: string }>}
-     */
-    async getLockerPayload(accountId) {
-        return this.request('GET', `/lockers/${encodeURIComponent(accountId)}/payload`);
-    }
-
-    /**
-     * Create a new locker.
-     *
-     * @param {{ account_id, credit_token, payload, auth_verifier, tier, storage_path }} data
-     * @returns {Promise<{ update_token: string, expires_at: string, account_id: string }>}
-     */
-    async createLocker(data) {
-        return this.request('POST', '/lockers', data);
-    }
-
-    /**
-     * Update locker content (requires X-Update-Token header).
-     *
-     * @param {string} accountId
-     * @param {string} payload
-     * @param {string} updateToken
-     * @returns {Promise<{ ok: boolean }>}
-     */
-    async updateLocker(accountId, payload, updateToken) {
-        return this.request('PUT', `/lockers/${encodeURIComponent(accountId)}`, { payload }, { 'X-Update-Token': updateToken });
-    }
-
-    /**
-     * Delete a locker (requires X-Update-Token header).
-     *
-     * @param {string} accountId
-     * @param {string} updateToken
-     * @returns {Promise<{ ok: boolean }>}
-     */
-    async deleteLocker(accountId, updateToken) {
-        return this.request('DELETE', `/lockers/${encodeURIComponent(accountId)}`, null, { 'X-Update-Token': updateToken });
-    }
-
-    /**
-     * Get the current renewal challenge for an account.
-     *
-     * @param {string} accountId
-     * @returns {Promise<{ challenge: string }>}
-     */
-    async getLockerRenewChallenge(accountId) {
-        return this.request('GET', `/lockers/${encodeURIComponent(accountId)}/renew`, null, { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' });
-    }
-
-    /**
-     * Submit renewal verifier and get Stripe checkout URL.
-     *
-     * @param {string} accountId
-     * @param {string} verifier
-     * @param {number} years
-     * @param {string} tier
-     * @returns {Promise<{ checkout_url: string }>}
-     */
-    async submitRenewVerifier(accountId, verifier, years, tier) {
-        return this.request('POST', `/lockers/${encodeURIComponent(accountId)}/renew`, { verifier, years, tier });
-    }
-
-    /**
-     * Poll credit status after Stripe payment.
-     *
-     * @param {string} sessionId
-     * @returns {Promise<{ token: string }|{ pending: boolean }>}
-     */
-    async getLockerCreditStatus(sessionId) {
-        return this.request('GET', `/lockers/credit-status?session=${encodeURIComponent(sessionId)}`);
-    }
 }
 
 export class ApiError extends Error {

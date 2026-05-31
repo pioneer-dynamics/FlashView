@@ -81,7 +81,6 @@ import { parseExpiry, getServerConfig, FALLBACK_EXPIRY_OPTIONS } from './expiry.
 import { renameHashIdKey } from './transform.js';
 import { fetchLatestVersion, isNewerVersion, refreshVersionCache } from './version.js';
 import { registerPipeCommands } from './pipe.js';
-import { registerLockerCommands } from './locker.js';
 
 /* eslint-disable no-undef */
 const VERSION = typeof __VERSION__ !== 'undefined'
@@ -982,7 +981,6 @@ program.hook('postAction', async (thisCommand, actionCommand) => {
 });
 
 registerPipeCommands(program);
-registerLockerCommands(program);
 
 export function run() {
     program.parse();
