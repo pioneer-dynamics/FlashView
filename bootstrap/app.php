@@ -41,6 +41,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'stripe/*',
             'lockers',
             'lockers/*',
+            'lockers/file/upload/*',
             'cli/token',
             'cli/device/initiate',
             'cli/device/poll',

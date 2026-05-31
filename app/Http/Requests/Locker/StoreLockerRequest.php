@@ -25,6 +25,7 @@ class StoreLockerRequest extends FormRequest
             'credit_token' => ['required', 'string', 'exists:locker_credits,token'],
             'payload' => ['required', 'string', "max:{$maxHexLength}"],
             'auth_verifier' => ['required', 'string', 'size:64'],
+            'update_token' => ['required', 'string', 'size:64'],
             'tier' => ['required', 'in:text,file'],
             'storage_path' => ['required_if:tier,file', 'nullable', 'string'],
         ];

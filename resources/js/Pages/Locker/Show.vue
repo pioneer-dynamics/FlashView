@@ -1,5 +1,6 @@
 <script setup>
 import AppLayout from '@/Layouts/AppLayout.vue';
+import FileProgressBar from '@/Components/FileProgressBar.vue';
 import { ref, computed } from 'vue';
 import { router } from '@inertiajs/vue3';
 import { encryption, LockerDecryptionError } from '@/encryption.js';
@@ -14,25 +15,28 @@ const props = defineProps({
 const enc = new encryption();
 
 // Unlock state
-const passphrase         = ref('');
-const lockState          = ref('locked'); // 'locked' | 'animating' | 'unlocked' | 'shaking'
-const decryptError       = ref('');
-const failCount          = ref(0);
-const decryptedText      = ref('');
-const decryptedFileBlob  = ref(null);
-const decryptedFileName  = ref('');
+const passphrase        = ref('');
+const lockState         = ref('locked'); // 'locked' | 'animating' | 'unlocked' | 'shaking'
+const decryptError      = ref('');
+const failCount         = ref(0);
+const decryptedText     = ref('');
+const decryptedFileMeta = ref(null); // { name, type, size }
+const downloadUrl       = ref('');
+
+// File download state
+const fileState    = ref(null); // null | 'downloading'
+const fileProgress = ref(0);
+const downloadError = ref('');
 
 // Update state
-const updateToken    = ref('');
-const newContent     = ref('');
-const updateError    = ref('');
-const updateSuccess  = ref(false);
-const updating       = ref(false);
+const newContent    = ref('');
+const updateError   = ref('');
+const updateSuccess = ref(false);
+const updating      = ref(false);
 
 // Delete state
-const deleteToken    = ref('');
-const deleteError    = ref('');
-const deleting       = ref(false);
+const deleteError       = ref('');
+const deleting          = ref(false);
 const showDeleteConfirm = ref(false);
 
 const daysRemaining = computed(() => {
@@ -45,6 +49,16 @@ const expiryLabel = computed(() => {
     if (daysRemaining.value === 1) return 'Expires tomorrow';
     return `${daysRemaining.value} days remaining`;
 });
+
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+const triggerShake = (msg) => {
+    decryptError.value = msg;
+    lockState.value = 'shaking';
+    setTimeout(() => { lockState.value = 'locked'; }, 450);
+};
+
+const getXsrf = () => decodeURIComponent(document.cookie.match(/XSRF-TOKEN=([^;]+)/)?.[1] ?? '');
 
 const unlock = async () => {
     if (!passphrase.value || lockState.value === 'animating' || lockState.value === 'shaking') return;
@@ -69,23 +83,23 @@ const unlock = async () => {
             return;
         }
 
-        const data = await res.json();
+        const data   = await res.json();
         const result = await enc.decryptLockerContent(data.payload, passphrase.value);
 
         const elapsed = Date.now() - animationStart;
         if (elapsed < 600) await sleep(600 - elapsed);
 
-        if (result.type === 'text') {
-            decryptedText.value = new TextDecoder().decode(result.data);
-        } else {
-            // File: result.data is metadata; actual file is at storage_path
+        // Use the server prop, not the blob type byte.
+        // File locker metadata is encrypted as text (JSON), so result.type is always 'text'.
+        if (props.is_file_locker) {
             try {
-                const meta = JSON.parse(new TextDecoder().decode(result.data));
-                decryptedFileName.value = meta.name ?? 'download';
+                decryptedFileMeta.value = JSON.parse(new TextDecoder().decode(result.data));
             } catch {
-                decryptedFileName.value = 'download';
+                decryptedFileMeta.value = { name: 'download', type: 'application/octet-stream', size: 0 };
             }
-            decryptedFileBlob.value = data.storage_path;
+            downloadUrl.value = data.download_url ?? '';
+        } else {
+            decryptedText.value = new TextDecoder().decode(result.data);
         }
 
         failCount.value = 0;
@@ -99,33 +113,68 @@ const unlock = async () => {
     }
 };
 
-const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+// Download the encrypted file from S3, decrypt it, and save it
+const downloadFile = async () => {
+    if (fileState.value) return;
+    downloadError.value = '';
 
-const triggerShake = (msg) => {
-    decryptError.value = msg;
-    lockState.value = 'shaking';
-    setTimeout(() => { lockState.value = 'locked'; }, 450);
+    if (!downloadUrl.value) {
+        downloadError.value = 'No download URL available — this file may not have been uploaded correctly.';
+        return;
+    }
+
+    fileState.value    = 'downloading';
+    fileProgress.value = 0;
+
+    try {
+        // Download binary blob with XHR progress
+        const encryptedBytes = await new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.open('GET', downloadUrl.value);
+            xhr.responseType = 'arraybuffer';
+            xhr.onprogress = (e) => {
+                if (e.lengthComputable) fileProgress.value = Math.round((e.loaded / e.total) * 100);
+            };
+            xhr.onload  = () => (xhr.status >= 200 && xhr.status < 300) ? resolve(new Uint8Array(xhr.response)) : reject(new Error('Download failed.'));
+            xhr.onerror = () => reject(new Error('Download failed.'));
+            xhr.send();
+        });
+
+        // Convert binary back to hex blob for decryptFromBlob
+        const hexBlob = Array.from(encryptedBytes).map(b => b.toString(16).padStart(2, '0')).join('');
+        const result  = await enc.decryptLockerContent(hexBlob, passphrase.value);
+
+        // Trigger browser download
+        const name = decryptedFileMeta.value?.name ?? 'locker-file';
+        const type = decryptedFileMeta.value?.type ?? 'application/octet-stream';
+        const blob = new Blob([result.data], { type });
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        a.href = url; a.download = name; a.click();
+        URL.revokeObjectURL(url);
+    } catch (err) {
+        downloadError.value = err.message || 'Download failed. Please try again.';
+    } finally {
+        fileState.value = null;
+    }
 };
 
-const getXsrf = () => decodeURIComponent(document.cookie.match(/XSRF-TOKEN=([^;]+)/)?.[1] ?? '');
-
 const submitUpdate = async () => {
-    updateError.value = '';
+    updateError.value   = '';
     updateSuccess.value = false;
-    if (!updateToken.value) { updateError.value = 'Update token is required.'; return; }
     if (!newContent.value.trim()) { updateError.value = 'Content cannot be empty.'; return; }
-    if (!passphrase.value) { updateError.value = 'Enter your passphrase to re-encrypt.'; return; }
 
     updating.value = true;
     try {
-        const payload = await enc.encryptLockerContent(newContent.value, passphrase.value);
+        const payload     = await enc.encryptLockerContent(newContent.value, passphrase.value);
+        const updateToken = await enc.deriveLockerUpdateToken(passphrase.value, props.account_id);
 
         const res = await fetch(route('lockers.update', props.account_id), {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json',
-                'X-Update-Token': updateToken.value,
+                'X-Update-Token': updateToken,
                 'X-XSRF-TOKEN': getXsrf(),
             },
             body: JSON.stringify({ payload }),
@@ -136,7 +185,7 @@ const submitUpdate = async () => {
 
         updateSuccess.value = true;
         decryptedText.value = newContent.value;
-        newContent.value = '';
+        newContent.value    = '';
     } catch {
         updateError.value = 'Update failed. Please try again.';
     } finally {
@@ -146,15 +195,15 @@ const submitUpdate = async () => {
 
 const confirmDelete = async () => {
     deleteError.value = '';
-    if (!deleteToken.value) { deleteError.value = 'Update token is required to delete.'; return; }
-
-    deleting.value = true;
+    deleting.value    = true;
     try {
+        const updateToken = await enc.deriveLockerUpdateToken(passphrase.value, props.account_id);
+
         const res = await fetch(route('lockers.destroy', props.account_id), {
             method: 'DELETE',
             headers: {
                 'Accept': 'application/json',
-                'X-Update-Token': deleteToken.value,
+                'X-Update-Token': updateToken,
                 'X-XSRF-TOKEN': getXsrf(),
             },
         });
@@ -196,19 +245,13 @@ const confirmDelete = async () => {
                 <!-- Unlock panel -->
                 <div class="bg-gray-800 border border-gray-700 rounded-xl p-8">
 
-                    <!-- Locked state: SVG lock + passphrase input -->
+                    <!-- Locked state -->
                     <div v-if="lockState !== 'unlocked'" class="flex flex-col items-center gap-6">
-
-                        <!-- Animated SVG lock -->
                         <div class="relative w-20 h-20 flex items-center justify-center" data-testid="lock-icon">
                             <svg viewBox="0 0 64 80" class="w-20 h-20" fill="none" xmlns="http://www.w3.org/2000/svg" :class="{ 'animate-shake': lockState === 'shaking' }">
-                                <!-- Shackle (top arc) — animated independently -->
                                 <path
                                     d="M16 32 V20 A16 16 0 0 1 48 20 V32"
-                                    stroke="currentColor"
-                                    stroke-width="5"
-                                    stroke-linecap="round"
-                                    fill="none"
+                                    stroke="currentColor" stroke-width="5" stroke-linecap="round" fill="none"
                                     class="text-gamboge-300 origin-bottom"
                                     :class="{
                                         'animate-shackle-rise':  lockState === 'animating',
@@ -216,14 +259,10 @@ const confirmDelete = async () => {
                                     }"
                                     style="transform-origin: 32px 32px"
                                 />
-                                <!-- Lock body -->
-                                <rect
-                                    x="8" y="30" width="48" height="38" rx="6"
-                                    fill="currentColor"
+                                <rect x="8" y="30" width="48" height="38" rx="6" fill="currentColor"
                                     class="text-gamboge-300"
                                     :class="{ 'animate-glow-burst': lockState === 'animating' }"
                                 />
-                                <!-- Keyhole: fill matches the dark surface behind the lock -->
                                 <circle cx="32" cy="48" r="5" class="fill-gray-900" />
                                 <rect x="29" y="48" width="6" height="8" rx="1" class="fill-gray-900" />
                             </svg>
@@ -238,14 +277,11 @@ const confirmDelete = async () => {
                                 class="w-full bg-gray-900 border border-gray-700 text-white font-mono rounded-lg px-3 py-2.5 text-sm focus:border-gamboge-300 focus:ring-gamboge-300 focus:outline-none"
                                 data-testid="passphrase-input"
                             />
-
                             <p v-if="decryptError" class="text-red-400 text-sm text-center" data-testid="decrypt-error">{{ decryptError }}</p>
-
                             <p v-if="failCount >= 2 && decryptError" class="text-gray-500 text-xs text-center">
                                 Repeatedly seeing this error? If your passphrase is lost, the content of this locker cannot be recovered.
                                 Passphrase reset is not possible by design.
                             </p>
-
                             <button
                                 @click="unlock"
                                 :disabled="lockState === 'animating' || lockState === 'shaking'"
@@ -258,104 +294,89 @@ const confirmDelete = async () => {
                         </div>
                     </div>
 
-                    <!-- Unlocked: content panel -->
+                    <!-- Unlocked: content -->
                     <Transition name="fade">
                         <div v-if="lockState === 'unlocked'" class="space-y-4" data-testid="decrypted-content">
                             <div class="text-gamboge-300 font-mono text-xs uppercase tracking-widest">Decrypted Content</div>
 
+                            <!-- Text locker -->
                             <div v-if="!is_file_locker" class="bg-gray-900 rounded-lg p-4">
                                 <pre class="text-white text-sm whitespace-pre-wrap break-words font-mono">{{ decryptedText }}</pre>
                             </div>
 
-                            <div v-else class="bg-gray-900 rounded-lg p-4 flex items-center gap-3">
-                                <span class="text-2xl">🗂</span>
-                                <div class="flex-1">
-                                    <div class="text-white text-sm font-mono">{{ decryptedFileName }}</div>
-                                    <div class="text-gray-400 text-xs">File locker — download via secure link</div>
+                            <!-- File locker -->
+                            <div v-else class="space-y-3">
+                                <div class="bg-gray-900 rounded-lg p-4 flex items-center gap-3">
+                                    <span class="text-2xl">🗂</span>
+                                    <div class="flex-1">
+                                        <div class="text-white text-sm font-mono">{{ decryptedFileMeta?.name ?? 'File' }}</div>
+                                        <div class="text-gray-400 text-xs">{{ decryptedFileMeta?.type }}</div>
+                                    </div>
                                 </div>
+                                <FileProgressBar v-if="fileState" :state="fileState" :progress="fileProgress" />
+                                <template v-else>
+                                    <p v-if="downloadError" class="text-red-400 text-xs">{{ downloadError }}</p>
+                                    <button
+                                        @click="downloadFile"
+                                        class="w-full border border-gamboge-300 text-gamboge-300 hover:bg-gamboge-300/10 font-mono text-sm py-2 rounded-lg transition-colors"
+                                    >
+                                        Decrypt &amp; Download
+                                    </button>
+                                </template>
                             </div>
                         </div>
                     </Transition>
                 </div>
 
-                <!-- Update panel -->
-                <div class="bg-gray-800 border border-gray-700 rounded-xl p-6 space-y-4">
+                <!-- Update panel — only visible after unlock -->
+                <div v-if="lockState === 'unlocked' && !is_file_locker" class="bg-gray-800 border border-gray-700 rounded-xl p-6 space-y-4">
                     <h2 class="text-gamboge-300 font-mono text-xs uppercase tracking-widest">Update Content</h2>
-
-                    <div class="bg-yellow-900/10 border border-yellow-600/20 rounded-lg p-3 text-yellow-300/80 text-xs">
-                        If you have lost your Update Token, your locker is permanently read-only.
-                        This cannot be reversed — our server has never seen your token and cannot recover it.
-                    </div>
-
-                    <input
-                        v-model="updateToken"
-                        type="text"
-                        placeholder="Update token"
-                        class="w-full bg-gray-900 border border-gray-700 text-white font-mono rounded-lg px-3 py-2.5 text-xs focus:border-gamboge-300 focus:outline-none"
-                        data-testid="update-token-input"
-                    />
-
                     <textarea
-                        v-if="!is_file_locker && lockState === 'unlocked'"
                         v-model="newContent"
                         rows="4"
-                        placeholder="New content (passphrase must be entered above)"
+                        placeholder="New content…"
                         class="w-full bg-gray-900 border border-gray-700 text-white font-mono rounded-lg px-3 py-2.5 text-xs focus:border-gamboge-300 focus:outline-none resize-y"
                     />
-
                     <p v-if="updateError" class="text-red-400 text-xs">{{ updateError }}</p>
-                    <p v-if="updateSuccess" class="text-gamboge-300 text-xs">Content updated successfully.</p>
-
+                    <p v-if="updateSuccess" class="text-gamboge-300 text-xs">Content updated.</p>
                     <button
-                        v-if="lockState === 'unlocked'"
                         @click="submitUpdate"
                         :disabled="updating"
                         class="w-full border border-gamboge-300 text-gamboge-300 hover:bg-gamboge-300/10 font-mono text-xs py-2 rounded-lg transition-colors disabled:opacity-50"
                         data-testid="update-button"
-                    >
-                        {{ updating ? 'Updating…' : 'Update' }}
-                    </button>
+                    >{{ updating ? 'Updating…' : 'Update' }}</button>
                 </div>
 
-                <!-- Delete panel -->
-                <div class="bg-gray-800 border border-gray-700 rounded-xl p-6 space-y-4">
+                <!-- Update hint when locked -->
+                <div v-if="lockState !== 'unlocked'" class="bg-gray-800 border border-gray-700 rounded-xl p-4 text-center">
+                    <p class="text-gray-500 text-xs">Unlock your locker with your passphrase to update or delete it.</p>
+                </div>
+
+                <!-- Delete panel — only when unlocked -->
+                <div v-if="lockState === 'unlocked'" class="bg-gray-800 border border-gray-700 rounded-xl p-6 space-y-4">
                     <h2 class="text-red-400 font-mono text-xs uppercase tracking-widest">Delete Locker</h2>
 
                     <div v-if="!showDeleteConfirm">
                         <button
                             @click="showDeleteConfirm = true"
                             class="text-red-400 hover:text-red-300 font-mono text-xs border border-red-500/30 hover:border-red-500 px-4 py-2 rounded-lg transition-colors"
-                        >
-                            Delete this locker permanently
-                        </button>
+                        >Delete this locker permanently</button>
                     </div>
 
                     <div v-else class="space-y-3">
                         <div class="bg-red-900/20 border border-red-500/50 rounded-lg p-3 space-y-1">
                             <p class="text-red-200 text-xs font-semibold">This will permanently delete your locker and forfeit your remaining paid time.</p>
-                            <p class="text-red-300/80 text-xs">Your locker expires on {{ new Date(expires_at).toLocaleDateString() }}. Deleting it now means that time is lost — there is no refund or credit. To store content again, you would need to purchase a new locker.</p>
+                            <p class="text-red-300/80 text-xs">Your locker expires on {{ new Date(expires_at).toLocaleDateString() }}. Deleting now means that time is lost — there is no refund or credit. To store content again you would need to purchase a new locker.</p>
                         </div>
-                        <input
-                            v-model="deleteToken"
-                            type="text"
-                            placeholder="Update token required to delete"
-                            class="w-full bg-gray-900 border border-red-500/40 text-white font-mono rounded-lg px-3 py-2.5 text-xs focus:border-red-400 focus:outline-none"
-                            data-testid="delete-token-input"
-                        />
                         <p v-if="deleteError" class="text-red-400 text-xs">{{ deleteError }}</p>
                         <div class="flex gap-2">
-                            <button
-                                @click="showDeleteConfirm = false"
-                                class="flex-1 border border-gray-600 text-gray-400 font-mono text-xs py-2 rounded-lg"
-                            >Cancel</button>
+                            <button @click="showDeleteConfirm = false" class="flex-1 border border-gray-600 text-gray-400 font-mono text-xs py-2 rounded-lg">Cancel</button>
                             <button
                                 @click="confirmDelete"
                                 :disabled="deleting"
                                 class="flex-1 bg-red-600 hover:bg-red-700 text-white font-mono text-xs py-2 rounded-lg transition-colors disabled:opacity-50"
                                 data-testid="confirm-delete-button"
-                            >
-                                {{ deleting ? 'Deleting…' : 'Confirm Delete' }}
-                            </button>
+                            >{{ deleting ? 'Deleting…' : 'Confirm Delete' }}</button>
                         </div>
                     </div>
                 </div>

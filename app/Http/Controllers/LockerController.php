@@ -11,8 +11,12 @@ use App\Models\LockerCredit;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response as HttpResponse;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 use Stripe\Checkout\Session;
@@ -105,7 +109,6 @@ class LockerController extends Controller
     {
         $credit = LockerCredit::where('token', $request->input('credit_token'))->unused()->firstOrFail();
 
-        $updateToken = bin2hex(random_bytes(32));
         $challenge = bin2hex(random_bytes(32));
 
         $locker = Locker::create([
@@ -114,7 +117,7 @@ class LockerController extends Controller
             'storage_path' => $request->input('storage_path'),
             'auth_challenge' => $challenge,
             'auth_verifier' => $request->input('auth_verifier'),
-            'update_token_hash' => hash('sha256', $updateToken),
+            'update_token_hash' => hash('sha256', $request->input('update_token')),
             'expires_at' => now()->addYears($credit->years),
         ]);
 
@@ -124,9 +127,73 @@ class LockerController extends Controller
         ]);
 
         return response()->json([
-            'update_token' => $updateToken,
             'expires_at' => $locker->expires_at->toIso8601String(),
             'account_id' => $locker->account_id,
+        ]);
+    }
+
+    public function prepareFile(Request $request): JsonResponse
+    {
+        $creditToken = $request->input('credit_token');
+        $credit = LockerCredit::where('token', $creditToken)->unused()->where('tier', 'file')->first();
+
+        if (! $credit) {
+            return response()->json(['error' => 'Invalid or used credit token.'], 422);
+        }
+
+        $storagePath = 'lockers/'.Str::uuid().'.bin';
+
+        try {
+            ['url' => $uploadUrl, 'headers' => $uploadHeaders] = Storage::temporaryUploadUrl(
+                $storagePath,
+                now()->addMinutes(15),
+                ['ContentType' => 'application/octet-stream']
+            );
+
+            return response()->json([
+                'upload_type' => 's3_direct',
+                'upload_url' => $uploadUrl,
+                'upload_headers' => $uploadHeaders,
+                'storage_path' => $storagePath,
+            ]);
+        } catch (\RuntimeException) {
+            $token = Str::uuid()->toString();
+            Cache::put("pending_locker_file:{$token}", ['storage_path' => $storagePath], now()->addMinutes(30));
+
+            return response()->json([
+                'upload_type' => 'server',
+                'upload_url' => URL::temporarySignedRoute('lockers.file.upload', now()->addMinutes(15), ['token' => $token]),
+                'upload_headers' => [],
+                'storage_path' => $storagePath,
+            ]);
+        }
+    }
+
+    public function handleFileUpload(Request $request, string $token): JsonResponse
+    {
+        $pending = Cache::get("pending_locker_file:{$token}");
+
+        if (! $pending) {
+            abort(404);
+        }
+
+        Storage::put($pending['storage_path'], $request->getContent());
+        Cache::forget("pending_locker_file:{$token}");
+
+        return response()->json(['ok' => true]);
+    }
+
+    public function downloadFile(string $accountId): HttpResponse
+    {
+        $locker = Locker::where('account_id', $accountId)->first();
+
+        if (! $locker || $locker->isExpired() || ! $locker->isFileLocker()) {
+            abort(404);
+        }
+
+        return response(Storage::get($locker->storage_path), 200, [
+            'Content-Type' => 'application/octet-stream',
+            'Content-Disposition' => 'attachment; filename="locker-file.bin"',
         ]);
     }
 
@@ -168,7 +235,15 @@ class LockerController extends Controller
         ];
 
         if ($locker->isFileLocker()) {
-            $data['storage_path'] = $locker->storage_path;
+            try {
+                $data['download_url'] = Storage::temporaryUrl($locker->storage_path, now()->addMinutes(15));
+            } catch (\RuntimeException) {
+                $data['download_url'] = URL::temporarySignedRoute(
+                    'lockers.file.download',
+                    now()->addMinutes(15),
+                    ['accountId' => $accountId]
+                );
+            }
         }
 
         return response()->json($data);

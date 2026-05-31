@@ -574,6 +574,36 @@ export async function deriveAuthKey(passphrase, accountId) {
 }
 
 /**
+ * Derive a deterministic 64-char hex update token from passphrase and accountId.
+ * Domain-separated from deriveAuthKey via the ":update" suffix so the two keys
+ * are cryptographically independent.
+ *
+ * @param {string} passphrase
+ * @param {string} accountId
+ * @returns {Promise<string>} 64-char hex token
+ */
+export async function deriveUpdateToken(passphrase, accountId) {
+    const keyMaterial = await globalThis.crypto.subtle.importKey(
+        'raw',
+        new TextEncoder().encode(passphrase),
+        'PBKDF2',
+        false,
+        ['deriveBits']
+    );
+    const bits = await globalThis.crypto.subtle.deriveBits(
+        {
+            name: 'PBKDF2',
+            salt: new TextEncoder().encode(accountId + ':update'),
+            iterations: LOCKER_PBKDF2_ITERATIONS,
+            hash: 'SHA-512',
+        },
+        keyMaterial,
+        256
+    );
+    return bufferToHex(new Uint8Array(bits));
+}
+
+/**
  * Generate a cryptographically random 64-char hex challenge for HMAC auth.
  *
  * @returns {string} 32-byte challenge as hex

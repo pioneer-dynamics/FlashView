@@ -10,6 +10,7 @@ import {
     deriveAuthKey,
     computeVerifier,
     generateChallenge,
+    deriveUpdateToken,
     LockerDecryptionError,
 } from './crypto.js';
 import { FlashViewClient, ApiError } from './api.js';
@@ -143,27 +144,28 @@ async function lockerCreate(options) {
         payload = await encryptToBlob(content, passphrase);
     }
 
-    const authKey = await deriveAuthKey(passphrase, accountId);
-    const challenge = generateChallenge();
-    const verifier = await computeVerifier(authKey, challenge);
+    const authKey     = await deriveAuthKey(passphrase, accountId);
+    const challenge   = generateChallenge();
+    const verifier    = await computeVerifier(authKey, challenge);
+    const updateToken = await deriveUpdateToken(passphrase, accountId);
 
     const result = await client.createLocker({
         account_id:    accountId,
         credit_token:  creditToken,
         payload,
         auth_verifier: verifier,
+        update_token:  updateToken,
         tier,
         storage_path:  storagePath,
     });
 
     console.log('\nLocker created!');
     console.log('─────────────────────────────────────────────────────────');
-    console.log(`Account ID:   ${result.account_id}`);
-    console.log(`Passphrase:   ${passphrase}`);
-    console.log(`Update Token: ${result.update_token}`);
-    console.log(`Expires:      ${new Date(result.expires_at).toLocaleDateString()}`);
+    console.log(`Account ID: ${result.account_id}`);
+    console.log(`Passphrase: ${passphrase}`);
+    console.log(`Expires:    ${new Date(result.expires_at).toLocaleDateString()}`);
     console.log('─────────────────────────────────────────────────────────');
-    console.log('\nSave all three credentials — none can be recovered from the server.');
+    console.log('\nSave both credentials — your passphrase is the only key to decrypt, update, or delete your locker.');
 }
 
 async function lockerOpen(accountId, options) {
@@ -193,18 +195,15 @@ async function lockerOpen(accountId, options) {
 }
 
 async function lockerUpdate(accountId, options) {
-    const updateToken = options.updateToken;
-    if (!updateToken) { console.error('--update-token is required.'); process.exit(1); }
-
     const passphrase = await promptPassword('Passphrase (for re-encryption): ');
-    const client = await getClient();
+    const client     = await getClient();
 
     let payload;
 
     if (options.file) {
         const filePath = resolve(options.file);
-        const buffer = readFileSync(filePath);
-        const meta = JSON.stringify({ name: options.file, type: 'application/octet-stream', size: buffer.length });
+        const buffer   = readFileSync(filePath);
+        const meta     = JSON.stringify({ name: options.file, type: 'application/octet-stream', size: buffer.length });
         console.error('Encrypting…');
         payload = await encryptToBlob(meta, passphrase);
     } else {
@@ -220,18 +219,18 @@ async function lockerUpdate(accountId, options) {
         payload = await encryptToBlob(content, passphrase);
     }
 
+    const updateToken = await deriveUpdateToken(passphrase, accountId);
     await client.updateLocker(accountId, payload, updateToken);
     console.log('Locker updated.');
 }
 
-async function lockerDelete(accountId, options) {
-    const updateToken = options.updateToken;
-    if (!updateToken) { console.error('--update-token is required.'); process.exit(1); }
-
-    const confirm = await prompt('Type the account ID to confirm deletion: ');
+async function lockerDelete(accountId) {
+    const passphrase = await promptPassword('Passphrase: ');
+    const confirm    = await prompt('Type the account ID to confirm deletion: ');
     if (confirm !== accountId) { console.error('Confirmation did not match. Aborted.'); process.exit(1); }
 
-    const client = await getClient();
+    const updateToken = await deriveUpdateToken(passphrase, accountId);
+    const client      = await getClient();
     await client.deleteLocker(accountId, updateToken);
     console.log('Locker deleted.');
 }
@@ -284,15 +283,13 @@ export function registerLockerCommands(program) {
 
     lockerCmd
         .command('update <accountId>')
-        .description('Update locker content')
-        .requiredOption('--update-token <token>', 'Update token from locker creation')
+        .description('Update locker content — passphrase is used to authorise the update')
         .option('--file <path>', 'New file to encrypt and store (file lockers only)')
         .action(withErrorHandling(lockerUpdate));
 
     lockerCmd
         .command('delete <accountId>')
-        .description('Delete a locker permanently')
-        .requiredOption('--update-token <token>', 'Update token from locker creation')
+        .description('Delete a locker permanently — passphrase is used to authorise deletion')
         .action(withErrorHandling(lockerDelete));
 
     lockerCmd

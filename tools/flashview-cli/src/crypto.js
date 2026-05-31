@@ -18,6 +18,7 @@ export {
     deriveAuthKey,
     computeVerifier,
     generateChallenge,
+    deriveUpdateToken,
     LockerBlobVersionError,
     LockerDecryptionError,
 } from '@pioneer-dynamics/flashview-crypto';

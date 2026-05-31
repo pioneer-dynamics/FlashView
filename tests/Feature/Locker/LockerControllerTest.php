@@ -49,21 +49,23 @@ class LockerControllerTest extends TestCase
     {
         $credit = LockerCredit::factory()->create([
             'token' => 'tok123',
-            'tier'  => 'text',
+            'tier' => 'text',
             'years' => 1,
         ]);
 
         $response = $this->postJson(route('lockers.store'), [
-            'account_id'    => '1234567890',
-            'credit_token'  => 'tok123',
-            'payload'       => str_repeat('a', 100),
+            'account_id' => '1234567890',
+            'credit_token' => 'tok123',
+            'payload' => str_repeat('a', 100),
             'auth_verifier' => str_repeat('a', 64),
-            'tier'          => 'text',
-            'storage_path'  => null,
+            'update_token' => str_repeat('b', 64),
+            'tier' => 'text',
+            'storage_path' => null,
         ]);
 
         $response->assertStatus(200)
-            ->assertJsonStructure(['update_token', 'expires_at', 'account_id']);
+            ->assertJsonStructure(['expires_at', 'account_id'])
+            ->assertJsonMissing(['update_token']);
 
         $this->assertDatabaseHas('lockers', ['account_id' => '1234567890']);
         $credit->refresh();
@@ -76,11 +78,12 @@ class LockerControllerTest extends TestCase
         $credit = LockerCredit::factory()->create(['token' => 'tok456', 'tier' => 'text', 'years' => 1]);
 
         $response = $this->postJson(route('lockers.store'), [
-            'account_id'    => '1234567890',
-            'credit_token'  => 'tok456',
-            'payload'       => str_repeat('a', 100),
+            'account_id' => '1234567890',
+            'credit_token' => 'tok456',
+            'payload' => str_repeat('a', 100),
             'auth_verifier' => str_repeat('a', 64),
-            'tier'          => 'text',
+            'update_token' => str_repeat('b', 64),
+            'tier' => 'text',
         ]);
 
         $response->assertStatus(422)
@@ -92,11 +95,12 @@ class LockerControllerTest extends TestCase
         $credit = LockerCredit::factory()->create(['token' => 'tok789', 'tier' => 'text', 'years' => 1]);
 
         $response = $this->postJson(route('lockers.store'), [
-            'account_id'    => '12345',
-            'credit_token'  => 'tok789',
-            'payload'       => str_repeat('a', 100),
+            'account_id' => '12345',
+            'credit_token' => 'tok789',
+            'payload' => str_repeat('a', 100),
             'auth_verifier' => str_repeat('a', 64),
-            'tier'          => 'text',
+            'update_token' => str_repeat('b', 64),
+            'tier' => 'text',
         ]);
 
         $response->assertStatus(422)
@@ -143,7 +147,7 @@ class LockerControllerTest extends TestCase
     {
         $token = bin2hex(random_bytes(32));
         Locker::factory()->create([
-            'account_id'        => '1234567890',
+            'account_id' => '1234567890',
             'update_token_hash' => hash('sha256', $token),
         ]);
 
@@ -159,7 +163,7 @@ class LockerControllerTest extends TestCase
     public function test_update_rejects_invalid_update_token(): void
     {
         Locker::factory()->create([
-            'account_id'        => '1234567890',
+            'account_id' => '1234567890',
             'update_token_hash' => hash('sha256', 'correcttoken'),
         ]);
 
@@ -176,8 +180,8 @@ class LockerControllerTest extends TestCase
     {
         $token = bin2hex(random_bytes(32));
         $locker = Locker::factory()->create([
-            'account_id'        => '1234567890',
-            'payload'           => 'original',
+            'account_id' => '1234567890',
+            'payload' => 'original',
             'update_token_hash' => hash('sha256', $token),
         ]);
 
@@ -194,7 +198,7 @@ class LockerControllerTest extends TestCase
     {
         $token = bin2hex(random_bytes(32));
         Locker::factory()->create([
-            'account_id'        => '1234567890',
+            'account_id' => '1234567890',
             'update_token_hash' => hash('sha256', $token),
         ]);
 
@@ -211,7 +215,7 @@ class LockerControllerTest extends TestCase
     {
         $token = bin2hex(random_bytes(32));
         Locker::factory()->create([
-            'account_id'        => '1234567890',
+            'account_id' => '1234567890',
             'update_token_hash' => hash('sha256', $token),
         ]);
 
@@ -236,14 +240,14 @@ class LockerControllerTest extends TestCase
     public function test_renew_purchase_verifies_verifier_before_stripe(): void
     {
         Locker::factory()->create([
-            'account_id'    => '1234567890',
+            'account_id' => '1234567890',
             'auth_verifier' => str_repeat('a', 64),
         ]);
 
         $response = $this->postJson(route('lockers.renew.purchase', '1234567890'), [
             'verifier' => str_repeat('b', 64), // wrong verifier
-            'years'    => 1,
-            'tier'     => 'text',
+            'years' => 1,
+            'tier' => 'text',
         ]);
 
         $response->assertStatus(403);
@@ -252,14 +256,14 @@ class LockerControllerTest extends TestCase
     public function test_renew_purchase_rejects_wrong_verifier(): void
     {
         Locker::factory()->create([
-            'account_id'    => '1234567890',
+            'account_id' => '1234567890',
             'auth_verifier' => str_repeat('a', 64),
         ]);
 
         $response = $this->postJson(route('lockers.renew.purchase', '1234567890'), [
             'verifier' => str_repeat('c', 64),
-            'years'    => 1,
-            'tier'     => 'text',
+            'years' => 1,
+            'tier' => 'text',
         ]);
 
         $response->assertStatus(403)->assertJson(['error' => 'Invalid passphrase.']);
@@ -276,7 +280,7 @@ class LockerControllerTest extends TestCase
     {
         LockerCredit::factory()->create([
             'stripe_session_id' => 'cs_test_123',
-            'token'             => 'mytoken',
+            'token' => 'mytoken',
         ]);
 
         $response = $this->getJson(route('lockers.credit-status').'?session=cs_test_123');
