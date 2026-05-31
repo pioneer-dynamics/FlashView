@@ -87,6 +87,28 @@ const logout = () => {
                                         <NavLink :href="route('plans.index')" :active="route().current('plans.index')">
                                             Pricing
                                         </NavLink>
+                                        <div class="flex items-center">
+                                            <Dropdown align="left" width="44">
+                                                <template #trigger>
+                                                    <button type="button"
+                                                        :class="route().current('lockers.*') ? 'border-gamboge-400 dark:border-gamboge-400 text-gamboge-200 dark:text-gamboge-200' : 'border-transparent text-gamboge-300 dark:text-gamboge-300 hover:text-gamboge-200 dark:hover:text-gamboge-200 hover:border-gamboge-300 dark:hover:border-gamboge-300'"
+                                                        class="inline-flex items-center gap-1 px-1 pt-1 border-b-2 text-sm font-medium leading-5 focus:outline-none transition duration-150 ease-in-out font-mono">
+                                                        eLocker
+                                                        <svg class="size-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                                                        </svg>
+                                                    </button>
+                                                </template>
+                                                <template #content>
+                                                    <DropdownLink :href="route('lockers.index')">
+                                                        Access My Locker
+                                                    </DropdownLink>
+                                                    <DropdownLink :href="route('lockers.buy')">
+                                                        Buy a Locker
+                                                    </DropdownLink>
+                                                </template>
+                                            </Dropdown>
+                                        </div>
                                         <NavLink :href="route('blog.index')" :active="route().current('blog.*')">
                                             Blog
                                         </NavLink>
@@ -329,6 +351,12 @@ const logout = () => {
                             <template v-if="true">
                                 <ResponsiveNavLink :href="route('plans.index')" :active="route().current('plans.index')">
                                     Pricing
+                                </ResponsiveNavLink>
+                                <ResponsiveNavLink :href="route('lockers.index')" :active="route().current('lockers.index')">
+                                    eLocker — Access
+                                </ResponsiveNavLink>
+                                <ResponsiveNavLink :href="route('lockers.buy')" :active="route().current('lockers.buy')">
+                                    eLocker — Buy
                                 </ResponsiveNavLink>
                                 <ResponsiveNavLink :href="route('blog.index')" :active="route().current('blog.*')">
                                     Blog

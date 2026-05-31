@@ -24,5 +24,5 @@ return [
             5 => ['price_id' => env('LOCKER_FILE_5YR_PRICE_ID'), 'amount_cents' => 14000],
         ],
     ],
-    'webhook_secret' => env('LOCKER_STRIPE_WEBHOOK_SECRET'),
+    'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
 ];

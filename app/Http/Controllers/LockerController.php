@@ -20,6 +20,11 @@ use Stripe\Exception\ApiErrorException;
 
 class LockerController extends Controller
 {
+    public function index(Request $request): Response
+    {
+        return Inertia::render('Locker/Index');
+    }
+
     public function buy(Request $request): Response
     {
         return Inertia::render('Locker/Buy', [

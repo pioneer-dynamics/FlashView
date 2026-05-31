@@ -235,6 +235,7 @@ Route::middleware([
 // eLocker routes — no auth required; all anonymous
 Route::prefix('lockers')->name('lockers.')->group(function () {
     // Static routes must precede /{accountId} wildcard
+    Route::get('/', [LockerController::class, 'index'])->name('index');
     Route::get('/buy', [LockerController::class, 'buy'])->name('buy');
     Route::post('/checkout', [LockerController::class, 'checkout'])->name('checkout');
     Route::get('/await-credit', [LockerController::class, 'awaitCredit'])->name('await-credit');
