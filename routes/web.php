@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\AdminLockerPlanController;
 use App\Http\Controllers\Admin\AdminPlanController;
 use App\Http\Controllers\Admin\AdminUserController;
 use App\Http\Controllers\Auth\RegisterController;
@@ -227,6 +228,7 @@ Route::middleware([
     'admin',
 ])->prefix('admin')->name('admin.')->group(function () {
     Route::resource('plans', AdminPlanController::class)->except(['show']);
+    Route::resource('locker-plans', AdminLockerPlanController::class)->except(['show']);
     Route::get('users', [AdminUserController::class, 'index'])->name('users.index');
     Route::post('users/{user}/suspend', [AdminUserController::class, 'suspend'])->name('users.suspend');
     Route::delete('users/{user}/suspend', [AdminUserController::class, 'unsuspend'])->name('users.unsuspend');

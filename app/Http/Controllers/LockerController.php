@@ -8,6 +8,7 @@ use App\Http\Requests\Locker\StoreLockerRequest;
 use App\Http\Requests\Locker\UpdateLockerRequest;
 use App\Models\Locker;
 use App\Models\LockerCredit;
+use App\Models\LockerPlan;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -31,8 +32,15 @@ class LockerController extends Controller
 
     public function buy(Request $request): Response
     {
+        $plans = LockerPlan::where('is_active', true)
+            ->orderBy('tier')
+            ->orderBy('years')
+            ->get()
+            ->groupBy('tier')
+            ->map(fn ($group) => $group->keyBy('years'));
+
         return Inertia::render('Locker/Buy', [
-            'pricing' => config('lockers.pricing'),
+            'pricing' => $plans,
         ]);
     }
 
@@ -41,11 +49,16 @@ class LockerController extends Controller
         $tier = $request->input('tier');
         $years = (int) $request->input('years');
 
-        $priceId = config("lockers.pricing.{$tier}.{$years}.price_id");
+        $plan = LockerPlan::where('tier', $tier)
+            ->where('years', $years)
+            ->where('is_active', true)
+            ->first();
 
-        if (! $priceId) {
+        if (! $plan || ! $plan->stripe_price_id) {
             return redirect()->route('lockers.buy')->with('error', 'Invalid pricing option selected.');
         }
+
+        $priceId = $plan->stripe_price_id;
 
         try {
             $session = Session::create([
@@ -439,11 +452,17 @@ class LockerController extends Controller
 
         $tier = $request->input('tier');
         $years = (int) $request->input('years');
-        $priceId = config("lockers.pricing.{$tier}.{$years}.price_id");
 
-        if (! $priceId) {
+        $plan = LockerPlan::where('tier', $tier)
+            ->where('years', $years)
+            ->where('is_active', true)
+            ->first();
+
+        if (! $plan || ! $plan->stripe_price_id) {
             return response()->json(['error' => 'Invalid pricing option.'], 422);
         }
+
+        $priceId = $plan->stripe_price_id;
 
         try {
             $session = Session::create([

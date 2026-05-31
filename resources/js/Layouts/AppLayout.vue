@@ -149,7 +149,10 @@ const logout = () => {
                                                 </template>
                                                 <template #content>
                                                     <DropdownLink :href="route('admin.plans.index')">
-                                                        Plans
+                                                        Subscription Plans
+                                                    </DropdownLink>
+                                                    <DropdownLink :href="route('admin.locker-plans.index')">
+                                                        eLocker Plans
                                                     </DropdownLink>
                                                     <DropdownLink :href="route('admin.users.index')">
                                                         Manage Users

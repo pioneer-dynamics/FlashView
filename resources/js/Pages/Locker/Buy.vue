@@ -25,10 +25,15 @@ const durations = [1, 3, 5];
 
 const formatPrice = (cents) => `$${(cents / 100).toFixed(0)}`;
 
+const planFor = (tier, years) => props.pricing?.[tier]?.[years] ?? null;
+
 const savingsPercent = (tier, years) => {
     if (years === 1) return null;
-    const base = props.pricing[tier][1].amount_cents * years;
-    const discounted = props.pricing[tier][years].amount_cents;
+    const base1 = planFor(tier, 1);
+    const plan  = planFor(tier, years);
+    if (!base1 || !plan) return null;
+    const base = base1.amount_cents * years;
+    const discounted = plan.amount_cents;
     return Math.round(((base - discounted) / base) * 100);
 };
 </script>
@@ -77,37 +82,38 @@ const savingsPercent = (tier, years) => {
                     </div>
 
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        <div
-                            v-for="years in durations"
-                            :key="years"
-                            class="relative bg-gray-800 border border-gray-700 rounded-xl p-6 flex flex-col gap-4 hover:border-gamboge-300 hover:shadow-neon-cyan transition-all duration-200"
-                        >
-                            <div v-if="savingsPercent(tier.key, years)" class="absolute -top-3 left-1/2 -translate-x-1/2">
-                                <span class="bg-gamboge-300 text-gray-900 text-xs font-bold px-3 py-1 rounded-full font-mono uppercase tracking-wide">
-                                    Save {{ savingsPercent(tier.key, years) }}%
-                                </span>
-                            </div>
-
-                            <div>
-                                <div class="text-gamboge-300 font-mono text-xs uppercase tracking-widest mb-1">{{ years }} {{ years === 1 ? 'Year' : 'Years' }}</div>
-                                <div class="text-3xl font-bold text-white">
-                                    {{ formatPrice(pricing[tier.key][years].amount_cents) }}
-                                </div>
-                                <div class="text-gray-400 text-xs mt-1">
-                                    one-time payment — no subscription
-                                </div>
-                            </div>
-
-                            <Link
-                                :href="route('lockers.checkout')"
-                                method="post"
-                                :data="{ tier: tier.key, years }"
-                                as="button"
-                                class="mt-auto w-full text-center bg-gamboge-300 hover:bg-gamboge-400 text-gray-900 font-semibold py-2.5 px-4 rounded-lg font-mono text-sm transition-colors duration-150 shadow-neon-cyan-sm hover:shadow-neon-cyan"
+                        <template v-for="years in durations" :key="years">
+                            <div
+                                v-if="planFor(tier.key, years)"
+                                class="relative bg-gray-800 border border-gray-700 rounded-xl p-6 flex flex-col gap-4 hover:border-gamboge-300 hover:shadow-neon-cyan transition-all duration-200"
                             >
-                                Buy {{ years }}-Year Locker
-                            </Link>
-                        </div>
+                                <div v-if="savingsPercent(tier.key, years)" class="absolute -top-3 left-1/2 -translate-x-1/2">
+                                    <span class="bg-gamboge-300 text-gray-900 text-xs font-bold px-3 py-1 rounded-full font-mono uppercase tracking-wide">
+                                        Save {{ savingsPercent(tier.key, years) }}%
+                                    </span>
+                                </div>
+
+                                <div>
+                                    <div class="text-gamboge-300 font-mono text-xs uppercase tracking-widest mb-1">{{ years }} {{ years === 1 ? 'Year' : 'Years' }}</div>
+                                    <div class="text-3xl font-bold text-white">
+                                        {{ formatPrice(planFor(tier.key, years).amount_cents) }}
+                                    </div>
+                                    <div class="text-gray-400 text-xs mt-1">
+                                        one-time payment — no subscription
+                                    </div>
+                                </div>
+
+                                <Link
+                                    :href="route('lockers.checkout')"
+                                    method="post"
+                                    :data="{ tier: tier.key, years }"
+                                    as="button"
+                                    class="mt-auto w-full text-center bg-gamboge-300 hover:bg-gamboge-400 text-gray-900 font-semibold py-2.5 px-4 rounded-lg font-mono text-sm transition-colors duration-150 shadow-neon-cyan-sm hover:shadow-neon-cyan"
+                                >
+                                    Buy {{ years }}-Year Locker
+                                </Link>
+                            </div>
+                        </template>
                     </div>
                 </div>
 
