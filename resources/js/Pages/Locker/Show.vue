@@ -29,10 +29,15 @@ const fileProgress = ref(0);
 const downloadError = ref('');
 
 // Update state
-const newContent    = ref('');
-const updateError   = ref('');
-const updateSuccess = ref(false);
-const updating      = ref(false);
+const newContent      = ref('');
+const replacementFile = ref(null);
+const updateError     = ref('');
+const updateSuccess   = ref(false);
+const updating        = ref(false);
+const updateProgress  = ref(0);
+const updateState     = ref(null); // null | 'encrypting' | 'uploading'
+
+const onReplacementFileChange = (e) => { replacementFile.value = e.target.files[0] ?? null; };
 
 // Delete state
 const deleteError       = ref('');
@@ -193,6 +198,77 @@ const submitUpdate = async () => {
     }
 };
 
+const submitFileUpdate = async () => {
+    updateError.value   = '';
+    updateSuccess.value = false;
+    if (!replacementFile.value) { updateError.value = 'Please select a file.'; return; }
+
+    updating.value       = true;
+    updateState.value    = 'encrypting';
+    updateProgress.value = 0;
+
+    try {
+        const meta    = JSON.stringify({ name: replacementFile.value.name, type: replacementFile.value.type, size: replacementFile.value.size });
+        const payload = await enc.encryptLockerContent(meta, passphrase.value);
+
+        const encryptedBlob = await enc.encryptLockerFile(replacementFile.value, passphrase.value);
+        const bytes = new Uint8Array(encryptedBlob.length / 2);
+        for (let i = 0; i < encryptedBlob.length; i += 2) {
+            bytes[i / 2] = parseInt(encryptedBlob.slice(i, i + 2), 16);
+        }
+
+        // Get presigned upload URL
+        const prepRes = await fetch(route('lockers.file.prepare'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-XSRF-TOKEN': getXsrf() },
+            body: JSON.stringify({}), // no credit_token needed for updates
+        });
+
+        let storagePath = null;
+        if (prepRes.ok) {
+            const { upload_type, upload_url, upload_headers, storage_path } = await prepRes.json();
+            storagePath   = storage_path;
+            updateState.value = 'uploading';
+
+            await new Promise((resolve, reject) => {
+                const xhr = new XMLHttpRequest();
+                xhr.open(upload_type === 's3_direct' ? 'PUT' : 'POST', upload_url);
+                if (upload_type === 'server') xhr.setRequestHeader('X-XSRF-TOKEN', getXsrf());
+                for (const [k, v] of Object.entries(upload_headers ?? {})) xhr.setRequestHeader(k, v);
+                xhr.upload.onprogress = (e) => {
+                    if (e.lengthComputable) updateProgress.value = Math.round((e.loaded / e.total) * 100);
+                };
+                xhr.onload  = () => (xhr.status >= 200 && xhr.status < 300) ? resolve() : reject(new Error('Upload failed.'));
+                xhr.onerror = () => reject(new Error('Upload failed.'));
+                xhr.send(new Blob([bytes], { type: 'application/octet-stream' }));
+            });
+        }
+
+        const updateToken = await enc.deriveLockerUpdateToken(passphrase.value, props.account_id);
+        const body = { payload };
+        if (storagePath) body.storage_path = storagePath;
+
+        const res = await fetch(route('lockers.update', props.account_id), {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-Update-Token': updateToken, 'X-XSRF-TOKEN': getXsrf() },
+            body: JSON.stringify(body),
+        });
+
+        const data = await res.json();
+        if (!res.ok) { updateError.value = data.error ?? 'Update failed.'; return; }
+
+        updateSuccess.value  = true;
+        decryptedFileMeta.value = JSON.parse(meta);
+        replacementFile.value  = null;
+        downloadUrl.value = '';  // URL is now stale; re-unlock to get fresh URL
+    } catch (err) {
+        updateError.value = err.message || 'Update failed. Please try again.';
+    } finally {
+        updating.value    = false;
+        updateState.value = null;
+    }
+};
+
 const confirmDelete = async () => {
     deleteError.value = '';
     deleting.value    = true;
@@ -329,22 +405,42 @@ const confirmDelete = async () => {
                 </div>
 
                 <!-- Update panel — only visible after unlock -->
-                <div v-if="lockState === 'unlocked' && !is_file_locker" class="bg-gray-800 border border-gray-700 rounded-xl p-6 space-y-4">
+                <div v-if="lockState === 'unlocked'" class="bg-gray-800 border border-gray-700 rounded-xl p-6 space-y-4">
                     <h2 class="text-gamboge-300 font-mono text-xs uppercase tracking-widest">Update Content</h2>
-                    <textarea
-                        v-model="newContent"
-                        rows="4"
-                        placeholder="New content…"
-                        class="w-full bg-gray-900 border border-gray-700 text-white font-mono rounded-lg px-3 py-2.5 text-xs focus:border-gamboge-300 focus:outline-none resize-y"
-                    />
+
+                    <!-- Text locker update -->
+                    <template v-if="!is_file_locker">
+                        <textarea
+                            v-model="newContent"
+                            rows="4"
+                            placeholder="New content…"
+                            class="w-full bg-gray-900 border border-gray-700 text-white font-mono rounded-lg px-3 py-2.5 text-xs focus:border-gamboge-300 focus:outline-none resize-y"
+                        />
+                    </template>
+
+                    <!-- File locker update -->
+                    <template v-else>
+                        <input
+                            type="file"
+                            @change="onReplacementFileChange"
+                            class="w-full bg-gray-900 border border-gray-700 text-white rounded-lg px-3 py-2.5 text-xs file:mr-3 file:text-gamboge-300 file:bg-gray-800 file:border-0 file:rounded file:text-xs file:font-mono file:cursor-pointer"
+                        />
+                        <FileProgressBar v-if="updateState" :state="updateState" :progress="updateProgress" />
+                        <p v-if="updateSuccess" class="text-gamboge-300 text-xs">
+                            File updated. Re-unlock to download the new version.
+                        </p>
+                    </template>
+
                     <p v-if="updateError" class="text-red-400 text-xs">{{ updateError }}</p>
-                    <p v-if="updateSuccess" class="text-gamboge-300 text-xs">Content updated.</p>
+                    <p v-if="!is_file_locker && updateSuccess" class="text-gamboge-300 text-xs">Content updated.</p>
+
                     <button
-                        @click="submitUpdate"
+                        v-if="!updateState"
+                        @click="is_file_locker ? submitFileUpdate() : submitUpdate()"
                         :disabled="updating"
                         class="w-full border border-gamboge-300 text-gamboge-300 hover:bg-gamboge-300/10 font-mono text-xs py-2 rounded-lg transition-colors disabled:opacity-50"
                         data-testid="update-button"
-                    >{{ updating ? 'Updating…' : 'Update' }}</button>
+                    >{{ updating ? 'Updating…' : (is_file_locker ? 'Replace File' : 'Update') }}</button>
                 </div>
 
                 <!-- Update hint when locked -->

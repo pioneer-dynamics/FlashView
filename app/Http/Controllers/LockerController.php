@@ -134,11 +134,14 @@ class LockerController extends Controller
 
     public function prepareFile(Request $request): JsonResponse
     {
+        // If a credit_token is provided, validate it (creation flow).
+        // If not (update flow for an existing file locker), skip credit check.
         $creditToken = $request->input('credit_token');
-        $credit = LockerCredit::where('token', $creditToken)->unused()->where('tier', 'file')->first();
-
-        if (! $credit) {
-            return response()->json(['error' => 'Invalid or used credit token.'], 422);
+        if ($creditToken) {
+            $credit = LockerCredit::where('token', $creditToken)->unused()->where('tier', 'file')->first();
+            if (! $credit) {
+                return response()->json(['error' => 'Invalid or used credit token.'], 422);
+            }
         }
 
         $storagePath = 'lockers/'.Str::uuid().'.bin';
