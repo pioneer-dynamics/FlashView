@@ -1,11 +1,25 @@
 <script setup>
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { Link } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import { router } from '@inertiajs/vue3';
 
 const accountId = ref('');
 const destination = ref('open'); // 'open' | 'renew'
+const pendingToken = ref(null);
+
+onMounted(() => {
+    pendingToken.value = localStorage.getItem('locker_pending_token') || null;
+});
+
+const resumeCreation = () => {
+    router.visit(route('lockers.create') + '?token=' + encodeURIComponent(pendingToken.value));
+};
+
+const dismissPending = () => {
+    localStorage.removeItem('locker_pending_token');
+    pendingToken.value = null;
+};
 
 const go = () => {
     if (!/^\d{10}$/.test(accountId.value)) return;
@@ -20,6 +34,20 @@ const go = () => {
     <AppLayout title="eLocker">
         <div class="dark min-h-screen bg-gray-900 py-16 px-4">
             <div class="max-w-md mx-auto space-y-10">
+
+                <!-- Pending credit banner -->
+                <div v-if="pendingToken" class="bg-gamboge-300/10 border border-gamboge-300/50 rounded-xl p-5 shadow-neon-cyan-sm">
+                    <div class="text-gamboge-300 font-mono text-xs uppercase tracking-widest mb-1">Unused Locker Credit</div>
+                    <p class="text-white text-sm mb-3">You have an unused locker credit from a previous purchase.</p>
+                    <div class="flex gap-2">
+                        <button @click="resumeCreation" class="bg-gamboge-300 hover:bg-gamboge-400 text-gray-900 font-semibold py-2 px-4 rounded-lg font-mono text-sm transition-colors shadow-neon-cyan-sm">
+                            Continue setting up →
+                        </button>
+                        <button @click="dismissPending" class="border border-gray-600 text-gray-400 hover:text-white hover:border-gray-500 py-2 px-3 rounded-lg text-sm transition-colors">
+                            Dismiss
+                        </button>
+                    </div>
+                </div>
 
                 <!-- Header -->
                 <div class="text-center">

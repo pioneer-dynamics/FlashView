@@ -1,10 +1,26 @@
 <script setup>
 import AppLayout from '@/Layouts/AppLayout.vue';
-import { Link } from '@inertiajs/vue3';
+import { Link, router } from '@inertiajs/vue3';
+import { ref, onMounted } from 'vue';
 
 const props = defineProps({
     pricing: Object,
 });
+
+const pendingToken = ref(null);
+
+onMounted(() => {
+    pendingToken.value = localStorage.getItem('locker_pending_token') || null;
+});
+
+const resumeCreation = () => {
+    router.visit(route('lockers.create') + '?token=' + encodeURIComponent(pendingToken.value));
+};
+
+const dismissPending = () => {
+    localStorage.removeItem('locker_pending_token');
+    pendingToken.value = null;
+};
 
 const tiers = [
     { key: 'text', name: 'Text Locker', description: 'Stores up to 100 KB of text or structured data — approximately 50 pages.', icon: '📄' },
@@ -38,6 +54,22 @@ const savingsPercent = (tier, years) => {
     <AppLayout title="eLocker Pricing">
         <div class="dark min-h-screen bg-gray-900 py-16 px-4">
             <div class="max-w-5xl mx-auto">
+
+                <!-- Pending credit banner -->
+                <div v-if="pendingToken" class="mb-10 bg-gamboge-300/10 border border-gamboge-300/50 rounded-xl p-5 flex flex-col sm:flex-row sm:items-center gap-4 shadow-neon-cyan-sm">
+                    <div class="flex-1">
+                        <div class="text-gamboge-300 font-mono text-xs uppercase tracking-widest mb-1">Unused Locker Credit</div>
+                        <p class="text-white text-sm">You have an unused locker credit from a previous purchase. Continue setting up your locker now.</p>
+                    </div>
+                    <div class="flex gap-2 shrink-0">
+                        <button @click="resumeCreation" class="bg-gamboge-300 hover:bg-gamboge-400 text-gray-900 font-semibold py-2 px-4 rounded-lg font-mono text-sm transition-colors shadow-neon-cyan-sm">
+                            Continue →
+                        </button>
+                        <button @click="dismissPending" class="border border-gray-600 text-gray-400 hover:text-white hover:border-gray-500 py-2 px-3 rounded-lg text-sm transition-colors">
+                            Dismiss
+                        </button>
+                    </div>
+                </div>
 
                 <!-- Hero -->
                 <div class="text-center mb-14">
