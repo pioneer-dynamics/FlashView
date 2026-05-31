@@ -74,7 +74,6 @@ class HandleLockerStripeWebhook
                 'UTC'
             )->addYears($years);
 
-            $locker->auth_challenge = bin2hex(random_bytes(32));
             $locker->save();
 
             LockerRenewal::create([
