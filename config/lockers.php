@@ -12,5 +12,5 @@ return [
         'file_max_bytes' => 50 * 1024 * 1024,
         'account_id_length' => 10,
     ],
-    'webhook_secret' => env('STRIPE_LOCKER_WEBHOOK_SECRET'),
+    'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
 ];

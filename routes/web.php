@@ -11,7 +11,6 @@ use App\Http\Controllers\CliInstallationController;
 use App\Http\Controllers\ConfigurationController;
 use App\Http\Controllers\FileUploadController;
 use App\Http\Controllers\LockerController;
-use App\Http\Controllers\LockerWebhookController;
 use App\Http\Controllers\MarkdownDocumentController;
 use App\Http\Controllers\NotificationPreferencesController;
 use App\Http\Controllers\NotificationSettingsController;
@@ -268,6 +267,3 @@ Route::prefix('lockers')->name('lockers.')->group(function () {
     Route::get('/{accountId}/file', [LockerController::class, 'downloadFile'])
         ->middleware(['throttle:locker-payload', 'signed'])->name('file.download');
 });
-
-Route::post('/stripe/locker-webhook', [LockerWebhookController::class, 'handle'])
-    ->name('locker.webhook');

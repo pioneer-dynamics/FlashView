@@ -11,15 +11,18 @@ use App\Features\SenderIdentityFeature;
 use App\Features\SupportFeature;
 use App\Features\ThrottlingFeature;
 use App\Features\WebhookNotificationFeature;
+use App\Listeners\HandleLockerStripeWebhook;
 use App\Models\PersonalAccessToken;
 use App\Models\User;
 use App\Observers\SubscriptionObserver;
 use App\Services\FeatureRegistry;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
+use Laravel\Cashier\Events\WebhookReceived;
 use Laravel\Cashier\Subscription;
 use Laravel\Sanctum\Sanctum;
 use PostHog\PostHog;
@@ -61,6 +64,8 @@ class AppServiceProvider extends ServiceProvider
         $this->forceHttps();
 
         Subscription::observe(SubscriptionObserver::class);
+
+        Event::listen(WebhookReceived::class, HandleLockerStripeWebhook::class);
 
         Sanctum::usePersonalAccessTokenModel(PersonalAccessToken::class);
 
