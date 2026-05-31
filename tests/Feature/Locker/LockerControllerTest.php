@@ -107,20 +107,65 @@ class LockerControllerTest extends TestCase
             ->assertJsonValidationErrors(['account_id']);
     }
 
-    public function test_show_returns_404_for_unknown_account(): void
+    public function test_show_always_renders_for_any_account_id(): void
     {
+        // Always renders to prevent account ID enumeration — credentials checked at unlock
         $response = $this->get(route('lockers.show', '9999999999'));
 
-        $response->assertStatus(404);
+        $response->assertStatus(200)
+            ->assertInertia(fn ($page) => $page->component('Locker/Show'));
     }
 
-    public function test_show_returns_410_for_expired_locker(): void
+    public function test_unlock_returns_401_for_unknown_account(): void
     {
-        Locker::factory()->expired()->create(['account_id' => '1234567890']);
+        $response = $this->postJson(route('lockers.unlock', '9999999999'), [
+            'verifier' => str_repeat('a', 64),
+        ]);
 
-        $response = $this->get(route('lockers.show', '1234567890'));
+        $response->assertStatus(401)->assertJson(['error' => 'Credentials do not match.']);
+    }
+
+    public function test_unlock_returns_401_for_wrong_verifier(): void
+    {
+        Locker::factory()->create([
+            'account_id' => '1234567890',
+            'auth_verifier' => str_repeat('a', 64),
+        ]);
+
+        $response = $this->postJson(route('lockers.unlock', '1234567890'), [
+            'verifier' => str_repeat('b', 64),
+        ]);
+
+        $response->assertStatus(401)->assertJson(['error' => 'Credentials do not match.']);
+    }
+
+    public function test_unlock_returns_410_for_expired_locker_with_correct_verifier(): void
+    {
+        Locker::factory()->expired()->create([
+            'account_id' => '1234567890',
+            'auth_verifier' => str_repeat('a', 64),
+        ]);
+
+        $response = $this->postJson(route('lockers.unlock', '1234567890'), [
+            'verifier' => str_repeat('a', 64),
+        ]);
 
         $response->assertStatus(410);
+    }
+
+    public function test_unlock_returns_payload_for_correct_verifier(): void
+    {
+        Locker::factory()->create([
+            'account_id' => '1234567890',
+            'payload' => 'hex_blob',
+            'auth_verifier' => str_repeat('a', 64),
+        ]);
+
+        $response = $this->postJson(route('lockers.unlock', '1234567890'), [
+            'verifier' => str_repeat('a', 64),
+        ]);
+
+        $response->assertStatus(200)->assertJsonStructure(['payload', 'expires_at', 'is_file_locker']);
     }
 
     public function test_show_renders_for_active_locker(): void

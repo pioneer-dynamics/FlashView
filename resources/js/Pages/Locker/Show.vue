@@ -6,13 +6,15 @@ import { router } from '@inertiajs/vue3';
 import { encryption, LockerDecryptionError } from '@/encryption.js';
 
 const props = defineProps({
-    account_id:     String,
-    is_file_locker: Boolean,
-    expires_at:     String,
-    renewed:        Boolean,
+    account_id: String,
+    renewed:    Boolean,
 });
 
 const enc = new encryption();
+
+// Populated after successful unlock — not passed from server initially (prevents enumeration)
+const isFileLocker = ref(false);
+const expiresAt    = ref(null); // ISO string or null
 
 // Unlock state
 const passphrase        = ref('');
@@ -45,11 +47,13 @@ const deleting          = ref(false);
 const showDeleteConfirm = ref(false);
 
 const daysRemaining = computed(() => {
-    const ms = new Date(props.expires_at).getTime() - Date.now();
+    if (!expiresAt.value) return null;
+    const ms = new Date(expiresAt.value).getTime() - Date.now();
     return Math.max(0, Math.ceil(ms / 86_400_000));
 });
 
 const expiryLabel = computed(() => {
+    if (daysRemaining.value === null) return '';
     if (daysRemaining.value === 0) return 'Expires today';
     if (daysRemaining.value === 1) return 'Expires tomorrow';
     return `${daysRemaining.value} days remaining`;
@@ -68,35 +72,59 @@ const getXsrf = () => decodeURIComponent(document.cookie.match(/XSRF-TOKEN=([^;]
 const unlock = async () => {
     if (!passphrase.value || lockState.value === 'animating' || lockState.value === 'shaking') return;
     decryptError.value = '';
-    lockState.value = 'animating';
+    lockState.value    = 'animating';
 
     const animationStart = Date.now();
 
     try {
-        const res = await fetch(route('lockers.payload', props.account_id), {
-            headers: { 'Accept': 'application/json' },
+        // Step 1: Fetch challenge (always returns one — fake for non-existent accounts)
+        const challengeRes = await fetch(route('lockers.challenge', props.account_id), {
+            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
         });
 
-        if (!res.ok) {
+        if (!challengeRes.ok) {
+            const data = await challengeRes.json().catch(() => ({}));
             const elapsed = Date.now() - animationStart;
             if (elapsed < 600) await sleep(600 - elapsed);
             failCount.value++;
-            const msg = res.status === 429
-                ? 'Too many attempts. Please wait 5 minutes.'
-                : 'Failed to fetch locker. Please try again.';
-            triggerShake(msg);
+            triggerShake(data.error ?? 'Too many attempts. Please try again later.');
             return;
         }
 
-        const data   = await res.json();
-        const result = await enc.decryptLockerContent(data.payload, passphrase.value);
+        const { challenge } = await challengeRes.json();
 
+        // Step 2: Derive verifier from passphrase (never send passphrase to server)
+        const authKey  = await enc.deriveLockerAuthKey(passphrase.value, props.account_id);
+        const verifier = await enc.computeLockerVerifier(authKey, challenge);
+
+        // Step 3: POST unlock — server verifies, returns payload only if correct
+        const unlockRes = await fetch(route('lockers.unlock', props.account_id), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-XSRF-TOKEN': getXsrf(),
+            },
+            body: JSON.stringify({ verifier }),
+        });
+
+        const data = await unlockRes.json();
         const elapsed = Date.now() - animationStart;
         if (elapsed < 600) await sleep(600 - elapsed);
 
-        // Use the server prop, not the blob type byte.
-        // File locker metadata is encrypted as text (JSON), so result.type is always 'text'.
-        if (props.is_file_locker) {
+        if (!unlockRes.ok) {
+            failCount.value++;
+            triggerShake(data.error ?? 'Credentials do not match.');
+            return;
+        }
+
+        // Success — populate state from unlock response (server uses snake_case JSON)
+        isFileLocker.value = data.is_file_locker ?? false;
+        expiresAt.value    = data.expires_at ?? null;
+
+        const result = await enc.decryptLockerContent(data.payload, passphrase.value);
+
+        if (data.is_file_locker) {
             try {
                 decryptedFileMeta.value = JSON.parse(new TextDecoder().decode(result.data));
             } catch {
@@ -312,7 +340,7 @@ const confirmDelete = async () => {
                         <div class="text-gamboge-300 font-mono text-xs uppercase tracking-widest mb-0.5">eLocker</div>
                         <div class="text-white font-mono text-xl tracking-widest">{{ account_id }}</div>
                     </div>
-                    <div class="text-right">
+                    <div v-if="expiresAt" class="text-right">
                         <div :class="daysRemaining <= 30 ? 'text-red-400' : 'text-gray-400'" class="text-xs font-mono">{{ expiryLabel }}</div>
                         <a :href="route('lockers.renew.challenge', account_id)" class="text-gamboge-300 hover:text-gamboge-200 text-xs font-mono underline">Renew</a>
                     </div>
@@ -376,7 +404,7 @@ const confirmDelete = async () => {
                             <div class="text-gamboge-300 font-mono text-xs uppercase tracking-widest">Decrypted Content</div>
 
                             <!-- Text locker -->
-                            <div v-if="!is_file_locker" class="bg-gray-900 rounded-lg p-4">
+                            <div v-if="!isFileLocker" class="bg-gray-900 rounded-lg p-4">
                                 <pre class="text-white text-sm whitespace-pre-wrap break-words font-mono">{{ decryptedText }}</pre>
                             </div>
 
@@ -409,7 +437,7 @@ const confirmDelete = async () => {
                     <h2 class="text-gamboge-300 font-mono text-xs uppercase tracking-widest">Update Content</h2>
 
                     <!-- Text locker update -->
-                    <template v-if="!is_file_locker">
+                    <template v-if="!isFileLocker">
                         <textarea
                             v-model="newContent"
                             rows="4"
@@ -432,15 +460,15 @@ const confirmDelete = async () => {
                     </template>
 
                     <p v-if="updateError" class="text-red-400 text-xs">{{ updateError }}</p>
-                    <p v-if="!is_file_locker && updateSuccess" class="text-gamboge-300 text-xs">Content updated.</p>
+                    <p v-if="!isFileLocker && updateSuccess" class="text-gamboge-300 text-xs">Content updated.</p>
 
                     <button
                         v-if="!updateState"
-                        @click="is_file_locker ? submitFileUpdate() : submitUpdate()"
+                        @click="isFileLocker ? submitFileUpdate() : submitUpdate()"
                         :disabled="updating"
                         class="w-full border border-gamboge-300 text-gamboge-300 hover:bg-gamboge-300/10 font-mono text-xs py-2 rounded-lg transition-colors disabled:opacity-50"
                         data-testid="update-button"
-                    >{{ updating ? 'Updating…' : (is_file_locker ? 'Replace File' : 'Update') }}</button>
+                    >{{ updating ? 'Updating…' : (isFileLocker ? 'Replace File' : 'Update') }}</button>
                 </div>
 
                 <!-- Update hint when locked -->
@@ -462,7 +490,7 @@ const confirmDelete = async () => {
                     <div v-else class="space-y-3">
                         <div class="bg-red-900/20 border border-red-500/50 rounded-lg p-3 space-y-1">
                             <p class="text-red-200 text-xs font-semibold">This will permanently delete your locker and forfeit your remaining paid time.</p>
-                            <p class="text-red-300/80 text-xs">Your locker expires on {{ new Date(expires_at).toLocaleDateString() }}. Deleting now means that time is lost — there is no refund or credit. To store content again you would need to purchase a new locker.</p>
+                            <p class="text-red-300/80 text-xs">Your locker expires on {{ new Date(expiresAt).toLocaleDateString() }}. Deleting now means that time is lost — there is no refund or credit. To store content again you would need to purchase a new locker.</p>
                         </div>
                         <p v-if="deleteError" class="text-red-400 text-xs">{{ deleteError }}</p>
                         <div class="flex gap-2">

@@ -202,22 +202,112 @@ class LockerController extends Controller
 
     public function show(Request $request, string $accountId): Response
     {
+        // Always render — never reveal whether an account ID exists.
+        // The unlock endpoint is the only place credentials are validated.
+        return Inertia::render('Locker/Show', [
+            'account_id' => $accountId,
+            'renewed' => $request->query('renewed') === '1',
+        ]);
+    }
+
+    public function challenge(Request $request, string $accountId): JsonResponse
+    {
+        $ip = $request->ip();
+
+        if (Cache::get("locker:ip:locked:{$ip}")) {
+            return response()->json(['error' => 'Too many failed attempts. Try again in 1 hour.'], 429);
+        }
+
+        $locker = Locker::where('account_id', $accountId)->first();
+
+        // Always return a challenge — fake one for non-existent accounts to prevent enumeration.
+        $challenge = $locker ? $locker->auth_challenge : bin2hex(random_bytes(32));
+
+        return response()->json(['challenge' => $challenge]);
+    }
+
+    public function unlock(Request $request, string $accountId): JsonResponse
+    {
+        $request->validate(['verifier' => ['required', 'string', 'size:64']]);
+
+        $ip = $request->ip();
+        $verifier = $request->input('verifier');
+        $ipFailKey = "locker:ip:fail:{$ip}";
+        $ipLockedKey = "locker:ip:locked:{$ip}";
+
+        if (Cache::get($ipLockedKey)) {
+            return response()->json(['error' => 'Too many failed attempts. Try again in 1 hour.'], 429);
+        }
+
         $locker = Locker::where('account_id', $accountId)->first();
 
         if (! $locker) {
-            abort(404);
+            $count = (int) Cache::get($ipFailKey, 0) + 1;
+            Cache::put($ipFailKey, $count, now()->addMinutes(5));
+            if ($count >= 3) {
+                Cache::put($ipLockedKey, true, now()->addHour());
+                Cache::forget($ipFailKey);
+            }
+            usleep(random_int(80_000, 200_000)); // timing-safe delay
+
+            return response()->json(['error' => 'Credentials do not match.'], 401);
         }
 
+        $failKey = "locker:fail:{$accountId}";
+        $lockedKey = "locker:locked:{$accountId}";
+        $cooldownKey = "locker:cooldown:{$accountId}";
+
+        if (Cache::get($lockedKey)) {
+            return response()->json(['error' => 'Too many failed attempts. Try again in 1 hour.'], 429);
+        }
+
+        if (Cache::get($cooldownKey)) {
+            return response()->json(['error' => 'Too many attempts. Please wait 5 minutes before trying again.'], 429);
+        }
+
+        if (! $locker->verifyAuthVerifier($verifier)) {
+            $count = (int) Cache::get($failKey, 0) + 1;
+            Cache::put($failKey, $count, now()->addHour());
+            Cache::put($cooldownKey, true, now()->addMinutes(5));
+
+            if ($count >= 3) {
+                Cache::put($lockedKey, true, now()->addHour());
+                Cache::forget($failKey);
+                Cache::forget($cooldownKey);
+            }
+
+            return response()->json(['error' => 'Credentials do not match.'], 401);
+        }
+
+        // Correct passphrase but expired — safe to reveal now
         if ($locker->isExpired()) {
-            abort(410);
+            return response()->json(['error' => 'This locker has expired and is no longer accessible.'], 410);
         }
 
-        return Inertia::render('Locker/Show', [
-            'account_id' => $locker->account_id,
+        // Success — clear failure state
+        Cache::forget($failKey);
+        Cache::forget($cooldownKey);
+
+        $data = [
+            'payload' => $locker->payload,
             'is_file_locker' => $locker->isFileLocker(),
             'expires_at' => $locker->expires_at->toIso8601String(),
-            'renewed' => $request->query('renewed') === '1',
-        ]);
+            'auth_challenge' => $locker->auth_challenge,
+        ];
+
+        if ($locker->isFileLocker()) {
+            try {
+                $data['download_url'] = Storage::temporaryUrl($locker->storage_path, now()->addMinutes(15));
+            } catch (\RuntimeException) {
+                $data['download_url'] = URL::temporarySignedRoute(
+                    'lockers.file.download',
+                    now()->addMinutes(15),
+                    ['accountId' => $accountId]
+                );
+            }
+        }
+
+        return response()->json($data);
     }
 
     public function payload(string $accountId): JsonResponse

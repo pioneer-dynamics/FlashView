@@ -248,8 +248,11 @@ Route::prefix('lockers')->name('lockers.')->group(function () {
         ->middleware('throttle:6,1')->name('store');
 
     // Wildcard routes
-    Route::get('/{accountId}', [LockerController::class, 'show'])
-        ->middleware('throttle:6,1')->name('show');
+    Route::get('/{accountId}', [LockerController::class, 'show'])->name('show');
+    Route::get('/{accountId}/challenge', [LockerController::class, 'challenge'])
+        ->middleware('throttle:30,1')->name('challenge');
+    Route::post('/{accountId}/unlock', [LockerController::class, 'unlock'])
+        ->middleware('throttle:6,1')->name('unlock');
     Route::get('/{accountId}/payload', [LockerController::class, 'payload'])
         ->middleware('throttle:locker-payload')->name('payload');
     Route::put('/{accountId}', [LockerController::class, 'update'])
