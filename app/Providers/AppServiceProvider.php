@@ -93,7 +93,10 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(config('pipe.rate_limits.guest.create_per_minute'))->by($request->ip());
         });
 
-        RateLimiter::for('locker-payload', fn (Request $request) => Limit::perMinutes(5, 1)
+        RateLimiter::for('locker-payload', fn (Request $request) => Limit::perMinutes(
+            config('lockers.rate_limit.payload_fetch.decay_minutes', 5),
+            config('lockers.rate_limit.payload_fetch.max_attempts', 1)
+        )
             ->by('locker:'.$request->route('accountId'))
             ->response(fn () => response()->json(['error' => 'Too many attempts. Please wait 5 minutes.'], 429))
         );

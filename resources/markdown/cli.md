@@ -427,6 +427,11 @@ flashview locker renew 4815162342
 
 A Stripe checkout URL is printed and opened in your browser. After payment, the expiry date updates within a few minutes (Stripe webhook processing). The auth challenge is rotated after each successful renewal — your passphrase will be required again for future renewals.
 
+**Interactive prompts:**
+
+- **Duration**: `1`, `3`, or `5` (years) — any other value exits with an error
+- **Tier**: `text` or `file` — must match the tier of the original locker
+
 ---
 
 ## Source Code

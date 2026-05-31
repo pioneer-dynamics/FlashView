@@ -43,7 +43,7 @@ onUnmounted(() => clearInterval(pollInterval));
 
 <template>
     <AppLayout title="Awaiting Payment — eLocker">
-        <div class="min-h-screen bg-gray-900 flex items-center justify-center px-4 py-16">
+        <div class="dark min-h-screen bg-gray-900 flex items-center justify-center px-4 py-16">
             <div class="max-w-lg w-full">
 
                 <div class="bg-gray-800 border border-gray-700 rounded-xl p-8">

@@ -574,6 +574,17 @@ export async function deriveAuthKey(passphrase, accountId) {
 }
 
 /**
+ * Generate a cryptographically random 64-char hex challenge for HMAC auth.
+ *
+ * @returns {string} 32-byte challenge as hex
+ */
+export function generateChallenge() {
+    const bytes = new Uint8Array(32);
+    globalThis.crypto.getRandomValues(bytes);
+    return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+/**
  * Compute HMAC-SHA-256 verifier for the given challenge.
  *
  * @param {CryptoKey} authKey - from deriveAuthKey

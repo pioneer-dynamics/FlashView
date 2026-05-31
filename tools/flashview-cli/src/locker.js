@@ -9,6 +9,7 @@ import {
     decryptFromBlob,
     deriveAuthKey,
     computeVerifier,
+    generateChallenge,
     LockerDecryptionError,
 } from './crypto.js';
 import { FlashViewClient, ApiError } from './api.js';
@@ -77,17 +78,36 @@ async function lockerBuy() {
 }
 
 async function lockerCreate(options) {
-    const creditToken = await prompt('Credit token (from payment confirmation): ');
-    if (!creditToken) { console.error('Credit token is required.'); process.exit(1); }
-
     const client = await getClient();
 
-    // Verify the credit token to get tier and years
-    let creditInfo;
-    try {
-        const status = await client.getLockerCreditStatus('').catch(() => null);
-    } catch {
-        // ignore
+    console.error('\nAfter completing your Stripe purchase, you will have either:');
+    console.error('  (a) A credit token — enter it directly');
+    console.error('  (b) A Stripe session ID from the payment confirmation page — enter it to auto-resolve\n');
+
+    let creditToken = await prompt('Credit token (or Stripe session ID to auto-resolve): ');
+    if (!creditToken) { console.error('Credit token or session ID is required.'); process.exit(1); }
+
+    // If the input looks like a Stripe session ID (starts with cs_), poll for the credit token
+    if (creditToken.startsWith('cs_')) {
+        console.error('Polling for credit token…');
+        let resolved = false;
+        for (let attempt = 0; attempt < 30; attempt++) {
+            const status = await client.getLockerCreditStatus(creditToken).catch(() => null);
+            if (status?.token) {
+                creditToken = status.token;
+                resolved = true;
+                console.error('Credit token resolved.');
+                break;
+            }
+            if (attempt < 29) {
+                await new Promise(r => setTimeout(r, 2000));
+                process.stderr.write('.');
+            }
+        }
+        if (!resolved) {
+            console.error('\nTimed out waiting for credit token. Try again later or contact support with your session ID.');
+            process.exit(1);
+        }
     }
 
     const accountId = await prompt('Choose a 10-digit account ID: ');
@@ -124,7 +144,7 @@ async function lockerCreate(options) {
     }
 
     const authKey = await deriveAuthKey(passphrase, accountId);
-    const challenge = Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString('hex');
+    const challenge = generateChallenge();
     const verifier = await computeVerifier(authKey, challenge);
 
     const result = await client.createLocker({

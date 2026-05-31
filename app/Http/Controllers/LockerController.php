@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\Locker\CheckoutLockerRequest;
 use App\Http\Requests\Locker\RenewLockerRequest;
 use App\Http\Requests\Locker\StoreLockerRequest;
 use App\Http\Requests\Locker\UpdateLockerRequest;
@@ -26,15 +27,10 @@ class LockerController extends Controller
         ]);
     }
 
-    public function checkout(Request $request): RedirectResponse
+    public function checkout(CheckoutLockerRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'tier' => ['required', 'in:text,file'],
-            'years' => ['required', 'integer', 'in:1,3,5'],
-        ]);
-
-        $tier = $validated['tier'];
-        $years = (int) $validated['years'];
+        $tier = $request->input('tier');
+        $years = (int) $request->input('years');
 
         $priceId = config("lockers.pricing.{$tier}.{$years}.price_id");
 
@@ -129,7 +125,7 @@ class LockerController extends Controller
         ]);
     }
 
-    public function show(string $accountId): Response
+    public function show(Request $request, string $accountId): Response
     {
         $locker = Locker::where('account_id', $accountId)->first();
 
@@ -145,7 +141,7 @@ class LockerController extends Controller
             'account_id' => $locker->account_id,
             'is_file_locker' => $locker->isFileLocker(),
             'expires_at' => $locker->expires_at->toIso8601String(),
-            'renewed' => request()->query('renewed') === '1',
+            'renewed' => $request->query('renewed') === '1',
         ]);
     }
 
@@ -190,9 +186,6 @@ class LockerController extends Controller
         if (! $updateToken || ! $locker->verifyUpdateToken($updateToken)) {
             return response()->json(['error' => 'Invalid update token.'], 403);
         }
-
-        $request->merge(['is_file_locker' => $locker->isFileLocker()]);
-        $request->validate($request->rules());
 
         if ($locker->isFileLocker()) {
             $newStoragePath = $request->input('storage_path');

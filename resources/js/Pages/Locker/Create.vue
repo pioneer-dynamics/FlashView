@@ -107,15 +107,12 @@ const submit = async () => {
         if (isFileTier.value) {
             const meta = JSON.stringify({ name: selectedFile.value.name, type: selectedFile.value.type, size: selectedFile.value.size });
             payload = await enc.encryptLockerContent(meta, passphrase.value);
-            // File blob encrypted separately; storagePath will come from presigned upload
-            // For now, encrypt the file blob and store inline (S3 upload out of scope here)
             storagePath = `lockers/${accountId.value}/payload`;
         } else {
             payload = await enc.encryptLockerContent(content.value, passphrase.value);
         }
 
-        const challenge = crypto.getRandomValues(new Uint8Array(32));
-        const challengeHex = Array.from(challenge).map(b => b.toString(16).padStart(2, '0')).join('');
+        const challengeHex = enc.generateLockerChallenge();
         const verifier = await enc.computeLockerVerifier(authKey, challengeHex);
 
         const res = await fetch(route('lockers.store'), {
@@ -166,7 +163,7 @@ const submit = async () => {
 
 <template>
     <AppLayout title="Create eLocker">
-        <div class="min-h-screen bg-gray-900 py-16 px-4">
+        <div class="dark min-h-screen bg-gray-900 py-16 px-4">
             <div class="max-w-xl mx-auto">
 
                 <!-- Credentials panel -->

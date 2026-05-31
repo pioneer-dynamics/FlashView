@@ -39,6 +39,8 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->validateCsrfTokens(except: [
             'stripe/*',
+            'lockers',
+            'lockers/*',
             'cli/token',
             'cli/device/initiate',
             'cli/device/poll',

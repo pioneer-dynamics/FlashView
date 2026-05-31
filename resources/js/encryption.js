@@ -1,4 +1,5 @@
-import { encryptMessage as sharedEncrypt, decryptMessage as sharedDecrypt, generatePassphrase, encryptBuffer, decryptBuffer, encryptToBlob, decryptFromBlob, encryptFileToBlob, deriveAuthKey, computeVerifier } from '@pioneer-dynamics/flashview-crypto';
+import { encryptMessage as sharedEncrypt, decryptMessage as sharedDecrypt, generatePassphrase, encryptBuffer, decryptBuffer, encryptToBlob, decryptFromBlob, encryptFileToBlob, deriveAuthKey, computeVerifier, generateChallenge } from '@pioneer-dynamics/flashview-crypto';
+export { LockerBlobVersionError, LockerDecryptionError } from '@pioneer-dynamics/flashview-crypto';
 
 export class encryption {
 
@@ -83,5 +84,9 @@ export class encryption {
 
     async computeLockerVerifier(authKey, challenge) {
         return computeVerifier(authKey, challenge);
+    }
+
+    generateLockerChallenge() {
+        return generateChallenge();
     }
 }

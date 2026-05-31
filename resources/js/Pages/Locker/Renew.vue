@@ -76,7 +76,7 @@ const submit = async () => {
 
 <template>
     <AppLayout title="Renew eLocker">
-        <div class="min-h-screen bg-gray-900 py-16 px-4">
+        <div class="dark min-h-screen bg-gray-900 py-16 px-4">
             <div class="max-w-md mx-auto">
                 <div class="bg-gray-800 border border-gray-700 rounded-xl p-8 space-y-6">
 

@@ -35,7 +35,7 @@ const savingsPercent = (tier, years) => {
 
 <template>
     <AppLayout title="eLocker Pricing">
-        <div class="min-h-screen bg-gray-900 py-16 px-4">
+        <div class="dark min-h-screen bg-gray-900 py-16 px-4">
             <div class="max-w-5xl mx-auto">
 
                 <!-- Hero -->

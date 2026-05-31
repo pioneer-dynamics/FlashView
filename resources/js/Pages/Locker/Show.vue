@@ -2,8 +2,7 @@
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { ref, computed } from 'vue';
 import { router } from '@inertiajs/vue3';
-import { encryption } from '@/encryption.js';
-import { LockerDecryptionError } from '@pioneer-dynamics/flashview-crypto';
+import { encryption, LockerDecryptionError } from '@/encryption.js';
 
 const props = defineProps({
     account_id:     String,
@@ -170,7 +169,7 @@ const confirmDelete = async () => {
 
 <template>
     <AppLayout :title="`eLocker ${account_id}`">
-        <div class="min-h-screen bg-gray-900 py-16 px-4">
+        <div class="dark min-h-screen bg-gray-900 py-16 px-4">
             <div class="max-w-xl mx-auto space-y-6">
 
                 <!-- Renewal banner -->
@@ -220,9 +219,9 @@ const confirmDelete = async () => {
                                     class="text-gamboge-300"
                                     :class="{ 'animate-glow-burst': lockState === 'animating' }"
                                 />
-                                <!-- Keyhole -->
-                                <circle cx="32" cy="48" r="5" fill="#0d1b2a" />
-                                <rect x="29" y="48" width="6" height="8" rx="1" fill="#0d1b2a" />
+                                <!-- Keyhole: fill matches the dark surface behind the lock -->
+                                <circle cx="32" cy="48" r="5" class="fill-gray-900" />
+                                <rect x="29" y="48" width="6" height="8" rx="1" class="fill-gray-900" />
                             </svg>
                         </div>
 

@@ -16,7 +16,7 @@ return new class extends Migration
             $table->string('stripe_session_id')->unique();
             $table->char('account_id', 10);
             $table->tinyInteger('years');
-            $table->timestamp('processed_at');
+            $table->timestamp('processed_at')->useCurrent();
             $table->timestamp('created_at')->nullable();
         });
     }
