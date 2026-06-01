@@ -105,6 +105,18 @@ class AppServiceProvider extends ServiceProvider
             ->by('locker:'.$request->route('accountId'))
             ->response(fn () => response()->json(['error' => 'Too many attempts. Please wait 5 minutes.'], 429))
         );
+
+        // Documentation anchors for locker unlock rate limiting. These are NOT wired as route
+        // middleware. The controller calls RateLimiter::hit/tooManyAttempts/clear directly using
+        // the key patterns below (e.g. 'locker-ip:{ip}'). If these are ever wired as middleware,
+        // note that the framework generates a different key format ('locker-ip-unlock|{ip}'), so
+        // the controller key strings must be updated to match before switching to middleware.
+        // Controller key pattern: 'locker-ip:{ip}' — NOT the key this closure generates via middleware ('locker-ip-unlock|{ip}').
+        RateLimiter::for('locker-ip-unlock', fn (Request $request) => Limit::perHour(3)->by($request->ip()));
+        // Controller key pattern: 'locker-account-lock:{accountId}' — NOT 'locker-account-lock|{accountId}'.
+        RateLimiter::for('locker-account-lock', fn (Request $request) => Limit::perHour(3)->by($request->route('accountId')));
+        // Controller key pattern: 'locker-account-cooldown:{accountId}' — NOT 'locker-account-cooldown|{accountId}'.
+        RateLimiter::for('locker-account-cooldown', fn (Request $request) => Limit::perMinutes(5, 1)->by($request->route('accountId')));
     }
 
     private function planThrottleLimit(User $user): Limit

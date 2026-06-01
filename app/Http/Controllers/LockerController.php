@@ -15,6 +15,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
@@ -225,7 +226,7 @@ class LockerController extends Controller
     {
         $ip = $request->ip();
 
-        if (Cache::get("locker:ip:locked:{$ip}")) {
+        if (RateLimiter::tooManyAttempts('locker-ip:'.$ip, 3)) {
             return response()->json(['error' => 'Too many failed attempts. Try again in 1 hour.'], 429);
         }
 
@@ -243,48 +244,34 @@ class LockerController extends Controller
 
         $ip = $request->ip();
         $verifier = $request->input('verifier');
-        $ipFailKey = "locker:ip:fail:{$ip}";
-        $ipLockedKey = "locker:ip:locked:{$ip}";
 
-        if (Cache::get($ipLockedKey)) {
+        if (RateLimiter::tooManyAttempts('locker-ip:'.$ip, 3)) {
             return response()->json(['error' => 'Too many failed attempts. Try again in 1 hour.'], 429);
         }
 
         $locker = Locker::where('account_id', $accountId)->first();
 
         if (! $locker) {
-            $count = (int) Cache::get($ipFailKey, 0) + 1;
-            Cache::put($ipFailKey, $count, now()->addMinutes(5));
-            if ($count >= 3) {
-                Cache::put($ipLockedKey, true, now()->addHour());
-                Cache::forget($ipFailKey);
-            }
+            RateLimiter::hit('locker-ip:'.$ip, 3600);
             usleep(random_int(80_000, 200_000)); // timing-safe delay
 
             return response()->json(['error' => 'Credentials do not match.'], 401);
         }
 
-        $failKey = "locker:fail:{$accountId}";
-        $lockedKey = "locker:locked:{$accountId}";
-        $cooldownKey = "locker:cooldown:{$accountId}";
-
-        if (Cache::get($lockedKey)) {
+        if (RateLimiter::tooManyAttempts('locker-account-lock:'.$accountId, 3)) {
             return response()->json(['error' => 'Too many failed attempts. Try again in 1 hour.'], 429);
         }
 
-        if (Cache::get($cooldownKey)) {
+        if (RateLimiter::tooManyAttempts('locker-account-cooldown:'.$accountId, 1)) {
             return response()->json(['error' => 'Too many attempts. Please wait 5 minutes before trying again.'], 429);
         }
 
         if (! $locker->verifyAuthVerifier($verifier)) {
-            $count = (int) Cache::get($failKey, 0) + 1;
-            Cache::put($failKey, $count, now()->addHour());
-            Cache::put($cooldownKey, true, now()->addMinutes(5));
-
-            if ($count >= 3) {
-                Cache::put($lockedKey, true, now()->addHour());
-                Cache::forget($failKey);
-                Cache::forget($cooldownKey);
+            RateLimiter::clear('locker-account-cooldown:'.$accountId);
+            RateLimiter::hit('locker-account-cooldown:'.$accountId, 300);
+            RateLimiter::hit('locker-account-lock:'.$accountId, 3600);
+            if (RateLimiter::tooManyAttempts('locker-account-lock:'.$accountId, 3)) {
+                RateLimiter::clear('locker-account-cooldown:'.$accountId);
             }
 
             return response()->json(['error' => 'Credentials do not match.'], 401);
@@ -296,8 +283,8 @@ class LockerController extends Controller
         }
 
         // Success — clear failure state
-        Cache::forget($failKey);
-        Cache::forget($cooldownKey);
+        RateLimiter::clear('locker-account-lock:'.$accountId);
+        RateLimiter::clear('locker-account-cooldown:'.$accountId);
 
         $data = [
             'payload' => $locker->payload,
