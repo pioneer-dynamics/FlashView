@@ -26,7 +26,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-          # Removed registry-url here so it defaults to standard OIDC publishing behaviour
+          registry-url: 'https://registry.npmjs.org'
 
       - name: Install crypto dependencies
         working-directory: tools/flashview-crypto
@@ -51,7 +51,6 @@ jobs:
       - name: Publish crypto to npm
         if: steps.crypto-version-check.outputs.skip != 'true'
         working-directory: tools/flashview-crypto
-        # No 'env' block needed here anymore!
         run: npm publish --access public --provenance
 
       - name: Install CLI dependencies
@@ -88,5 +87,4 @@ jobs:
       - name: Publish CLI to npm
         if: steps.cli-version-check.outputs.skip != 'true'
         working-directory: tools/flashview-cli
-        # No 'env' block needed here either!
         run: npm publish --access public --provenance
