@@ -239,7 +239,6 @@ Route::prefix('lockers')->name('lockers.')->group(function () {
     Route::get('/', [LockerController::class, 'index'])->name('index');
     Route::get('/buy', [LockerController::class, 'buy'])->name('buy');
     Route::post('/file/prepare', [LockerController::class, 'prepareFile'])->name('file.prepare');
-    Route::post('/file/upload/{token}', [LockerController::class, 'handleFileUpload'])->name('file.upload');
     Route::post('/checkout', [LockerController::class, 'checkout'])->name('checkout');
     Route::get('/await-credit', [LockerController::class, 'awaitCredit'])->name('await-credit');
     Route::get('/credit-status', [LockerController::class, 'creditStatus'])
@@ -264,6 +263,4 @@ Route::prefix('lockers')->name('lockers.')->group(function () {
         ->middleware('throttle:6,1')->name('renew.challenge');
     Route::post('/{accountId}/renew', [LockerController::class, 'renewPurchase'])
         ->middleware('throttle:6,1')->name('renew.purchase');
-    Route::get('/{accountId}/file', [LockerController::class, 'downloadFile'])
-        ->middleware(['throttle:locker-payload', 'signed'])->name('file.download');
 });

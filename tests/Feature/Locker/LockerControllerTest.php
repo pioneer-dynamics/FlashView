@@ -5,6 +5,7 @@ namespace Tests\Feature\Locker;
 use App\Models\Locker;
 use App\Models\LockerCredit;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class LockerControllerTest extends TestCase
@@ -332,5 +333,71 @@ class LockerControllerTest extends TestCase
         $response = $this->getJson(route('lockers.credit-status').'?session=cs_test_123');
 
         $response->assertStatus(200)->assertJson(['token' => 'mytoken']);
+    }
+
+    public function test_prepare_file_returns_s3_direct_upload_url(): void
+    {
+        Storage::fake();
+        $credit = LockerCredit::factory()->create(['token' => 'filetoken', 'tier' => 'file', 'years' => 1]);
+
+        $response = $this->postJson(route('lockers.file.prepare'), [
+            'credit_token' => 'filetoken',
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJson(['upload_type' => 's3_direct'])
+            ->assertJsonStructure(['upload_url', 'upload_headers', 'storage_path']);
+    }
+
+    public function test_unlock_returns_presigned_download_url_for_file_locker(): void
+    {
+        Storage::fake();
+        $storagePath = 'lockers/test.bin';
+        Storage::put($storagePath, 'encrypted-content');
+
+        Locker::factory()->create([
+            'account_id' => '1234567890',
+            'auth_verifier' => str_repeat('a', 64),
+            'storage_path' => $storagePath,
+        ]);
+
+        $response = $this->postJson(route('lockers.unlock', '1234567890'), [
+            'verifier' => str_repeat('a', 64),
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJsonStructure(['download_url']);
+    }
+
+    public function test_payload_returns_presigned_download_url_for_file_locker(): void
+    {
+        Storage::fake();
+        $storagePath = 'lockers/test.bin';
+        Storage::put($storagePath, 'encrypted-content');
+
+        Locker::factory()->create([
+            'account_id' => '1234567890',
+            'auth_verifier' => str_repeat('a', 64),
+            'storage_path' => $storagePath,
+        ]);
+
+        $response = $this->getJson(route('lockers.payload', '1234567890'));
+
+        $response->assertStatus(200)
+            ->assertJsonStructure(['payload', 'auth_challenge', 'download_url']);
+    }
+
+    public function test_server_upload_route_does_not_exist(): void
+    {
+        $response = $this->post('/lockers/file/upload/some-token');
+
+        $response->assertStatus(404);
+    }
+
+    public function test_server_download_route_does_not_exist(): void
+    {
+        $response = $this->get('/lockers/1234567890/file');
+
+        $response->assertStatus(404);
     }
 }
