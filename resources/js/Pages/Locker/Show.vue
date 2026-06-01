@@ -298,14 +298,13 @@ const submitFileUpdate = async () => {
 
         let storagePath = null;
         if (prepRes.ok) {
-            const { upload_type, upload_url, upload_headers, storage_path } = await prepRes.json();
+            const { upload_url, upload_headers, storage_path } = await prepRes.json();
             storagePath   = storage_path;
             updateState.value = 'uploading';
 
             await new Promise((resolve, reject) => {
                 const xhr = new XMLHttpRequest();
-                xhr.open(upload_type === 's3_direct' ? 'PUT' : 'POST', upload_url);
-                if (upload_type === 'server') xhr.setRequestHeader('X-XSRF-TOKEN', getXsrf());
+                xhr.open('PUT', upload_url);
                 for (const [k, v] of Object.entries(upload_headers ?? {})) xhr.setRequestHeader(k, v);
                 xhr.upload.onprogress = (e) => {
                     if (e.lengthComputable) updateProgress.value = Math.round((e.loaded / e.total) * 100);
@@ -400,14 +399,13 @@ const changePassphrase = async () => {
                 body: JSON.stringify({}),
             });
             if (!prepRes.ok) throw new Error('Could not prepare file upload.');
-            const { upload_type, upload_url, upload_headers, storage_path } = await prepRes.json();
+            const { upload_url, upload_headers, storage_path } = await prepRes.json();
             newStoragePath = storage_path;
 
             passphraseChangeState.value = 'uploading';
             await new Promise((resolve, reject) => {
                 const xhr = new XMLHttpRequest();
-                xhr.open(upload_type === 's3_direct' ? 'PUT' : 'POST', upload_url);
-                if (upload_type === 'server') xhr.setRequestHeader('X-XSRF-TOKEN', getXsrf());
+                xhr.open('PUT', upload_url);
                 for (const [k, v] of Object.entries(upload_headers ?? {})) xhr.setRequestHeader(k, v);
                 xhr.upload.onprogress = (e) => {
                     if (e.lengthComputable) passphraseChangeProgress.value = 50 + Math.round((e.loaded / e.total) * 50);

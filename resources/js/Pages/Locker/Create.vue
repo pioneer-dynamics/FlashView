@@ -144,17 +144,14 @@ const submit = async () => {
 
             if (!prepRes.ok) throw new Error('Could not prepare file upload.');
 
-            const { upload_type, upload_url, upload_headers, storage_path } = await prepRes.json();
+            const { upload_url, upload_headers, storage_path } = await prepRes.json();
             storagePath = storage_path;
 
             // Upload encrypted binary via XHR for progress tracking
             step.value = 'uploading';
             await new Promise((resolve, reject) => {
                 const xhr = new XMLHttpRequest();
-                xhr.open(upload_type === 's3_direct' ? 'PUT' : 'POST', upload_url);
-                if (upload_type === 'server') {
-                    xhr.setRequestHeader('X-XSRF-TOKEN', xsrfToken());
-                }
+                xhr.open('PUT', upload_url);
                 for (const [key, val] of Object.entries(upload_headers ?? {})) {
                     xhr.setRequestHeader(key, val);
                 }
