@@ -157,7 +157,7 @@ const unlock = async () => {
 
         if (!unlockRes.ok) {
             failCount.value++;
-            triggerShake(data.error ?? 'Credentials do not match.');
+            triggerShake(data.error ?? (unlockRes.status === 429 ? 'Too many attempts. Please try again later.' : 'Credentials do not match.'));
             return;
         }
 
