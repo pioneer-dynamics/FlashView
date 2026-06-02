@@ -4,6 +4,7 @@ namespace Tests\Unit\Locker;
 
 use App\Models\Locker;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class LockerModelTest extends TestCase
@@ -73,5 +74,21 @@ class LockerModelTest extends TestCase
 
         $this->assertCount(1, $expired);
         $this->assertEquals('2222222222', $expired->first()->account_id);
+    }
+
+    public function test_wrapped_file_key_is_encrypted_at_rest(): void
+    {
+        $plaintext = 'my-base64-wrapped-dek-value';
+        $locker = Locker::factory()->create([
+            'wrapped_file_key' => $plaintext,
+        ]);
+
+        // Raw DB value must differ from plaintext (it is wrapped by APP_KEY via encrypted cast)
+        $rawValue = DB::table('lockers')
+            ->where('id', $locker->id)
+            ->value('wrapped_file_key');
+
+        $this->assertNotEquals($plaintext, $rawValue, 'wrapped_file_key must be encrypted in the database');
+        $this->assertEquals($plaintext, $locker->fresh()->wrapped_file_key, 'Model accessor must decrypt to original value');
     }
 }
