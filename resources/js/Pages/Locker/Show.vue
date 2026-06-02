@@ -66,9 +66,9 @@ const newPassphraseStrength = computed(() => {
     return score;
 });
 const newPassphraseStrengthLabel = computed(() => ['', 'Weak', 'Fair', 'Good', 'Strong'][newPassphraseStrength.value] ?? '');
-const newPassphraseStrengthColor = computed(() => ['', 'text-red-400', 'text-yellow-400', 'text-blue-400', 'text-gamboge-300'][newPassphraseStrength.value] ?? '');
+const newPassphraseStrengthColor = computed(() => ['', 'text-red-400', 'text-gamboge-500', 'text-gamboge-400', 'text-gamboge-300'][newPassphraseStrength.value] ?? '');
 const newPassphraseStrengthWidth = computed(() => ['w-0', 'w-1/4', 'w-2/4', 'w-3/4', 'w-full'][newPassphraseStrength.value] ?? 'w-0');
-const newPassphraseStrengthBg    = computed(() => ['', 'bg-red-400', 'bg-yellow-400', 'bg-blue-400', 'bg-gamboge-300'][newPassphraseStrength.value] ?? '');
+const newPassphraseStrengthBg    = computed(() => ['', 'bg-red-400', 'bg-gamboge-500', 'bg-gamboge-400', 'bg-gamboge-300'][newPassphraseStrength.value] ?? '');
 const generateNewPassphrase = () => { newPassphrase.value = enc.generatePasssphrase(); };
 
 const lockLocker = () => {
@@ -365,7 +365,7 @@ const changePassphrase = async () => {
         return;
     }
 
-    passphraseChangeState.value = 're-encrypting';
+    passphraseChangeState.value = 'encrypting';
     passphraseChangeProgress.value = 0;
 
     try {

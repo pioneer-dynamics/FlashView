@@ -49,9 +49,9 @@ const passphraseStrength = computed(() => {
 });
 
 const strengthLabel = computed(() => ['', 'Weak', 'Fair', 'Good', 'Strong'][passphraseStrength.value] ?? '');
-const strengthColor = computed(() => ['', 'text-red-400', 'text-yellow-400', 'text-blue-400', 'text-gamboge-300'][passphraseStrength.value] ?? '');
+const strengthColor = computed(() => ['', 'text-red-400', 'text-gamboge-500', 'text-gamboge-400', 'text-gamboge-300'][passphraseStrength.value] ?? '');
 const strengthWidth = computed(() => ['w-0', 'w-1/4', 'w-2/4', 'w-3/4', 'w-full'][passphraseStrength.value] ?? 'w-0');
-const strengthBg    = computed(() => ['', 'bg-red-400', 'bg-yellow-400', 'bg-blue-400', 'bg-gamboge-300'][passphraseStrength.value] ?? '');
+const strengthBg    = computed(() => ['', 'bg-red-400', 'bg-gamboge-500', 'bg-gamboge-400', 'bg-gamboge-300'][passphraseStrength.value] ?? '');
 
 const generatePassphrase = () => { passphrase.value = enc.generatePasssphrase(); };
 const onFileChange = (e) => { selectedFile.value = e.target.files[0] ?? null; };
