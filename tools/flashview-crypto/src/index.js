@@ -492,34 +492,150 @@ export async function encryptToBlob(content, passphrase) {
 }
 
 /**
- * Encrypt a binary buffer (file) to a self-contained hex blob for eLocker storage.
+ * Encrypt a binary buffer (file) to a self-contained binary Uint8Array for eLocker S3 storage.
  *
- * Blob layout: version(2) + type(2) + salt(64) + iv(24) + AES-GCM ciphertext
+ * v1 format (passphrase path): [0x01][0x46][32 salt][12 IV][AES-GCM ciphertext]
+ * v2 format (DEK path):        [0x02][0x46][12 IV][AES-GCM ciphertext]
  *
- * @param {ArrayBuffer} buffer
- * @param {string} passphrase
- * @returns {Promise<string>} hex blob
+ * @param {ArrayBuffer|Uint8Array} buffer
+ * @param {{ passphrase?: string, dek?: Uint8Array }} options
+ * @returns {Promise<Uint8Array>}
  */
-export async function encryptFileToBlob(buffer, passphrase) {
-    const salt = globalThis.crypto.getRandomValues(new Uint8Array(LOCKER_SALT_LENGTH));
+export async function encryptFileToBuffer(buffer, { passphrase, dek } = {}) {
     const iv = globalThis.crypto.getRandomValues(new Uint8Array(IV_LENGTH));
+
+    if (dek) {
+        const aesKey = await globalThis.crypto.subtle.importKey('raw', dek, { name: 'AES-GCM' }, false, ['encrypt']);
+        const ciphertext = await globalThis.crypto.subtle.encrypt({ name: 'AES-GCM', iv }, aesKey, buffer);
+        const result = new Uint8Array(2 + IV_LENGTH + ciphertext.byteLength);
+        result[0] = 0x02;
+        result[1] = 0x46;
+        result.set(iv, 2);
+        result.set(new Uint8Array(ciphertext), 2 + IV_LENGTH);
+        return result;
+    }
+
+    const salt = globalThis.crypto.getRandomValues(new Uint8Array(LOCKER_SALT_LENGTH));
     const key = await deriveLockerEncKey(passphrase, salt);
-    const ciphertext = await globalThis.crypto.subtle.encrypt(
-        { name: 'AES-GCM', iv },
-        key,
-        buffer
-    );
-    return LOCKER_BLOB_VERSION
-        + LOCKER_TYPE_FILE
-        + bufferToHex(salt)
-        + bufferToHex(iv)
-        + bufferToHex(new Uint8Array(ciphertext));
+    const ciphertext = await globalThis.crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, buffer);
+    const result = new Uint8Array(2 + LOCKER_SALT_LENGTH + IV_LENGTH + ciphertext.byteLength);
+    result[0] = 0x01;
+    result[1] = 0x46;
+    result.set(salt, 2);
+    result.set(iv, 2 + LOCKER_SALT_LENGTH);
+    result.set(new Uint8Array(ciphertext), 2 + LOCKER_SALT_LENGTH + IV_LENGTH);
+    return result;
+}
+
+/**
+ * Decrypt a binary eLocker file blob from S3. Detects v1 (passphrase/PBKDF2) or v2 (raw DEK).
+ *
+ * @param {Uint8Array} buffer
+ * @param {{ passphrase?: string, dek?: Uint8Array }} options
+ * @returns {Promise<Uint8Array>} plaintext bytes
+ * @throws {LockerBlobVersionError} on unknown version/type byte
+ * @throws {LockerDecryptionError} on AES-GCM authentication failure
+ */
+export async function decryptFileFromBuffer(buffer, { passphrase, dek } = {}) {
+    const versionByte = buffer[0];
+    const typeByte = buffer[1];
+
+    if (typeByte !== 0x46) {
+        throw new LockerBlobVersionError(`Unsupported blob type: 0x${typeByte.toString(16)}`);
+    }
+
+    if (versionByte === 0x01) {
+        const salt = buffer.slice(2, 2 + LOCKER_SALT_LENGTH);
+        const iv = buffer.slice(2 + LOCKER_SALT_LENGTH, 2 + LOCKER_SALT_LENGTH + IV_LENGTH);
+        const ciphertext = buffer.slice(2 + LOCKER_SALT_LENGTH + IV_LENGTH);
+        const key = await deriveLockerEncKey(passphrase, salt);
+        const decrypted = await globalThis.crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ciphertext)
+            .catch(() => { throw new LockerDecryptionError('Decryption failed — incorrect passphrase or corrupted data'); });
+        return new Uint8Array(decrypted);
+    }
+
+    if (versionByte === 0x02) {
+        const iv = buffer.slice(2, 2 + IV_LENGTH);
+        const ciphertext = buffer.slice(2 + IV_LENGTH);
+        const aesKey = await globalThis.crypto.subtle.importKey('raw', dek, { name: 'AES-GCM' }, false, ['decrypt']);
+        const decrypted = await globalThis.crypto.subtle.decrypt({ name: 'AES-GCM', iv }, aesKey, ciphertext)
+            .catch(() => { throw new LockerDecryptionError('Decryption failed — incorrect DEK or corrupted data'); });
+        return new Uint8Array(decrypted);
+    }
+
+    throw new LockerBlobVersionError(`Unsupported blob version: 0x${versionByte.toString(16)}`);
+}
+
+/**
+ * Generate a random 256-bit Data Encryption Key (DEK) for envelope encryption.
+ *
+ * @returns {Uint8Array} 32 random bytes
+ */
+export function generateFileKey() {
+    const dek = new Uint8Array(32);
+    globalThis.crypto.getRandomValues(dek);
+    return dek;
+}
+
+/**
+ * Wrap a DEK with a passphrase-derived Key Encryption Key (KEK).
+ *
+ * Output: base64(randomSalt[32] + IV[12] + AES-GCM(dek)[48]) ≈ 124 base64 chars
+ * KEK = PBKDF2-SHA-512(passphrase, randomSalt‖accountId, 100_000)
+ *
+ * @param {Uint8Array} dek
+ * @param {string} passphrase
+ * @param {string} accountId
+ * @returns {Promise<string>} base64-encoded wrapped key
+ */
+export async function wrapFileKey(dek, passphrase, accountId) {
+    const randomSalt = globalThis.crypto.getRandomValues(new Uint8Array(LOCKER_SALT_LENGTH));
+    const accountIdBytes = new TextEncoder().encode(accountId);
+    const pbkdf2Salt = new Uint8Array(LOCKER_SALT_LENGTH + accountIdBytes.length);
+    pbkdf2Salt.set(randomSalt, 0);
+    pbkdf2Salt.set(accountIdBytes, LOCKER_SALT_LENGTH);
+
+    const iv = globalThis.crypto.getRandomValues(new Uint8Array(IV_LENGTH));
+    const kek = await deriveLockerEncKey(passphrase, pbkdf2Salt);
+    const wrappedDek = await globalThis.crypto.subtle.encrypt({ name: 'AES-GCM', iv }, kek, dek);
+
+    const blob = new Uint8Array(LOCKER_SALT_LENGTH + IV_LENGTH + wrappedDek.byteLength);
+    blob.set(randomSalt, 0);
+    blob.set(iv, LOCKER_SALT_LENGTH);
+    blob.set(new Uint8Array(wrappedDek), LOCKER_SALT_LENGTH + IV_LENGTH);
+    return uint8ArrayToBase64(blob);
+}
+
+/**
+ * Unwrap a DEK using a passphrase-derived KEK (inverse of wrapFileKey).
+ *
+ * @param {string} wrappedKeyBase64
+ * @param {string} passphrase
+ * @param {string} accountId
+ * @returns {Promise<Uint8Array>} 32-byte DEK
+ * @throws {LockerDecryptionError} on wrong passphrase or corrupted data
+ */
+export async function unwrapFileKey(wrappedKeyBase64, passphrase, accountId) {
+    const blob = base64ToUint8Array(wrappedKeyBase64);
+    const randomSalt = blob.slice(0, LOCKER_SALT_LENGTH);
+    const iv = blob.slice(LOCKER_SALT_LENGTH, LOCKER_SALT_LENGTH + IV_LENGTH);
+    const wrappedDek = blob.slice(LOCKER_SALT_LENGTH + IV_LENGTH);
+
+    const accountIdBytes = new TextEncoder().encode(accountId);
+    const pbkdf2Salt = new Uint8Array(LOCKER_SALT_LENGTH + accountIdBytes.length);
+    pbkdf2Salt.set(randomSalt, 0);
+    pbkdf2Salt.set(accountIdBytes, LOCKER_SALT_LENGTH);
+
+    const kek = await deriveLockerEncKey(passphrase, pbkdf2Salt);
+    const dek = await globalThis.crypto.subtle.decrypt({ name: 'AES-GCM', iv }, kek, wrappedDek)
+        .catch(() => { throw new LockerDecryptionError('Decryption failed — incorrect passphrase or corrupted data'); });
+    return new Uint8Array(dek);
 }
 
 /**
  * Decrypt an eLocker hex blob back to its original content.
  *
- * @param {string} blob - hex blob produced by encryptToBlob or encryptFileToBlob
+ * @param {string} blob - hex blob produced by encryptToBlob
  * @param {string} passphrase
  * @returns {Promise<{ type: 'text'|'file', data: ArrayBuffer }>}
  * @throws {LockerBlobVersionError} on unknown version or type byte

@@ -1,6 +1,11 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { encryptMessage, decryptMessage, generatePassphrase, encryptBuffer, decryptBuffer } from '../src/index.js';
+import {
+    encryptMessage, decryptMessage, generatePassphrase,
+    encryptBuffer, decryptBuffer,
+    encryptFileToBuffer, decryptFileFromBuffer,
+    generateFileKey, wrapFileKey, unwrapFileKey,
+} from '../src/index.js';
 
 // Known vectors generated from the pre-migration CLI implementation (tools/flashview-cli/src/crypto.js)
 // using Node.js `node:crypto` (pbkdf2Sync + createCipheriv AES-256-GCM).
@@ -165,6 +170,20 @@ describe('known-vector compatibility (backward compatibility with pre-migration 
     });
 });
 
+// PIO-102 regression: encryptFileToBuffer must not throw RangeError: Invalid array length for large files.
+// Before fix: encryptFileToBlob used Array.from().map().join('') which crashes for ~400 MB files.
+// After fix: encryptFileToBuffer returns Uint8Array directly, no intermediate hex string.
+describe('encryptFileToBuffer large file regression (PIO-102)', () => {
+    it('handles a 50 MB buffer without throwing RangeError: Invalid array length', async () => {
+        const bigBuffer = new Uint8Array(50 * 1024 * 1024);
+        bigBuffer.fill(0xAB);
+        const dek = generateFileKey();
+        const result = await encryptFileToBuffer(bigBuffer, { dek });
+        assert.ok(result instanceof Uint8Array, 'Result must be a Uint8Array');
+        assert.ok(result.length > bigBuffer.length, 'Encrypted result must be larger than plaintext');
+    });
+});
+
 describe('ciphertext format compatibility (MessageLength validation)', () => {
     it('matches expected overhead for MessageLength validation', async () => {
         // The MessageLength rule subtracts 28 bytes (12 IV + 16 auth tag) from the
@@ -271,5 +290,151 @@ describe('decryptBuffer', () => {
             () => decryptBuffer(corrupted, passphrase),
             'Should reject with corrupted ciphertext'
         );
+    });
+});
+
+// ─── eLocker File Crypto (envelope encryption) ───────────────────────────────
+
+describe('generateFileKey', () => {
+    it('returns a 32-byte Uint8Array', () => {
+        const dek = generateFileKey();
+        assert.ok(dek instanceof Uint8Array, 'Should return Uint8Array');
+        assert.equal(dek.length, 32);
+    });
+
+    it('generates unique keys each call', () => {
+        const a = generateFileKey();
+        const b = generateFileKey();
+        assert.notDeepEqual(a, b, 'Two generated keys should differ');
+    });
+});
+
+describe('encryptFileToBuffer + decryptFileFromBuffer (v2 DEK path)', () => {
+    it('round-trips arbitrary binary data with DEK', async () => {
+        const original = new Uint8Array([0, 1, 127, 128, 255, 42]);
+        const dek = generateFileKey();
+        const encrypted = await encryptFileToBuffer(original, { dek });
+        const decrypted = await decryptFileFromBuffer(encrypted, { dek });
+        assert.deepEqual(decrypted, original);
+    });
+
+    it('produces v2 version byte (0x02) and file type byte (0x46)', async () => {
+        const dek = generateFileKey();
+        const encrypted = await encryptFileToBuffer(new Uint8Array(8), { dek });
+        assert.equal(encrypted[0], 0x02, 'Version byte must be 0x02');
+        assert.equal(encrypted[1], 0x46, 'Type byte must be 0x46 (F)');
+    });
+
+    it('v2 blob is 2 + 12 (IV) + plaintext + 16 (tag) bytes', async () => {
+        const plaintext = new Uint8Array(100);
+        const dek = generateFileKey();
+        const encrypted = await encryptFileToBuffer(plaintext, { dek });
+        assert.equal(encrypted.length, 2 + 12 + 100 + 16);
+    });
+
+    it('round-trips empty buffer with DEK', async () => {
+        const dek = generateFileKey();
+        const encrypted = await encryptFileToBuffer(new Uint8Array(0), { dek });
+        const decrypted = await decryptFileFromBuffer(encrypted, { dek });
+        assert.deepEqual(decrypted, new Uint8Array(0));
+    });
+
+    it('fails decryption with wrong DEK', async () => {
+        const dek = generateFileKey();
+        const wrongDek = generateFileKey();
+        const encrypted = await encryptFileToBuffer(new Uint8Array([1, 2, 3]), { dek });
+        await assert.rejects(
+            () => decryptFileFromBuffer(encrypted, { dek: wrongDek }),
+            'Should reject with wrong DEK'
+        );
+    });
+});
+
+describe('encryptFileToBuffer + decryptFileFromBuffer (v1 passphrase path)', () => {
+    it('round-trips arbitrary binary data with passphrase', async () => {
+        const original = new Uint8Array([10, 20, 30, 40, 50]);
+        const passphrase = 'test-locker-passphrase';
+        const encrypted = await encryptFileToBuffer(original, { passphrase });
+        const decrypted = await decryptFileFromBuffer(encrypted, { passphrase });
+        assert.deepEqual(decrypted, original);
+    });
+
+    it('produces v1 version byte (0x01) and file type byte (0x46)', async () => {
+        const encrypted = await encryptFileToBuffer(new Uint8Array(8), { passphrase: 'p' });
+        assert.equal(encrypted[0], 0x01, 'Version byte must be 0x01');
+        assert.equal(encrypted[1], 0x46, 'Type byte must be 0x46 (F)');
+    });
+
+    it('v1 blob is 2 + 32 (salt) + 12 (IV) + plaintext + 16 (tag) bytes', async () => {
+        const plaintext = new Uint8Array(100);
+        const encrypted = await encryptFileToBuffer(plaintext, { passphrase: 'p' });
+        assert.equal(encrypted.length, 2 + 32 + 12 + 100 + 16);
+    });
+
+    it('fails decryption with wrong passphrase', async () => {
+        const encrypted = await encryptFileToBuffer(new Uint8Array([1, 2]), { passphrase: 'correct' });
+        await assert.rejects(
+            () => decryptFileFromBuffer(encrypted, { passphrase: 'wrong' }),
+            'Should reject with wrong passphrase'
+        );
+    });
+});
+
+describe('wrapFileKey + unwrapFileKey', () => {
+    it('round-trips a DEK through wrap/unwrap', async () => {
+        const dek = generateFileKey();
+        const passphrase = 'my-locker-passphrase';
+        const accountId = '1234567890';
+        const wrapped = await wrapFileKey(dek, passphrase, accountId);
+        const unwrapped = await unwrapFileKey(wrapped, passphrase, accountId);
+        assert.deepEqual(unwrapped, dek);
+    });
+
+    it('wrapFileKey returns a non-empty base64 string', async () => {
+        const dek = generateFileKey();
+        const wrapped = await wrapFileKey(dek, 'pass', 'account1');
+        assert.equal(typeof wrapped, 'string');
+        assert.ok(wrapped.length > 0, 'Should return a non-empty base64 string');
+    });
+
+    it('produces different output each call (random salt)', async () => {
+        const dek = generateFileKey();
+        const a = await wrapFileKey(dek, 'pass', 'account1');
+        const b = await wrapFileKey(dek, 'pass', 'account1');
+        assert.notEqual(a, b, 'Random salt should produce different wrapped keys');
+    });
+
+    it('fails to unwrap with wrong passphrase', async () => {
+        const dek = generateFileKey();
+        const wrapped = await wrapFileKey(dek, 'correct-pass', 'account1');
+        await assert.rejects(
+            () => unwrapFileKey(wrapped, 'wrong-pass', 'account1'),
+            'Should reject with wrong passphrase'
+        );
+    });
+
+    it('fails to unwrap with wrong accountId', async () => {
+        const dek = generateFileKey();
+        const wrapped = await wrapFileKey(dek, 'pass', 'correct-account');
+        await assert.rejects(
+            () => unwrapFileKey(wrapped, 'pass', 'wrong-account'),
+            'Should reject with wrong accountId'
+        );
+    });
+});
+
+describe('encryptFileToBuffer + decryptFileFromBuffer backward compat', () => {
+    it('v2 encrypted can be decrypted after re-wrapping DEK with new passphrase', async () => {
+        const original = new Uint8Array([1, 2, 3, 4, 5]);
+        const dek = generateFileKey();
+        const encrypted = await encryptFileToBuffer(original, { dek });
+
+        const oldWrapped = await wrapFileKey(dek, 'old-passphrase', 'acct1');
+        const unwrappedDek = await unwrapFileKey(oldWrapped, 'old-passphrase', 'acct1');
+        const newWrapped = await wrapFileKey(unwrappedDek, 'new-passphrase', 'acct1');
+        const finalDek = await unwrapFileKey(newWrapped, 'new-passphrase', 'acct1');
+
+        const decrypted = await decryptFileFromBuffer(encrypted, { dek: finalDek });
+        assert.deepEqual(decrypted, original, 'File must decrypt correctly after DEK re-wrap');
     });
 });
