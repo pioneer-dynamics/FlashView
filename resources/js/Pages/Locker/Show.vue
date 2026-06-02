@@ -13,9 +13,10 @@ const props = defineProps({
 const enc = new encryption();
 
 // Populated after successful unlock — not passed from server initially (prevents enumeration)
-const isFileLocker  = ref(false);
-const expiresAt     = ref(null); // ISO string or null
-const authChallenge = ref('');
+const isFileLocker   = ref(false);
+const expiresAt      = ref(null); // ISO string or null
+const authChallenge  = ref('');
+const wrappedFileKey = ref('');  // base64 KEK-wrapped DEK; empty for legacy lockers
 
 // Unlock state
 const passphrase        = ref('');
@@ -76,6 +77,7 @@ const lockLocker = () => {
     decryptedFileMeta.value   = null;
     downloadUrl.value         = '';
     authChallenge.value       = '';
+    wrappedFileKey.value      = '';
     decryptError.value        = '';
     updateError.value         = '';
     updateSuccess.value       = false;
@@ -162,9 +164,10 @@ const unlock = async () => {
         }
 
         // Success — populate state from unlock response (server uses snake_case JSON)
-        isFileLocker.value  = data.is_file_locker ?? false;
-        expiresAt.value     = data.expires_at ?? null;
-        authChallenge.value = data.auth_challenge ?? '';
+        isFileLocker.value   = data.is_file_locker ?? false;
+        expiresAt.value      = data.expires_at ?? null;
+        authChallenge.value  = data.auth_challenge ?? '';
+        wrappedFileKey.value = data.wrapped_file_key ?? '';
 
         const result = await enc.decryptLockerContent(data.payload, passphrase.value);
 
@@ -217,14 +220,19 @@ const downloadFile = async () => {
             xhr.send();
         });
 
-        // Convert binary back to hex blob for decryptFromBlob
-        const hexBlob = Array.from(encryptedBytes).map(b => b.toString(16).padStart(2, '0')).join('');
-        const result  = await enc.decryptLockerContent(hexBlob, passphrase.value);
+        // Decrypt — v2 lockers use DEK from wrapped_file_key; v1 legacy use passphrase in blob
+        let decryptedBuffer;
+        if (wrappedFileKey.value) {
+            const dek = await enc.unwrapLockerFileKey(wrappedFileKey.value, passphrase.value, props.account_id);
+            decryptedBuffer = await enc.decryptLockerFileFromBuffer(encryptedBytes, { dek });
+        } else {
+            decryptedBuffer = await enc.decryptLockerFileFromBuffer(encryptedBytes, { passphrase: passphrase.value });
+        }
 
         // Trigger browser download
         const name = decryptedFileMeta.value?.name ?? 'locker-file';
         const type = decryptedFileMeta.value?.type ?? 'application/octet-stream';
-        const blob = new Blob([result.data], { type });
+        const blob = new Blob([decryptedBuffer], { type });
         const url  = URL.createObjectURL(blob);
         const a    = document.createElement('a');
         a.href = url; a.download = name; a.click();
@@ -283,11 +291,11 @@ const submitFileUpdate = async () => {
         const meta    = JSON.stringify({ name: replacementFile.value.name, type: replacementFile.value.type, size: replacementFile.value.size });
         const payload = await enc.encryptLockerContent(meta, passphrase.value);
 
-        const encryptedBlob = await enc.encryptLockerFile(replacementFile.value, passphrase.value);
-        const bytes = new Uint8Array(encryptedBlob.length / 2);
-        for (let i = 0; i < encryptedBlob.length; i += 2) {
-            bytes[i / 2] = parseInt(encryptedBlob.slice(i, i + 2), 16);
-        }
+        // Generate fresh DEK for the replacement file and encrypt directly to Uint8Array
+        const newDek = enc.generateLockerFileKey();
+        const newWrappedFileKey = await enc.wrapLockerFileKey(newDek, passphrase.value, props.account_id);
+        const fileBuffer = await replacementFile.value.arrayBuffer();
+        const bytes = await enc.encryptLockerFileToBuffer(fileBuffer, { dek: newDek });
 
         // Get presigned upload URL
         const prepRes = await fetch(route('lockers.file.prepare'), {
@@ -317,7 +325,10 @@ const submitFileUpdate = async () => {
 
         const updateToken = await enc.deriveLockerUpdateToken(passphrase.value, props.account_id);
         const body = { payload };
-        if (storagePath) body.storage_path = storagePath;
+        if (storagePath) {
+            body.storage_path = storagePath;
+            body.new_wrapped_file_key = newWrappedFileKey;
+        }
 
         const res = await fetch(route('lockers.update', props.account_id), {
             method: 'PUT',
@@ -329,6 +340,7 @@ const submitFileUpdate = async () => {
         if (!res.ok) { updateError.value = data.error ?? 'Update failed.'; return; }
 
         updateSuccess.value  = true;
+        wrappedFileKey.value = newWrappedFileKey;
         decryptedFileMeta.value = JSON.parse(meta);
         replacementFile.value  = null;
         downloadUrl.value = '';  // URL is now stale; re-unlock to get fresh URL
@@ -363,14 +375,39 @@ const changePassphrase = async () => {
         const oldUpdateToken  = await enc.deriveLockerUpdateToken(passphrase.value, props.account_id);
 
         let newPayload;
-        let newStoragePath = null;
+        const putBody = {
+            new_auth_verifier: newVerifier,
+            new_update_token: newUpdateToken,
+        };
 
-        if (isFileLocker.value) {
-            // Re-encrypt metadata payload
+        if (isFileLocker.value && wrappedFileKey.value) {
+            // New locker (v2): re-wrap DEK with new passphrase — no file download required
+            const meta = JSON.stringify(decryptedFileMeta.value);
+            newPayload = await enc.encryptLockerContent(meta, newPassphrase.value);
+            const dek = await enc.unwrapLockerFileKey(wrappedFileKey.value, passphrase.value, props.account_id);
+            const newWrappedKey = await enc.wrapLockerFileKey(dek, newPassphrase.value, props.account_id);
+            putBody.new_wrapped_file_key = newWrappedKey;
+            putBody.payload = newPayload;
+
+            const res = await fetch(route('lockers.update', props.account_id), {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-Update-Token': oldUpdateToken, 'X-XSRF-TOKEN': getXsrf() },
+                body: JSON.stringify(putBody),
+            });
+
+            const data = await res.json();
+            if (!res.ok) { passphraseChangeError.value = data.error ?? 'Failed to change passphrase.'; return; }
+
+            passphrase.value     = newPassphrase.value;
+            wrappedFileKey.value = newWrappedKey;
+            newPassphrase.value           = '';
+            passphraseChangeSuccess.value = true;
+
+        } else if (isFileLocker.value) {
+            // Legacy locker (v1): download, decrypt, re-encrypt with new passphrase
             const meta = JSON.stringify(decryptedFileMeta.value);
             newPayload = await enc.encryptLockerContent(meta, newPassphrase.value);
 
-            // Fetch encrypted file, decrypt with old passphrase, re-encrypt with new
             const encryptedBytes = await new Promise((resolve, reject) => {
                 const xhr = new XMLHttpRequest();
                 xhr.open('GET', downloadUrl.value);
@@ -383,15 +420,8 @@ const changePassphrase = async () => {
                 xhr.send();
             });
 
-            const hexBlob = Array.from(encryptedBytes).map(b => b.toString(16).padStart(2, '0')).join('');
-            const { data: fileBuffer } = await enc.decryptLockerContent(hexBlob, passphrase.value);
-            const file = new File([fileBuffer], decryptedFileMeta.value?.name ?? 'file', { type: decryptedFileMeta.value?.type ?? 'application/octet-stream' });
-            const reEncryptedHex = await enc.encryptLockerFile(file, newPassphrase.value);
-
-            const bytes = new Uint8Array(reEncryptedHex.length / 2);
-            for (let i = 0; i < reEncryptedHex.length; i += 2) {
-                bytes[i / 2] = parseInt(reEncryptedHex.slice(i, i + 2), 16);
-            }
+            const fileData = await enc.decryptLockerFileFromBuffer(encryptedBytes, { passphrase: passphrase.value });
+            const reEncryptedBytes = await enc.encryptLockerFileToBuffer(fileData, { passphrase: newPassphrase.value });
 
             const prepRes = await fetch(route('lockers.file.prepare'), {
                 method: 'POST',
@@ -399,8 +429,7 @@ const changePassphrase = async () => {
                 body: JSON.stringify({}),
             });
             if (!prepRes.ok) throw new Error('Could not prepare file upload.');
-            const { upload_url, upload_headers, storage_path } = await prepRes.json();
-            newStoragePath = storage_path;
+            const { upload_url, upload_headers, storage_path: newStoragePath } = await prepRes.json();
 
             passphraseChangeState.value = 'uploading';
             await new Promise((resolve, reject) => {
@@ -412,30 +441,43 @@ const changePassphrase = async () => {
                 };
                 xhr.onload  = () => (xhr.status >= 200 && xhr.status < 300) ? resolve() : reject(new Error('Upload failed.'));
                 xhr.onerror = () => reject(new Error('Upload failed.'));
-                xhr.send(new Blob([bytes], { type: 'application/octet-stream' }));
+                xhr.send(new Blob([reEncryptedBytes], { type: 'application/octet-stream' }));
             });
+
+            putBody.payload = newPayload;
+            putBody.storage_path = newStoragePath;
+
+            const res = await fetch(route('lockers.update', props.account_id), {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-Update-Token': oldUpdateToken, 'X-XSRF-TOKEN': getXsrf() },
+                body: JSON.stringify(putBody),
+            });
+
+            const data = await res.json();
+            if (!res.ok) { passphraseChangeError.value = data.error ?? 'Failed to change passphrase.'; return; }
+
+            passphrase.value = newPassphrase.value;
+            downloadUrl.value = '';
+            newPassphrase.value           = '';
+            passphraseChangeSuccess.value = true;
+
         } else {
             newPayload = await enc.encryptLockerContent(decryptedText.value, newPassphrase.value);
+            putBody.payload = newPayload;
+
+            const res = await fetch(route('lockers.update', props.account_id), {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-Update-Token': oldUpdateToken, 'X-XSRF-TOKEN': getXsrf() },
+                body: JSON.stringify(putBody),
+            });
+
+            const data = await res.json();
+            if (!res.ok) { passphraseChangeError.value = data.error ?? 'Failed to change passphrase.'; return; }
+
+            passphrase.value = newPassphrase.value;
+            newPassphrase.value           = '';
+            passphraseChangeSuccess.value = true;
         }
-
-        const res = await fetch(route('lockers.update', props.account_id), {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-Update-Token': oldUpdateToken, 'X-XSRF-TOKEN': getXsrf() },
-            body: JSON.stringify({
-                payload: newPayload,
-                storage_path: newStoragePath,
-                new_auth_verifier: newVerifier,
-                new_update_token: newUpdateToken,
-            }),
-        });
-
-        const data = await res.json();
-        if (!res.ok) { passphraseChangeError.value = data.error ?? 'Failed to change passphrase.'; return; }
-
-        passphrase.value = newPassphrase.value;
-        if (newStoragePath) downloadUrl.value = '';
-        newPassphrase.value           = '';
-        passphraseChangeSuccess.value = true;
 
     } catch (err) {
         passphraseChangeError.value = err.message || 'Failed to change passphrase. Please try again.';

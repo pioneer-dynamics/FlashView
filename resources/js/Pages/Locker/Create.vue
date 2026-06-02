@@ -111,6 +111,8 @@ const submit = async () => {
         let payload;
         let storagePath = null;
 
+        let wrappedFileKey = null;
+
         if (isFileTier.value) {
             // Encrypt file metadata into the payload field
             const meta = JSON.stringify({
@@ -120,16 +122,11 @@ const submit = async () => {
             });
             payload = await enc.encryptLockerContent(meta, passphrase.value);
 
-            // Encrypt the file contents
-            const fileBuffer    = await selectedFile.value.arrayBuffer();
-            const encryptedBlob = await enc.encryptLockerFile(selectedFile.value, passphrase.value);
-
-            // Convert hex blob to binary for efficient S3 storage
-            const hexStr = encryptedBlob;
-            const bytes  = new Uint8Array(hexStr.length / 2);
-            for (let i = 0; i < hexStr.length; i += 2) {
-                bytes[i / 2] = parseInt(hexStr.slice(i, i + 2), 16);
-            }
+            // Generate DEK, wrap it with passphrase, encrypt file with DEK
+            const dek = enc.generateLockerFileKey();
+            wrappedFileKey = await enc.wrapLockerFileKey(dek, passphrase.value, accountId.value);
+            const fileBuffer = await selectedFile.value.arrayBuffer();
+            const encryptedBytes = await enc.encryptLockerFileToBuffer(fileBuffer, { dek });
 
             // Get presigned upload URL
             const prepRes = await fetch(route('lockers.file.prepare'), {
@@ -147,7 +144,7 @@ const submit = async () => {
             const { upload_url, upload_headers, storage_path } = await prepRes.json();
             storagePath = storage_path;
 
-            // Upload encrypted binary via XHR for progress tracking
+            // Upload encrypted binary via XHR for progress tracking (encryptedBytes is already Uint8Array)
             step.value = 'uploading';
             await new Promise((resolve, reject) => {
                 const xhr = new XMLHttpRequest();
@@ -162,7 +159,7 @@ const submit = async () => {
                 };
                 xhr.onload  = () => (xhr.status >= 200 && xhr.status < 300) ? resolve() : reject(new Error('Upload failed.'));
                 xhr.onerror = () => reject(new Error('Upload failed.'));
-                xhr.send(new Blob([bytes], { type: 'application/octet-stream' }));
+                xhr.send(new Blob([encryptedBytes], { type: 'application/octet-stream' }));
             });
         } else {
             payload = await enc.encryptLockerContent(content.value, passphrase.value);
@@ -176,14 +173,15 @@ const submit = async () => {
                 'X-XSRF-TOKEN': xsrfToken(),
             },
             body: JSON.stringify({
-                account_id:    accountId.value,
-                credit_token:  props.credit_token,
+                account_id:       accountId.value,
+                credit_token:     props.credit_token,
                 payload,
-                auth_challenge: challengeHex,
-                auth_verifier: verifier,
-                update_token:  updateToken,
-                tier:          props.tier,
-                storage_path:  storagePath,
+                auth_challenge:   challengeHex,
+                auth_verifier:    verifier,
+                update_token:     updateToken,
+                tier:             props.tier,
+                storage_path:     storagePath,
+                wrapped_file_key: wrappedFileKey,
             }),
         });
 
