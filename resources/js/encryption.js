@@ -1,4 +1,11 @@
-import { encryptMessage as sharedEncrypt, decryptMessage as sharedDecrypt, generatePassphrase, encryptBuffer, decryptBuffer, encryptToBlob, decryptFromBlob, encryptFileToBlob, deriveAuthKey, computeVerifier, generateChallenge, deriveUpdateToken } from '@pioneer-dynamics/flashview-crypto';
+import {
+    encryptMessage as sharedEncrypt, decryptMessage as sharedDecrypt,
+    generatePassphrase, encryptBuffer, decryptBuffer,
+    encryptToBlob, decryptFromBlob,
+    encryptFileToBuffer, decryptFileFromBuffer,
+    generateFileKey, wrapFileKey, unwrapFileKey,
+    deriveAuthKey, computeVerifier, generateChallenge, deriveUpdateToken,
+} from '@pioneer-dynamics/flashview-crypto';
 export { LockerBlobVersionError, LockerDecryptionError } from '@pioneer-dynamics/flashview-crypto';
 
 export class encryption {
@@ -73,9 +80,24 @@ export class encryption {
         return decryptFromBlob(blob, passphrase);
     }
 
-    async encryptLockerFile(file, passphrase) {
-        const buffer = await file.arrayBuffer();
-        return encryptFileToBlob(buffer, passphrase);
+    async encryptLockerFileToBuffer(buffer, options) {
+        return encryptFileToBuffer(buffer, options);
+    }
+
+    async decryptLockerFileFromBuffer(buffer, options) {
+        return decryptFileFromBuffer(buffer, options);
+    }
+
+    generateLockerFileKey() {
+        return generateFileKey();
+    }
+
+    async wrapLockerFileKey(dek, passphrase, accountId) {
+        return wrapFileKey(dek, passphrase, accountId);
+    }
+
+    async unwrapLockerFileKey(wrappedKey, passphrase, accountId) {
+        return unwrapFileKey(wrappedKey, passphrase, accountId);
     }
 
     async deriveLockerAuthKey(passphrase, accountId) {

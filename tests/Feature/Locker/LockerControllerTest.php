@@ -400,4 +400,194 @@ class LockerControllerTest extends TestCase
 
         $response->assertStatus(404);
     }
+
+    public function test_store_saves_wrapped_file_key_when_provided(): void
+    {
+        Storage::fake();
+        $credit = LockerCredit::factory()->create(['token' => 'filetok', 'tier' => 'file', 'years' => 1]);
+
+        $response = $this->postJson(route('lockers.store'), [
+            'account_id' => '9876543210',
+            'credit_token' => 'filetok',
+            'payload' => str_repeat('a', 100),
+            'auth_challenge' => str_repeat('c', 64),
+            'auth_verifier' => str_repeat('a', 64),
+            'update_token' => str_repeat('b', 64),
+            'tier' => 'file',
+            'storage_path' => 'lockers/test.bin',
+            'wrapped_file_key' => 'base64wrappedkeydata',
+        ]);
+
+        $response->assertStatus(200);
+        $this->assertDatabaseHas('lockers', ['account_id' => '9876543210']);
+
+        $locker = Locker::where('account_id', '9876543210')->first();
+        $this->assertEquals('base64wrappedkeydata', $locker->wrapped_file_key);
+    }
+
+    public function test_store_does_not_require_wrapped_file_key_for_text_lockers(): void
+    {
+        $credit = LockerCredit::factory()->create(['token' => 'texttok', 'tier' => 'text', 'years' => 1]);
+
+        $response = $this->postJson(route('lockers.store'), [
+            'account_id' => '1111111111',
+            'credit_token' => 'texttok',
+            'payload' => str_repeat('a', 100),
+            'auth_challenge' => str_repeat('c', 64),
+            'auth_verifier' => str_repeat('a', 64),
+            'update_token' => str_repeat('b', 64),
+            'tier' => 'text',
+            'storage_path' => null,
+        ]);
+
+        $response->assertStatus(200);
+    }
+
+    public function test_unlock_returns_wrapped_file_key_for_new_file_lockers(): void
+    {
+        Storage::fake();
+        $storagePath = 'lockers/test.bin';
+        Storage::put($storagePath, 'encrypted-content');
+
+        Locker::factory()->create([
+            'account_id' => '2222222222',
+            'auth_verifier' => str_repeat('a', 64),
+            'storage_path' => $storagePath,
+            'wrapped_file_key' => 'myWrappedKey123',
+        ]);
+
+        $response = $this->postJson(route('lockers.unlock', '2222222222'), [
+            'verifier' => str_repeat('a', 64),
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJsonStructure(['wrapped_file_key']);
+
+        $this->assertEquals('myWrappedKey123', $response->json('wrapped_file_key'));
+    }
+
+    public function test_unlock_does_not_return_wrapped_file_key_for_legacy_file_lockers(): void
+    {
+        Storage::fake();
+        $storagePath = 'lockers/test.bin';
+        Storage::put($storagePath, 'encrypted-content');
+
+        Locker::factory()->create([
+            'account_id' => '3333333333',
+            'auth_verifier' => str_repeat('a', 64),
+            'storage_path' => $storagePath,
+            // No wrapped_file_key
+        ]);
+
+        $response = $this->postJson(route('lockers.unlock', '3333333333'), [
+            'verifier' => str_repeat('a', 64),
+        ]);
+
+        $response->assertStatus(200);
+        $this->assertNull($response->json('wrapped_file_key'));
+    }
+
+    public function test_update_accepts_new_wrapped_file_key_for_passphrase_change(): void
+    {
+        $token = bin2hex(random_bytes(32));
+        Locker::factory()->create([
+            'account_id' => '4444444444',
+            'payload' => 'original',
+            'wrapped_file_key' => 'oldWrappedKey',
+            'update_token_hash' => hash('sha256', $token),
+        ]);
+
+        $response = $this->putJson(
+            route('lockers.update', '4444444444'),
+            [
+                'payload' => str_repeat('b', 100),
+                'new_wrapped_file_key' => 'newWrappedKey',
+            ],
+            ['X-Update-Token' => $token]
+        );
+
+        $response->assertStatus(200)->assertJson(['ok' => true]);
+
+        $locker = Locker::where('account_id', '4444444444')->first();
+        $this->assertEquals('newWrappedKey', $locker->wrapped_file_key);
+    }
+
+    public function test_update_does_not_require_new_wrapped_file_key(): void
+    {
+        $token = bin2hex(random_bytes(32));
+        Locker::factory()->create([
+            'account_id' => '5555555555',
+            'payload' => 'original',
+            'update_token_hash' => hash('sha256', $token),
+        ]);
+
+        $response = $this->putJson(
+            route('lockers.update', '5555555555'),
+            ['payload' => str_repeat('b', 100)],
+            ['X-Update-Token' => $token]
+        );
+
+        $response->assertStatus(200)->assertJson(['ok' => true]);
+    }
+
+    public function test_update_without_storage_path_does_not_null_out_existing_storage_path(): void
+    {
+        $token = bin2hex(random_bytes(32));
+        Locker::factory()->create([
+            'account_id' => '6666666666',
+            'payload' => 'original',
+            'storage_path' => 'lockers/important-file.bin',
+            'update_token_hash' => hash('sha256', $token),
+        ]);
+
+        // Passphrase-change PUT omits storage_path intentionally
+        $response = $this->putJson(
+            route('lockers.update', '6666666666'),
+            [
+                'payload' => str_repeat('b', 100),
+                'new_wrapped_file_key' => 'newKey',
+            ],
+            ['X-Update-Token' => $token]
+        );
+
+        $response->assertStatus(200);
+
+        $locker = Locker::where('account_id', '6666666666')->first();
+        $this->assertEquals('lockers/important-file.bin', $locker->storage_path, 'storage_path must not be nulled out when omitted from PUT body');
+    }
+
+    public function test_file_update_sends_updated_wrapped_file_key(): void
+    {
+        Storage::fake();
+        $storagePath = 'lockers/old.bin';
+        Storage::put($storagePath, 'old-content');
+
+        $token = bin2hex(random_bytes(32));
+        Locker::factory()->create([
+            'account_id' => '7777777777',
+            'payload' => 'original',
+            'storage_path' => $storagePath,
+            'wrapped_file_key' => 'oldWrappedKey',
+            'update_token_hash' => hash('sha256', $token),
+        ]);
+
+        $newStoragePath = 'lockers/new.bin';
+        Storage::put($newStoragePath, 'new-content');
+
+        $response = $this->putJson(
+            route('lockers.update', '7777777777'),
+            [
+                'payload' => str_repeat('b', 100),
+                'storage_path' => $newStoragePath,
+                'new_wrapped_file_key' => 'freshWrappedKey',
+            ],
+            ['X-Update-Token' => $token]
+        );
+
+        $response->assertStatus(200);
+
+        $locker = Locker::where('account_id', '7777777777')->first();
+        $this->assertEquals('freshWrappedKey', $locker->wrapped_file_key);
+        $this->assertEquals($newStoragePath, $locker->storage_path);
+    }
 }
