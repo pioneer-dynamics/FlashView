@@ -110,6 +110,44 @@ test('duplicate account ID shows validation error', async ({ page }) => {
     await expect(page.getByText(/taken|already/i)).toBeVisible({ timeout: 10000 });
 });
 
+test('file locker creation with DEK envelope encryption completes without error', async ({ page }) => {
+    createLockerCredit('filetoken01', 'file', 1);
+
+    // Mock S3 endpoints (not available in test environment)
+    await page.route('**/lockers/file/prepare', async route => {
+        await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({
+                upload_type: 's3_direct',
+                upload_url: 'https://mock-s3.example.com/test-locker.bin',
+                upload_headers: { 'Content-Type': 'application/octet-stream' },
+                storage_path: 'lockers/test-locker.bin',
+            }),
+        });
+    });
+    await page.route('https://mock-s3.example.com/**', async route => {
+        await route.fulfill({ status: 200, body: '' });
+    });
+
+    await page.goto('/lockers/create?token=filetoken01');
+    await page.waitForLoadState('networkidle');
+
+    await page.getByPlaceholder('Choose a 10-digit number').fill('1020304050');
+    await page.getByPlaceholder('Enter or generate a passphrase').fill('my-strong-test-passphrase-here');
+
+    await page.getByLabel(/file/i).setInputFiles({
+        name: 'test-file.txt',
+        mimeType: 'text/plain',
+        buffer: Buffer.from('file locker test content'),
+    });
+
+    await page.getByRole('button', { name: /Encrypt & Create/i }).click();
+
+    await expect(page.getByText('Locker created!')).toBeVisible({ timeout: 20000 });
+    await expect(page.getByText('Account ID', { exact: true })).toBeVisible();
+});
+
 test('credentials panel has download button and confirmation checkbox', async ({ page }) => {
     createLockerCredit('createtoken04', 'text', 1);
 
