@@ -52,7 +52,7 @@ const showDeleteConfirm = ref(false);
 const newPassphrase            = ref('');
 const passphraseChangeError    = ref('');
 const passphraseChangeSuccess  = ref(false);
-const passphraseChangeState    = ref(null); // null | 're-encrypting' | 'uploading'
+const passphraseChangeState    = ref(null); // null | 'encrypting' | 'uploading'
 const passphraseChangeProgress = ref(0);
 
 const newPassphraseStrength = computed(() => {
