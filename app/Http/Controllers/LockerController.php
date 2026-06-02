@@ -125,6 +125,7 @@ class LockerController extends Controller
             'account_id' => $request->input('account_id'),
             'payload' => $request->input('payload'),
             'storage_path' => $request->input('storage_path'),
+            'wrapped_file_key' => $request->input('wrapped_file_key'),
             'auth_challenge' => $request->input('auth_challenge'),
             'auth_verifier' => $request->input('auth_verifier'),
             'update_token_hash' => hash('sha256', $request->input('update_token')),
@@ -253,6 +254,7 @@ class LockerController extends Controller
 
         if ($locker->isFileLocker()) {
             $data['download_url'] = Storage::temporaryUrl($locker->storage_path, now()->addMinutes(15));
+            $data['wrapped_file_key'] = $locker->wrapped_file_key;
         }
 
         return response()->json($data);
@@ -300,25 +302,31 @@ class LockerController extends Controller
             return response()->json(['error' => 'Invalid update token.'], 403);
         }
 
-        if ($locker->isFileLocker()) {
+        $updates = [
+            'payload' => $request->input('payload'),
+        ];
+
+        // Only update storage_path when it is explicitly present in the request body.
+        // Omitting it (passphrase-change only) must never null the column or trigger S3 deletion.
+        if ($request->has('storage_path')) {
             $newStoragePath = $request->input('storage_path');
-            if ($locker->storage_path && $locker->storage_path !== $newStoragePath) {
+            if ($locker->isFileLocker() && $locker->storage_path && $locker->storage_path !== $newStoragePath) {
                 try {
                     Storage::delete($locker->storage_path);
                 } catch (\Throwable $e) {
                     Log::warning('Failed to delete old locker S3 object', ['path' => $locker->storage_path, 'error' => $e->getMessage()]);
                 }
             }
+            $updates['storage_path'] = $newStoragePath;
         }
-
-        $updates = [
-            'payload' => $request->input('payload'),
-            'storage_path' => $request->input('storage_path'),
-        ];
 
         if ($request->filled('new_auth_verifier') && $request->filled('new_update_token')) {
             $updates['auth_verifier'] = $request->input('new_auth_verifier');
             $updates['update_token_hash'] = hash('sha256', $request->input('new_update_token'));
+        }
+
+        if ($request->filled('new_wrapped_file_key')) {
+            $updates['wrapped_file_key'] = $request->input('new_wrapped_file_key');
         }
 
         $locker->update($updates);

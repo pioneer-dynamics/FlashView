@@ -29,6 +29,7 @@ class StoreLockerRequest extends FormRequest
             'update_token' => ['required', 'string', 'size:64'],
             'tier' => ['required', 'in:text,file'],
             'storage_path' => ['required_if:tier,file', 'nullable', 'string'],
+            'wrapped_file_key' => ['nullable', 'string', 'max:512'],
         ];
     }
 

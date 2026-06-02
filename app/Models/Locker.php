@@ -16,6 +16,7 @@ class Locker extends Model
         'account_id',
         'payload',
         'storage_path',
+        'wrapped_file_key',
         'auth_challenge',
         'auth_verifier',
         'update_token_hash',
@@ -26,6 +27,7 @@ class Locker extends Model
     {
         return [
             'expires_at' => 'datetime',
+            'wrapped_file_key' => 'encrypted',
         ];
     }
 
