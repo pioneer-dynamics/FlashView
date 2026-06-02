@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { resetDatabase, clearCache } from './helpers/db';
-import { createLockerCredit, createLockerViaUI } from './helpers/locker';
+import { createLockerCredit, createLockerViaUI, createFileLockerViaUI } from './helpers/locker';
 
 test.beforeEach(() => {
     resetDatabase();
@@ -125,4 +125,73 @@ test('expiry badge is visible on show page', async ({ page }) => {
 
     await expect(page.getByText(/days remaining|Expires/i)).toBeVisible();
     await expect(page.getByText('Renew')).toBeVisible();
+});
+
+// ─── DEK-based file locker flows (PIO-102) ───────────────────────────────────
+
+test('file locker shows file metadata after unlock', async ({ page }) => {
+    createLockerCredit('fileshow01', 'file', 1);
+    const passphrase = 'my-file-locker-passphrase';
+    await createFileLockerViaUI(page, '1122334455', passphrase, 'fileshow01');
+
+    await page.goto('/lockers/1122334455');
+    await page.waitForLoadState('networkidle');
+
+    // Mock the S3 temporary URL returned by the unlock endpoint
+    await page.route('**/1122334455/unlock', async route => {
+        const response = await route.fetch();
+        const body = await response.json();
+        // Override download_url to point to our mock S3
+        if (body.download_url) {
+            body.download_url = 'https://mock-s3-locker.example.com/lockers/test-file.bin';
+        }
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+    });
+
+    await page.getByTestId('passphrase-input').fill(passphrase);
+    await page.getByTestId('unlock-button').click();
+
+    await expect(page.getByTestId('decrypted-content')).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText(/test-file\.txt/)).toBeVisible();
+    await expect(page.getByRole('button', { name: /Decrypt.*Download/i })).toBeVisible();
+});
+
+test('passphrase change on DEK-based file locker does not re-download the file', async ({ page }) => {
+    createLockerCredit('fileshow02', 'file', 1);
+    const passphrase = 'my-file-locker-passphrase';
+    const newPassphrase = 'brand-new-passphrase-for-locker';
+    await createFileLockerViaUI(page, '2233445566', passphrase, 'fileshow02');
+
+    await page.goto('/lockers/2233445566');
+    await page.waitForLoadState('networkidle');
+
+    // Track any S3 download requests — must be 0 during passphrase change
+    const s3Downloads: string[] = [];
+    page.on('request', req => {
+        if (req.method() === 'GET' && req.url().includes('mock-s3-locker')) {
+            s3Downloads.push(req.url());
+        }
+    });
+
+    await page.route('**/2233445566/unlock', async route => {
+        const response = await route.fetch();
+        const body = await response.json();
+        if (body.download_url) {
+            body.download_url = 'https://mock-s3-locker.example.com/lockers/test-file.bin';
+        }
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+    });
+
+    await page.getByTestId('passphrase-input').fill(passphrase);
+    await page.getByTestId('unlock-button').click();
+    await expect(page.getByTestId('decrypted-content')).toBeVisible({ timeout: 15000 });
+
+    // Change passphrase — for a DEK-based locker this is crypto-only, no file download
+    await page.getByPlaceholder('Enter or generate a passphrase').last().fill(newPassphrase);
+    await page.getByRole('button', { name: /Change Passphrase/i }).click();
+
+    await expect(page.getByText(/Passphrase changed/i)).toBeVisible({ timeout: 15000 });
+
+    // Core assertion: no S3 file was downloaded during passphrase change
+    expect(s3Downloads).toHaveLength(0);
 });

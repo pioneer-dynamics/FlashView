@@ -12,4 +12,9 @@ export {
     computePairingCode,
     encryptChunk,
     decryptChunk,
+    generateFileKey,
+    wrapFileKey,
+    unwrapFileKey,
+    encryptFileToBuffer,
+    decryptFileFromBuffer,
 } from '@pioneer-dynamics/flashview-crypto';

@@ -49,9 +49,9 @@ const passphraseStrength = computed(() => {
 });
 
 const strengthLabel = computed(() => ['', 'Weak', 'Fair', 'Good', 'Strong'][passphraseStrength.value] ?? '');
-const strengthColor = computed(() => ['', 'text-red-400', 'text-yellow-400', 'text-blue-400', 'text-gamboge-300'][passphraseStrength.value] ?? '');
+const strengthColor = computed(() => ['', 'text-red-400', 'text-gamboge-500', 'text-gamboge-400', 'text-gamboge-300'][passphraseStrength.value] ?? '');
 const strengthWidth = computed(() => ['w-0', 'w-1/4', 'w-2/4', 'w-3/4', 'w-full'][passphraseStrength.value] ?? 'w-0');
-const strengthBg    = computed(() => ['', 'bg-red-400', 'bg-yellow-400', 'bg-blue-400', 'bg-gamboge-300'][passphraseStrength.value] ?? '');
+const strengthBg    = computed(() => ['', 'bg-red-400', 'bg-gamboge-500', 'bg-gamboge-400', 'bg-gamboge-300'][passphraseStrength.value] ?? '');
 
 const generatePassphrase = () => { passphrase.value = enc.generatePasssphrase(); };
 const onFileChange = (e) => { selectedFile.value = e.target.files[0] ?? null; };
@@ -111,6 +111,8 @@ const submit = async () => {
         let payload;
         let storagePath = null;
 
+        let wrappedFileKey = null;
+
         if (isFileTier.value) {
             // Encrypt file metadata into the payload field
             const meta = JSON.stringify({
@@ -120,16 +122,11 @@ const submit = async () => {
             });
             payload = await enc.encryptLockerContent(meta, passphrase.value);
 
-            // Encrypt the file contents
-            const fileBuffer    = await selectedFile.value.arrayBuffer();
-            const encryptedBlob = await enc.encryptLockerFile(selectedFile.value, passphrase.value);
-
-            // Convert hex blob to binary for efficient S3 storage
-            const hexStr = encryptedBlob;
-            const bytes  = new Uint8Array(hexStr.length / 2);
-            for (let i = 0; i < hexStr.length; i += 2) {
-                bytes[i / 2] = parseInt(hexStr.slice(i, i + 2), 16);
-            }
+            // Generate DEK, wrap it with passphrase, encrypt file with DEK
+            const dek = enc.generateLockerFileKey();
+            wrappedFileKey = await enc.wrapLockerFileKey(dek, passphrase.value, accountId.value);
+            const fileBuffer = await selectedFile.value.arrayBuffer();
+            const encryptedBytes = await enc.encryptLockerFileToBuffer(fileBuffer, { dek });
 
             // Get presigned upload URL
             const prepRes = await fetch(route('lockers.file.prepare'), {
@@ -144,17 +141,14 @@ const submit = async () => {
 
             if (!prepRes.ok) throw new Error('Could not prepare file upload.');
 
-            const { upload_type, upload_url, upload_headers, storage_path } = await prepRes.json();
+            const { upload_url, upload_headers, storage_path } = await prepRes.json();
             storagePath = storage_path;
 
-            // Upload encrypted binary via XHR for progress tracking
+            // Upload encrypted binary via XHR for progress tracking (encryptedBytes is already Uint8Array)
             step.value = 'uploading';
             await new Promise((resolve, reject) => {
                 const xhr = new XMLHttpRequest();
-                xhr.open(upload_type === 's3_direct' ? 'PUT' : 'POST', upload_url);
-                if (upload_type === 'server') {
-                    xhr.setRequestHeader('X-XSRF-TOKEN', xsrfToken());
-                }
+                xhr.open('PUT', upload_url);
                 for (const [key, val] of Object.entries(upload_headers ?? {})) {
                     xhr.setRequestHeader(key, val);
                 }
@@ -165,7 +159,7 @@ const submit = async () => {
                 };
                 xhr.onload  = () => (xhr.status >= 200 && xhr.status < 300) ? resolve() : reject(new Error('Upload failed.'));
                 xhr.onerror = () => reject(new Error('Upload failed.'));
-                xhr.send(new Blob([bytes], { type: 'application/octet-stream' }));
+                xhr.send(new Blob([encryptedBytes], { type: 'application/octet-stream' }));
             });
         } else {
             payload = await enc.encryptLockerContent(content.value, passphrase.value);
@@ -179,14 +173,15 @@ const submit = async () => {
                 'X-XSRF-TOKEN': xsrfToken(),
             },
             body: JSON.stringify({
-                account_id:    accountId.value,
-                credit_token:  props.credit_token,
+                account_id:       accountId.value,
+                credit_token:     props.credit_token,
                 payload,
-                auth_challenge: challengeHex,
-                auth_verifier: verifier,
-                update_token:  updateToken,
-                tier:          props.tier,
-                storage_path:  storagePath,
+                auth_challenge:   challengeHex,
+                auth_verifier:    verifier,
+                update_token:     updateToken,
+                tier:             props.tier,
+                storage_path:     storagePath,
+                wrapped_file_key: wrappedFileKey,
             }),
         });
 

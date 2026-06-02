@@ -13,10 +13,9 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -126,6 +125,7 @@ class LockerController extends Controller
             'account_id' => $request->input('account_id'),
             'payload' => $request->input('payload'),
             'storage_path' => $request->input('storage_path'),
+            'wrapped_file_key' => $request->input('wrapped_file_key'),
             'auth_challenge' => $request->input('auth_challenge'),
             'auth_verifier' => $request->input('auth_verifier'),
             'update_token_hash' => hash('sha256', $request->input('update_token')),
@@ -157,57 +157,17 @@ class LockerController extends Controller
 
         $storagePath = 'lockers/'.Str::uuid().'.bin';
 
-        try {
-            ['url' => $uploadUrl, 'headers' => $uploadHeaders] = Storage::temporaryUploadUrl(
-                $storagePath,
-                now()->addMinutes(15),
-                ['ContentType' => 'application/octet-stream']
-            );
+        ['url' => $uploadUrl, 'headers' => $uploadHeaders] = Storage::temporaryUploadUrl(
+            $storagePath,
+            now()->addMinutes(15),
+            ['ContentType' => 'application/octet-stream']
+        );
 
-            return response()->json([
-                'upload_type' => 's3_direct',
-                'upload_url' => $uploadUrl,
-                'upload_headers' => $uploadHeaders,
-                'storage_path' => $storagePath,
-            ]);
-        } catch (\RuntimeException) {
-            $token = Str::uuid()->toString();
-            Cache::put("pending_locker_file:{$token}", ['storage_path' => $storagePath], now()->addMinutes(30));
-
-            return response()->json([
-                'upload_type' => 'server',
-                'upload_url' => URL::temporarySignedRoute('lockers.file.upload', now()->addMinutes(15), ['token' => $token]),
-                'upload_headers' => [],
-                'storage_path' => $storagePath,
-            ]);
-        }
-    }
-
-    public function handleFileUpload(Request $request, string $token): JsonResponse
-    {
-        $pending = Cache::get("pending_locker_file:{$token}");
-
-        if (! $pending) {
-            abort(404);
-        }
-
-        Storage::put($pending['storage_path'], $request->getContent());
-        Cache::forget("pending_locker_file:{$token}");
-
-        return response()->json(['ok' => true]);
-    }
-
-    public function downloadFile(string $accountId): HttpResponse
-    {
-        $locker = Locker::where('account_id', $accountId)->first();
-
-        if (! $locker || $locker->isExpired() || ! $locker->isFileLocker()) {
-            abort(404);
-        }
-
-        return response(Storage::get($locker->storage_path), 200, [
-            'Content-Type' => 'application/octet-stream',
-            'Content-Disposition' => 'attachment; filename="locker-file.bin"',
+        return response()->json([
+            'upload_type' => 's3_direct',
+            'upload_url' => $uploadUrl,
+            'upload_headers' => $uploadHeaders,
+            'storage_path' => $storagePath,
         ]);
     }
 
@@ -225,7 +185,7 @@ class LockerController extends Controller
     {
         $ip = $request->ip();
 
-        if (Cache::get("locker:ip:locked:{$ip}")) {
+        if (RateLimiter::tooManyAttempts('locker-ip:'.$ip, 3)) {
             return response()->json(['error' => 'Too many failed attempts. Try again in 1 hour.'], 429);
         }
 
@@ -243,48 +203,34 @@ class LockerController extends Controller
 
         $ip = $request->ip();
         $verifier = $request->input('verifier');
-        $ipFailKey = "locker:ip:fail:{$ip}";
-        $ipLockedKey = "locker:ip:locked:{$ip}";
 
-        if (Cache::get($ipLockedKey)) {
+        if (RateLimiter::tooManyAttempts('locker-ip:'.$ip, 3)) {
             return response()->json(['error' => 'Too many failed attempts. Try again in 1 hour.'], 429);
         }
 
         $locker = Locker::where('account_id', $accountId)->first();
 
         if (! $locker) {
-            $count = (int) Cache::get($ipFailKey, 0) + 1;
-            Cache::put($ipFailKey, $count, now()->addMinutes(5));
-            if ($count >= 3) {
-                Cache::put($ipLockedKey, true, now()->addHour());
-                Cache::forget($ipFailKey);
-            }
+            RateLimiter::hit('locker-ip:'.$ip, 3600);
             usleep(random_int(80_000, 200_000)); // timing-safe delay
 
             return response()->json(['error' => 'Credentials do not match.'], 401);
         }
 
-        $failKey = "locker:fail:{$accountId}";
-        $lockedKey = "locker:locked:{$accountId}";
-        $cooldownKey = "locker:cooldown:{$accountId}";
-
-        if (Cache::get($lockedKey)) {
+        if (RateLimiter::tooManyAttempts('locker-account-lock:'.$accountId, 3)) {
             return response()->json(['error' => 'Too many failed attempts. Try again in 1 hour.'], 429);
         }
 
-        if (Cache::get($cooldownKey)) {
+        if (RateLimiter::tooManyAttempts('locker-account-cooldown:'.$accountId, 1)) {
             return response()->json(['error' => 'Too many attempts. Please wait 5 minutes before trying again.'], 429);
         }
 
         if (! $locker->verifyAuthVerifier($verifier)) {
-            $count = (int) Cache::get($failKey, 0) + 1;
-            Cache::put($failKey, $count, now()->addHour());
-            Cache::put($cooldownKey, true, now()->addMinutes(5));
-
-            if ($count >= 3) {
-                Cache::put($lockedKey, true, now()->addHour());
-                Cache::forget($failKey);
-                Cache::forget($cooldownKey);
+            RateLimiter::clear('locker-account-cooldown:'.$accountId);
+            RateLimiter::hit('locker-account-cooldown:'.$accountId, 300);
+            RateLimiter::hit('locker-account-lock:'.$accountId, 3600);
+            if (RateLimiter::tooManyAttempts('locker-account-lock:'.$accountId, 3)) {
+                RateLimiter::clear('locker-account-cooldown:'.$accountId);
             }
 
             return response()->json(['error' => 'Credentials do not match.'], 401);
@@ -296,8 +242,8 @@ class LockerController extends Controller
         }
 
         // Success — clear failure state
-        Cache::forget($failKey);
-        Cache::forget($cooldownKey);
+        RateLimiter::clear('locker-account-lock:'.$accountId);
+        RateLimiter::clear('locker-account-cooldown:'.$accountId);
 
         $data = [
             'payload' => $locker->payload,
@@ -307,15 +253,8 @@ class LockerController extends Controller
         ];
 
         if ($locker->isFileLocker()) {
-            try {
-                $data['download_url'] = Storage::temporaryUrl($locker->storage_path, now()->addMinutes(15));
-            } catch (\RuntimeException) {
-                $data['download_url'] = URL::temporarySignedRoute(
-                    'lockers.file.download',
-                    now()->addMinutes(15),
-                    ['accountId' => $accountId]
-                );
-            }
+            $data['download_url'] = Storage::temporaryUrl($locker->storage_path, now()->addMinutes(15));
+            $data['wrapped_file_key'] = $locker->wrapped_file_key;
         }
 
         return response()->json($data);
@@ -339,15 +278,7 @@ class LockerController extends Controller
         ];
 
         if ($locker->isFileLocker()) {
-            try {
-                $data['download_url'] = Storage::temporaryUrl($locker->storage_path, now()->addMinutes(15));
-            } catch (\RuntimeException) {
-                $data['download_url'] = URL::temporarySignedRoute(
-                    'lockers.file.download',
-                    now()->addMinutes(15),
-                    ['accountId' => $accountId]
-                );
-            }
+            $data['download_url'] = Storage::temporaryUrl($locker->storage_path, now()->addMinutes(15));
         }
 
         return response()->json($data);
@@ -371,25 +302,31 @@ class LockerController extends Controller
             return response()->json(['error' => 'Invalid update token.'], 403);
         }
 
-        if ($locker->isFileLocker()) {
+        $updates = [
+            'payload' => $request->input('payload'),
+        ];
+
+        // Only update storage_path when it is explicitly present in the request body.
+        // Omitting it (passphrase-change only) must never null the column or trigger S3 deletion.
+        if ($request->has('storage_path')) {
             $newStoragePath = $request->input('storage_path');
-            if ($locker->storage_path && $locker->storage_path !== $newStoragePath) {
+            if ($locker->isFileLocker() && $locker->storage_path && $locker->storage_path !== $newStoragePath) {
                 try {
                     Storage::delete($locker->storage_path);
                 } catch (\Throwable $e) {
                     Log::warning('Failed to delete old locker S3 object', ['path' => $locker->storage_path, 'error' => $e->getMessage()]);
                 }
             }
+            $updates['storage_path'] = $newStoragePath;
         }
-
-        $updates = [
-            'payload' => $request->input('payload'),
-            'storage_path' => $request->input('storage_path'),
-        ];
 
         if ($request->filled('new_auth_verifier') && $request->filled('new_update_token')) {
             $updates['auth_verifier'] = $request->input('new_auth_verifier');
             $updates['update_token_hash'] = hash('sha256', $request->input('new_update_token'));
+        }
+
+        if ($request->filled('new_wrapped_file_key')) {
+            $updates['wrapped_file_key'] = $request->input('new_wrapped_file_key');
         }
 
         $locker->update($updates);
