@@ -603,6 +603,7 @@ const upgradeAuth = async () => {
                 <!-- Upgrade success banner -->
                 <div
                     v-if="upgradeSuccess"
+                    data-testid="upgrade-success"
                     class="bg-gamboge-300/10 border border-gamboge-300/40 rounded-xl p-4 text-gamboge-300 text-sm text-center"
                 >
                     Your locker has been upgraded to stronger security.
@@ -611,6 +612,7 @@ const upgradeAuth = async () => {
                 <!-- Upgrade banner — visible after legacy unlock, dismissable -->
                 <div
                     v-if="lockState === 'unlocked' && isLegacyLocker && !upgradeSuccess && !upgradeDismissed"
+                    data-testid="upgrade-banner"
                     class="bg-gamboge-300/10 border border-gamboge-300/40 rounded-xl p-4 flex items-start justify-between gap-4"
                 >
                     <div class="text-sm text-gamboge-300">
@@ -622,11 +624,13 @@ const upgradeAuth = async () => {
                         <button
                             @click="upgradeAuth"
                             :disabled="upgrading"
+                            data-testid="upgrade-button"
                             class="border border-gamboge-300 text-gamboge-300 hover:bg-gamboge-300/10 font-mono text-xs px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
                         >{{ upgrading ? 'Upgrading…' : 'Upgrade' }}</button>
                         <button
                             @click="upgradeDismissed = true"
                             :disabled="upgrading"
+                            data-testid="upgrade-dismiss-button"
                             class="text-gamboge-300/50 hover:text-gamboge-300 font-mono text-xs px-2 py-1.5 transition-colors disabled:opacity-50"
                             title="Dismiss"
                         >✕</button>

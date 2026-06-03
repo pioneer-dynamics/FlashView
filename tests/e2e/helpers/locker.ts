@@ -18,7 +18,33 @@ export function createLockerCredit(
 }
 
 /**
- * Create a text locker via the browser UI. Returns passphrase and accountId.
+ * Create a legacy (HMAC) locker directly in the database via tinker, bypassing the UI.
+ * Used for testing the upgrade flow — the UI now always creates ECDSA lockers.
+ */
+export function createLegacyLockerViaDB(
+    accountId: string,
+    passphrase: string,
+    content: string
+): void {
+    const script = [
+        `$l = App\\\\Models\\\\Locker::create([`,
+        `'account_id' => '${accountId}',`,
+        `'payload' => '01546'.'${content}'.str_repeat('0',40),`,
+        `'auth_challenge' => str_repeat('c',64),`,
+        `'auth_verifier' => str_repeat('a',64),`,
+        `'update_token_hash' => hash('sha256','legacytoken'),`,
+        `'expires_at' => now()->addYear(),`,
+        `]);`,
+    ].join(' ');
+    execSync(
+        `${ARTISAN} tinker --no-interaction --env=testing --execute="${script}"`,
+        { stdio: 'pipe' }
+    );
+}
+
+/**
+ * Create a text locker via the browser UI (ECDSA path). Returns passphrase and accountId.
+ * New lockers use ECDSA signing — no update token is stored or shown.
  */
 export async function createLockerViaUI(
     page: Page,
@@ -26,7 +52,7 @@ export async function createLockerViaUI(
     passphrase: string,
     content: string,
     creditToken: string
-): Promise<{ accountId: string; passphrase: string; updateToken: string }> {
+): Promise<{ accountId: string; passphrase: string }> {
     await page.goto(`/lockers/create?token=${encodeURIComponent(creditToken)}`);
     await page.waitForLoadState('networkidle');
 
@@ -35,14 +61,10 @@ export async function createLockerViaUI(
     await page.getByPlaceholder('Enter the content to store…').fill(content);
     await page.getByRole('button', { name: /Encrypt & Create/i }).click();
 
-    // Wait for credentials panel
-    await page.waitForSelector('text=Save all three credentials now', { timeout: 15000 });
+    // Wait for credentials panel (ECDSA: only Account ID + Passphrase shown)
+    await page.waitForSelector('text=Locker created!', { timeout: 15000 });
 
-    // Extract update token from the credentials panel
-    const credRows = page.locator('code.font-mono');
-    const updateToken = await credRows.nth(2).innerText();
-
-    return { accountId, passphrase, updateToken: updateToken.trim() };
+    return { accountId, passphrase };
 }
 
 /**
