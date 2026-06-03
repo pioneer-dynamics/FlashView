@@ -20,6 +20,7 @@ class Locker extends Model
         'auth_challenge',
         'auth_verifier',
         'update_token_hash',
+        'public_key',
         'expires_at',
     ];
 
@@ -60,6 +61,10 @@ class Locker extends Model
 
     public function verifyAuthVerifier(string $verifier): bool
     {
+        if ($this->auth_verifier === null) {
+            return false;
+        }
+
         return hash_equals($this->auth_verifier, $verifier);
     }
 }
