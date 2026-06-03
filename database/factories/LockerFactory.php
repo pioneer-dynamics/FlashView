@@ -36,4 +36,22 @@ class LockerFactory extends Factory
             'storage_path' => 'lockers/'.$attributes['account_id'].'/payload',
         ]);
     }
+
+    public function ecdsa(): static
+    {
+        return $this->state(function (array $attributes) {
+            $key = openssl_pkey_new(['curve_name' => 'prime256v1', 'private_key_type' => OPENSSL_KEYTYPE_EC]);
+            $details = openssl_pkey_get_details($key);
+            $ecPoint = $details['ec'];
+            $toBase64url = fn ($b) => rtrim(strtr(base64_encode($b), '+/', '-_'), '=');
+            $jwk = ['kty' => 'EC', 'crv' => 'P-256', 'x' => $toBase64url($ecPoint['x']), 'y' => $toBase64url($ecPoint['y'])];
+
+            return [
+                'public_key' => base64_encode(json_encode($jwk)),
+                'auth_challenge' => null,
+                'auth_verifier' => null,
+                'update_token_hash' => null,
+            ];
+        });
+    }
 }
