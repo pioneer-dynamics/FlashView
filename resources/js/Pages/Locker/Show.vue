@@ -18,6 +18,13 @@ const expiresAt      = ref(null); // ISO string or null
 const authChallenge  = ref('');
 const wrappedFileKey = ref('');  // base64 KEK-wrapped DEK; empty for legacy lockers
 
+// ECDSA / upgrade state
+const isLegacyLocker   = ref(false);
+const upgrading        = ref(false);
+const upgradeSuccess   = ref(false);
+const upgradeDismissed = ref(false);
+const upgradeError     = ref('');
+
 // Unlock state
 const passphrase        = ref('');
 const lockState         = ref('locked'); // 'locked' | 'animating' | 'unlocked' | 'shaking'
@@ -88,6 +95,11 @@ const lockLocker = () => {
     newPassphrase.value       = '';
     deleteError.value         = '';
     showDeleteConfirm.value   = false;
+    isLegacyLocker.value      = false;
+    upgrading.value           = false;
+    upgradeSuccess.value      = false;
+    upgradeDismissed.value    = false;
+    upgradeError.value        = '';
     lockState.value           = 'locked';
 };
 
@@ -136,11 +148,21 @@ const unlock = async () => {
             return;
         }
 
-        const { challenge } = await challengeRes.json();
+        const challengeData = await challengeRes.json();
+        const isEcdsa = Boolean(challengeData.challenge_id);
 
-        // Step 2: Derive verifier from passphrase (never send passphrase to server)
-        const authKey  = await enc.deriveLockerAuthKey(passphrase.value, props.account_id);
-        const verifier = await enc.computeLockerVerifier(authKey, challenge);
+        let unlockBody;
+        if (isEcdsa) {
+            // ECDSA path: derive private key, sign the server challenge
+            const { privateKey } = await enc.deriveLockerSigningKeypair(passphrase.value, props.account_id);
+            const signature = await enc.signLockerChallenge(privateKey, challengeData.challenge);
+            unlockBody = { challenge_id: challengeData.challenge_id, signature };
+        } else {
+            // Legacy HMAC path: derive verifier from passphrase
+            const authKey  = await enc.deriveLockerAuthKey(passphrase.value, props.account_id);
+            const verifier = await enc.computeLockerVerifier(authKey, challengeData.challenge);
+            unlockBody = { verifier };
+        }
 
         // Step 3: POST unlock — server verifies, returns payload only if correct
         const unlockRes = await fetch(route('lockers.unlock', props.account_id), {
@@ -150,7 +172,7 @@ const unlock = async () => {
                 'Accept': 'application/json',
                 'X-XSRF-TOKEN': getXsrf(),
             },
-            body: JSON.stringify({ verifier }),
+            body: JSON.stringify(unlockBody),
         });
 
         const data = await unlockRes.json();
@@ -168,6 +190,7 @@ const unlock = async () => {
         expiresAt.value      = data.expires_at ?? null;
         authChallenge.value  = data.auth_challenge ?? '';
         wrappedFileKey.value = data.wrapped_file_key ?? '';
+        isLegacyLocker.value = !isEcdsa;
 
         const result = await enc.decryptLockerContent(data.payload, passphrase.value);
 
@@ -244,6 +267,26 @@ const downloadFile = async () => {
     }
 };
 
+const fetchSigningHeaders = async () => {
+    const challengeRes = await fetch(route('lockers.challenge', props.account_id), {
+        headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+    });
+    if (!challengeRes.ok) throw new Error('Could not fetch challenge.');
+    const challengeData = await challengeRes.json();
+
+    if (challengeData.challenge_id) {
+        const { privateKey } = await enc.deriveLockerSigningKeypair(passphrase.value, props.account_id);
+        const signature = await enc.signLockerChallenge(privateKey, challengeData.challenge);
+        return {
+            'X-Signing-Challenge-Id': challengeData.challenge_id,
+            'X-Signature': signature,
+        };
+    } else {
+        const updateToken = await enc.deriveLockerUpdateToken(passphrase.value, props.account_id);
+        return { 'X-Update-Token': updateToken };
+    }
+};
+
 const submitUpdate = async () => {
     updateError.value   = '';
     updateSuccess.value = false;
@@ -251,16 +294,16 @@ const submitUpdate = async () => {
 
     updating.value = true;
     try {
-        const payload     = await enc.encryptLockerContent(newContent.value, passphrase.value);
-        const updateToken = await enc.deriveLockerUpdateToken(passphrase.value, props.account_id);
+        const payload  = await enc.encryptLockerContent(newContent.value, passphrase.value);
+        const authHeaders = await fetchSigningHeaders();
 
         const res = await fetch(route('lockers.update', props.account_id), {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json',
-                'X-Update-Token': updateToken,
                 'X-XSRF-TOKEN': getXsrf(),
+                ...authHeaders,
             },
             body: JSON.stringify({ payload }),
         });
@@ -271,8 +314,8 @@ const submitUpdate = async () => {
         updateSuccess.value = true;
         decryptedText.value = newContent.value;
         newContent.value    = '';
-    } catch {
-        updateError.value = 'Update failed. Please try again.';
+    } catch (err) {
+        updateError.value = err.message || 'Update failed. Please try again.';
     } finally {
         updating.value = false;
     }
@@ -323,7 +366,7 @@ const submitFileUpdate = async () => {
             });
         }
 
-        const updateToken = await enc.deriveLockerUpdateToken(passphrase.value, props.account_id);
+        const authHeaders = await fetchSigningHeaders();
         const body = { payload };
         if (storagePath) {
             body.storage_path = storagePath;
@@ -332,7 +375,7 @@ const submitFileUpdate = async () => {
 
         const res = await fetch(route('lockers.update', props.account_id), {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-Update-Token': updateToken, 'X-XSRF-TOKEN': getXsrf() },
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-XSRF-TOKEN': getXsrf(), ...authHeaders },
             body: JSON.stringify(body),
         });
 
@@ -369,16 +412,23 @@ const changePassphrase = async () => {
     passphraseChangeProgress.value = 0;
 
     try {
-        const newAuthKey      = await enc.deriveLockerAuthKey(newPassphrase.value, props.account_id);
-        const newVerifier     = await enc.computeLockerVerifier(newAuthKey, authChallenge.value);
-        const newUpdateToken  = await enc.deriveLockerUpdateToken(newPassphrase.value, props.account_id);
-        const oldUpdateToken  = await enc.deriveLockerUpdateToken(passphrase.value, props.account_id);
+        const authHeaders = await fetchSigningHeaders();
 
         let newPayload;
-        const putBody = {
-            new_auth_verifier: newVerifier,
-            new_update_token: newUpdateToken,
-        };
+        const putBody = {};
+
+        // ECDSA lockers: register new public key derived from new passphrase
+        if (!isLegacyLocker.value) {
+            const { publicKeyJwkBase64: newPublicKey } = await enc.deriveLockerSigningKeypair(newPassphrase.value, props.account_id);
+            putBody.new_public_key = newPublicKey;
+        } else {
+            // Legacy lockers: update verifier + update token
+            const newAuthKey     = await enc.deriveLockerAuthKey(newPassphrase.value, props.account_id);
+            const newVerifier    = await enc.computeLockerVerifier(newAuthKey, authChallenge.value);
+            const newUpdateToken = await enc.deriveLockerUpdateToken(newPassphrase.value, props.account_id);
+            putBody.new_auth_verifier = newVerifier;
+            putBody.new_update_token  = newUpdateToken;
+        }
 
         if (isFileLocker.value && wrappedFileKey.value) {
             // New locker (v2): re-wrap DEK with new passphrase — no file download required
@@ -391,7 +441,7 @@ const changePassphrase = async () => {
 
             const res = await fetch(route('lockers.update', props.account_id), {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-Update-Token': oldUpdateToken, 'X-XSRF-TOKEN': getXsrf() },
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-XSRF-TOKEN': getXsrf(), ...authHeaders },
                 body: JSON.stringify(putBody),
             });
 
@@ -449,7 +499,7 @@ const changePassphrase = async () => {
 
             const res = await fetch(route('lockers.update', props.account_id), {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-Update-Token': oldUpdateToken, 'X-XSRF-TOKEN': getXsrf() },
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-XSRF-TOKEN': getXsrf(), ...authHeaders },
                 body: JSON.stringify(putBody),
             });
 
@@ -467,7 +517,7 @@ const changePassphrase = async () => {
 
             const res = await fetch(route('lockers.update', props.account_id), {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-Update-Token': oldUpdateToken, 'X-XSRF-TOKEN': getXsrf() },
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-XSRF-TOKEN': getXsrf(), ...authHeaders },
                 body: JSON.stringify(putBody),
             });
 
@@ -490,14 +540,14 @@ const confirmDelete = async () => {
     deleteError.value = '';
     deleting.value    = true;
     try {
-        const updateToken = await enc.deriveLockerUpdateToken(passphrase.value, props.account_id);
+        const authHeaders = await fetchSigningHeaders();
 
         const res = await fetch(route('lockers.destroy', props.account_id), {
             method: 'DELETE',
             headers: {
                 'Accept': 'application/json',
-                'X-Update-Token': updateToken,
                 'X-XSRF-TOKEN': getXsrf(),
+                ...authHeaders,
             },
         });
 
@@ -511,6 +561,33 @@ const confirmDelete = async () => {
         deleting.value = false;
     }
 };
+
+const upgradeAuth = async () => {
+    upgrading.value     = true;
+    upgradeError.value  = '';
+    try {
+        const authKey  = await enc.deriveLockerAuthKey(passphrase.value, props.account_id);
+        const verifier = await enc.computeLockerVerifier(authKey, authChallenge.value);
+        const { publicKeyJwkBase64 } = await enc.deriveLockerSigningKeypair(passphrase.value, props.account_id);
+
+        const res = await fetch(route('lockers.upgrade-auth', props.account_id), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-XSRF-TOKEN': getXsrf() },
+            body: JSON.stringify({ verifier, public_key: publicKeyJwkBase64 }),
+        });
+        const data = await res.json();
+        if (res.status === 429) { upgradeError.value = data.error ?? 'Too many failed attempts. Try again in 1 hour. Your locker is unchanged.'; return; }
+        if (!res.ok) { upgradeError.value = data.error ?? 'Upgrade failed.'; return; }
+
+        isLegacyLocker.value = false;
+        upgradeSuccess.value = true;
+        setTimeout(() => { upgradeSuccess.value = false; }, 4000);
+    } catch {
+        upgradeError.value = 'Upgrade failed. Please try again.';
+    } finally {
+        upgrading.value = false;
+    }
+};
 </script>
 
 <template>
@@ -521,6 +598,39 @@ const confirmDelete = async () => {
                 <!-- Renewal banner -->
                 <div v-if="renewed" class="bg-gamboge-300/10 border border-gamboge-300/40 rounded-xl p-4 text-gamboge-300 text-sm text-center">
                     Payment received — your expiry date will update within a few minutes.
+                </div>
+
+                <!-- Upgrade success banner -->
+                <div
+                    v-if="upgradeSuccess"
+                    class="bg-gamboge-300/10 border border-gamboge-300/40 rounded-xl p-4 text-gamboge-300 text-sm text-center"
+                >
+                    Your locker has been upgraded to stronger security.
+                </div>
+
+                <!-- Upgrade banner — visible after legacy unlock, dismissable -->
+                <div
+                    v-if="lockState === 'unlocked' && isLegacyLocker && !upgradeSuccess && !upgradeDismissed"
+                    class="bg-gamboge-300/10 border border-gamboge-300/40 rounded-xl p-4 flex items-start justify-between gap-4"
+                >
+                    <div class="text-sm text-gamboge-300">
+                        <p class="font-semibold mb-1">Security upgrade available</p>
+                        <p class="text-gamboge-300/70 text-xs">This locker uses an older security scheme. Upgrade it for stronger protection — takes a moment and requires no passphrase change.</p>
+                        <p v-if="upgradeError" class="text-red-400 text-xs mt-1">{{ upgradeError }}</p>
+                    </div>
+                    <div class="flex items-center gap-2 shrink-0">
+                        <button
+                            @click="upgradeAuth"
+                            :disabled="upgrading"
+                            class="border border-gamboge-300 text-gamboge-300 hover:bg-gamboge-300/10 font-mono text-xs px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+                        >{{ upgrading ? 'Upgrading…' : 'Upgrade' }}</button>
+                        <button
+                            @click="upgradeDismissed = true"
+                            :disabled="upgrading"
+                            class="text-gamboge-300/50 hover:text-gamboge-300 font-mono text-xs px-2 py-1.5 transition-colors disabled:opacity-50"
+                            title="Dismiss"
+                        >✕</button>
+                    </div>
                 </div>
 
                 <!-- Locker header -->

@@ -103,10 +103,7 @@ const submit = async () => {
     uploadProgress.value = 0;
 
     try {
-        const authKey     = await enc.deriveLockerAuthKey(passphrase.value, accountId.value);
-        const updateToken = await enc.deriveLockerUpdateToken(passphrase.value, accountId.value);
-        const challengeHex = enc.generateLockerChallenge();
-        const verifier    = await enc.computeLockerVerifier(authKey, challengeHex);
+        const { privateKey: _unusedKey, publicKeyJwkBase64 } = await enc.deriveLockerSigningKeypair(passphrase.value, accountId.value);
 
         let payload;
         let storagePath = null;
@@ -176,9 +173,7 @@ const submit = async () => {
                 account_id:       accountId.value,
                 credit_token:     props.credit_token,
                 payload,
-                auth_challenge:   challengeHex,
-                auth_verifier:    verifier,
-                update_token:     updateToken,
+                public_key:       publicKeyJwkBase64,
                 tier:             props.tier,
                 storage_path:     storagePath,
                 wrapped_file_key: wrappedFileKey,
