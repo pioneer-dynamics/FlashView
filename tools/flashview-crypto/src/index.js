@@ -1,4 +1,5 @@
 import { generate } from 'random-words';
+import { p256 } from '@noble/curves/p256';
 
 const PBKDF2_ITERATIONS = 64000;
 const KEY_LENGTH_BITS = 256;
@@ -744,6 +745,91 @@ export async function computeVerifier(authKey, challenge) {
         new TextEncoder().encode(challenge)
     );
     return bufferToHex(new Uint8Array(sig));
+}
+
+/**
+ * Derive a deterministic P-256 ECDSA signing keypair from passphrase + accountId.
+ *
+ * Derivation: PBKDF2(passphrase, accountId+':signing-v1', 100k, SHA-512, 64 bytes)
+ *             → HKDF(ikm=pbkdf2, salt='locker-signing-v1', info='ecdsa-private-key', length=32)
+ *             → private scalar (normalised mod n to [1, n-1])
+ *             → p256.getPublicKey(scalar) → uncompressed point
+ *             → JWK imported as CryptoKey
+ *
+ * @param {string} passphrase
+ * @param {string} accountId
+ * @returns {Promise<{ privateKey: CryptoKey, publicKeyJwkBase64: string }>}
+ */
+export async function deriveSigningKeypair(passphrase, accountId) {
+    const passphraseKey = await globalThis.crypto.subtle.importKey(
+        'raw', new TextEncoder().encode(passphrase), 'PBKDF2', false, ['deriveBits']
+    );
+    const pbkdf2Bits = await globalThis.crypto.subtle.deriveBits(
+        {
+            name: 'PBKDF2',
+            salt: new TextEncoder().encode(accountId + ':signing-v1'),
+            iterations: LOCKER_PBKDF2_ITERATIONS,
+            hash: 'SHA-512',
+        },
+        passphraseKey,
+        512
+    );
+    const hkdfKey = await globalThis.crypto.subtle.importKey('raw', pbkdf2Bits, 'HKDF', false, ['deriveBits']);
+    const scalar32 = await globalThis.crypto.subtle.deriveBits(
+        {
+            name: 'HKDF',
+            hash: 'SHA-256',
+            salt: new TextEncoder().encode('locker-signing-v1'),
+            info: new TextEncoder().encode('ecdsa-private-key'),
+        },
+        hkdfKey,
+        256
+    );
+    let privateScalar = new Uint8Array(scalar32);
+
+    // Normalise scalar to [1, n-1] via BigInt mod — required because @noble/curves
+    // getPublicKey() throws for scalar >= n, and ~1-in-4.3B HKDF outputs exceed n.
+    const n = p256.CURVE.n;
+    let scalarBig = BigInt('0x' + bufferToHex(privateScalar));
+    scalarBig = scalarBig % n;
+    if (scalarBig === 0n) { scalarBig = 1n; }
+    privateScalar = hexToBuffer(scalarBig.toString(16).padStart(64, '0'));
+
+    const publicUncompressed = p256.getPublicKey(privateScalar, false); // 65 bytes: 04 || x || y
+    const x = publicUncompressed.slice(1, 33);
+    const y = publicUncompressed.slice(33, 65);
+
+    const toBase64Url = (bytes) =>
+        btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+
+    const jwk = { kty: 'EC', crv: 'P-256', x: toBase64Url(x), y: toBase64Url(y), d: toBase64Url(privateScalar) };
+
+    const privateKey = await globalThis.crypto.subtle.importKey(
+        'jwk', jwk, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign']
+    );
+
+    const publicJwk = { kty: 'EC', crv: 'P-256', x: jwk.x, y: jwk.y };
+    const publicKeyJwkBase64 = btoa(JSON.stringify(publicJwk));
+
+    return { privateKey, publicKeyJwkBase64 };
+}
+
+/**
+ * Sign a hex-encoded challenge with an ECDSA P-256 private key.
+ * Returns a base64-encoded IEEE P1363 signature (64 bytes: r || s).
+ *
+ * @param {CryptoKey} privateKey
+ * @param {string} challengeHex
+ * @returns {Promise<string>} base64 signature
+ */
+export async function signChallenge(privateKey, challengeHex) {
+    const challengeBytes = hexToBuffer(challengeHex);
+    const sigBuffer = await globalThis.crypto.subtle.sign(
+        { name: 'ECDSA', hash: 'SHA-256' },
+        privateKey,
+        challengeBytes
+    );
+    return uint8ArrayToBase64(new Uint8Array(sigBuffer));
 }
 
 // ─── Message Decryption (legacy PBKDF2 / OpenCrypto) ─────────────────────────
