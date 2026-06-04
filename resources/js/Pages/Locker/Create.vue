@@ -463,9 +463,9 @@ const submit = async () => {
                                 </div>
                             </div>
 
-                            <label class="flex items-center gap-2 cursor-pointer border border-dashed border-gray-600 hover:border-gamboge-300/50 rounded-lg px-3 py-2.5 transition-colors text-gray-400 text-sm">
+                            <label class="flex items-center gap-2 cursor-pointer border border-dashed border-gray-600 hover:border-gamboge-300/50 hover:shadow-neon-cyan-sm rounded-lg px-3 py-2.5 transition-colors text-gray-400 text-sm">
                                 <span class="font-mono text-xs">+ Add key file</span>
-                                <input type="file" class="sr-only" @change="onKeyFileAdded" />
+                                <input type="file" class="sr-only" @change="onKeyFileAdded" data-testid="key-file-input" />
                             </label>
                             <p v-if="errors.key_files" class="text-red-400 text-xs mt-1">{{ errors.key_files }}</p>
                             <p v-else class="text-gray-500 text-xs mt-1">{{ keyFiles.length }} key file(s) added. Files are processed locally — no content is uploaded.</p>

@@ -182,7 +182,7 @@ class LockerController extends Controller
         ]);
     }
 
-    public function authInfo(Request $request, string $accountId): JsonResponse
+    public function authInfo(string $accountId): JsonResponse
     {
         $locker = Locker::where('account_id', $accountId)->first();
 

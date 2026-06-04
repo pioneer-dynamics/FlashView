@@ -65,7 +65,7 @@ test('wrong passphrase shows error and lock shake animation', async ({ page }) =
     await page.getByTestId('unlock-button').click();
 
     await expect(page.getByTestId('decrypt-error')).toBeVisible({ timeout: 10000 });
-    await expect(page.getByText(/Incorrect passphrase|Decryption failed/i)).toBeVisible();
+    await expect(page.getByText(/Credentials do not match|Decryption failed/i)).toBeVisible();
 });
 
 test('after submitting wrong passphrase, lock shake animation plays and error message appears', async ({ page }) => {
@@ -101,7 +101,7 @@ test('repeated wrong passphrase shows permanent loss warning', async ({ page }) 
         clearCache();
     }
 
-    await expect(page.getByText(/passphrase is lost/i)).toBeVisible();
+    await expect(page.getByText(/credentials are lost/i)).toBeVisible();
 });
 
 test('update panel is always visible with lost token warning', async ({ page }) => {

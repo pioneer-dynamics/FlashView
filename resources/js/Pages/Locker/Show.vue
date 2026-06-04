@@ -803,7 +803,7 @@ const upgradeAuth = async () => {
 
                                 <label
                                     v-if="keyFiles.length < (keyFileCount ?? 999)"
-                                    class="flex items-center gap-2 cursor-pointer border border-dashed border-gray-600 hover:border-gamboge-300/50 rounded-lg px-3 py-2 transition-colors text-gray-400 text-sm"
+                                    class="flex items-center gap-2 cursor-pointer border border-dashed border-gray-600 hover:border-gamboge-300/50 hover:shadow-neon-cyan-sm rounded-lg px-3 py-2 transition-colors text-gray-400 text-sm"
                                     data-testid="key-file-input-label"
                                 >
                                     <span class="font-mono text-xs">+ Add key file</span>
