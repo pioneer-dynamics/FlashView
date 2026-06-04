@@ -1,7 +1,7 @@
 <script setup>
 import AppLayout from '@/Layouts/AppLayout.vue';
 import FileProgressBar from '@/Components/FileProgressBar.vue';
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { router } from '@inertiajs/vue3';
 import { encryption, LockerDecryptionError } from '@/encryption.js';
 
@@ -25,8 +25,14 @@ const upgradeSuccess   = ref(false);
 const upgradeDismissed = ref(false);
 const upgradeError     = ref('');
 
+// Auth mode — fetched on mount from auth-info endpoint
+const authMode     = ref('passphrase'); // 'passphrase' | 'key_file' | 'combined'
+const keyFileCount = ref(null);
+
 // Unlock state
 const passphrase        = ref('');
+const effectivePassphrase = ref(''); // Derived on unlock; cleared on lock. Never the raw passphrase for key_file/combined modes.
+const keyFiles          = ref([]); // [{ file: File, fingerprint: string }]
 const lockState         = ref('locked'); // 'locked' | 'animating' | 'unlocked' | 'shaking'
 const decryptError      = ref('');
 const failCount         = ref(0);
@@ -78,29 +84,92 @@ const newPassphraseStrengthWidth = computed(() => ['w-0', 'w-1/4', 'w-2/4', 'w-3
 const newPassphraseStrengthBg    = computed(() => ['', 'bg-red-400', 'bg-gamboge-500', 'bg-gamboge-400', 'bg-gamboge-300'][newPassphraseStrength.value] ?? '');
 const generateNewPassphrase = () => { newPassphrase.value = enc.generatePasssphrase(); };
 
+// Computed: whether the unlock button should be enabled
+const canUnlock = computed(() => {
+    if (lockState.value === 'animating' || lockState.value === 'shaking') return false;
+    if (authMode.value === 'key_file') {
+        return keyFiles.value.length >= (keyFileCount.value ?? 1);
+    }
+    if (authMode.value === 'combined') {
+        return passphrase.value.length > 0 && keyFiles.value.length >= (keyFileCount.value ?? 1);
+    }
+    return passphrase.value.length > 0;
+});
+
+onMounted(async () => {
+    try {
+        const infoRes = await fetch(route('lockers.auth-info', props.account_id), {
+            headers: { 'Accept': 'application/json' },
+        });
+        if (infoRes.ok) {
+            const info = await infoRes.json();
+            authMode.value = info.auth_mode ?? 'passphrase';
+            keyFileCount.value = info.key_file_count ?? null;
+        }
+    } catch {
+        // Fall through to passphrase default on network error
+    }
+});
+
+const onKeyFileAdded = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    e.target.value = '';
+
+    const buffer = await file.arrayBuffer();
+    const hash = await enc.deriveLockerKeyFromFile(buffer);
+    const fingerprint = hash.slice(0, 8);
+    keyFiles.value.push({ file, fingerprint });
+};
+
+const removeKeyFile = (index) => {
+    keyFiles.value.splice(index, 1);
+};
+
+const computeEffectivePassphrase = async () => {
+    if (authMode.value === 'passphrase') {
+        return passphrase.value;
+    }
+    // Re-read buffers from File references at call time to avoid holding large ArrayBuffers
+    const fileHashes = await Promise.all(
+        keyFiles.value.map(async (kf) => {
+            const buf = await kf.file.arrayBuffer();
+            return enc.deriveLockerKeyFromFile(buf);
+        })
+    );
+    if (authMode.value === 'key_file') {
+        return enc.combineLockerKeyMaterials(fileHashes);
+    }
+    return enc.combineLockerKeyMaterials([passphrase.value, ...fileHashes]);
+};
+
 const lockLocker = () => {
-    passphrase.value          = '';
-    decryptedText.value       = '';
-    decryptedFileMeta.value   = null;
-    downloadUrl.value         = '';
-    authChallenge.value       = '';
-    wrappedFileKey.value      = '';
-    decryptError.value        = '';
-    updateError.value         = '';
-    updateSuccess.value       = false;
-    newContent.value          = '';
-    replacementFile.value     = null;
+    // Security requirement: clear effectivePassphrase and key files to prevent re-unlock
+    // without re-presenting credentials
+    effectivePassphrase.value     = '';
+    keyFiles.value                = [];
+    passphrase.value              = '';
+    decryptedText.value           = '';
+    decryptedFileMeta.value       = null;
+    downloadUrl.value             = '';
+    authChallenge.value           = '';
+    wrappedFileKey.value          = '';
+    decryptError.value            = '';
+    updateError.value             = '';
+    updateSuccess.value           = false;
+    newContent.value              = '';
+    replacementFile.value         = null;
     passphraseChangeError.value   = '';
     passphraseChangeSuccess.value = false;
-    newPassphrase.value       = '';
-    deleteError.value         = '';
-    showDeleteConfirm.value   = false;
-    isLegacyLocker.value      = false;
-    upgrading.value           = false;
-    upgradeSuccess.value      = false;
-    upgradeDismissed.value    = false;
-    upgradeError.value        = '';
-    lockState.value           = 'locked';
+    newPassphrase.value           = '';
+    deleteError.value             = '';
+    showDeleteConfirm.value       = false;
+    isLegacyLocker.value          = false;
+    upgrading.value               = false;
+    upgradeSuccess.value          = false;
+    upgradeDismissed.value        = false;
+    upgradeError.value            = '';
+    lockState.value               = 'locked';
 };
 
 const daysRemaining = computed(() => {
@@ -127,13 +196,16 @@ const triggerShake = (msg) => {
 const getXsrf = () => decodeURIComponent(document.cookie.match(/XSRF-TOKEN=([^;]+)/)?.[1] ?? '');
 
 const unlock = async () => {
-    if (!passphrase.value || lockState.value === 'animating' || lockState.value === 'shaking') return;
+    if (!canUnlock.value) return;
     decryptError.value = '';
     lockState.value    = 'animating';
 
     const animationStart = Date.now();
 
     try {
+        // Compute effective passphrase from all credentials before any crypto operation
+        const ep = await computeEffectivePassphrase();
+
         // Step 1: Fetch challenge (always returns one — fake for non-existent accounts)
         const challengeRes = await fetch(route('lockers.challenge', props.account_id), {
             headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
@@ -153,13 +225,11 @@ const unlock = async () => {
 
         let unlockBody;
         if (isEcdsa) {
-            // ECDSA path: derive private key, sign the server challenge
-            const { privateKey } = await enc.deriveLockerSigningKeypair(passphrase.value, props.account_id);
+            const { privateKey } = await enc.deriveLockerSigningKeypair(ep, props.account_id);
             const signature = await enc.signLockerChallenge(privateKey, challengeData.challenge);
             unlockBody = { challenge_id: challengeData.challenge_id, signature };
         } else {
-            // Legacy HMAC path: derive verifier from passphrase
-            const authKey  = await enc.deriveLockerAuthKey(passphrase.value, props.account_id);
+            const authKey  = await enc.deriveLockerAuthKey(ep, props.account_id);
             const verifier = await enc.computeLockerVerifier(authKey, challengeData.challenge);
             unlockBody = { verifier };
         }
@@ -181,18 +251,25 @@ const unlock = async () => {
 
         if (!unlockRes.ok) {
             failCount.value++;
-            triggerShake(data.error ?? (unlockRes.status === 429 ? 'Too many attempts. Please try again later.' : 'Credentials do not match.'));
+            const baseMsg = data.error ?? (unlockRes.status === 429 ? 'Too many attempts. Please try again later.' : 'Credentials do not match.');
+            const hintMsg = authMode.value !== 'passphrase'
+                ? `${baseMsg} Check your key file order — files must match the creation sequence.`
+                : baseMsg;
+            triggerShake(hintMsg);
             return;
         }
 
-        // Success — populate state from unlock response (server uses snake_case JSON)
+        // Store effective passphrase for downstream operations — not passphrase.value directly
+        effectivePassphrase.value = ep;
+
+        // Success — populate state from unlock response
         isFileLocker.value   = data.is_file_locker ?? false;
         expiresAt.value      = data.expires_at ?? null;
         authChallenge.value  = data.auth_challenge ?? '';
         wrappedFileKey.value = data.wrapped_file_key ?? '';
         isLegacyLocker.value = !isEcdsa;
 
-        const result = await enc.decryptLockerContent(data.payload, passphrase.value);
+        const result = await enc.decryptLockerContent(data.payload, ep);
 
         if (data.is_file_locker) {
             try {
@@ -212,7 +289,7 @@ const unlock = async () => {
         const elapsed = Date.now() - animationStart;
         if (elapsed < 600) await sleep(600 - elapsed);
         failCount.value++;
-        triggerShake(err instanceof LockerDecryptionError ? 'Incorrect passphrase.' : 'Decryption failed. Please try again.');
+        triggerShake(err instanceof LockerDecryptionError ? 'Incorrect credentials.' : 'Decryption failed. Please try again.');
     }
 };
 
@@ -230,7 +307,6 @@ const downloadFile = async () => {
     fileProgress.value = 0;
 
     try {
-        // Download binary blob with XHR progress
         const encryptedBytes = await new Promise((resolve, reject) => {
             const xhr = new XMLHttpRequest();
             xhr.open('GET', downloadUrl.value);
@@ -243,16 +319,14 @@ const downloadFile = async () => {
             xhr.send();
         });
 
-        // Decrypt — v2 lockers use DEK from wrapped_file_key; v1 legacy use passphrase in blob
         let decryptedBuffer;
         if (wrappedFileKey.value) {
-            const dek = await enc.unwrapLockerFileKey(wrappedFileKey.value, passphrase.value, props.account_id);
+            const dek = await enc.unwrapLockerFileKey(wrappedFileKey.value, effectivePassphrase.value, props.account_id);
             decryptedBuffer = await enc.decryptLockerFileFromBuffer(encryptedBytes, { dek });
         } else {
-            decryptedBuffer = await enc.decryptLockerFileFromBuffer(encryptedBytes, { passphrase: passphrase.value });
+            decryptedBuffer = await enc.decryptLockerFileFromBuffer(encryptedBytes, { passphrase: effectivePassphrase.value });
         }
 
-        // Trigger browser download
         const name = decryptedFileMeta.value?.name ?? 'locker-file';
         const type = decryptedFileMeta.value?.type ?? 'application/octet-stream';
         const blob = new Blob([decryptedBuffer], { type });
@@ -275,14 +349,14 @@ const fetchSigningHeaders = async () => {
     const challengeData = await challengeRes.json();
 
     if (challengeData.challenge_id) {
-        const { privateKey } = await enc.deriveLockerSigningKeypair(passphrase.value, props.account_id);
+        const { privateKey } = await enc.deriveLockerSigningKeypair(effectivePassphrase.value, props.account_id);
         const signature = await enc.signLockerChallenge(privateKey, challengeData.challenge);
         return {
             'X-Signing-Challenge-Id': challengeData.challenge_id,
             'X-Signature': signature,
         };
     } else {
-        const updateToken = await enc.deriveLockerUpdateToken(passphrase.value, props.account_id);
+        const updateToken = await enc.deriveLockerUpdateToken(effectivePassphrase.value, props.account_id);
         return { 'X-Update-Token': updateToken };
     }
 };
@@ -294,7 +368,7 @@ const submitUpdate = async () => {
 
     updating.value = true;
     try {
-        const payload  = await enc.encryptLockerContent(newContent.value, passphrase.value);
+        const payload  = await enc.encryptLockerContent(newContent.value, effectivePassphrase.value);
         const authHeaders = await fetchSigningHeaders();
 
         const res = await fetch(route('lockers.update', props.account_id), {
@@ -332,19 +406,17 @@ const submitFileUpdate = async () => {
 
     try {
         const meta    = JSON.stringify({ name: replacementFile.value.name, type: replacementFile.value.type, size: replacementFile.value.size });
-        const payload = await enc.encryptLockerContent(meta, passphrase.value);
+        const payload = await enc.encryptLockerContent(meta, effectivePassphrase.value);
 
-        // Generate fresh DEK for the replacement file and encrypt directly to Uint8Array
         const newDek = enc.generateLockerFileKey();
-        const newWrappedFileKey = await enc.wrapLockerFileKey(newDek, passphrase.value, props.account_id);
+        const newWrappedFileKey = await enc.wrapLockerFileKey(newDek, effectivePassphrase.value, props.account_id);
         const fileBuffer = await replacementFile.value.arrayBuffer();
         const bytes = await enc.encryptLockerFileToBuffer(fileBuffer, { dek: newDek });
 
-        // Get presigned upload URL
         const prepRes = await fetch(route('lockers.file.prepare'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-XSRF-TOKEN': getXsrf() },
-            body: JSON.stringify({}), // no credit_token needed for updates
+            body: JSON.stringify({}),
         });
 
         let storagePath = null;
@@ -386,7 +458,7 @@ const submitFileUpdate = async () => {
         wrappedFileKey.value = newWrappedFileKey;
         decryptedFileMeta.value = JSON.parse(meta);
         replacementFile.value  = null;
-        downloadUrl.value = '';  // URL is now stale; re-unlock to get fresh URL
+        downloadUrl.value = '';
     } catch (err) {
         updateError.value = err.message || 'Update failed. Please try again.';
     } finally {
@@ -417,12 +489,10 @@ const changePassphrase = async () => {
         let newPayload;
         const putBody = {};
 
-        // ECDSA lockers: register new public key derived from new passphrase
         if (!isLegacyLocker.value) {
             const { publicKeyJwkBase64: newPublicKey } = await enc.deriveLockerSigningKeypair(newPassphrase.value, props.account_id);
             putBody.new_public_key = newPublicKey;
         } else {
-            // Legacy lockers: update verifier + update token
             const newAuthKey     = await enc.deriveLockerAuthKey(newPassphrase.value, props.account_id);
             const newVerifier    = await enc.computeLockerVerifier(newAuthKey, authChallenge.value);
             const newUpdateToken = await enc.deriveLockerUpdateToken(newPassphrase.value, props.account_id);
@@ -431,10 +501,9 @@ const changePassphrase = async () => {
         }
 
         if (isFileLocker.value && wrappedFileKey.value) {
-            // New locker (v2): re-wrap DEK with new passphrase — no file download required
             const meta = JSON.stringify(decryptedFileMeta.value);
             newPayload = await enc.encryptLockerContent(meta, newPassphrase.value);
-            const dek = await enc.unwrapLockerFileKey(wrappedFileKey.value, passphrase.value, props.account_id);
+            const dek = await enc.unwrapLockerFileKey(wrappedFileKey.value, effectivePassphrase.value, props.account_id);
             const newWrappedKey = await enc.wrapLockerFileKey(dek, newPassphrase.value, props.account_id);
             putBody.new_wrapped_file_key = newWrappedKey;
             putBody.payload = newPayload;
@@ -448,13 +517,13 @@ const changePassphrase = async () => {
             const data = await res.json();
             if (!res.ok) { passphraseChangeError.value = data.error ?? 'Failed to change passphrase.'; return; }
 
-            passphrase.value     = newPassphrase.value;
-            wrappedFileKey.value = newWrappedKey;
+            effectivePassphrase.value    = newPassphrase.value;
+            passphrase.value             = newPassphrase.value;
+            wrappedFileKey.value         = newWrappedKey;
             newPassphrase.value           = '';
             passphraseChangeSuccess.value = true;
 
         } else if (isFileLocker.value) {
-            // Legacy locker (v1): download, decrypt, re-encrypt with new passphrase
             const meta = JSON.stringify(decryptedFileMeta.value);
             newPayload = await enc.encryptLockerContent(meta, newPassphrase.value);
 
@@ -470,7 +539,7 @@ const changePassphrase = async () => {
                 xhr.send();
             });
 
-            const fileData = await enc.decryptLockerFileFromBuffer(encryptedBytes, { passphrase: passphrase.value });
+            const fileData = await enc.decryptLockerFileFromBuffer(encryptedBytes, { passphrase: effectivePassphrase.value });
             const reEncryptedBytes = await enc.encryptLockerFileToBuffer(fileData, { passphrase: newPassphrase.value });
 
             const prepRes = await fetch(route('lockers.file.prepare'), {
@@ -506,8 +575,9 @@ const changePassphrase = async () => {
             const data = await res.json();
             if (!res.ok) { passphraseChangeError.value = data.error ?? 'Failed to change passphrase.'; return; }
 
-            passphrase.value = newPassphrase.value;
-            downloadUrl.value = '';
+            effectivePassphrase.value = newPassphrase.value;
+            passphrase.value          = newPassphrase.value;
+            downloadUrl.value         = '';
             newPassphrase.value           = '';
             passphraseChangeSuccess.value = true;
 
@@ -524,7 +594,8 @@ const changePassphrase = async () => {
             const data = await res.json();
             if (!res.ok) { passphraseChangeError.value = data.error ?? 'Failed to change passphrase.'; return; }
 
-            passphrase.value = newPassphrase.value;
+            effectivePassphrase.value    = newPassphrase.value;
+            passphrase.value             = newPassphrase.value;
             newPassphrase.value           = '';
             passphraseChangeSuccess.value = true;
         }
@@ -566,9 +637,9 @@ const upgradeAuth = async () => {
     upgrading.value     = true;
     upgradeError.value  = '';
     try {
-        const authKey  = await enc.deriveLockerAuthKey(passphrase.value, props.account_id);
+        const authKey  = await enc.deriveLockerAuthKey(effectivePassphrase.value, props.account_id);
         const verifier = await enc.computeLockerVerifier(authKey, authChallenge.value);
-        const { publicKeyJwkBase64 } = await enc.deriveLockerSigningKeypair(passphrase.value, props.account_id);
+        const { publicKeyJwkBase64 } = await enc.deriveLockerSigningKeypair(effectivePassphrase.value, props.account_id);
 
         const res = await fetch(route('lockers.upgrade-auth', props.account_id), {
             method: 'POST',
@@ -688,22 +759,68 @@ const upgradeAuth = async () => {
                         </div>
 
                         <div class="w-full space-y-3">
-                            <input
-                                v-model="passphrase"
-                                type="password"
-                                placeholder="Enter passphrase to unlock"
-                                @keydown.enter="unlock"
-                                class="w-full bg-gray-900 border border-gray-700 text-white font-mono rounded-lg px-3 py-2.5 text-sm focus:border-gamboge-300 focus:ring-gamboge-300 focus:outline-none"
-                                data-testid="passphrase-input"
-                            />
+                            <!-- Passphrase input — shown for passphrase and combined modes -->
+                            <div v-if="authMode !== 'key_file'">
+                                <input
+                                    v-model="passphrase"
+                                    type="password"
+                                    placeholder="Enter passphrase to unlock"
+                                    @keydown.enter="canUnlock && unlock()"
+                                    class="w-full bg-gray-900 border border-gray-700 text-white font-mono rounded-lg px-3 py-2.5 text-sm focus:border-gamboge-300 focus:ring-gamboge-300 focus:outline-none"
+                                    data-testid="passphrase-input"
+                                />
+                            </div>
+
+                            <!-- Key file section — shown for key_file and combined modes -->
+                            <div v-if="authMode !== 'passphrase'" class="space-y-2">
+                                <div class="text-gamboge-300 font-mono text-xs uppercase tracking-widest">Key Files</div>
+                                <p class="text-gray-500 text-xs">
+                                    Load your key files in the same order as when you created this locker.
+                                    Refer to your saved credential file for the required fingerprint sequence.
+                                </p>
+
+                                <div v-if="keyFiles.length > 0" class="space-y-1">
+                                    <div
+                                        v-for="(kf, i) in keyFiles"
+                                        :key="i"
+                                        class="flex items-center gap-3 bg-gray-900 rounded-lg px-3 py-2"
+                                    >
+                                        <span class="text-gamboge-300/60 font-mono text-xs w-4 shrink-0">{{ i + 1 }}.</span>
+                                        <code class="text-gamboge-300 font-mono text-sm flex-1">{{ kf.fingerprint }}</code>
+                                        <span class="text-gray-500 text-xs truncate max-w-32">{{ kf.file.name }}</span>
+                                        <button
+                                            type="button"
+                                            @click="removeKeyFile(i)"
+                                            class="shrink-0 text-gray-500 hover:text-red-400 font-mono text-xs transition-colors"
+                                            title="Remove"
+                                        >✕</button>
+                                    </div>
+                                </div>
+
+                                <div class="flex items-center justify-between text-xs text-gray-500 font-mono">
+                                    <span>{{ keyFiles.length }} / {{ keyFileCount ?? '?' }} loaded</span>
+                                </div>
+
+                                <label
+                                    v-if="keyFiles.length < (keyFileCount ?? 999)"
+                                    class="flex items-center gap-2 cursor-pointer border border-dashed border-gray-600 hover:border-gamboge-300/50 rounded-lg px-3 py-2 transition-colors text-gray-400 text-sm"
+                                    data-testid="key-file-input-label"
+                                >
+                                    <span class="font-mono text-xs">+ Add key file</span>
+                                    <input type="file" class="sr-only" @change="onKeyFileAdded" data-testid="key-file-input" />
+                                </label>
+
+                                <p v-if="authMode === 'combined'" class="text-gamboge-300/70 text-xs">Both your passphrase and all {{ keyFileCount }} key file(s) are required to unlock.</p>
+                            </div>
+
                             <p v-if="decryptError" class="text-red-400 text-sm text-center" data-testid="decrypt-error">{{ decryptError }}</p>
                             <p v-if="failCount >= 2 && decryptError" class="text-gray-500 text-xs text-center">
-                                Repeatedly seeing this error? If your passphrase is lost, the content of this locker cannot be recovered.
-                                Passphrase reset is not possible by design.
+                                Repeatedly seeing this error? If your credentials are lost, the content of this locker cannot be recovered.
+                                Credential reset is not possible by design.
                             </p>
                             <button
                                 @click="unlock"
-                                :disabled="lockState === 'animating' || lockState === 'shaking'"
+                                :disabled="!canUnlock"
                                 class="w-full bg-gamboge-300 hover:bg-gamboge-400 disabled:opacity-60 text-gray-900 font-semibold py-2.5 rounded-lg font-mono text-sm transition-colors shadow-neon-cyan-sm hover:shadow-neon-cyan"
                                 data-testid="unlock-button"
                             >
@@ -788,11 +905,11 @@ const upgradeAuth = async () => {
 
                 <!-- Update hint when locked -->
                 <div v-if="lockState !== 'unlocked'" class="bg-gray-800 border border-gray-700 rounded-xl p-4 text-center">
-                    <p class="text-gray-500 text-xs">Unlock your locker with your passphrase to update or delete it.</p>
+                    <p class="text-gray-500 text-xs">Unlock your locker to update or delete it.</p>
                 </div>
 
-                <!-- Change Passphrase panel — only when unlocked -->
-                <div v-if="lockState === 'unlocked'" class="bg-gray-800 border border-gray-700 rounded-xl p-6 space-y-4">
+                <!-- Change Passphrase panel — only when unlocked and in passphrase mode -->
+                <div v-if="lockState === 'unlocked' && authMode === 'passphrase'" class="bg-gray-800 border border-gray-700 rounded-xl p-6 space-y-4">
                     <h2 class="text-gamboge-300 font-mono text-xs uppercase tracking-widest">Change Passphrase</h2>
                     <p class="text-gray-400 text-xs">Your content will be re-encrypted with the new passphrase. This cannot be undone.</p>
 
@@ -826,6 +943,14 @@ const upgradeAuth = async () => {
                         @click="changePassphrase"
                         class="w-full border border-gamboge-300 text-gamboge-300 hover:bg-gamboge-300/10 font-mono text-xs py-2 rounded-lg transition-colors"
                     >Change Passphrase</button>
+                </div>
+
+                <!-- Key file credential rotation notice — shown for key_file and combined modes when unlocked -->
+                <div v-if="lockState === 'unlocked' && authMode !== 'passphrase'" class="bg-gray-800 border border-gray-700 rounded-xl p-6">
+                    <h2 class="text-gamboge-300 font-mono text-xs uppercase tracking-widest mb-2">Credential Management</h2>
+                    <p class="text-gray-400 text-xs">
+                        Key file credential rotation is not yet supported. To change your key files, create a new locker and migrate your content.
+                    </p>
                 </div>
 
                 <!-- Delete panel — only when unlocked -->
