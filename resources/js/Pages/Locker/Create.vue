@@ -222,7 +222,7 @@ const submit = async () => {
                         Your passphrase is the only key to decrypt, update, or delete this locker. The server has never seen it.
                     </div>
 
-                    <div class="space-y-4 mb-6">
+                    <div class="space-y-4 mb-6 ph-no-capture">
                         <div v-for="field in [
                             { label: 'Account ID', value: credentials.account_id },
                             { label: 'Passphrase', value: credentials.passphrase },

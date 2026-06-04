@@ -93,7 +93,7 @@ const submit = async () => {
 
                     <div>
                         <div class="text-gamboge-300 font-mono text-xs uppercase tracking-widest mb-1">Renew eLocker</div>
-                        <h1 class="text-xl font-bold text-white font-mono">{{ account_id }}</h1>
+                        <h1 class="ph-no-capture text-xl font-bold text-white font-mono">{{ account_id }}</h1>
                     </div>
 
                     <!-- Current tier & expiry -->

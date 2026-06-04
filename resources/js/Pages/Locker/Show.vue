@@ -641,7 +641,7 @@ const upgradeAuth = async () => {
                 <div class="flex items-center justify-between">
                     <div>
                         <div class="text-gamboge-300 font-mono text-xs uppercase tracking-widest mb-0.5">eLocker</div>
-                        <div class="text-white font-mono text-xl tracking-widest">{{ account_id }}</div>
+                        <div class="ph-no-capture text-white font-mono text-xl tracking-widest">{{ account_id }}</div>
                     </div>
                     <div class="flex items-center gap-3">
                         <div v-if="expiresAt" class="text-right">
