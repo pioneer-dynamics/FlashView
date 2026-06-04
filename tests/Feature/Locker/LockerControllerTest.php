@@ -868,4 +868,162 @@ class LockerControllerTest extends TestCase
 
         $response->assertStatus(200)->assertJson(['ok' => true]);
     }
+
+    public function test_can_create_locker_with_key_file_auth_mode(): void
+    {
+        $credit = LockerCredit::factory()->create(['token' => 'kftok1', 'tier' => 'text', 'years' => 1]);
+
+        $response = $this->postJson(route('lockers.store'), [
+            'account_id' => '2000000001',
+            'credit_token' => 'kftok1',
+            'payload' => str_repeat('a', 100),
+            'public_key' => base64_encode(json_encode(['kty' => 'EC', 'crv' => 'P-256', 'x' => str_repeat('A', 43), 'y' => str_repeat('B', 43)])),
+            'tier' => 'text',
+            'storage_path' => null,
+            'auth_mode' => 'key_file',
+            'key_file_count' => 2,
+        ]);
+
+        $response->assertStatus(200)->assertJsonStructure(['expires_at', 'account_id']);
+
+        $this->assertDatabaseHas('lockers', [
+            'account_id' => '2000000001',
+            'auth_mode' => 'key_file',
+            'key_file_count' => 2,
+        ]);
+    }
+
+    public function test_can_create_locker_with_combined_auth_mode(): void
+    {
+        $credit = LockerCredit::factory()->create(['token' => 'cmbtok1', 'tier' => 'text', 'years' => 1]);
+
+        $response = $this->postJson(route('lockers.store'), [
+            'account_id' => '2000000002',
+            'credit_token' => 'cmbtok1',
+            'payload' => str_repeat('a', 100),
+            'public_key' => base64_encode(json_encode(['kty' => 'EC', 'crv' => 'P-256', 'x' => str_repeat('A', 43), 'y' => str_repeat('B', 43)])),
+            'tier' => 'text',
+            'storage_path' => null,
+            'auth_mode' => 'combined',
+            'key_file_count' => 1,
+        ]);
+
+        $response->assertStatus(200)->assertJsonStructure(['expires_at', 'account_id']);
+
+        $this->assertDatabaseHas('lockers', [
+            'account_id' => '2000000002',
+            'auth_mode' => 'combined',
+            'key_file_count' => 1,
+        ]);
+    }
+
+    public function test_store_validates_key_file_count_required_for_key_file_mode(): void
+    {
+        $credit = LockerCredit::factory()->create(['token' => 'kftok2', 'tier' => 'text', 'years' => 1]);
+
+        $response = $this->postJson(route('lockers.store'), [
+            'account_id' => '2000000003',
+            'credit_token' => 'kftok2',
+            'payload' => str_repeat('a', 100),
+            'public_key' => base64_encode('{}'),
+            'tier' => 'text',
+            'auth_mode' => 'key_file',
+            // key_file_count intentionally omitted
+        ]);
+
+        $response->assertStatus(422)->assertJsonValidationErrors(['key_file_count']);
+    }
+
+    public function test_store_validates_key_file_count_required_for_combined_mode(): void
+    {
+        $credit = LockerCredit::factory()->create(['token' => 'cmbtok2', 'tier' => 'text', 'years' => 1]);
+
+        $response = $this->postJson(route('lockers.store'), [
+            'account_id' => '2000000004',
+            'credit_token' => 'cmbtok2',
+            'payload' => str_repeat('a', 100),
+            'public_key' => base64_encode('{}'),
+            'tier' => 'text',
+            'auth_mode' => 'combined',
+            // key_file_count intentionally omitted
+        ]);
+
+        $response->assertStatus(422)->assertJsonValidationErrors(['key_file_count']);
+    }
+
+    public function test_store_rejects_key_file_count_when_passphrase_mode(): void
+    {
+        $credit = LockerCredit::factory()->create(['token' => 'pptok1', 'tier' => 'text', 'years' => 1]);
+
+        $response = $this->postJson(route('lockers.store'), [
+            'account_id' => '2000000005',
+            'credit_token' => 'pptok1',
+            'payload' => str_repeat('a', 100),
+            'auth_challenge' => str_repeat('c', 64),
+            'auth_verifier' => str_repeat('a', 64),
+            'update_token' => str_repeat('b', 64),
+            'tier' => 'text',
+            'auth_mode' => 'passphrase',
+            'key_file_count' => 2,
+        ]);
+
+        $response->assertStatus(422)->assertJsonValidationErrors(['key_file_count']);
+    }
+
+    public function test_auth_info_endpoint_returns_mode_and_count(): void
+    {
+        Locker::factory()->create([
+            'account_id' => '2000000006',
+            'auth_mode' => 'key_file',
+            'key_file_count' => 3,
+        ]);
+
+        $response = $this->getJson(route('lockers.auth-info', '2000000006'));
+
+        $response->assertStatus(200)->assertJson([
+            'auth_mode' => 'key_file',
+            'key_file_count' => 3,
+        ]);
+    }
+
+    public function test_auth_info_returns_passphrase_defaults_for_nonexistent_account(): void
+    {
+        $response = $this->getJson(route('lockers.auth-info', '9999999999'));
+
+        $response->assertStatus(200)->assertJson([
+            'auth_mode' => 'passphrase',
+            'key_file_count' => null,
+        ]);
+    }
+
+    public function test_existing_passphrase_locker_auth_info_returns_passphrase_mode(): void
+    {
+        Locker::factory()->create([
+            'account_id' => '2000000007',
+            // auth_mode defaults to 'passphrase' via migration
+        ]);
+
+        $response = $this->getJson(route('lockers.auth-info', '2000000007'));
+
+        $response->assertStatus(200)->assertJson([
+            'auth_mode' => 'passphrase',
+            'key_file_count' => null,
+        ]);
+    }
+
+    public function test_existing_locker_unlock_still_works_regression(): void
+    {
+        $verifier = str_repeat('a', 64);
+        Locker::factory()->create([
+            'account_id' => '2000000008',
+            'auth_verifier' => $verifier,
+            // auth_mode defaults to 'passphrase' — regression check
+        ]);
+
+        $response = $this->postJson(route('lockers.unlock', '2000000008'), [
+            'verifier' => $verifier,
+        ]);
+
+        $response->assertStatus(200)->assertJsonStructure(['payload', 'expires_at', 'is_file_locker']);
+    }
 }
