@@ -5,6 +5,7 @@ import {
     encryptBuffer, decryptBuffer,
     encryptFileToBuffer, decryptFileFromBuffer,
     generateFileKey, wrapFileKey, unwrapFileKey,
+    deriveSigningKeypair, signChallenge,
 } from '../src/index.js';
 
 // Known vectors generated from the pre-migration CLI implementation (tools/flashview-cli/src/crypto.js)
@@ -436,5 +437,98 @@ describe('encryptFileToBuffer + decryptFileFromBuffer backward compat', () => {
 
         const decrypted = await decryptFileFromBuffer(encrypted, { dek: finalDek });
         assert.deepEqual(decrypted, original, 'File must decrypt correctly after DEK re-wrap');
+    });
+});
+
+// ─── ECDSA signing (PIO-103) ──────────────────────────────────────────────────
+
+describe('deriveSigningKeypair', () => {
+    it('returns a CryptoKey and base64 JWK public key', async () => {
+        const { privateKey, publicKeyJwkBase64 } = await deriveSigningKeypair('test-passphrase', 'account-123');
+        assert.ok(privateKey instanceof CryptoKey, 'privateKey should be a CryptoKey');
+        assert.equal(privateKey.type, 'private', 'privateKey should be private type');
+        assert.ok(typeof publicKeyJwkBase64 === 'string', 'publicKeyJwkBase64 should be a string');
+
+        const jwk = JSON.parse(atob(publicKeyJwkBase64));
+        assert.equal(jwk.kty, 'EC', 'JWK kty should be EC');
+        assert.equal(jwk.crv, 'P-256', 'JWK crv should be P-256');
+        assert.ok(jwk.x, 'JWK should have x coordinate');
+        assert.ok(jwk.y, 'JWK should have y coordinate');
+        assert.equal(jwk.d, undefined, 'Public JWK should not contain d (private scalar)');
+    });
+
+    it('is deterministic — same passphrase+accountId produces the same public key', async () => {
+        const { publicKeyJwkBase64: pub1 } = await deriveSigningKeypair('deterministic-pass', 'acct-42');
+        const { publicKeyJwkBase64: pub2 } = await deriveSigningKeypair('deterministic-pass', 'acct-42');
+        assert.equal(pub1, pub2, 'Same inputs must produce the same public key');
+    });
+
+    it('different passphrases produce different keypairs', async () => {
+        const { publicKeyJwkBase64: pub1 } = await deriveSigningKeypair('passphrase-A', 'acct-1');
+        const { publicKeyJwkBase64: pub2 } = await deriveSigningKeypair('passphrase-B', 'acct-1');
+        assert.notEqual(pub1, pub2, 'Different passphrases must produce different keypairs');
+    });
+
+    it('different accountIds produce different keypairs', async () => {
+        const { publicKeyJwkBase64: pub1 } = await deriveSigningKeypair('shared-pass', 'acct-1');
+        const { publicKeyJwkBase64: pub2 } = await deriveSigningKeypair('shared-pass', 'acct-2');
+        assert.notEqual(pub1, pub2, 'Different accountIds must produce different keypairs');
+    });
+});
+
+describe('signChallenge', () => {
+    it('returns a base64-encoded 64-byte P1363 signature', async () => {
+        const { privateKey } = await deriveSigningKeypair('sign-test-pass', 'sign-acct');
+        const challengeHex = '0'.repeat(64); // 32 zero bytes
+        const signatureBase64 = await signChallenge(privateKey, challengeHex);
+
+        assert.ok(typeof signatureBase64 === 'string', 'Signature should be a string');
+        const sigBytes = Uint8Array.from(atob(signatureBase64), c => c.charCodeAt(0));
+        assert.equal(sigBytes.length, 64, 'P1363 signature should be exactly 64 bytes (r||s)');
+    });
+
+    it('signature verifies with the corresponding public key via Web Crypto', async () => {
+        const { privateKey, publicKeyJwkBase64 } = await deriveSigningKeypair('verify-test-pass', 'verify-acct');
+        const challengeHex = 'ab'.repeat(32); // 32 bytes
+        const signatureBase64 = await signChallenge(privateKey, challengeHex);
+
+        const sigBytes = Uint8Array.from(atob(signatureBase64), c => c.charCodeAt(0));
+        const challengeBytes = new Uint8Array(challengeHex.match(/.{2}/g).map(b => parseInt(b, 16)));
+
+        const pubJwk = JSON.parse(atob(publicKeyJwkBase64));
+        const pubKey = await crypto.subtle.importKey(
+            'jwk', pubJwk, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']
+        );
+
+        const isValid = await crypto.subtle.verify(
+            { name: 'ECDSA', hash: 'SHA-256' },
+            pubKey,
+            sigBytes,
+            challengeBytes
+        );
+        assert.ok(isValid, 'Signature should verify correctly with the corresponding public key');
+    });
+
+    it('signature does not verify with a different keypair', async () => {
+        const { privateKey: key1 } = await deriveSigningKeypair('key-1-pass', 'acct-x');
+        const { publicKeyJwkBase64: pub2 } = await deriveSigningKeypair('key-2-pass', 'acct-x');
+        const challengeHex = 'ff'.repeat(32);
+        const signatureBase64 = await signChallenge(key1, challengeHex);
+
+        const sigBytes = Uint8Array.from(atob(signatureBase64), c => c.charCodeAt(0));
+        const challengeBytes = new Uint8Array(challengeHex.match(/.{2}/g).map(b => parseInt(b, 16)));
+
+        const pubJwk = JSON.parse(atob(pub2));
+        const pubKey = await crypto.subtle.importKey(
+            'jwk', pubJwk, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']
+        );
+
+        const isValid = await crypto.subtle.verify(
+            { name: 'ECDSA', hash: 'SHA-256' },
+            pubKey,
+            sigBytes,
+            challengeBytes
+        );
+        assert.ok(! isValid, 'Signature from key1 must not verify with key2 public key');
     });
 });

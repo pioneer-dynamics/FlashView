@@ -22,6 +22,9 @@ return new class extends Migration
 
     public function down(): void
     {
+        // WARNING: Restoring NOT NULL constraints will fail if any ECDSA lockers
+        // exist (they have NULL in these columns). Only run this rollback before
+        // any ECDSA lockers have been created, or after deleting/backfilling them.
         Schema::table('lockers', function (Blueprint $table) {
             $table->dropColumn('public_key');
             $table->string('auth_challenge', 64)->nullable(false)->change();

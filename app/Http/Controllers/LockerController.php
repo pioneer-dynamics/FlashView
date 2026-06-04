@@ -5,7 +5,9 @@ namespace App\Http\Controllers;
 use App\Http\Requests\Locker\CheckoutLockerRequest;
 use App\Http\Requests\Locker\RenewLockerRequest;
 use App\Http\Requests\Locker\StoreLockerRequest;
+use App\Http\Requests\Locker\UnlockLockerRequest;
 use App\Http\Requests\Locker\UpdateLockerRequest;
+use App\Http\Requests\Locker\UpgradeAuthLockerRequest;
 use App\Models\Locker;
 use App\Models\LockerCredit;
 use App\Models\LockerPlan;
@@ -208,7 +210,7 @@ class LockerController extends Controller
         return response()->json(['challenge' => $challenge]);
     }
 
-    public function unlock(Request $request, string $accountId): JsonResponse
+    public function unlock(UnlockLockerRequest $request, string $accountId): JsonResponse
     {
         $ip = $request->ip();
 
@@ -237,11 +239,6 @@ class LockerController extends Controller
 
         if ($locker->public_key !== null) {
             // ECDSA path
-            $request->validate([
-                'challenge_id' => ['required', 'string', 'uuid'],
-                'signature' => ['required', 'string'],
-            ]);
-
             $challengeHex = $this->ecdsaService->consumeChallenge(
                 $request->input('challenge_id'),
                 $accountId
@@ -256,7 +253,6 @@ class LockerController extends Controller
             }
         } else {
             // Legacy HMAC path
-            $request->validate(['verifier' => ['required', 'string', 'size:64']]);
             $verified = $locker->verifyAuthVerifier($request->input('verifier'));
         }
 
@@ -528,13 +524,8 @@ class LockerController extends Controller
         return response()->json(['checkout_url' => $session->url]);
     }
 
-    public function upgradeAuth(Request $request, string $accountId): JsonResponse
+    public function upgradeAuth(UpgradeAuthLockerRequest $request, string $accountId): JsonResponse
     {
-        $request->validate([
-            'verifier' => ['required', 'string', 'size:64'],
-            'public_key' => ['required', 'string'],
-        ]);
-
         $locker = Locker::where('account_id', $accountId)->first();
         if (! $locker) {
             abort(404);

@@ -56,6 +56,10 @@ class Locker extends Model
 
     public function verifyUpdateToken(string $token): bool
     {
+        if ($this->update_token_hash === null) {
+            return false;
+        }
+
         return hash_equals($this->update_token_hash, hash('sha256', $token));
     }
 
