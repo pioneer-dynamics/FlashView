@@ -37,7 +37,7 @@ watch(() => form.tier, (val) => {
 });
 
 const amountDollars = computed({
-    get: () => form.amount_cents ? (form.amount_cents / 100).toFixed(2) : '',
+    get: () => form.amount_cents ? (form.amount_cents / 100) : '',
     set: (val) => { form.amount_cents = Math.round(parseFloat(val || 0) * 100); },
 });
 
@@ -170,10 +170,10 @@ const previewButtonLabel = computed(() => {
                             <TextInput
                                 v-model="amountDollars"
                                 type="number"
-                                step="0.01"
-                                min="0.01"
+                                step="1"
+                                min="0"
                                 class="pl-7 w-full"
-                                placeholder="20.00"
+                                placeholder="20"
                             />
                         </div>
                         <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
