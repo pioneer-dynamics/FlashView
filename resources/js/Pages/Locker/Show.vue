@@ -651,6 +651,7 @@ const upgradeAuth = async () => {
                         <button
                             v-if="lockState === 'unlocked'"
                             @click="lockLocker"
+                            data-testid="lock-button"
                             class="flex items-center gap-1.5 border border-gray-600 hover:border-gray-400 text-gray-400 hover:text-white font-mono text-xs px-3 py-1.5 rounded-lg transition-colors"
                             title="Lock locker"
                         >
