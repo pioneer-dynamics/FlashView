@@ -330,8 +330,9 @@ const submit = async () => {
                     </button>
 
                     <label class="flex items-center gap-2 text-gray-300 text-sm mb-4 cursor-pointer">
-                        <input type="checkbox" v-model="savedConfirmed" class="rounded border-gray-600 bg-gray-700 text-gamboge-300" />
-                        I have saved my credentials
+                        <input type="checkbox" v-model="savedConfirmed" class="rounded border-gray-600 bg-gray-700 text-gamboge-300" data-testid="saved-confirmed-checkbox" />
+                        <span v-if="credentials.authMode === 'passphrase'">I have saved both credentials</span>
+                        <span v-else>I have saved my credentials</span>
                     </label>
 
                     <button

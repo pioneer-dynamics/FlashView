@@ -67,6 +67,88 @@ export async function createLockerViaUI(
     return { accountId, passphrase };
 }
 
+/** Deterministic test key file fixtures. Use these for all key-file E2E tests. */
+export const KEY_FILE_ALPHA = {
+    name: 'key-file-alpha.bin',
+    mimeType: 'application/octet-stream',
+    buffer: Buffer.from('e2e-key-file-alpha-content-unique-v1'),
+};
+
+export const KEY_FILE_BETA = {
+    name: 'key-file-beta.bin',
+    mimeType: 'application/octet-stream',
+    buffer: Buffer.from('e2e-key-file-beta-content-unique-v1'),
+};
+
+export const KEY_FILE_WRONG = {
+    name: 'key-file-wrong.bin',
+    mimeType: 'application/octet-stream',
+    buffer: Buffer.from('e2e-key-file-wrong-content-should-fail'),
+};
+
+/**
+ * Create a key-file-only locker via the browser UI.
+ * Accepts one or more key file fixtures (from KEY_FILE_ALPHA, etc.).
+ */
+export async function createKeyFileLockerViaUI(
+    page: Page,
+    accountId: string,
+    content: string,
+    creditToken: string,
+    keyFiles: { name: string; mimeType: string; buffer: Buffer }[]
+): Promise<{ accountId: string; keyFiles: typeof keyFiles }> {
+    await page.goto(`/lockers/create?token=${encodeURIComponent(creditToken)}`);
+    await page.waitForLoadState('networkidle');
+
+    await page.getByPlaceholder('Choose a 10-digit number').fill(accountId);
+    await page.getByRole('button', { name: 'Key File(s)' }).click();
+
+    for (const kf of keyFiles) {
+        await page.getByTestId('key-file-input').setInputFiles(kf);
+        await page.waitForTimeout(300); // allow fingerprint computation
+    }
+
+    await page.getByTestId('key-file-risk-checkbox').check();
+    await page.getByPlaceholder('Enter the content to store…').fill(content);
+    await page.getByTestId('create-submit-button').click();
+
+    await page.waitForSelector('text=Locker created!', { timeout: 15000 });
+
+    return { accountId, keyFiles };
+}
+
+/**
+ * Create a combined (passphrase + key file) locker via the browser UI.
+ */
+export async function createCombinedLockerViaUI(
+    page: Page,
+    accountId: string,
+    passphrase: string,
+    content: string,
+    creditToken: string,
+    keyFiles: { name: string; mimeType: string; buffer: Buffer }[]
+): Promise<{ accountId: string; passphrase: string; keyFiles: typeof keyFiles }> {
+    await page.goto(`/lockers/create?token=${encodeURIComponent(creditToken)}`);
+    await page.waitForLoadState('networkidle');
+
+    await page.getByPlaceholder('Choose a 10-digit number').fill(accountId);
+    await page.getByRole('button', { name: 'Both' }).click();
+    await page.getByPlaceholder('Enter or generate a passphrase').fill(passphrase);
+
+    for (const kf of keyFiles) {
+        await page.getByTestId('key-file-input').setInputFiles(kf);
+        await page.waitForTimeout(300);
+    }
+
+    await page.getByTestId('key-file-risk-checkbox').check();
+    await page.getByPlaceholder('Enter the content to store…').fill(content);
+    await page.getByTestId('create-submit-button').click();
+
+    await page.waitForSelector('text=Locker created!', { timeout: 15000 });
+
+    return { accountId, passphrase, keyFiles };
+}
+
 /**
  * Create a file locker via the browser UI with mocked S3 endpoints.
  * S3 is not available in the test environment — routes are intercepted.
