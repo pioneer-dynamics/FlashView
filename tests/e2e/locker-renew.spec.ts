@@ -54,3 +54,45 @@ test('wrong passphrase on renew shows error', async ({ page }) => {
 
     await expect(page.getByText(/Invalid passphrase|Authentication failed/i)).toBeVisible({ timeout: 10000 });
 });
+
+// ─── ECDSA renewal (PIO-103) ──────────────────────────────────────────────────
+
+test('ECDSA locker renewal with correct passphrase redirects to Stripe checkout', async ({ page }) => {
+    createLockerCredit('ecdsarenew01', 'text', 1);
+    const { passphrase } = await createLockerViaUI(page, '6060606060', 'ecdsa-renew-passphrase-long', 'Renewal test content', 'ecdsarenew01');
+
+    // Mock Stripe checkout creation — Stripe is not available in test environment
+    await page.route('**/6060606060/renew', async (route, request) => {
+        if (request.method() === 'POST') {
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({ checkout_url: 'https://checkout.stripe.com/test-session' }),
+            });
+        } else {
+            await route.continue();
+        }
+    });
+
+    await page.goto('/lockers/6060606060/renew');
+    await page.waitForLoadState('networkidle');
+
+    await page.getByPlaceholder(/passphrase/i).fill(passphrase);
+    await page.getByRole('button', { name: /Renew for/i }).click();
+
+    // Should redirect to Stripe checkout URL
+    await expect(page).toHaveURL(/checkout\.stripe\.com/, { timeout: 15000 });
+});
+
+test('ECDSA locker renewal with wrong passphrase shows error', async ({ page }) => {
+    createLockerCredit('ecdsarenew02', 'text', 1);
+    await createLockerViaUI(page, '7070707070', 'ecdsa-renew-correct-pass', 'Renewal wrong pass test', 'ecdsarenew02');
+
+    await page.goto('/lockers/7070707070/renew');
+    await page.waitForLoadState('networkidle');
+
+    await page.getByPlaceholder(/passphrase/i).fill('totally-wrong-passphrase!');
+    await page.getByRole('button', { name: /Renew for/i }).click();
+
+    await expect(page.getByText(/Invalid passphrase/i)).toBeVisible({ timeout: 10000 });
+});

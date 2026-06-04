@@ -5,10 +5,13 @@ namespace App\Http\Controllers;
 use App\Http\Requests\Locker\CheckoutLockerRequest;
 use App\Http\Requests\Locker\RenewLockerRequest;
 use App\Http\Requests\Locker\StoreLockerRequest;
+use App\Http\Requests\Locker\UnlockLockerRequest;
 use App\Http\Requests\Locker\UpdateLockerRequest;
+use App\Http\Requests\Locker\UpgradeAuthLockerRequest;
 use App\Models\Locker;
 use App\Models\LockerCredit;
 use App\Models\LockerPlan;
+use App\Services\LockerEcdsaService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -24,6 +27,8 @@ use Stripe\Exception\ApiErrorException;
 
 class LockerController extends Controller
 {
+    public function __construct(public LockerEcdsaService $ecdsaService) {}
+
     public function index(Request $request): Response
     {
         return Inertia::render('Locker/Index');
@@ -103,7 +108,6 @@ class LockerController extends Controller
     public function create(Request $request): Response
     {
         $token = $request->query('token');
-
         $credit = LockerCredit::where('token', $token)->unused()->first();
 
         if (! $credit) {
@@ -121,16 +125,23 @@ class LockerController extends Controller
     {
         $credit = LockerCredit::where('token', $request->input('credit_token'))->unused()->firstOrFail();
 
-        $locker = Locker::create([
+        $lockerData = [
             'account_id' => $request->input('account_id'),
             'payload' => $request->input('payload'),
             'storage_path' => $request->input('storage_path'),
             'wrapped_file_key' => $request->input('wrapped_file_key'),
-            'auth_challenge' => $request->input('auth_challenge'),
-            'auth_verifier' => $request->input('auth_verifier'),
-            'update_token_hash' => hash('sha256', $request->input('update_token')),
             'expires_at' => now()->addYears($credit->years),
-        ]);
+        ];
+
+        if ($request->filled('public_key')) {
+            $lockerData['public_key'] = $request->input('public_key');
+        } else {
+            $lockerData['auth_challenge'] = $request->input('auth_challenge');
+            $lockerData['auth_verifier'] = $request->input('auth_verifier');
+            $lockerData['update_token_hash'] = hash('sha256', $request->input('update_token'));
+        }
+
+        $locker = Locker::create($lockerData);
 
         $credit->update([
             'locker_id' => $locker->id,
@@ -145,8 +156,6 @@ class LockerController extends Controller
 
     public function prepareFile(Request $request): JsonResponse
     {
-        // If a credit_token is provided, validate it (creation flow).
-        // If not (update flow for an existing file locker), skip credit check.
         $creditToken = $request->input('credit_token');
         if ($creditToken) {
             $credit = LockerCredit::where('token', $creditToken)->unused()->where('tier', 'file')->first();
@@ -173,8 +182,6 @@ class LockerController extends Controller
 
     public function show(Request $request, string $accountId): Response
     {
-        // Always render — never reveal whether an account ID exists.
-        // The unlock endpoint is the only place credentials are validated.
         return Inertia::render('Locker/Show', [
             'account_id' => $accountId,
             'renewed' => $request->query('renewed') === '1',
@@ -191,18 +198,21 @@ class LockerController extends Controller
 
         $locker = Locker::where('account_id', $accountId)->first();
 
-        // Always return a challenge — fake one for non-existent accounts to prevent enumeration.
+        if ($locker && $locker->public_key !== null) {
+            $data = $this->ecdsaService->issueChallenge($accountId);
+
+            return response()->json($data);
+        }
+
+        // Legacy locker or non-existent account — always return a challenge to prevent enumeration.
         $challenge = $locker ? $locker->auth_challenge : bin2hex(random_bytes(32));
 
         return response()->json(['challenge' => $challenge]);
     }
 
-    public function unlock(Request $request, string $accountId): JsonResponse
+    public function unlock(UnlockLockerRequest $request, string $accountId): JsonResponse
     {
-        $request->validate(['verifier' => ['required', 'string', 'size:64']]);
-
         $ip = $request->ip();
-        $verifier = $request->input('verifier');
 
         if (RateLimiter::tooManyAttempts('locker-ip:'.$ip, 3)) {
             return response()->json(['error' => 'Too many failed attempts. Try again in 1 hour.'], 429);
@@ -212,7 +222,7 @@ class LockerController extends Controller
 
         if (! $locker) {
             RateLimiter::hit('locker-ip:'.$ip, 3600);
-            usleep(random_int(80_000, 200_000)); // timing-safe delay
+            usleep(random_int(80_000, 200_000));
 
             return response()->json(['error' => 'Credentials do not match.'], 401);
         }
@@ -225,7 +235,28 @@ class LockerController extends Controller
             return response()->json(['error' => 'Too many attempts. Please wait 5 minutes before trying again.'], 429);
         }
 
-        if (! $locker->verifyAuthVerifier($verifier)) {
+        $verified = false;
+
+        if ($locker->public_key !== null) {
+            // ECDSA path
+            $challengeHex = $this->ecdsaService->consumeChallenge(
+                $request->input('challenge_id'),
+                $accountId
+            );
+
+            if ($challengeHex !== null) {
+                $verified = $this->ecdsaService->verify(
+                    $locker->public_key,
+                    $challengeHex,
+                    $request->input('signature')
+                );
+            }
+        } else {
+            // Legacy HMAC path
+            $verified = $locker->verifyAuthVerifier($request->input('verifier'));
+        }
+
+        if (! $verified) {
             RateLimiter::clear('locker-account-cooldown:'.$accountId);
             RateLimiter::hit('locker-account-cooldown:'.$accountId, 300);
             RateLimiter::hit('locker-account-lock:'.$accountId, 3600);
@@ -236,12 +267,10 @@ class LockerController extends Controller
             return response()->json(['error' => 'Credentials do not match.'], 401);
         }
 
-        // Correct passphrase but expired — safe to reveal now
         if ($locker->isExpired()) {
             return response()->json(['error' => 'This locker has expired and is no longer accessible.'], 410);
         }
 
-        // Success — clear failure state
         RateLimiter::clear('locker-account-lock:'.$accountId);
         RateLimiter::clear('locker-account-cooldown:'.$accountId);
 
@@ -296,18 +325,35 @@ class LockerController extends Controller
             abort(410);
         }
 
-        $updateToken = $request->header('X-Update-Token');
+        $verified = false;
 
-        if (! $updateToken || ! $locker->verifyUpdateToken($updateToken)) {
-            return response()->json(['error' => 'Invalid update token.'], 403);
+        if ($locker->public_key !== null) {
+            // ECDSA path
+            $challengeId = $request->header('X-Signing-Challenge-Id');
+            $signature = $request->header('X-Signature');
+
+            if ($challengeId && $signature) {
+                $challengeHex = $this->ecdsaService->consumeChallenge($challengeId, $accountId);
+                if ($challengeHex !== null) {
+                    $verified = $this->ecdsaService->verify($locker->public_key, $challengeHex, $signature);
+                }
+            }
+        } else {
+            // Legacy path
+            $updateToken = $request->header('X-Update-Token');
+            if ($updateToken) {
+                $verified = $locker->verifyUpdateToken($updateToken);
+            }
+        }
+
+        if (! $verified) {
+            return response()->json(['error' => 'Invalid credentials.'], 403);
         }
 
         $updates = [
             'payload' => $request->input('payload'),
         ];
 
-        // Only update storage_path when it is explicitly present in the request body.
-        // Omitting it (passphrase-change only) must never null the column or trigger S3 deletion.
         if ($request->has('storage_path')) {
             $newStoragePath = $request->input('storage_path');
             if ($locker->isFileLocker() && $locker->storage_path && $locker->storage_path !== $newStoragePath) {
@@ -320,9 +366,17 @@ class LockerController extends Controller
             $updates['storage_path'] = $newStoragePath;
         }
 
-        if ($request->filled('new_auth_verifier') && $request->filled('new_update_token')) {
-            $updates['auth_verifier'] = $request->input('new_auth_verifier');
-            $updates['update_token_hash'] = hash('sha256', $request->input('new_update_token'));
+        if ($locker->public_key !== null) {
+            // ECDSA passphrase change: update public key when provided
+            if ($request->filled('new_public_key')) {
+                $updates['public_key'] = $request->input('new_public_key');
+            }
+        } else {
+            // Legacy passphrase change: update verifier and token hash
+            if ($request->filled('new_auth_verifier') && $request->filled('new_update_token')) {
+                $updates['auth_verifier'] = $request->input('new_auth_verifier');
+                $updates['update_token_hash'] = hash('sha256', $request->input('new_update_token'));
+            }
         }
 
         if ($request->filled('new_wrapped_file_key')) {
@@ -342,10 +396,27 @@ class LockerController extends Controller
             abort(404);
         }
 
-        $updateToken = $request->header('X-Update-Token');
+        $verified = false;
 
-        if (! $updateToken || ! $locker->verifyUpdateToken($updateToken)) {
-            return response()->json(['error' => 'Invalid update token.'], 403);
+        if ($locker->public_key !== null) {
+            $challengeId = $request->header('X-Signing-Challenge-Id');
+            $signature = $request->header('X-Signature');
+
+            if ($challengeId && $signature) {
+                $challengeHex = $this->ecdsaService->consumeChallenge($challengeId, $accountId);
+                if ($challengeHex !== null) {
+                    $verified = $this->ecdsaService->verify($locker->public_key, $challengeHex, $signature);
+                }
+            }
+        } else {
+            $updateToken = $request->header('X-Update-Token');
+            if ($updateToken) {
+                $verified = $locker->verifyUpdateToken($updateToken);
+            }
+        }
+
+        if (! $verified) {
+            return response()->json(['error' => 'Invalid credentials.'], 403);
         }
 
         if ($locker->isFileLocker()) {
@@ -370,6 +441,12 @@ class LockerController extends Controller
         }
 
         if ($request->wantsJson()) {
+            if ($locker->public_key !== null) {
+                $data = $this->ecdsaService->issueChallenge($accountId);
+
+                return response()->json($data);
+            }
+
             return response()->json(['challenge' => $locker->auth_challenge]);
         }
 
@@ -388,7 +465,26 @@ class LockerController extends Controller
             return response()->json(['error' => 'Locker not found.'], 404);
         }
 
-        if (! $locker->verifyAuthVerifier($request->input('verifier'))) {
+        $verified = false;
+
+        if ($locker->public_key !== null) {
+            $challengeHex = $this->ecdsaService->consumeChallenge(
+                $request->input('challenge_id'),
+                $accountId
+            );
+
+            if ($challengeHex !== null) {
+                $verified = $this->ecdsaService->verify(
+                    $locker->public_key,
+                    $challengeHex,
+                    $request->input('signature')
+                );
+            }
+        } else {
+            $verified = $locker->verifyAuthVerifier($request->input('verifier'));
+        }
+
+        if (! $verified) {
             return response()->json(['error' => 'Invalid passphrase.'], 403);
         }
 
@@ -426,5 +522,44 @@ class LockerController extends Controller
         }
 
         return response()->json(['checkout_url' => $session->url]);
+    }
+
+    public function upgradeAuth(UpgradeAuthLockerRequest $request, string $accountId): JsonResponse
+    {
+        $locker = Locker::where('account_id', $accountId)->first();
+        if (! $locker) {
+            abort(404);
+        }
+        if ($locker->isExpired()) {
+            abort(410);
+        }
+
+        // Idempotent: already upgraded
+        if ($locker->public_key !== null) {
+            return response()->json(['ok' => true]);
+        }
+
+        // Apply the same account-level rate limiter as unlock() — prevents brute-force
+        // against the verifier via this endpoint bypassing unlock's protections.
+        if (RateLimiter::tooManyAttempts('locker-account-lock:'.$accountId, 3)) {
+            return response()->json(['error' => 'Too many failed attempts. Try again in 1 hour. Your locker is unchanged.'], 429);
+        }
+
+        if (! $locker->verifyAuthVerifier($request->input('verifier'))) {
+            RateLimiter::hit('locker-account-lock:'.$accountId, 3600);
+
+            return response()->json(['error' => 'Invalid passphrase.'], 403);
+        }
+
+        RateLimiter::clear('locker-account-lock:'.$accountId);
+
+        $locker->update([
+            'public_key' => $request->input('public_key'),
+            'auth_challenge' => null,
+            'auth_verifier' => null,
+            'update_token_hash' => null,
+        ]);
+
+        return response()->json(['ok' => true]);
     }
 }

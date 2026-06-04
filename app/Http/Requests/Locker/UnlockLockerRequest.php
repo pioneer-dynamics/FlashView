@@ -6,7 +6,7 @@ use App\Models\Locker;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
-class RenewLockerRequest extends FormRequest
+class UnlockLockerRequest extends FormRequest
 {
     public function authorize(): bool
     {
@@ -25,8 +25,6 @@ class RenewLockerRequest extends FormRequest
             'challenge_id' => $isEcdsa ? ['required', 'string', 'uuid'] : ['nullable'],
             'signature' => $isEcdsa ? ['required', 'string'] : ['nullable'],
             'verifier' => $isEcdsa ? ['nullable'] : ['required', 'string', 'size:64'],
-            'years' => ['required', 'integer', 'in:1,3,5'],
-            'tier' => ['required', 'in:text,file'],
         ];
     }
 }

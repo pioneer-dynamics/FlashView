@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { resetDatabase, clearCache } from './helpers/db';
-import { createLockerCredit, createLockerViaUI, createFileLockerViaUI } from './helpers/locker';
+import { createLockerCredit, createLockerViaUI, createFileLockerViaUI, createLegacyLockerViaDB } from './helpers/locker';
 
 test.beforeEach(() => {
     resetDatabase();
@@ -194,4 +194,218 @@ test('passphrase change on DEK-based file locker does not re-download the file',
 
     // Core assertion: no S3 file was downloaded during passphrase change
     expect(s3Downloads).toHaveLength(0);
+});
+
+// ─── ECDSA flows (PIO-103) ────────────────────────────────────────────────────
+
+test('ECDSA locker unlock decrypts and displays content', async ({ page }) => {
+    createLockerCredit('ecdsashow01', 'text', 1);
+    const { passphrase } = await createLockerViaUI(page, '5100000001', 'ecdsa-unlock-passphrase', 'ECDSA secret text', 'ecdsashow01');
+
+    await page.goto('/lockers/5100000001');
+    await page.waitForLoadState('networkidle');
+
+    await page.getByTestId('passphrase-input').fill(passphrase);
+    await page.getByTestId('unlock-button').click();
+
+    await expect(page.getByTestId('decrypted-content')).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText('ECDSA secret text')).toBeVisible();
+});
+
+test('ECDSA locker update content shows success message', async ({ page }) => {
+    createLockerCredit('ecdsashow02', 'text', 1);
+    const { passphrase } = await createLockerViaUI(page, '5100000002', 'ecdsa-update-passphrase', 'Original content', 'ecdsashow02');
+
+    await page.goto('/lockers/5100000002');
+    await page.waitForLoadState('networkidle');
+
+    await page.getByTestId('passphrase-input').fill(passphrase);
+    await page.getByTestId('unlock-button').click();
+    await expect(page.getByTestId('decrypted-content')).toBeVisible({ timeout: 15000 });
+
+    await page.getByPlaceholder('New content…').fill('Updated secret content');
+    await page.getByTestId('update-button').click();
+
+    await expect(page.getByText('Content updated.')).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText('Updated secret content')).toBeVisible();
+});
+
+test('ECDSA locker delete redirects to home', async ({ page }) => {
+    createLockerCredit('ecdsashow03', 'text', 1);
+    const { passphrase } = await createLockerViaUI(page, '5100000003', 'ecdsa-delete-passphrase', 'Content to delete', 'ecdsashow03');
+
+    await page.goto('/lockers/5100000003');
+    await page.waitForLoadState('networkidle');
+
+    await page.getByTestId('passphrase-input').fill(passphrase);
+    await page.getByTestId('unlock-button').click();
+    await expect(page.getByTestId('decrypted-content')).toBeVisible({ timeout: 15000 });
+
+    await page.getByRole('button', { name: /Delete this locker permanently/i }).click();
+    await page.getByTestId('confirm-delete-button').click();
+
+    await expect(page).toHaveURL('/', { timeout: 15000 });
+});
+
+test('ECDSA locker passphrase change — new passphrase unlocks, old one fails', async ({ page }) => {
+    createLockerCredit('ecdsashow04', 'text', 1);
+    const oldPassphrase = 'ecdsa-old-passphrase-secure';
+    const newPassphrase = 'ecdsa-new-passphrase-secure';
+    const { accountId } = await createLockerViaUI(page, '5100000004', oldPassphrase, 'Passphrase change content', 'ecdsashow04');
+
+    // Unlock with old passphrase and change it
+    await page.goto(`/lockers/${accountId}`);
+    await page.waitForLoadState('networkidle');
+
+    await page.getByTestId('passphrase-input').fill(oldPassphrase);
+    await page.getByTestId('unlock-button').click();
+    await expect(page.getByTestId('decrypted-content')).toBeVisible({ timeout: 15000 });
+
+    await page.getByPlaceholder('Enter or generate a passphrase').last().fill(newPassphrase);
+    await page.getByRole('button', { name: /Change Passphrase/i }).click();
+    await expect(page.getByText(/Passphrase changed/i)).toBeVisible({ timeout: 15000 });
+
+    // Lock and try old passphrase — should fail
+    await page.getByTestId('lock-button').click();
+    await page.getByTestId('passphrase-input').fill(oldPassphrase);
+    await page.getByTestId('unlock-button').click();
+    await expect(page.getByTestId('decrypt-error')).toBeVisible({ timeout: 10000 });
+
+    // Clear rate limiters (the failed attempt hit the cooldown) and wait for shake to end
+    clearCache();
+    await expect(page.getByTestId('unlock-button')).toBeEnabled({ timeout: 3000 });
+
+    // Try new passphrase — should succeed
+    await page.getByTestId('passphrase-input').fill(newPassphrase);
+    await page.getByTestId('unlock-button').click();
+    await expect(page.getByTestId('decrypted-content')).toBeVisible({ timeout: 15000 });
+});
+
+test('upgrade banner appears after legacy unlock and upgrade migrates to ECDSA', async ({ page }) => {
+    createLockerCredit('ecdsashow05', 'text', 1);
+    const upgradePassphrase = 'upgrade-banner-passphrase';
+    const upgradeAccountId = '5100000005';
+
+    // Capture the encrypted payload from the creation request body before it hits the server
+    let capturedPayload: string | null = null;
+    await page.route('**/lockers', async (route, request) => {
+        if (request.method() === 'POST' && !request.url().includes('file')) {
+            const body = JSON.parse(request.postData() || '{}');
+            if (body.account_id === upgradeAccountId) {
+                capturedPayload = body.payload;
+            }
+        }
+        await route.continue();
+    });
+
+    await createLockerViaUI(page, upgradeAccountId, upgradePassphrase, 'Banner test content', 'ecdsashow05');
+
+    // Use context-level routes (persist across navigations, evaluated before page routes)
+    const challengePattern = new RegExp(`/lockers/${upgradeAccountId}/challenge`);
+    const unlockPattern = new RegExp(`/lockers/${upgradeAccountId}/unlock`);
+    const upgradePattern = new RegExp(`/lockers/${upgradeAccountId}/upgrade-auth`);
+
+    const futureExpiry = new Date(Date.now() + 365 * 86400 * 1000).toISOString();
+
+    // Mock challenge as legacy (no challenge_id) to trigger the upgrade banner
+    await page.context().route(challengePattern, async route => {
+        await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({ challenge: 'a'.repeat(64) }),
+        });
+    });
+
+    // Mock unlock to return the real encrypted payload (so decryption succeeds)
+    await page.context().route(unlockPattern, async route => {
+        await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({
+                payload: capturedPayload,
+                is_file_locker: false,
+                expires_at: futureExpiry,
+                auth_challenge: 'a'.repeat(64),
+            }),
+        });
+    });
+
+    await page.context().route(upgradePattern, async route => {
+        await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({ ok: true }),
+        });
+    });
+
+    // Navigate to show page with mocks already active
+    await page.goto(`/lockers/${upgradeAccountId}`);
+    await page.waitForLoadState('networkidle');
+
+    await page.getByTestId('passphrase-input').fill(upgradePassphrase);
+    await page.getByTestId('unlock-button').click();
+
+    await expect(page.getByTestId('decrypted-content')).toBeVisible({ timeout: 15000 });
+    await expect(page.getByTestId('upgrade-banner')).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText('Security upgrade available')).toBeVisible();
+
+    await page.getByTestId('upgrade-button').click();
+
+    await expect(page.getByTestId('upgrade-success')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByTestId('upgrade-banner')).not.toBeVisible();
+});
+
+test('upgrade banner can be dismissed without upgrading', async ({ page }) => {
+    createLockerCredit('ecdsashow06', 'text', 1);
+    const dismissPassphrase = 'dismiss-banner-passphrase';
+    const dismissAccountId = '5100000006';
+
+    let capturedPayload2: string | null = null;
+    await page.route('**/lockers', async (route, request) => {
+        if (request.method() === 'POST' && !request.url().includes('file')) {
+            const body = JSON.parse(request.postData() || '{}');
+            if (body.account_id === dismissAccountId) {
+                capturedPayload2 = body.payload;
+            }
+        }
+        await route.continue();
+    });
+
+    await createLockerViaUI(page, dismissAccountId, dismissPassphrase, 'Dismiss test content', 'ecdsashow06');
+
+    const challengePattern2 = new RegExp(`/lockers/${dismissAccountId}/challenge`);
+    const unlockPattern2 = new RegExp(`/lockers/${dismissAccountId}/unlock`);
+    const futureExpiry2 = new Date(Date.now() + 365 * 86400 * 1000).toISOString();
+
+    await page.context().route(challengePattern2, async route => {
+        await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({ challenge: 'b'.repeat(64) }),
+        });
+    });
+
+    await page.context().route(unlockPattern2, async route => {
+        await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({
+                payload: capturedPayload2,
+                is_file_locker: false,
+                expires_at: futureExpiry2,
+                auth_challenge: 'b'.repeat(64),
+            }),
+        });
+    });
+
+    await page.goto(`/lockers/${dismissAccountId}`);
+    await page.waitForLoadState('networkidle');
+
+    await page.getByTestId('passphrase-input').fill(dismissPassphrase);
+    await page.getByTestId('unlock-button').click();
+    await expect(page.getByTestId('decrypted-content')).toBeVisible({ timeout: 15000 });
+    await expect(page.getByTestId('upgrade-banner')).toBeVisible({ timeout: 5000 });
+
+    await page.getByTestId('upgrade-dismiss-button').click();
+    await expect(page.getByTestId('upgrade-banner')).not.toBeVisible();
 });
