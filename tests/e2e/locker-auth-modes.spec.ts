@@ -40,7 +40,7 @@ test('key file mode creation shows fingerprint and credential panel without pass
 
     // Select key file mode
     await page.getByRole('button', { name: 'Key File(s)' }).click();
-    await expect(page.getByText(/Key File Rotation/i)).toBeVisible();
+    await expect(page.getByText(/rotation is not yet supported/i)).toBeVisible();
 
     // Passphrase field should be hidden
     await expect(page.getByPlaceholder('Enter or generate a passphrase')).not.toBeVisible();
@@ -274,7 +274,7 @@ test('credential download button visible and credential panel shows fingerprints
 
     // Fingerprint section must be present in the credentials panel
     await expect(page.getByText('Key File Fingerprints')).toBeVisible();
-    await expect(page.getByText('load in this exact order')).toBeVisible();
+    await expect(page.getByText('loaded in this exact order')).toBeVisible();
 
     // Download button present
     await expect(page.getByRole('button', { name: /Download as text file/i })).toBeVisible();
