@@ -131,6 +131,8 @@ class LockerController extends Controller
             'storage_path' => $request->input('storage_path'),
             'wrapped_file_key' => $request->input('wrapped_file_key'),
             'expires_at' => now()->addYears($credit->years),
+            'auth_mode' => $request->input('auth_mode', 'passphrase'),
+            'key_file_count' => $request->input('key_file_count'),
         ];
 
         if ($request->filled('public_key')) {
@@ -177,6 +179,20 @@ class LockerController extends Controller
             'upload_url' => $uploadUrl,
             'upload_headers' => $uploadHeaders,
             'storage_path' => $storagePath,
+        ]);
+    }
+
+    public function authInfo(Request $request, string $accountId): JsonResponse
+    {
+        $locker = Locker::where('account_id', $accountId)->first();
+
+        if (! $locker) {
+            return response()->json(['auth_mode' => 'passphrase', 'key_file_count' => null]);
+        }
+
+        return response()->json([
+            'auth_mode' => $locker->auth_mode,
+            'key_file_count' => $locker->key_file_count,
         ]);
     }
 
