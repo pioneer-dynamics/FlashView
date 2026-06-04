@@ -25,6 +25,7 @@ class UpdateLockerRequest extends FormRequest
             'new_auth_verifier' => ['nullable', 'string', 'size:64'],
             'new_update_token' => ['nullable', 'string', 'size:64'],
             'new_wrapped_file_key' => ['nullable', 'string', 'max:512'],
+            'new_public_key' => ['nullable', 'string'],
         ];
     }
 }

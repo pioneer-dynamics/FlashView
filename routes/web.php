@@ -263,4 +263,6 @@ Route::prefix('lockers')->name('lockers.')->group(function () {
         ->middleware('throttle:6,1')->name('renew.challenge');
     Route::post('/{accountId}/renew', [LockerController::class, 'renewPurchase'])
         ->middleware('throttle:6,1')->name('renew.purchase');
+    Route::post('/{accountId}/upgrade-auth', [LockerController::class, 'upgradeAuth'])
+        ->middleware('throttle:6,1')->name('upgrade-auth');
 });

@@ -103,10 +103,7 @@ const submit = async () => {
     uploadProgress.value = 0;
 
     try {
-        const authKey     = await enc.deriveLockerAuthKey(passphrase.value, accountId.value);
-        const updateToken = await enc.deriveLockerUpdateToken(passphrase.value, accountId.value);
-        const challengeHex = enc.generateLockerChallenge();
-        const verifier    = await enc.computeLockerVerifier(authKey, challengeHex);
+        const { privateKey: _unusedKey, publicKeyJwkBase64 } = await enc.deriveLockerSigningKeypair(passphrase.value, accountId.value);
 
         let payload;
         let storagePath = null;
@@ -176,9 +173,7 @@ const submit = async () => {
                 account_id:       accountId.value,
                 credit_token:     props.credit_token,
                 payload,
-                auth_challenge:   challengeHex,
-                auth_verifier:    verifier,
-                update_token:     updateToken,
+                public_key:       publicKeyJwkBase64,
                 tier:             props.tier,
                 storage_path:     storagePath,
                 wrapped_file_key: wrappedFileKey,
@@ -227,7 +222,7 @@ const submit = async () => {
                         Your passphrase is the only key to decrypt, update, or delete this locker. The server has never seen it.
                     </div>
 
-                    <div class="space-y-4 mb-6">
+                    <div class="space-y-4 mb-6 ph-no-capture">
                         <div v-for="field in [
                             { label: 'Account ID', value: credentials.account_id },
                             { label: 'Passphrase', value: credentials.passphrase },

@@ -38,12 +38,21 @@ const submit = async () => {
             return;
         }
 
-        const { challenge } = await challengeRes.json();
-
-        const authKey = await enc.deriveLockerAuthKey(passphrase.value, props.account_id);
-        const verifier = await enc.computeLockerVerifier(authKey, challenge);
+        const challengeData = await challengeRes.json();
+        const isEcdsa = Boolean(challengeData.challenge_id);
 
         const xsrf = decodeURIComponent(document.cookie.match(/XSRF-TOKEN=([^;]+)/)?.[1] ?? '');
+
+        let renewBody;
+        if (isEcdsa) {
+            const { privateKey } = await enc.deriveLockerSigningKeypair(passphrase.value, props.account_id);
+            const signature = await enc.signLockerChallenge(privateKey, challengeData.challenge);
+            renewBody = { challenge_id: challengeData.challenge_id, signature, years: years.value, tier: props.tier };
+        } else {
+            const authKey = await enc.deriveLockerAuthKey(passphrase.value, props.account_id);
+            const verifier = await enc.computeLockerVerifier(authKey, challengeData.challenge);
+            renewBody = { verifier, years: years.value, tier: props.tier };
+        }
 
         const renewRes = await fetch(route('lockers.renew.purchase', props.account_id), {
             method: 'POST',
@@ -52,11 +61,7 @@ const submit = async () => {
                 'Accept': 'application/json',
                 'X-XSRF-TOKEN': xsrf,
             },
-            body: JSON.stringify({
-                verifier,
-                years: years.value,
-                tier:  props.tier,
-            }),
+            body: JSON.stringify(renewBody),
         });
 
         const data = await renewRes.json();
@@ -88,7 +93,7 @@ const submit = async () => {
 
                     <div>
                         <div class="text-gamboge-300 font-mono text-xs uppercase tracking-widest mb-1">Renew eLocker</div>
-                        <h1 class="text-xl font-bold text-white font-mono">{{ account_id }}</h1>
+                        <h1 class="ph-no-capture text-xl font-bold text-white font-mono">{{ account_id }}</h1>
                     </div>
 
                     <!-- Current tier & expiry -->

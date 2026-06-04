@@ -590,4 +590,282 @@ class LockerControllerTest extends TestCase
         $this->assertEquals('freshWrappedKey', $locker->wrapped_file_key);
         $this->assertEquals($newStoragePath, $locker->storage_path);
     }
+
+    // ─── ECDSA Tests ─────────────────────────────────────────────────────────
+
+    /**
+     * Generate a real P-256 keypair for tests. Returns [publicKeyJwkBase64, privateKeyPem].
+     *
+     * @return array{0: string, 1: string}
+     */
+    private function generateEcdsaKeypair(): array
+    {
+        $key = openssl_pkey_new(['curve_name' => 'prime256v1', 'private_key_type' => OPENSSL_KEYTYPE_EC]);
+        $details = openssl_pkey_get_details($key);
+        openssl_pkey_export($key, $privateKeyPem);
+
+        $ecPoint = $details['ec'];
+        $toBase64url = fn ($b) => rtrim(strtr(base64_encode($b), '+/', '-_'), '=');
+        $jwk = ['kty' => 'EC', 'crv' => 'P-256', 'x' => $toBase64url($ecPoint['x']), 'y' => $toBase64url($ecPoint['y'])];
+
+        return [base64_encode(json_encode($jwk)), $privateKeyPem];
+    }
+
+    /**
+     * Sign a challenge hex string with an OpenSSL EC private key.
+     * Returns base64-encoded IEEE P1363 signature (r||s, 32+32 bytes).
+     */
+    private function ecdsaSign(string $challengeHex, string $privateKeyPem): string
+    {
+        openssl_sign(hex2bin($challengeHex), $derSig, $privateKeyPem, OPENSSL_ALGO_SHA256);
+
+        // Parse DER → r, s
+        $offset = 2; // skip SEQUENCE tag+length
+        $offset++; // skip INTEGER tag for r
+        $rLen = ord($derSig[$offset++]);
+        $r = substr($derSig, $offset, $rLen);
+        $offset += $rLen;
+        $offset++; // skip INTEGER tag for s
+        $sLen = ord($derSig[$offset++]);
+        $s = substr($derSig, $offset, $sLen);
+
+        $r = str_pad(ltrim($r, "\x00"), 32, "\x00", STR_PAD_LEFT);
+        $s = str_pad(ltrim($s, "\x00"), 32, "\x00", STR_PAD_LEFT);
+
+        return base64_encode($r.$s);
+    }
+
+    public function test_challenge_returns_challenge_id_for_ecdsa_locker(): void
+    {
+        [$publicKey] = $this->generateEcdsaKeypair();
+        Locker::factory()->create(['account_id' => '1000000001', 'public_key' => $publicKey, 'auth_challenge' => null, 'auth_verifier' => null, 'update_token_hash' => null]);
+
+        $response = $this->getJson(route('lockers.challenge', '1000000001'));
+
+        $response->assertStatus(200)->assertJsonStructure(['challenge', 'challenge_id']);
+    }
+
+    public function test_challenge_does_not_return_challenge_id_for_legacy_locker(): void
+    {
+        Locker::factory()->create(['account_id' => '1000000002']);
+
+        $response = $this->getJson(route('lockers.challenge', '1000000002'));
+
+        $response->assertStatus(200)->assertJsonMissing(['challenge_id']);
+    }
+
+    public function test_store_creates_ecdsa_locker_with_public_key(): void
+    {
+        [$publicKey] = $this->generateEcdsaKeypair();
+        $credit = LockerCredit::factory()->create(['token' => 'ecdsatok1', 'tier' => 'text', 'years' => 1]);
+
+        $response = $this->postJson(route('lockers.store'), [
+            'account_id' => '1000000003',
+            'credit_token' => 'ecdsatok1',
+            'payload' => str_repeat('a', 100),
+            'public_key' => $publicKey,
+            'tier' => 'text',
+        ]);
+
+        $response->assertStatus(200)->assertJsonStructure(['expires_at', 'account_id']);
+        $this->assertDatabaseHas('lockers', ['account_id' => '1000000003', 'auth_challenge' => null]);
+    }
+
+    public function test_unlock_succeeds_with_valid_ecdsa_signature(): void
+    {
+        [$publicKey, $privateKeyPem] = $this->generateEcdsaKeypair();
+        Locker::factory()->create(['account_id' => '1000000004', 'public_key' => $publicKey, 'auth_challenge' => null, 'auth_verifier' => null, 'update_token_hash' => null]);
+
+        // Fetch challenge
+        $challengeData = $this->getJson(route('lockers.challenge', '1000000004'))->json();
+        $signature = $this->ecdsaSign($challengeData['challenge'], $privateKeyPem);
+
+        $response = $this->postJson(route('lockers.unlock', '1000000004'), [
+            'challenge_id' => $challengeData['challenge_id'],
+            'signature' => $signature,
+        ]);
+
+        $response->assertStatus(200)->assertJsonStructure(['payload']);
+    }
+
+    public function test_unlock_fails_with_invalid_ecdsa_signature(): void
+    {
+        [$publicKey] = $this->generateEcdsaKeypair();
+        Locker::factory()->create(['account_id' => '1000000005', 'public_key' => $publicKey, 'auth_challenge' => null, 'auth_verifier' => null, 'update_token_hash' => null]);
+
+        $challengeData = $this->getJson(route('lockers.challenge', '1000000005'))->json();
+
+        $response = $this->postJson(route('lockers.unlock', '1000000005'), [
+            'challenge_id' => $challengeData['challenge_id'],
+            'signature' => base64_encode(str_repeat("\x00", 64)),
+        ]);
+
+        $response->assertStatus(401);
+    }
+
+    public function test_challenge_replay_is_rejected(): void
+    {
+        [$publicKey, $privateKeyPem] = $this->generateEcdsaKeypair();
+        Locker::factory()->create(['account_id' => '1000000006', 'public_key' => $publicKey, 'auth_challenge' => null, 'auth_verifier' => null, 'update_token_hash' => null]);
+
+        $challengeData = $this->getJson(route('lockers.challenge', '1000000006'))->json();
+        $signature = $this->ecdsaSign($challengeData['challenge'], $privateKeyPem);
+
+        // First unlock succeeds
+        $this->postJson(route('lockers.unlock', '1000000006'), [
+            'challenge_id' => $challengeData['challenge_id'],
+            'signature' => $signature,
+        ])->assertStatus(200);
+
+        // Replaying the same challenge_id must fail
+        $this->postJson(route('lockers.unlock', '1000000006'), [
+            'challenge_id' => $challengeData['challenge_id'],
+            'signature' => $signature,
+        ])->assertStatus(401);
+    }
+
+    public function test_ecdsa_update_succeeds_with_valid_signing_headers(): void
+    {
+        [$publicKey, $privateKeyPem] = $this->generateEcdsaKeypair();
+        Locker::factory()->create(['account_id' => '1000000007', 'public_key' => $publicKey, 'auth_challenge' => null, 'auth_verifier' => null, 'update_token_hash' => null]);
+
+        $challengeData = $this->getJson(route('lockers.challenge', '1000000007'))->json();
+        $signature = $this->ecdsaSign($challengeData['challenge'], $privateKeyPem);
+
+        $response = $this->putJson(
+            route('lockers.update', '1000000007'),
+            ['payload' => str_repeat('b', 100)],
+            ['X-Signing-Challenge-Id' => $challengeData['challenge_id'], 'X-Signature' => $signature]
+        );
+
+        $response->assertStatus(200)->assertJson(['ok' => true]);
+    }
+
+    public function test_ecdsa_update_rejects_replayed_challenge(): void
+    {
+        [$publicKey, $privateKeyPem] = $this->generateEcdsaKeypair();
+        Locker::factory()->create(['account_id' => '1000000008', 'public_key' => $publicKey, 'auth_challenge' => null, 'auth_verifier' => null, 'update_token_hash' => null]);
+
+        $challengeData = $this->getJson(route('lockers.challenge', '1000000008'))->json();
+        $signature = $this->ecdsaSign($challengeData['challenge'], $privateKeyPem);
+
+        // First update consumes the challenge
+        $this->putJson(
+            route('lockers.update', '1000000008'),
+            ['payload' => str_repeat('b', 100)],
+            ['X-Signing-Challenge-Id' => $challengeData['challenge_id'], 'X-Signature' => $signature]
+        )->assertStatus(200);
+
+        // Replaying must fail
+        $this->putJson(
+            route('lockers.update', '1000000008'),
+            ['payload' => str_repeat('c', 100)],
+            ['X-Signing-Challenge-Id' => $challengeData['challenge_id'], 'X-Signature' => $signature]
+        )->assertStatus(403);
+    }
+
+    public function test_ecdsa_delete_succeeds(): void
+    {
+        [$publicKey, $privateKeyPem] = $this->generateEcdsaKeypair();
+        Locker::factory()->create(['account_id' => '1000000009', 'public_key' => $publicKey, 'auth_challenge' => null, 'auth_verifier' => null, 'update_token_hash' => null]);
+
+        $challengeData = $this->getJson(route('lockers.challenge', '1000000009'))->json();
+        $signature = $this->ecdsaSign($challengeData['challenge'], $privateKeyPem);
+
+        $response = $this->deleteJson(
+            route('lockers.destroy', '1000000009'),
+            [],
+            ['X-Signing-Challenge-Id' => $challengeData['challenge_id'], 'X-Signature' => $signature]
+        );
+
+        $response->assertStatus(200)->assertJson(['ok' => true]);
+        $this->assertDatabaseMissing('lockers', ['account_id' => '1000000009']);
+    }
+
+    public function test_ecdsa_renew_challenge_returns_challenge_id(): void
+    {
+        [$publicKey] = $this->generateEcdsaKeypair();
+        Locker::factory()->create(['account_id' => '1000000010', 'public_key' => $publicKey, 'auth_challenge' => null, 'auth_verifier' => null, 'update_token_hash' => null]);
+
+        $response = $this->getJson(route('lockers.renew.challenge', '1000000010'));
+
+        $response->assertStatus(200)->assertJsonStructure(['challenge', 'challenge_id']);
+    }
+
+    public function test_legacy_locker_backward_compat_unlock(): void
+    {
+        $verifier = str_repeat('a', 64);
+        Locker::factory()->create([
+            'account_id' => '1000000011',
+            'auth_verifier' => $verifier,
+        ]);
+
+        // Get legacy challenge (no challenge_id)
+        $challengeData = $this->getJson(route('lockers.challenge', '1000000011'))->json();
+        $this->assertArrayNotHasKey('challenge_id', $challengeData);
+
+        $response = $this->postJson(route('lockers.unlock', '1000000011'), [
+            'verifier' => $verifier,
+        ]);
+
+        $response->assertStatus(200)->assertJsonStructure(['payload']);
+    }
+
+    public function test_upgrade_auth_stores_public_key_and_nulls_legacy_columns(): void
+    {
+        [$publicKey] = $this->generateEcdsaKeypair();
+        $verifier = str_repeat('a', 64);
+        Locker::factory()->create([
+            'account_id' => '1000000012',
+            'auth_challenge' => str_repeat('c', 64),
+            'auth_verifier' => $verifier,
+            'update_token_hash' => hash('sha256', 'token'),
+        ]);
+
+        $response = $this->postJson(route('lockers.upgrade-auth', '1000000012'), [
+            'verifier' => $verifier,
+            'public_key' => $publicKey,
+        ]);
+
+        $response->assertStatus(200)->assertJson(['ok' => true]);
+
+        $locker = Locker::where('account_id', '1000000012')->first();
+        $this->assertNotNull($locker->public_key);
+        $this->assertNull($locker->auth_challenge);
+        $this->assertNull($locker->auth_verifier);
+        $this->assertNull($locker->update_token_hash);
+    }
+
+    public function test_upgrade_auth_returns_403_for_wrong_verifier(): void
+    {
+        [$publicKey] = $this->generateEcdsaKeypair();
+        $verifier = str_repeat('a', 64);
+        Locker::factory()->create([
+            'account_id' => '1000000013',
+            'auth_verifier' => $verifier,
+        ]);
+
+        $response = $this->postJson(route('lockers.upgrade-auth', '1000000013'), [
+            'verifier' => str_repeat('b', 64),
+            'public_key' => $publicKey,
+        ]);
+
+        $response->assertStatus(403);
+        $locker = Locker::where('account_id', '1000000013')->first();
+        $this->assertNull($locker->public_key, 'Locker must remain unchanged after failed upgrade');
+    }
+
+    public function test_upgrade_auth_is_idempotent_for_already_upgraded_locker(): void
+    {
+        [$publicKey] = $this->generateEcdsaKeypair();
+        Locker::factory()->create(['account_id' => '1000000014', 'public_key' => $publicKey, 'auth_challenge' => null, 'auth_verifier' => null, 'update_token_hash' => null]);
+
+        // Should return 200 without re-verifying
+        $response = $this->postJson(route('lockers.upgrade-auth', '1000000014'), [
+            'verifier' => str_repeat('x', 64), // wrong verifier — won't be checked for ECDSA lockers
+            'public_key' => $publicKey,
+        ]);
+
+        $response->assertStatus(200)->assertJson(['ok' => true]);
+    }
 }

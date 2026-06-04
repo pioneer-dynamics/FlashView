@@ -69,7 +69,7 @@ test('generate button fills passphrase field', async ({ page }) => {
     expect(value.length).toBeGreaterThan(10);
 });
 
-test('text content encrypts and credentials panel appears after creation', async ({ page }) => {
+test('ECDSA locker creation shows credentials panel with account ID and passphrase', async ({ page }) => {
     createLockerCredit('createtoken01', 'text', 1);
 
     await page.goto('/lockers/create?token=createtoken01');
@@ -80,9 +80,9 @@ test('text content encrypts and credentials panel appears after creation', async
     await page.getByPlaceholder('Enter the content to store…').fill('Secret text content');
     await page.getByRole('button', { name: /Encrypt & Create/i }).click();
 
-    await expect(page.getByText('Save all three credentials now')).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText('Locker created!')).toBeVisible({ timeout: 15000 });
     await expect(page.getByText('Account ID', { exact: true })).toBeVisible();
-    await expect(page.getByText('Update Token', { exact: true })).toBeVisible();
+    await expect(page.getByText('Passphrase', { exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: /Download as text file/i })).toBeVisible();
 });
 
@@ -97,7 +97,7 @@ test('duplicate account ID shows validation error', async ({ page }) => {
     await page.getByPlaceholder('Enter or generate a passphrase').fill('my-strong-test-passphrase-here');
     await page.getByPlaceholder('Enter the content to store…').fill('First locker content');
     await page.getByRole('button', { name: /Encrypt & Create/i }).click();
-    await page.waitForSelector('text=Save all three credentials now', { timeout: 15000 });
+    await page.waitForSelector('text=Locker created!', { timeout: 15000 });
 
     // Attempt to create second locker with the same ID
     await page.goto('/lockers/create?token=createtoken03');
@@ -158,13 +158,13 @@ test('credentials panel has download button and confirmation checkbox', async ({
     await page.getByPlaceholder('Enter the content to store…').fill('Content for credentials test');
     await page.getByRole('button', { name: /Encrypt & Create/i }).click();
 
-    await page.waitForSelector('text=Save all three credentials now', { timeout: 15000 });
+    await page.waitForSelector('text=Locker created!', { timeout: 15000 });
 
     // Open locker button should be disabled until checkbox checked
     const openButton = page.getByRole('button', { name: /Open my locker/i });
     await expect(openButton).toBeDisabled();
 
     // Check the confirmation checkbox
-    await page.getByLabel(/I have saved all three credentials/i).check();
+    await page.getByLabel(/I have saved both credentials/i).check();
     await expect(openButton).toBeEnabled();
 });
