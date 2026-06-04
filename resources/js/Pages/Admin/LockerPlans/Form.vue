@@ -37,7 +37,7 @@ watch(() => form.tier, (val) => {
 });
 
 const amountDollars = computed({
-    get: () => form.amount_cents ? (form.amount_cents / 100).toFixed(2) : '',
+    get: () => form.amount_cents ? (form.amount_cents / 100) : '',
     set: (val) => { form.amount_cents = Math.round(parseFloat(val || 0) * 100); },
 });
 
