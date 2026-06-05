@@ -60,7 +60,7 @@ function submit(action) {
                 <SecondaryButton @click="submit('deny')" :disabled="processing">
                     Close
                 </SecondaryButton>
-                <Link :href="route('plans.index')">
+                <Link :href="route('plans.index')" prefetch>
                     <PrimaryButton>
                         View Plans
                     </PrimaryButton>
@@ -94,7 +94,7 @@ function submit(action) {
                     </p>
                     <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
                         This device was previously authorized. To use a different name, remove the existing installation from your
-                        <Link :href="route('api-tokens.index')" class="underline hover:text-gray-700 dark:hover:text-gray-200">API Tokens</Link>
+                        <Link :href="route('api-tokens.index')" prefetch class="underline hover:text-gray-700 dark:hover:text-gray-200">API Tokens</Link>
                         page first.
                     </p>
                 </div>

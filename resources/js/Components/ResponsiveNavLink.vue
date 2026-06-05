@@ -8,6 +8,8 @@ const props = defineProps({
     as: String,
 });
 
+defineOptions({ inheritAttrs: false });
+
 const classes = computed(() => {
     return props.active
         ? 'block w-full ps-3 pe-4 py-2 border-l-4 border-gamboge-400 dark:border-gamboge-600 text-start text-base font-medium text-gamboge-700 dark:text-gamboge-300 bg-gamboge-50 dark:bg-gamboge-900/50 focus:outline-none focus:text-gamboge-800 dark:focus:text-gamboge-200 focus:bg-gamboge-100 dark:focus:bg-gamboge-900 focus:border-gamboge-700 dark:focus:border-gamboge-300 transition duration-150 ease-in-out'
@@ -25,7 +27,8 @@ const classes = computed(() => {
             <slot />
         </a>
 
-        <Link v-else :href="href" :class="classes">
+        <!-- prefetch fires only on hover; is a no-op on touch devices -->
+        <Link v-else :href="href" :class="classes" v-bind="$attrs" prefetch>
             <slot />
         </Link>
     </div>

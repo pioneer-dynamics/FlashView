@@ -94,6 +94,7 @@
                             <p class="text-xs uppercase tracking-widest font-mono text-gamboge-300 mb-4">From the Blog</p>
                             <Link
                                 :href="route('blog.show', latestPost.slug)"
+                                prefetch
                                 class="group block border border-gray-200 dark:border-gray-700 dark:hover:border-gamboge-700 rounded-lg p-6 transition-colors duration-150 dark:hover:shadow-neon-cyan-sm"
                             >
                                 <div class="flex flex-wrap items-center gap-3 mb-2">

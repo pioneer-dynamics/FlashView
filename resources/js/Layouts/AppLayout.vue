@@ -114,11 +114,13 @@ const logout = () => {
                                                         :href="route('lockers.index')"
                                                         class="block w-full px-4 py-2 text-start text-sm leading-5 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 focus:outline-none focus:bg-gray-100 dark:focus:bg-gray-800 transition duration-150 ease-in-out"
                                                         @click="lockerMenuOpen = false"
+                                                        prefetch
                                                     >Access My Locker</Link>
                                                     <Link
                                                         :href="route('lockers.buy')"
                                                         class="block w-full px-4 py-2 text-start text-sm leading-5 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 focus:outline-none focus:bg-gray-100 dark:focus:bg-gray-800 transition duration-150 ease-in-out"
                                                         @click="lockerMenuOpen = false"
+                                                        prefetch
                                                     >Buy a Locker</Link>
                                                 </div>
                                             </div>
@@ -314,12 +316,12 @@ const logout = () => {
                                         </template>
                                     </Dropdown>
                                     <template v-else>
-                                        <Link :href="route('login')"
+                                        <Link :href="route('login')" prefetch
                                             class="rounded-md px-3 py-2 text-gamboge-700 ring-1 ring-transparent transition hover:text-gamboge-200 focus:outline-none focus-visible:ring-[#FF2D20] dark:text-white dark:hover:text-white/80 dark:focus-visible:ring-white">
                                         Log in
                                         </Link>
 
-                                        <Link :href="route('register')"
+                                        <Link :href="route('register')" prefetch
                                             class="rounded-md px-3 py-2 text-gamboge-700 ring-1 ring-transparent transition hover:text-gamboge-200 focus:outline-none focus-visible:ring-[#FF2D20] dark:text-white dark:hover:text-white/80 dark:focus-visible:ring-white">
                                         Register
                                         </Link>
@@ -536,22 +538,22 @@ const logout = () => {
                                 <h2 class="mb-6 text-sm font-semibold text-gray-900 uppercase dark:text-white">Resources</h2>
                                 <ul class="text-gray-700 dark:text-gray-400 font-medium space-y-4">
                                     <li>
-                                        <Link :href="route('blog.index')" class="hover:underline">Blog</Link>
+                                        <Link :href="route('blog.index')" class="hover:underline" prefetch>Blog</Link>
                                     </li>
                                     <li>
-                                        <Link :href="route('faq.index')" class="hover:underline">F.A.Q</Link>
+                                        <Link :href="route('faq.index')" class="hover:underline" prefetch>F.A.Q</Link>
                                     </li>
                                     <li>
-                                        <Link :href="route('useCases.index')" class="hover:underline">Use Cases</Link>
+                                        <Link :href="route('useCases.index')" class="hover:underline" prefetch>Use Cases</Link>
                                     </li>
                                     <li>
-                                        <Link :href="route('plans.index')" class="hover:underline">Pricing</Link>
+                                        <Link :href="route('plans.index')" class="hover:underline" prefetch>Pricing</Link>
                                     </li>
                                     <li>
-                                        <Link :href="route('cli.index')" class="hover:underline">CLI Tool</Link>
+                                        <Link :href="route('cli.index')" class="hover:underline" prefetch>CLI Tool</Link>
                                     </li>
                                     <li>
-                                        <Link :href="route('webhooks.index')" class="hover:underline">Webhooks</Link>
+                                        <Link :href="route('webhooks.index')" class="hover:underline" prefetch>Webhooks</Link>
                                     </li>
                                 </ul>
                             </div>
@@ -570,16 +572,16 @@ const logout = () => {
                                 <h2 class="mb-6 text-sm font-semibold text-gray-900 uppercase dark:text-white">Legal</h2>
                                 <ul class="text-gray-700 dark:text-gray-400 font-medium space-y-4">
                                     <li>
-                                        <Link :href="route('policy.show')" class="hover:underline">Privacy Policy</Link>
+                                        <Link :href="route('policy.show')" class="hover:underline" prefetch>Privacy Policy</Link>
                                     </li>
                                     <li>
-                                        <Link :href="route('terms.show')" class="hover:underline">Terms &amp; Conditions</Link>
+                                        <Link :href="route('terms.show')" class="hover:underline" prefetch>Terms &amp; Conditions</Link>
                                     </li>
                                     <li>
-                                        <Link :href="route('security.show')" class="hover:underline">Security</Link>
+                                        <Link :href="route('security.show')" class="hover:underline" prefetch>Security</Link>
                                     </li>
                                     <li>
-                                        <Link :href="route('license.show')" class="hover:underline">MIT License</Link>
+                                        <Link :href="route('license.show')" class="hover:underline" prefetch>MIT License</Link>
                                     </li>
                                 </ul>
                             </div>

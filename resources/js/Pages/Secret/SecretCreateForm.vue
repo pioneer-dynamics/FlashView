@@ -278,7 +278,7 @@
                         <span class="flex flex-wrap gap-1">
                             <div v-if="!$page.props.auth.user || !$page.props.auth.user.subscription">|</div>
                             <div v-if="!$page.props.auth.user">
-                                Is {{ maxLength }} characters too short, or need a longer expiry? - <Link class="underline text-gamboge-300" :href="route('login')">login</Link> or <Link class="underline text-gamboge-300" :href="route('register')">create a free account!</Link> to increase the limit.
+                                Is {{ maxLength }} characters too short, or need a longer expiry? - <Link class="underline text-gamboge-300" prefetch :href="route('login')">login</Link> or <Link class="underline text-gamboge-300" prefetch :href="route('register')">create a free account!</Link> to increase the limit.
                             </div>
                             <div v-else-if="!$page.props.auth.user.subscription" class="flex flex-wrap gap-1">
                                 Is {{ maxLength }} characters still too short, or need a longer expiry? - <a as="a" class="underline text-gamboge-300" :href="route('plans.index')">subscribe to a paid plan</a> to increase the limits.
@@ -288,7 +288,7 @@
                     <div class="flex flex-wrap mt-2 gap-1">
                         <InputError :message="form.errors.message" />
                         <div v-if="form.errors.message?.length && $page.props.jetstream.flash.error?.code == 429" class="text-sm text-red-600 dark:text-red-400">
-                            Or <Link class="underline text-gamboge-300" :href="route('login')">login</Link> or <Link class="underline text-gamboge-300" :href="route('register')">create a free account!</Link> to send more.
+                            Or <Link class="underline text-gamboge-300" prefetch :href="route('login')">login</Link> or <Link class="underline text-gamboge-300" prefetch :href="route('register')">create a free account!</Link> to send more.
                         </div>
                     </div>
                 </span>
@@ -308,9 +308,9 @@
                     <p class="text-sm text-gray-600 dark:text-gray-300">
                         Want to attach a file?
                         <template v-if="!$page.props.auth.user">
-                            <Link class="underline text-gamboge-300" :href="route('login')">Log in</Link>
+                            <Link class="underline text-gamboge-300" prefetch :href="route('login')">Log in</Link>
                             or
-                            <Link class="underline text-gamboge-300" :href="route('plans.index')">signup to an eligible plan</Link>
+                            <Link class="underline text-gamboge-300" prefetch :href="route('plans.index')">signup to an eligible plan</Link>
                             to share encrypted files.
                         </template>
                         <template v-else-if="$page.props.auth.user.subscription">

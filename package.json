@@ -9,7 +9,7 @@
         "test:e2e:debug": "playwright test --debug"
     },
     "devDependencies": {
-        "@inertiajs/vue3": "^1.0.14",
+        "@inertiajs/vue3": "^2.0",
         "@playwright/test": "^1.60.0",
         "@tailwindcss/forms": "^0.5.7",
         "@tailwindcss/typography": "^0.5.10",

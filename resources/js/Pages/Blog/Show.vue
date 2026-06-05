@@ -18,6 +18,7 @@ defineProps({
                 <!-- Back link -->
                 <Link
                     :href="route('blog.index')"
+                    prefetch
                     class="inline-flex items-center gap-1 text-xs font-mono text-gamboge-300 hover:text-gamboge-200 uppercase tracking-widest mb-8 transition-colors duration-150"
                 >
                     ← Blog
@@ -57,6 +58,7 @@ defineProps({
                 <div class="mt-12 pt-8 border-t border-gray-200 dark:border-gray-700">
                     <Link
                         :href="route('blog.index')"
+                        prefetch
                         class="text-sm font-mono text-gamboge-300 hover:text-gamboge-200 transition-colors duration-150"
                     >
                         ← Back to Blog
