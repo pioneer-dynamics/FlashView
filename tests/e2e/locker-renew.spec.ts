@@ -1,17 +1,19 @@
 import { test, expect } from '@playwright/test';
 import { resetDatabase } from './helpers/db';
-import { createLockerCredit, createLockerViaUI } from './helpers/locker';
+import { createLockerCredit, createLockerViaUI, navigateToLocker } from './helpers/locker';
 
 test.beforeEach(() => {
     resetDatabase();
 });
 
-test('renew page loads from show page expiry badge link', async ({ page }) => {
+test('renew link on open page leads to renew page after unlock', async ({ page }) => {
     createLockerCredit('renewtoken01', 'text', 1);
-    await createLockerViaUI(page, '1010101010', 'renew-test-passphrase-long', 'Content for renew test', 'renewtoken01');
+    const { passphrase } = await createLockerViaUI(page, '1010101010', 'renew-test-passphrase-long', 'Content for renew test', 'renewtoken01');
 
-    await page.goto('/lockers/1010101010');
-    await page.waitForLoadState('networkidle');
+    await navigateToLocker(page, '1010101010');
+    await page.getByTestId('passphrase-input').fill(passphrase);
+    await page.getByTestId('unlock-button').click();
+    await expect(page.getByTestId('decrypted-content')).toBeVisible({ timeout: 15000 });
 
     await page.getByText('Renew').click();
 
