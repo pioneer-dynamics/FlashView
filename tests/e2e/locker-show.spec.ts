@@ -21,6 +21,31 @@ test('navigating to /lockers/open shows account entry form', async ({ page }) =>
     await expect(page.getByTestId('open-button')).toBeVisible();
 });
 
+test('entering 10-digit account number transitions to unlock form; URL stays at /lockers/open', async ({ page }) => {
+    createLockerCredit('showtoken00', 'text', 1);
+    await createLockerViaUI(page, '1111111111', 'entry-phase-passphrase', 'Entry phase test', 'showtoken00');
+
+    await page.goto('/lockers/open');
+    await page.waitForLoadState('networkidle');
+
+    await expect(page).toHaveURL('/lockers/open');
+    await page.getByTestId('account-id-input').fill('1111111111');
+    await page.getByTestId('open-button').click();
+
+    await page.getByTestId('unlock-button').waitFor({ state: 'visible', timeout: 5000 });
+    await expect(page).toHaveURL('/lockers/open');
+    await expect(page.getByTestId('passphrase-input')).toBeVisible();
+});
+
+test('renewed=1 query parameter shows renewal banner with account entry instruction', async ({ page }) => {
+    await page.goto('/lockers/open?renewed=1');
+    await page.waitForLoadState('networkidle');
+
+    await expect(page.getByText(/Your renewal was successful/i)).toBeVisible();
+    await expect(page.getByText(/Enter your account number below/i)).toBeVisible();
+    await expect(page.getByTestId('account-id-input')).toBeVisible();
+});
+
 test('lock icon is visible before unlock is attempted', async ({ page }) => {
     createLockerCredit('showtoken01', 'text', 1);
     await createLockerViaUI(page, '2222222222', 'my-show-passphrase-long', 'Test content', 'showtoken01');
