@@ -39,7 +39,7 @@ test('PaymentConfirming shows timeout state after 30 s', async ({ page }) => {
     await expect(page.locator('.animate-shimmer')).toBeVisible();
 
     // Advance time by 30 seconds to trigger the timeout
-    await page.clock.tick(30_000);
+    await page.clock.runFor(30_000);
 
     // Timeout state should now be visible
     await expect(page.getByText('Taking Longer Than Expected')).toBeVisible();
