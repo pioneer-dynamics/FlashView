@@ -624,6 +624,39 @@ const changePassphrase = async () => {
     }
 };
 
+// Settings state
+const showCluesUpdating = ref(false);
+const showCluesError    = ref('');
+
+const toggleShowClues = async () => {
+    showCluesError.value = '';
+    showCluesUpdating.value = true;
+    try {
+        const authHeaders = await fetchSigningHeaders();
+        const newValue = !showClues.value;
+
+        const res = await fetch(route('lockers.settings', props.account_id), {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-XSRF-TOKEN': getXsrf(),
+                ...authHeaders,
+            },
+            body: JSON.stringify({ show_clues: newValue }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) { showCluesError.value = data.error ?? 'Failed to update setting.'; return; }
+
+        showClues.value = newValue;
+    } catch (err) {
+        showCluesError.value = err.message || 'Failed to update setting.';
+    } finally {
+        showCluesUpdating.value = false;
+    }
+};
+
 const confirmDelete = async () => {
     deleteError.value = '';
     deleting.value    = true;
@@ -967,6 +1000,36 @@ const upgradeAuth = async () => {
                     <p class="text-gray-400 text-xs">
                         Key file credential rotation is not yet supported. To change your key files, create a new locker and migrate your content.
                     </p>
+                </div>
+
+                <!-- Locker Settings — unlock hints toggle, shown for all modes when unlocked -->
+                <div v-if="lockState === 'unlocked'" class="bg-gray-800 border border-gray-700 rounded-xl p-6 space-y-3">
+                    <h2 class="text-gamboge-300 font-mono text-xs uppercase tracking-widest">Locker Settings</h2>
+
+                    <div class="flex items-start justify-between gap-4">
+                        <div class="flex-1">
+                            <div class="text-white text-sm mb-0.5">Show unlock hints</div>
+                            <p class="text-gray-500 text-xs">
+                                When enabled, the unlock page shows what credential type is required (passphrase, key file, or both) and how many files are needed.
+                                Disable for maximum security — visitors will see a generic interface with no hints.
+                            </p>
+                        </div>
+                        <button
+                            @click="toggleShowClues"
+                            :disabled="showCluesUpdating"
+                            class="shrink-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none disabled:opacity-50"
+                            :class="showClues ? 'bg-gamboge-300 shadow-neon-cyan-sm' : 'bg-gray-600'"
+                            data-testid="show-clues-toggle"
+                            :title="showClues ? 'Unlock hints visible — click to hide' : 'Unlock hints hidden — click to show'"
+                        >
+                            <span
+                                class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform"
+                                :class="showClues ? 'translate-x-6' : 'translate-x-1'"
+                            />
+                        </button>
+                    </div>
+
+                    <p v-if="showCluesError" class="text-red-400 text-xs">{{ showCluesError }}</p>
                 </div>
 
                 <!-- Delete panel — only when unlocked -->

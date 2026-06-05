@@ -200,6 +200,48 @@ class LockerController extends Controller
         ]);
     }
 
+    public function updateSettings(Request $request, string $accountId): JsonResponse
+    {
+        $request->validate(['show_clues' => ['required', 'boolean']]);
+
+        $locker = Locker::where('account_id', $accountId)->first();
+
+        if (! $locker) {
+            abort(404);
+        }
+
+        if ($locker->isExpired()) {
+            abort(410);
+        }
+
+        $verified = false;
+
+        if ($locker->public_key !== null) {
+            $challengeId = $request->header('X-Signing-Challenge-Id');
+            $signature = $request->header('X-Signature');
+
+            if ($challengeId && $signature) {
+                $challengeHex = $this->ecdsaService->consumeChallenge($challengeId, $accountId);
+                if ($challengeHex !== null) {
+                    $verified = $this->ecdsaService->verify($locker->public_key, $challengeHex, $signature);
+                }
+            }
+        } else {
+            $updateToken = $request->header('X-Update-Token');
+            if ($updateToken) {
+                $verified = $locker->verifyUpdateToken($updateToken);
+            }
+        }
+
+        if (! $verified) {
+            return response()->json(['error' => 'Invalid credentials.'], 403);
+        }
+
+        $locker->update(['show_clues' => $request->boolean('show_clues')]);
+
+        return response()->json(['ok' => true]);
+    }
+
     public function show(Request $request, string $accountId): Response
     {
         return Inertia::render('Locker/Show', [

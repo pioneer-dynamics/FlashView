@@ -1106,4 +1106,48 @@ class LockerControllerTest extends TestCase
             'show_clues' => true,
         ]);
     }
+
+    public function test_update_settings_requires_authentication(): void
+    {
+        Locker::factory()->create(['account_id' => '4000000001']);
+
+        $response = $this->patchJson(route('lockers.settings', '4000000001'), [
+            'show_clues' => false,
+        ]);
+
+        $response->assertStatus(403);
+    }
+
+    public function test_update_settings_updates_show_clues_with_valid_token(): void
+    {
+        $locker = Locker::factory()->create([
+            'account_id' => '4000000002',
+            'auth_verifier' => str_repeat('a', 64),
+            'update_token_hash' => hash('sha256', 'validtoken'),
+            'show_clues' => true,
+        ]);
+
+        $response = $this->patchJson(route('lockers.settings', '4000000002'), [
+            'show_clues' => false,
+        ], ['X-Update-Token' => 'validtoken']);
+
+        $response->assertStatus(200)->assertJson(['ok' => true]);
+
+        $locker->refresh();
+        $this->assertFalse((bool) $locker->show_clues);
+    }
+
+    public function test_update_settings_rejects_invalid_token(): void
+    {
+        Locker::factory()->create([
+            'account_id' => '4000000003',
+            'update_token_hash' => hash('sha256', 'correcttoken'),
+        ]);
+
+        $response = $this->patchJson(route('lockers.settings', '4000000003'), [
+            'show_clues' => false,
+        ], ['X-Update-Token' => 'wrongtoken']);
+
+        $response->assertStatus(403);
+    }
 }
