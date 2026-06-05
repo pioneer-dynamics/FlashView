@@ -64,12 +64,21 @@ const deleteError       = ref('');
 const deleting          = ref(false);
 const showDeleteConfirm = ref(false);
 
-// Passphrase change state
+// Passphrase change state (passphrase-only mode)
 const newPassphrase            = ref('');
 const passphraseChangeError    = ref('');
 const passphraseChangeSuccess  = ref(false);
 const passphraseChangeState    = ref(null); // null | 'encrypting' | 'uploading'
 const passphraseChangeProgress = ref(0);
+
+// Credential rotation state (key_file and combined modes)
+const newKeyFiles           = ref([]); // [{ file: File }]
+const newPassphraseRot      = ref('');
+const credRotateError       = ref('');
+const credRotateSuccess     = ref(false);
+const credRotating          = ref(false);
+const credRotateState       = ref(null); // null | 'encrypting' | 'uploading'
+const credRotateProgress    = ref(0);
 
 const newPassphraseStrength = computed(() => {
     const p = newPassphrase.value;
@@ -179,6 +188,10 @@ const lockLocker = () => {
     passphraseChangeError.value   = '';
     passphraseChangeSuccess.value = false;
     newPassphrase.value           = '';
+    newKeyFiles.value             = [];
+    newPassphraseRot.value        = '';
+    credRotateError.value         = '';
+    credRotateSuccess.value       = false;
     deleteError.value             = '';
     showDeleteConfirm.value       = false;
     isLegacyLocker.value          = false;
@@ -624,6 +637,173 @@ const changePassphrase = async () => {
     }
 };
 
+const onNewKeyFileAdded = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    e.target.value = '';
+    newKeyFiles.value.push({ file });
+};
+
+const removeNewKeyFile = (index) => {
+    newKeyFiles.value.splice(index, 1);
+};
+
+const computeNewEffectivePassphrase = async () => {
+    const fileHashes = await Promise.all(
+        newKeyFiles.value.map(async (kf) => {
+            const buf = await kf.file.arrayBuffer();
+            return enc.deriveLockerKeyFromFile(buf);
+        })
+    );
+    // In no-clues mode the real authMode is unknown; derive from what was provided
+    if (!showClues.value) {
+        const hasPassphrase = newPassphraseRot.value.length > 0;
+        if (!fileHashes.length) return newPassphraseRot.value;
+        if (!hasPassphrase) return enc.combineLockerKeyMaterials(fileHashes);
+        return enc.combineLockerKeyMaterials([newPassphraseRot.value, ...fileHashes]);
+    }
+    if (authMode.value === 'key_file') {
+        return enc.combineLockerKeyMaterials(fileHashes);
+    }
+    // combined
+    return enc.combineLockerKeyMaterials([newPassphraseRot.value, ...fileHashes]);
+};
+
+const rotateCredentials = async () => {
+    credRotateError.value   = '';
+    credRotateSuccess.value = false;
+
+    // Validation
+    const needsPassphrase = showClues.value ? authMode.value !== 'key_file' : newPassphraseRot.value.length > 0;
+    const needsFiles      = showClues.value ? authMode.value !== 'passphrase' : true;
+
+    if (needsPassphrase && newPassphraseRot.value.length < 8) {
+        credRotateError.value = 'New passphrase must be at least 8 characters.';
+        return;
+    }
+    if (needsFiles && newKeyFiles.value.length === 0) {
+        credRotateError.value = 'Please add at least one key file.';
+        return;
+    }
+    if (showClues.value && keyFileCount.value && newKeyFiles.value.length !== keyFileCount.value) {
+        credRotateError.value = `Please add exactly ${keyFileCount.value} key file(s) — the same number as at creation.`;
+        return;
+    }
+
+    credRotating.value      = true;
+    credRotateState.value   = 'encrypting';
+    credRotateProgress.value = 0;
+
+    try {
+        const authHeaders = await fetchSigningHeaders();
+        const newEp = await computeNewEffectivePassphrase();
+
+        const { publicKeyJwkBase64: newPublicKey } = await enc.deriveLockerSigningKeypair(newEp, props.account_id);
+        const putBody = { new_public_key: newPublicKey };
+
+        if (isFileLocker.value && wrappedFileKey.value) {
+            // v2 file locker: re-wrap DEK with new credentials — no file re-download needed
+            const meta = JSON.stringify(decryptedFileMeta.value);
+            const newPayload = await enc.encryptLockerContent(meta, newEp);
+            const dek = await enc.unwrapLockerFileKey(wrappedFileKey.value, effectivePassphrase.value, props.account_id);
+            const newWrappedKey = await enc.wrapLockerFileKey(dek, newEp, props.account_id);
+            putBody.new_wrapped_file_key = newWrappedKey;
+            putBody.payload = newPayload;
+
+            const res = await fetch(route('lockers.update', props.account_id), {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-XSRF-TOKEN': getXsrf(), ...authHeaders },
+                body: JSON.stringify(putBody),
+            });
+            const data = await res.json();
+            if (!res.ok) { credRotateError.value = data.error ?? 'Rotation failed.'; return; }
+
+            effectivePassphrase.value = newEp;
+            wrappedFileKey.value      = newWrappedKey;
+
+        } else if (isFileLocker.value) {
+            // v1 legacy file locker: download, decrypt, re-encrypt, upload
+            const meta = JSON.stringify(decryptedFileMeta.value);
+            const newPayload = await enc.encryptLockerContent(meta, newEp);
+
+            const encryptedBytes = await new Promise((resolve, reject) => {
+                const xhr = new XMLHttpRequest();
+                xhr.open('GET', downloadUrl.value);
+                xhr.responseType = 'arraybuffer';
+                xhr.onprogress = (e) => {
+                    if (e.lengthComputable) credRotateProgress.value = Math.round((e.loaded / e.total) * 50);
+                };
+                xhr.onload  = () => (xhr.status >= 200 && xhr.status < 300) ? resolve(new Uint8Array(xhr.response)) : reject(new Error('Download failed.'));
+                xhr.onerror = () => reject(new Error('Download failed.'));
+                xhr.send();
+            });
+
+            const fileData = await enc.decryptLockerFileFromBuffer(encryptedBytes, { passphrase: effectivePassphrase.value });
+            const reEncryptedBytes = await enc.encryptLockerFileToBuffer(fileData, { passphrase: newEp });
+
+            const prepRes = await fetch(route('lockers.file.prepare'), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-XSRF-TOKEN': getXsrf() },
+                body: JSON.stringify({}),
+            });
+            if (!prepRes.ok) throw new Error('Could not prepare file upload.');
+            const { upload_url, upload_headers, storage_path: newStoragePath } = await prepRes.json();
+
+            credRotateState.value = 'uploading';
+            await new Promise((resolve, reject) => {
+                const xhr = new XMLHttpRequest();
+                xhr.open('PUT', upload_url);
+                for (const [k, v] of Object.entries(upload_headers ?? {})) xhr.setRequestHeader(k, v);
+                xhr.upload.onprogress = (e) => {
+                    if (e.lengthComputable) credRotateProgress.value = 50 + Math.round((e.loaded / e.total) * 50);
+                };
+                xhr.onload  = () => (xhr.status >= 200 && xhr.status < 300) ? resolve() : reject(new Error('Upload failed.'));
+                xhr.onerror = () => reject(new Error('Upload failed.'));
+                xhr.send(new Blob([reEncryptedBytes], { type: 'application/octet-stream' }));
+            });
+
+            putBody.payload      = newPayload;
+            putBody.storage_path = newStoragePath;
+
+            const res = await fetch(route('lockers.update', props.account_id), {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-XSRF-TOKEN': getXsrf(), ...authHeaders },
+                body: JSON.stringify(putBody),
+            });
+            const data = await res.json();
+            if (!res.ok) { credRotateError.value = data.error ?? 'Rotation failed.'; return; }
+
+            effectivePassphrase.value = newEp;
+            downloadUrl.value         = '';
+
+        } else {
+            // Text locker
+            const newPayload = await enc.encryptLockerContent(decryptedText.value, newEp);
+            putBody.payload  = newPayload;
+
+            const res = await fetch(route('lockers.update', props.account_id), {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-XSRF-TOKEN': getXsrf(), ...authHeaders },
+                body: JSON.stringify(putBody),
+            });
+            const data = await res.json();
+            if (!res.ok) { credRotateError.value = data.error ?? 'Rotation failed.'; return; }
+
+            effectivePassphrase.value = newEp;
+        }
+
+        newKeyFiles.value       = [];
+        newPassphraseRot.value  = '';
+        credRotateSuccess.value = true;
+
+    } catch (err) {
+        credRotateError.value = err.message || 'Rotation failed. Please try again.';
+    } finally {
+        credRotating.value    = false;
+        credRotateState.value = null;
+    }
+};
+
 // Settings state
 const showCluesUpdating = ref(false);
 const showCluesError    = ref('');
@@ -994,12 +1174,78 @@ const upgradeAuth = async () => {
                     >Change Passphrase</button>
                 </div>
 
-                <!-- Key file credential rotation notice — shown for key_file and combined modes when unlocked -->
-                <div v-if="lockState === 'unlocked' && authMode !== 'passphrase'" class="bg-gray-800 border border-gray-700 rounded-xl p-6">
-                    <h2 class="text-gamboge-300 font-mono text-xs uppercase tracking-widest mb-2">Credential Management</h2>
+                <!-- Credential Rotation — key_file and combined modes, or no-clues mode (may have files) -->
+                <div v-if="lockState === 'unlocked' && (authMode !== 'passphrase' || !showClues)" class="bg-gray-800 border border-gray-700 rounded-xl p-6 space-y-4">
+                    <h2 class="text-gamboge-300 font-mono text-xs uppercase tracking-widest">Change Credentials</h2>
                     <p class="text-gray-400 text-xs">
-                        Key file credential rotation is not yet supported. To change your key files, create a new locker and migrate your content.
+                        Your locker content will be re-encrypted with your new credentials. The key file count cannot change — provide the same number as when you created this locker.
                     </p>
+
+                    <!-- New passphrase (combined mode or no-clues with passphrase) -->
+                    <div v-if="showClues ? authMode === 'combined' : true">
+                        <label class="block text-gamboge-300 font-mono text-xs uppercase tracking-widest mb-1">New Passphrase</label>
+                        <div class="flex gap-2">
+                            <input
+                                v-model="newPassphraseRot"
+                                type="text"
+                                placeholder="Enter or generate a new passphrase"
+                                class="flex-1 bg-gray-900 border border-gray-700 text-white font-mono rounded-lg px-3 py-2.5 text-sm focus:border-gamboge-300 focus:outline-none"
+                            />
+                            <button
+                                @click="newPassphraseRot = enc.generatePasssphrase()"
+                                class="shrink-0 border border-gamboge-300/50 text-gamboge-300 hover:border-gamboge-300 text-xs font-mono px-3 rounded-lg transition-colors"
+                            >Generate</button>
+                        </div>
+                    </div>
+
+                    <!-- New key files -->
+                    <div v-if="showClues ? authMode !== 'passphrase' : true" class="space-y-2">
+                        <label class="block text-gamboge-300 font-mono text-xs uppercase tracking-widest mb-1">New Key Files</label>
+                        <p v-if="showClues && keyFileCount" class="text-gray-500 text-xs">
+                            Add {{ keyFileCount }} new key file(s) in the same order you want for future unlocks.
+                        </p>
+
+                        <div v-if="newKeyFiles.length > 0" class="space-y-1">
+                            <div
+                                v-for="(kf, i) in newKeyFiles"
+                                :key="i"
+                                class="flex items-center gap-3 bg-gray-900 rounded-lg px-3 py-2"
+                            >
+                                <span class="text-gamboge-300/60 text-xs w-4 shrink-0">{{ i + 1 }}.</span>
+                                <span class="text-white text-sm flex-1 truncate">{{ kf.file.name }}</span>
+                                <button
+                                    type="button"
+                                    @click="removeNewKeyFile(i)"
+                                    class="shrink-0 text-gray-500 hover:text-red-400 font-mono text-xs transition-colors"
+                                    title="Remove"
+                                >✕</button>
+                            </div>
+                        </div>
+
+                        <label
+                            v-if="showClues ? newKeyFiles.length < (keyFileCount ?? 999) : true"
+                            class="flex items-center gap-2 cursor-pointer border border-dashed border-gray-600 hover:border-gamboge-300/50 hover:shadow-neon-cyan-sm rounded-lg px-3 py-2 transition-colors text-gray-400 text-sm"
+                        >
+                            <span class="font-mono text-xs">+ Add new key file</span>
+                            <input type="file" class="sr-only" @change="onNewKeyFileAdded" data-testid="new-key-file-input" />
+                        </label>
+
+                        <p v-if="showClues && keyFileCount" class="text-xs text-gray-500 font-mono">
+                            {{ newKeyFiles.length }} / {{ keyFileCount }} added
+                        </p>
+                    </div>
+
+                    <FileProgressBar v-if="credRotateState" :state="credRotateState" :progress="credRotateProgress" />
+                    <p v-if="credRotateError" class="text-red-400 text-xs">{{ credRotateError }}</p>
+                    <p v-if="credRotateSuccess" class="text-gamboge-300 text-xs">Credentials changed successfully. Use your new credentials next time you unlock.</p>
+
+                    <button
+                        v-if="!credRotateState"
+                        @click="rotateCredentials"
+                        :disabled="credRotating"
+                        class="w-full border border-gamboge-300 text-gamboge-300 hover:bg-gamboge-300/10 font-mono text-xs py-2 rounded-lg transition-colors disabled:opacity-50"
+                        data-testid="rotate-credentials-button"
+                    >{{ credRotating ? 'Rotating…' : 'Change Credentials' }}</button>
                 </div>
 
                 <!-- Locker Settings — unlock hints toggle, shown for all modes when unlocked -->

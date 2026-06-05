@@ -303,7 +303,7 @@ test('show page for key file locker does not show passphrase input', async ({ pa
     await expect(page.getByText(/same order as when you created/i)).toBeVisible();
 });
 
-test('change passphrase panel hidden for key file mode after unlock', async ({ page }) => {
+test('change passphrase panel hidden for key file mode; change credentials panel shown instead', async ({ page }) => {
     createLockerCredit('kfcp01', 'text', 1);
     await createKeyFileLockerViaUI(page, '8000000051', 'Key file no passchange', 'kfcp01', [KEY_FILE_ALPHA]);
 
@@ -314,7 +314,9 @@ test('change passphrase panel hidden for key file mode after unlock', async ({ p
     await page.getByTestId('unlock-button').click();
     await expect(page.getByTestId('decrypted-content')).toBeVisible({ timeout: 15000 });
 
-    // Change Passphrase heading must NOT be visible; Credential Management notice must be
+    // Passphrase change panel must NOT be visible for key file lockers
     await expect(page.getByRole('heading', { name: /Change Passphrase/i })).not.toBeVisible();
-    await expect(page.getByText(/credential rotation is not yet supported/i)).toBeVisible();
+    // Change Credentials panel must be visible instead
+    await expect(page.getByRole('heading', { name: /Change Credentials/i })).toBeVisible();
+    await expect(page.getByTestId('rotate-credentials-button')).toBeVisible();
 });
