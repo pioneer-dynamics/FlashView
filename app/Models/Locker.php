@@ -22,6 +22,9 @@ class Locker extends Model
         'update_token_hash',
         'public_key',
         'expires_at',
+        'auth_mode',
+        'key_file_count',
+        'show_clues',
     ];
 
     protected function casts(): array
@@ -29,6 +32,8 @@ class Locker extends Model
         return [
             'expires_at' => 'datetime',
             'wrapped_file_key' => 'encrypted',
+            'key_file_count' => 'integer',
+            'show_clues' => 'boolean',
         ];
     }
 

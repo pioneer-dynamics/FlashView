@@ -832,6 +832,37 @@ export async function signChallenge(privateKey, challengeHex) {
     return uint8ArrayToBase64(new Uint8Array(sigBuffer));
 }
 
+/**
+ * Compute the SHA-256 digest of a file buffer as a hex string.
+ * Used as key material for key-file authentication — file contents are never stored or transmitted.
+ *
+ * @param {ArrayBuffer|Uint8Array} fileBuffer
+ * @returns {Promise<string>} 64-char hex
+ */
+export async function deriveKeyFromFile(fileBuffer) {
+    const hashBuffer = await globalThis.crypto.subtle.digest('SHA-256', fileBuffer);
+    return bufferToHex(new Uint8Array(hashBuffer));
+}
+
+/**
+ * Fold N key materials (passphrase string and/or file hash hex strings) into a
+ * single deterministic hex string for use as the effective passphrase.
+ *
+ * Algorithm: SHA-256(materials joined by null byte) → 64-char hex.
+ * Order matters — the same materials in a different order produce a different output.
+ *
+ * @param {string[]} materials  One or more strings: passphrase and/or file hashes
+ * @returns {Promise<string>} 64-char hex
+ */
+export async function combineLockerKeyMaterials(materials) {
+    if (!materials || materials.length === 0) {
+        throw new Error('combineLockerKeyMaterials requires at least one material');
+    }
+    const combined = new TextEncoder().encode(materials.join('\x00'));
+    const hashBuffer = await globalThis.crypto.subtle.digest('SHA-256', combined);
+    return bufferToHex(new Uint8Array(hashBuffer));
+}
+
 // ─── Message Decryption (legacy PBKDF2 / OpenCrypto) ─────────────────────────
 
 /**

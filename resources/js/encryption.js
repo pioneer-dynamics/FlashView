@@ -6,6 +6,7 @@ import {
     generateFileKey, wrapFileKey, unwrapFileKey,
     deriveAuthKey, computeVerifier, generateChallenge, deriveUpdateToken,
     deriveSigningKeypair, signChallenge,
+    deriveKeyFromFile, combineLockerKeyMaterials,
 } from '@pioneer-dynamics/flashview-crypto';
 export { LockerBlobVersionError, LockerDecryptionError } from '@pioneer-dynamics/flashview-crypto';
 
@@ -123,5 +124,13 @@ export class encryption {
 
     async signLockerChallenge(privateKey, challengeHex) {
         return signChallenge(privateKey, challengeHex);
+    }
+
+    async deriveLockerKeyFromFile(fileBuffer) {
+        return deriveKeyFromFile(fileBuffer);
+    }
+
+    async combineLockerKeyMaterials(materials) {
+        return combineLockerKeyMaterials(materials);
     }
 }

@@ -247,7 +247,11 @@ Route::prefix('lockers')->name('lockers.')->group(function () {
     Route::post('/', [LockerController::class, 'store'])
         ->middleware('throttle:6,1')->name('store');
 
-    // Wildcard routes
+    // Wildcard routes — static sub-paths must precede /{accountId} wildcard
+    Route::get('/{accountId}/auth-info', [LockerController::class, 'authInfo'])
+        ->middleware('throttle:30,1')->name('auth-info');
+    Route::patch('/{accountId}/settings', [LockerController::class, 'updateSettings'])
+        ->middleware('throttle:10,1')->name('settings');
     Route::get('/{accountId}', [LockerController::class, 'show'])->name('show');
     Route::get('/{accountId}/challenge', [LockerController::class, 'challenge'])
         ->middleware('throttle:30,1')->name('challenge');

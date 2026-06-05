@@ -6,6 +6,7 @@ import {
     encryptFileToBuffer, decryptFileFromBuffer,
     generateFileKey, wrapFileKey, unwrapFileKey,
     deriveSigningKeypair, signChallenge,
+    deriveKeyFromFile, combineLockerKeyMaterials,
 } from '../src/index.js';
 
 // Known vectors generated from the pre-migration CLI implementation (tools/flashview-cli/src/crypto.js)
@@ -530,5 +531,90 @@ describe('signChallenge', () => {
             challengeBytes
         );
         assert.ok(! isValid, 'Signature from key1 must not verify with key2 public key');
+    });
+});
+
+describe('deriveKeyFromFile', () => {
+    it('returns a deterministic 64-char hex string', async () => {
+        const buf = new TextEncoder().encode('test-file-contents').buffer;
+        const result = await deriveKeyFromFile(buf);
+        assert.equal(typeof result, 'string', 'Result should be a string');
+        assert.equal(result.length, 64, 'Result should be 64 hex chars');
+        assert.match(result, /^[0-9a-f]{64}$/, 'Result should be lowercase hex');
+    });
+
+    it('is deterministic for the same input', async () => {
+        const buf = new TextEncoder().encode('deterministic-file').buffer;
+        const r1 = await deriveKeyFromFile(buf);
+        const r2 = await deriveKeyFromFile(buf);
+        assert.equal(r1, r2, 'Same input should produce same hash');
+    });
+
+    it('produces different hashes for different inputs', async () => {
+        const buf1 = new TextEncoder().encode('file-a').buffer;
+        const buf2 = new TextEncoder().encode('file-b').buffer;
+        const r1 = await deriveKeyFromFile(buf1);
+        const r2 = await deriveKeyFromFile(buf2);
+        assert.notEqual(r1, r2, 'Different inputs should produce different hashes');
+    });
+
+    it('accepts Uint8Array as input', async () => {
+        const arr = new TextEncoder().encode('uint8array-input');
+        const result = await deriveKeyFromFile(arr);
+        assert.equal(result.length, 64, 'Should work with Uint8Array');
+    });
+});
+
+describe('combineLockerKeyMaterials', () => {
+    it('returns a deterministic 64-char hex string', async () => {
+        const result = await combineLockerKeyMaterials(['passphrase123', 'filehash456']);
+        assert.equal(typeof result, 'string', 'Result should be a string');
+        assert.equal(result.length, 64, 'Result should be 64 hex chars');
+        assert.match(result, /^[0-9a-f]{64}$/, 'Result should be lowercase hex');
+    });
+
+    it('is deterministic for the same inputs in the same order', async () => {
+        const materials = ['passphrase', 'hash1', 'hash2'];
+        const r1 = await combineLockerKeyMaterials(materials);
+        const r2 = await combineLockerKeyMaterials(materials);
+        assert.equal(r1, r2, 'Same inputs in same order should produce same result');
+    });
+
+    it('is order-sensitive — different order produces different output', async () => {
+        const r1 = await combineLockerKeyMaterials(['aaa', 'bbb']);
+        const r2 = await combineLockerKeyMaterials(['bbb', 'aaa']);
+        assert.notEqual(r1, r2, 'Different order should produce different results');
+    });
+
+    it('works with a single material', async () => {
+        const result = await combineLockerKeyMaterials(['single-material']);
+        assert.equal(result.length, 64, 'Single-material result should be 64 hex chars');
+    });
+
+    it('combining a file hash differs from hashing the raw file bytes directly', async () => {
+        // Simulate key_file mode: derive hash from file bytes, then combine
+        const fileBytes = new TextEncoder().encode('original-file-content').buffer;
+        const fileHash = await deriveKeyFromFile(fileBytes);            // = SHA-256(fileBytes) as hex
+        const effectivePassphrase = await combineLockerKeyMaterials([fileHash]); // = SHA-256(UTF-8(fileHash))
+
+        // effective passphrase must differ from the raw file hash — it is SHA-256 of the hex string
+        assert.notEqual(effectivePassphrase, fileHash, 'Effective passphrase must differ from the raw file hash');
+        // effective passphrase must also differ from hashing the file bytes again (same as fileHash)
+        const directHash = await deriveKeyFromFile(fileBytes);
+        assert.equal(directHash, fileHash, 'deriveKeyFromFile is deterministic');
+        assert.notEqual(effectivePassphrase, directHash, 'Effective passphrase must differ from direct hash of file bytes');
+    });
+
+    it('throws on empty array', async () => {
+        await assert.rejects(
+            () => combineLockerKeyMaterials([]),
+            /at least one material/,
+            'Should throw when called with empty array'
+        );
+    });
+
+    it('throws on null or undefined', async () => {
+        await assert.rejects(() => combineLockerKeyMaterials(null), Error);
+        await assert.rejects(() => combineLockerKeyMaterials(undefined), Error);
     });
 });

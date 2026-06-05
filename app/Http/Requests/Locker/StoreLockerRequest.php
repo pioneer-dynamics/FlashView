@@ -32,6 +32,15 @@ class StoreLockerRequest extends FormRequest
             'tier' => ['required', 'in:text,file'],
             'storage_path' => ['required_if:tier,file', 'nullable', 'string'],
             'wrapped_file_key' => ['nullable', 'string', 'max:512'],
+            'auth_mode' => ['sometimes', 'in:passphrase,key_file,combined'],
+            'key_file_count' => [
+                'nullable',
+                'prohibited_if:auth_mode,passphrase',
+                'required_if:auth_mode,key_file',
+                'required_if:auth_mode,combined',
+                'integer', 'min:1', 'max:20',
+            ],
+            'show_clues' => ['sometimes', 'boolean'],
         ];
     }
 
