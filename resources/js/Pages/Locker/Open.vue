@@ -1,16 +1,20 @@
 <script setup>
 import AppLayout from '@/Layouts/AppLayout.vue';
 import FileProgressBar from '@/Components/FileProgressBar.vue';
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed } from 'vue';
 import { router } from '@inertiajs/vue3';
 import { encryption, LockerDecryptionError } from '@/encryption.js';
 
 const props = defineProps({
-    account_id: String,
-    renewed:    Boolean,
+    renewed: Boolean,
 });
 
 const enc = new encryption();
+
+// Account entry state — account number never touches the URL
+const accountId    = ref('');
+const accountPhase = ref('entry'); // 'entry' | 'unlock'
+const authInfoError = ref('');
 
 // Populated after successful unlock — not passed from server initially (prevents enumeration)
 const isFileLocker   = ref(false);
@@ -25,9 +29,7 @@ const upgradeSuccess   = ref(false);
 const upgradeDismissed = ref(false);
 const upgradeError     = ref('');
 
-// Auth mode — fetched on mount from auth-info endpoint
-// When show_clues=false the server returns opaque passphrase defaults, so authMode stays 'passphrase'
-// client-side. The real mode is unknown; computeEffectivePassphrase derives from what the user provides.
+// Auth mode — fetched on account entry from auth-info endpoint
 const authMode     = ref('passphrase'); // 'passphrase' | 'key_file' | 'combined'
 const keyFileCount = ref(null);
 const showClues    = ref(true);  // false = server returned opaque response; show generic UI
@@ -113,9 +115,11 @@ const canUnlock = computed(() => {
     return passphrase.value.length > 0;
 });
 
-onMounted(async () => {
+const openLocker = async () => {
+    if (accountId.value.length !== 10) { return; }
+    authInfoError.value = '';
     try {
-        const infoRes = await fetch(route('lockers.auth-info', props.account_id), {
+        const infoRes = await fetch(route('lockers.auth-info', accountId.value), {
             headers: { 'Accept': 'application/json' },
         });
         if (infoRes.ok) {
@@ -124,10 +128,13 @@ onMounted(async () => {
             authMode.value = info.auth_mode ?? 'passphrase';
             keyFileCount.value = info.key_file_count ?? null;
         }
+        // Non-ok response: treat as unknown account (fall through to passphrase default)
     } catch {
-        // Fall through to passphrase default on network error
+        authInfoError.value = "We couldn't reach the server. Please check your connection and try again.";
+        return;
     }
-});
+    accountPhase.value = 'unlock';
+};
 
 const onKeyFileAdded = (e) => {
     const file = e.target.files[0];
@@ -171,6 +178,9 @@ const computeEffectivePassphrase = async () => {
 };
 
 const lockLocker = () => {
+    // Reset to account-entry phase — user must re-present account number to unlock again
+    accountPhase.value             = 'entry';
+    accountId.value                = '';
     // Security requirement: clear effectivePassphrase and key files to prevent re-unlock
     // without re-presenting credentials
     effectivePassphrase.value     = '';
@@ -239,7 +249,7 @@ const unlock = async () => {
         const ep = await computeEffectivePassphrase();
 
         // Step 1: Fetch challenge (always returns one — fake for non-existent accounts)
-        const challengeRes = await fetch(route('lockers.challenge', props.account_id), {
+        const challengeRes = await fetch(route('lockers.challenge', accountId.value), {
             headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
         });
 
@@ -257,17 +267,17 @@ const unlock = async () => {
 
         let unlockBody;
         if (isEcdsa) {
-            const { privateKey } = await enc.deriveLockerSigningKeypair(ep, props.account_id);
+            const { privateKey } = await enc.deriveLockerSigningKeypair(ep, accountId.value);
             const signature = await enc.signLockerChallenge(privateKey, challengeData.challenge);
             unlockBody = { challenge_id: challengeData.challenge_id, signature };
         } else {
-            const authKey  = await enc.deriveLockerAuthKey(ep, props.account_id);
+            const authKey  = await enc.deriveLockerAuthKey(ep, accountId.value);
             const verifier = await enc.computeLockerVerifier(authKey, challengeData.challenge);
             unlockBody = { verifier };
         }
 
         // Step 3: POST unlock — server verifies, returns payload only if correct
-        const unlockRes = await fetch(route('lockers.unlock', props.account_id), {
+        const unlockRes = await fetch(route('lockers.unlock', accountId.value), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -362,7 +372,7 @@ const downloadFile = async () => {
 
         let decryptedBuffer;
         if (wrappedFileKey.value) {
-            const dek = await enc.unwrapLockerFileKey(wrappedFileKey.value, effectivePassphrase.value, props.account_id);
+            const dek = await enc.unwrapLockerFileKey(wrappedFileKey.value, effectivePassphrase.value, accountId.value);
             decryptedBuffer = await enc.decryptLockerFileFromBuffer(encryptedBytes, { dek });
         } else {
             decryptedBuffer = await enc.decryptLockerFileFromBuffer(encryptedBytes, { passphrase: effectivePassphrase.value });
@@ -383,21 +393,21 @@ const downloadFile = async () => {
 };
 
 const fetchSigningHeaders = async () => {
-    const challengeRes = await fetch(route('lockers.challenge', props.account_id), {
+    const challengeRes = await fetch(route('lockers.challenge', accountId.value), {
         headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
     });
     if (!challengeRes.ok) throw new Error('Could not fetch challenge.');
     const challengeData = await challengeRes.json();
 
     if (challengeData.challenge_id) {
-        const { privateKey } = await enc.deriveLockerSigningKeypair(effectivePassphrase.value, props.account_id);
+        const { privateKey } = await enc.deriveLockerSigningKeypair(effectivePassphrase.value, accountId.value);
         const signature = await enc.signLockerChallenge(privateKey, challengeData.challenge);
         return {
             'X-Signing-Challenge-Id': challengeData.challenge_id,
             'X-Signature': signature,
         };
     } else {
-        const updateToken = await enc.deriveLockerUpdateToken(effectivePassphrase.value, props.account_id);
+        const updateToken = await enc.deriveLockerUpdateToken(effectivePassphrase.value, accountId.value);
         return { 'X-Update-Token': updateToken };
     }
 };
@@ -412,7 +422,7 @@ const submitUpdate = async () => {
         const payload  = await enc.encryptLockerContent(newContent.value, effectivePassphrase.value);
         const authHeaders = await fetchSigningHeaders();
 
-        const res = await fetch(route('lockers.update', props.account_id), {
+        const res = await fetch(route('lockers.update', accountId.value), {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
@@ -450,7 +460,7 @@ const submitFileUpdate = async () => {
         const payload = await enc.encryptLockerContent(meta, effectivePassphrase.value);
 
         const newDek = enc.generateLockerFileKey();
-        const newWrappedFileKey = await enc.wrapLockerFileKey(newDek, effectivePassphrase.value, props.account_id);
+        const newWrappedFileKey = await enc.wrapLockerFileKey(newDek, effectivePassphrase.value, accountId.value);
         const fileBuffer = await replacementFile.value.arrayBuffer();
         const bytes = await enc.encryptLockerFileToBuffer(fileBuffer, { dek: newDek });
 
@@ -486,7 +496,7 @@ const submitFileUpdate = async () => {
             body.new_wrapped_file_key = newWrappedFileKey;
         }
 
-        const res = await fetch(route('lockers.update', props.account_id), {
+        const res = await fetch(route('lockers.update', accountId.value), {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-XSRF-TOKEN': getXsrf(), ...authHeaders },
             body: JSON.stringify(body),
@@ -531,12 +541,12 @@ const changePassphrase = async () => {
         const putBody = {};
 
         if (!isLegacyLocker.value) {
-            const { publicKeyJwkBase64: newPublicKey } = await enc.deriveLockerSigningKeypair(newPassphrase.value, props.account_id);
+            const { publicKeyJwkBase64: newPublicKey } = await enc.deriveLockerSigningKeypair(newPassphrase.value, accountId.value);
             putBody.new_public_key = newPublicKey;
         } else {
-            const newAuthKey     = await enc.deriveLockerAuthKey(newPassphrase.value, props.account_id);
+            const newAuthKey     = await enc.deriveLockerAuthKey(newPassphrase.value, accountId.value);
             const newVerifier    = await enc.computeLockerVerifier(newAuthKey, authChallenge.value);
-            const newUpdateToken = await enc.deriveLockerUpdateToken(newPassphrase.value, props.account_id);
+            const newUpdateToken = await enc.deriveLockerUpdateToken(newPassphrase.value, accountId.value);
             putBody.new_auth_verifier = newVerifier;
             putBody.new_update_token  = newUpdateToken;
         }
@@ -544,12 +554,12 @@ const changePassphrase = async () => {
         if (isFileLocker.value && wrappedFileKey.value) {
             const meta = JSON.stringify(decryptedFileMeta.value);
             newPayload = await enc.encryptLockerContent(meta, newPassphrase.value);
-            const dek = await enc.unwrapLockerFileKey(wrappedFileKey.value, effectivePassphrase.value, props.account_id);
-            const newWrappedKey = await enc.wrapLockerFileKey(dek, newPassphrase.value, props.account_id);
+            const dek = await enc.unwrapLockerFileKey(wrappedFileKey.value, effectivePassphrase.value, accountId.value);
+            const newWrappedKey = await enc.wrapLockerFileKey(dek, newPassphrase.value, accountId.value);
             putBody.new_wrapped_file_key = newWrappedKey;
             putBody.payload = newPayload;
 
-            const res = await fetch(route('lockers.update', props.account_id), {
+            const res = await fetch(route('lockers.update', accountId.value), {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-XSRF-TOKEN': getXsrf(), ...authHeaders },
                 body: JSON.stringify(putBody),
@@ -607,7 +617,7 @@ const changePassphrase = async () => {
             putBody.payload = newPayload;
             putBody.storage_path = newStoragePath;
 
-            const res = await fetch(route('lockers.update', props.account_id), {
+            const res = await fetch(route('lockers.update', accountId.value), {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-XSRF-TOKEN': getXsrf(), ...authHeaders },
                 body: JSON.stringify(putBody),
@@ -626,7 +636,7 @@ const changePassphrase = async () => {
             newPayload = await enc.encryptLockerContent(decryptedText.value, newPassphrase.value);
             putBody.payload = newPayload;
 
-            const res = await fetch(route('lockers.update', props.account_id), {
+            const res = await fetch(route('lockers.update', accountId.value), {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-XSRF-TOKEN': getXsrf(), ...authHeaders },
                 body: JSON.stringify(putBody),
@@ -698,7 +708,7 @@ const rotateCredentials = async () => {
         const authHeaders = await fetchSigningHeaders();
         const newEp = await computeNewEffectivePassphrase();
 
-        const { publicKeyJwkBase64: newPublicKey } = await enc.deriveLockerSigningKeypair(newEp, props.account_id);
+        const { publicKeyJwkBase64: newPublicKey } = await enc.deriveLockerSigningKeypair(newEp, accountId.value);
         const newKeyFileCount = rotAuthMode.value !== 'passphrase' ? newKeyFiles.value.length : null;
         const putBody = {
             new_public_key:    newPublicKey,
@@ -710,12 +720,12 @@ const rotateCredentials = async () => {
             // v2 file locker: re-wrap DEK with new credentials — no file re-download needed
             const meta = JSON.stringify(decryptedFileMeta.value);
             const newPayload = await enc.encryptLockerContent(meta, newEp);
-            const dek = await enc.unwrapLockerFileKey(wrappedFileKey.value, effectivePassphrase.value, props.account_id);
-            const newWrappedKey = await enc.wrapLockerFileKey(dek, newEp, props.account_id);
+            const dek = await enc.unwrapLockerFileKey(wrappedFileKey.value, effectivePassphrase.value, accountId.value);
+            const newWrappedKey = await enc.wrapLockerFileKey(dek, newEp, accountId.value);
             putBody.new_wrapped_file_key = newWrappedKey;
             putBody.payload = newPayload;
 
-            const res = await fetch(route('lockers.update', props.account_id), {
+            const res = await fetch(route('lockers.update', accountId.value), {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-XSRF-TOKEN': getXsrf(), ...authHeaders },
                 body: JSON.stringify(putBody),
@@ -770,7 +780,7 @@ const rotateCredentials = async () => {
             putBody.payload      = newPayload;
             putBody.storage_path = newStoragePath;
 
-            const res = await fetch(route('lockers.update', props.account_id), {
+            const res = await fetch(route('lockers.update', accountId.value), {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-XSRF-TOKEN': getXsrf(), ...authHeaders },
                 body: JSON.stringify(putBody),
@@ -786,7 +796,7 @@ const rotateCredentials = async () => {
             const newPayload = await enc.encryptLockerContent(decryptedText.value, newEp);
             putBody.payload  = newPayload;
 
-            const res = await fetch(route('lockers.update', props.account_id), {
+            const res = await fetch(route('lockers.update', accountId.value), {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-XSRF-TOKEN': getXsrf(), ...authHeaders },
                 body: JSON.stringify(putBody),
@@ -823,7 +833,7 @@ const toggleShowClues = async () => {
         const authHeaders = await fetchSigningHeaders();
         const newValue = !showClues.value;
 
-        const res = await fetch(route('lockers.settings', props.account_id), {
+        const res = await fetch(route('lockers.settings', accountId.value), {
             method: 'PATCH',
             headers: {
                 'Content-Type': 'application/json',
@@ -851,7 +861,7 @@ const confirmDelete = async () => {
     try {
         const authHeaders = await fetchSigningHeaders();
 
-        const res = await fetch(route('lockers.destroy', props.account_id), {
+        const res = await fetch(route('lockers.destroy', accountId.value), {
             method: 'DELETE',
             headers: {
                 'Accept': 'application/json',
@@ -875,11 +885,11 @@ const upgradeAuth = async () => {
     upgrading.value     = true;
     upgradeError.value  = '';
     try {
-        const authKey  = await enc.deriveLockerAuthKey(effectivePassphrase.value, props.account_id);
+        const authKey  = await enc.deriveLockerAuthKey(effectivePassphrase.value, accountId.value);
         const verifier = await enc.computeLockerVerifier(authKey, authChallenge.value);
-        const { publicKeyJwkBase64 } = await enc.deriveLockerSigningKeypair(effectivePassphrase.value, props.account_id);
+        const { publicKeyJwkBase64 } = await enc.deriveLockerSigningKeypair(effectivePassphrase.value, accountId.value);
 
-        const res = await fetch(route('lockers.upgrade-auth', props.account_id), {
+        const res = await fetch(route('lockers.upgrade-auth', accountId.value), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-XSRF-TOKEN': getXsrf() },
             body: JSON.stringify({ verifier, public_key: publicKeyJwkBase64 }),
@@ -900,435 +910,469 @@ const upgradeAuth = async () => {
 </script>
 
 <template>
-    <AppLayout :title="`eLocker ${account_id}`">
+    <AppLayout title="eLocker">
         <div class="dark min-h-screen bg-gray-900 py-16 px-4">
             <div class="max-w-xl mx-auto space-y-6">
 
-                <!-- Renewal banner -->
+                <!-- Renewal banner — shown in both entry and unlock phases -->
                 <div v-if="renewed" class="bg-gamboge-300/10 border border-gamboge-300/40 rounded-xl p-4 text-gamboge-300 text-sm text-center">
-                    Payment received — your expiry date will update within a few minutes.
+                    Your renewal was successful. Enter your account number below to access your locker.
                 </div>
 
-                <!-- Upgrade success banner -->
-                <div
-                    v-if="upgradeSuccess"
-                    data-testid="upgrade-success"
-                    class="bg-gamboge-300/10 border border-gamboge-300/40 rounded-xl p-4 text-gamboge-300 text-sm text-center"
-                >
-                    Your locker has been upgraded to stronger security.
-                </div>
-
-                <!-- Upgrade banner — visible after legacy unlock, dismissable -->
-                <div
-                    v-if="lockState === 'unlocked' && isLegacyLocker && !upgradeSuccess && !upgradeDismissed"
-                    data-testid="upgrade-banner"
-                    class="bg-gamboge-300/10 border border-gamboge-300/40 rounded-xl p-4 flex items-start justify-between gap-4"
-                >
-                    <div class="text-sm text-gamboge-300">
-                        <p class="font-semibold mb-1">Security upgrade available</p>
-                        <p class="text-gamboge-300/70 text-xs">This locker uses an older security scheme. Upgrade it for stronger protection — takes a moment and requires no passphrase change.</p>
-                        <p v-if="upgradeError" class="text-red-400 text-xs mt-1">{{ upgradeError }}</p>
-                    </div>
-                    <div class="flex items-center gap-2 shrink-0">
-                        <button
-                            @click="upgradeAuth"
-                            :disabled="upgrading"
-                            data-testid="upgrade-button"
-                            class="border border-gamboge-300 text-gamboge-300 hover:bg-gamboge-300/10 font-mono text-xs px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
-                        >{{ upgrading ? 'Upgrading…' : 'Upgrade' }}</button>
-                        <button
-                            @click="upgradeDismissed = true"
-                            :disabled="upgrading"
-                            data-testid="upgrade-dismiss-button"
-                            class="text-gamboge-300/50 hover:text-gamboge-300 font-mono text-xs px-2 py-1.5 transition-colors disabled:opacity-50"
-                            title="Dismiss"
-                        >✕</button>
-                    </div>
-                </div>
-
-                <!-- Locker header -->
-                <div class="flex items-center justify-between">
+                <!-- Phase 1: Account entry -->
+                <div v-if="accountPhase === 'entry'" class="bg-gray-800 border border-gray-700 rounded-xl p-8 space-y-4">
+                    <div class="text-gamboge-300 font-mono text-xs uppercase tracking-widest">eLocker Access</div>
                     <div>
-                        <div class="text-gamboge-300 font-mono text-xs uppercase tracking-widest mb-0.5">eLocker</div>
-                        <div class="ph-no-capture text-white font-mono text-xl tracking-widest">{{ account_id }}</div>
-                    </div>
-                    <div class="flex items-center gap-3">
-                        <div v-if="expiresAt" class="text-right">
-                            <div :class="daysRemaining <= 30 ? 'text-red-400' : 'text-gray-400'" class="text-xs font-mono">{{ expiryLabel }}</div>
-                            <a :href="route('lockers.renew.challenge', account_id)" class="text-gamboge-300 hover:text-gamboge-200 text-xs font-mono underline">Renew</a>
-                        </div>
-                        <button
-                            v-if="lockState === 'unlocked'"
-                            @click="lockLocker"
-                            data-testid="lock-button"
-                            class="flex items-center gap-1.5 border border-gray-600 hover:border-gray-400 text-gray-400 hover:text-white font-mono text-xs px-3 py-1.5 rounded-lg transition-colors"
-                            title="Lock locker"
-                        >
-                            <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/></svg>
-                            Lock
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Unlock panel -->
-                <div class="bg-gray-800 border border-gray-700 rounded-xl p-8">
-
-                    <!-- Locked state -->
-                    <div v-if="lockState !== 'unlocked'" class="flex flex-col items-center gap-6">
-                        <div class="relative w-20 h-20 flex items-center justify-center" data-testid="lock-icon">
-                            <svg viewBox="0 0 64 80" class="w-20 h-20" fill="none" xmlns="http://www.w3.org/2000/svg" :class="{ 'animate-shake': lockState === 'shaking' }">
-                                <path
-                                    d="M16 32 V20 A16 16 0 0 1 48 20 V32"
-                                    stroke="currentColor" stroke-width="5" stroke-linecap="round" fill="none"
-                                    class="text-gamboge-300 origin-bottom"
-                                    :class="{
-                                        'animate-shackle-rise':  lockState === 'animating',
-                                        'animate-shackle-swing': lockState === 'animating',
-                                    }"
-                                    style="transform-origin: 32px 32px"
-                                />
-                                <rect x="8" y="30" width="48" height="38" rx="6" fill="currentColor"
-                                    class="text-gamboge-300"
-                                    :class="{ 'animate-glow-burst': lockState === 'animating' }"
-                                />
-                                <circle cx="32" cy="48" r="5" class="fill-gray-900" />
-                                <rect x="29" y="48" width="6" height="8" rx="1" class="fill-gray-900" />
-                            </svg>
-                        </div>
-
-                        <div class="w-full space-y-3">
-                            <!-- Passphrase input — shown when mode needs a passphrase, or when no-clues (generic) -->
-                            <div v-if="showClues ? authMode !== 'key_file' : true">
-                                <input
-                                    v-model="passphrase"
-                                    type="password"
-                                    placeholder="Enter passphrase to unlock"
-                                    @keydown.enter="canUnlock && unlock()"
-                                    class="w-full bg-gray-900 border border-gray-700 text-white font-mono rounded-lg px-3 py-2.5 text-sm focus:border-gamboge-300 focus:ring-gamboge-300 focus:outline-none"
-                                    data-testid="passphrase-input"
-                                />
-                            </div>
-
-                            <!-- Key file section — shown when mode needs key files, or when no-clues (generic) -->
-                            <div v-if="showClues ? authMode !== 'passphrase' : true" class="space-y-2">
-                                <div v-if="showClues" class="text-gamboge-300 font-mono text-xs uppercase tracking-widest">Key Files</div>
-                                <p v-if="showClues" class="text-gray-500 text-xs">
-                                    Load your key files in the same order as when you created this locker.
-                                    Refer to your saved credential file for the required order.
-                                </p>
-
-                                <div v-if="keyFiles.length > 0" class="space-y-1">
-                                    <div
-                                        v-for="(kf, i) in keyFiles"
-                                        :key="i"
-                                        class="flex items-center gap-3 bg-gray-900 rounded-lg px-3 py-2"
-                                    >
-                                        <span class="text-gamboge-300/60 text-xs w-4 shrink-0">{{ i + 1 }}.</span>
-                                        <span class="text-white text-sm flex-1 truncate">{{ kf.file.name }}</span>
-                                        <button
-                                            type="button"
-                                            @click="removeKeyFile(i)"
-                                            class="shrink-0 text-gray-500 hover:text-red-400 font-mono text-xs transition-colors"
-                                            title="Remove"
-                                        >✕</button>
-                                    </div>
-                                </div>
-
-                                <div v-if="showClues && keyFileCount" class="text-xs text-gray-500 font-mono">
-                                    {{ keyFiles.length }} / {{ keyFileCount }} loaded
-                                </div>
-
-                                <label
-                                    v-if="showClues ? keyFiles.length < (keyFileCount ?? 999) : true"
-                                    class="flex items-center gap-2 cursor-pointer border border-dashed border-gray-600 hover:border-gamboge-300/50 hover:shadow-neon-cyan-sm rounded-lg px-3 py-2 transition-colors text-gray-400 text-sm"
-                                    data-testid="key-file-input-label"
-                                >
-                                    <span class="font-mono text-xs">+ Add key file</span>
-                                    <input type="file" class="sr-only" @change="onKeyFileAdded" data-testid="key-file-input" />
-                                </label>
-
-                                <p v-if="showClues && authMode === 'combined'" class="text-gamboge-300/70 text-xs">Both your passphrase and all {{ keyFileCount }} key file(s) are required to unlock.</p>
-                            </div>
-
-                            <p v-if="decryptError" class="text-red-400 text-sm text-center" data-testid="decrypt-error">{{ decryptError }}</p>
-                            <p v-if="failCount >= 2 && decryptError" class="text-gray-500 text-xs text-center">
-                                Repeatedly seeing this error? If your credentials are lost, the content of this locker cannot be recovered.
-                                Credential reset is not possible by design.
-                            </p>
-                            <button
-                                @click="unlock"
-                                :disabled="!canUnlock"
-                                class="w-full bg-gamboge-300 hover:bg-gamboge-400 disabled:opacity-60 text-gray-900 font-semibold py-2.5 rounded-lg font-mono text-sm transition-colors shadow-neon-cyan-sm hover:shadow-neon-cyan"
-                                data-testid="unlock-button"
-                            >
-                                <span v-if="lockState === 'animating'">Unlocking…</span>
-                                <span v-else>Unlock</span>
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Unlocked: content -->
-                    <Transition name="fade">
-                        <div v-if="lockState === 'unlocked'" class="space-y-4" data-testid="decrypted-content">
-                            <div class="text-gamboge-300 font-mono text-xs uppercase tracking-widest">Decrypted Content</div>
-
-                            <!-- Text locker -->
-                            <div v-if="!isFileLocker" class="bg-gray-900 rounded-lg p-4">
-                                <pre class="text-white text-sm whitespace-pre-wrap break-words font-mono">{{ decryptedText }}</pre>
-                            </div>
-
-                            <!-- File locker -->
-                            <div v-else class="space-y-3">
-                                <div class="bg-gray-900 rounded-lg p-4 flex items-center gap-3">
-                                    <span class="text-2xl">🗂</span>
-                                    <div class="flex-1">
-                                        <div class="text-white text-sm font-mono">{{ decryptedFileMeta?.name ?? 'File' }}</div>
-                                        <div class="text-gray-400 text-xs">{{ decryptedFileMeta?.type }}</div>
-                                    </div>
-                                </div>
-                                <FileProgressBar v-if="fileState" :state="fileState" :progress="fileProgress" />
-                                <template v-else>
-                                    <p v-if="downloadError" class="text-red-400 text-xs">{{ downloadError }}</p>
-                                    <button
-                                        @click="downloadFile"
-                                        class="w-full border border-gamboge-300 text-gamboge-300 hover:bg-gamboge-300/10 font-mono text-sm py-2 rounded-lg transition-colors"
-                                    >
-                                        Decrypt &amp; Download
-                                    </button>
-                                </template>
-                            </div>
-                        </div>
-                    </Transition>
-                </div>
-
-                <!-- Update panel — only visible after unlock -->
-                <div v-if="lockState === 'unlocked'" class="bg-gray-800 border border-gray-700 rounded-xl p-6 space-y-4">
-                    <h2 class="text-gamboge-300 font-mono text-xs uppercase tracking-widest">Update Content</h2>
-
-                    <!-- Text locker update -->
-                    <template v-if="!isFileLocker">
-                        <textarea
-                            v-model="newContent"
-                            rows="4"
-                            placeholder="New content…"
-                            class="w-full bg-gray-900 border border-gray-700 text-white font-mono rounded-lg px-3 py-2.5 text-xs focus:border-gamboge-300 focus:outline-none resize-y"
-                        />
-                    </template>
-
-                    <!-- File locker update -->
-                    <template v-else>
                         <input
-                            type="file"
-                            @change="onReplacementFileChange"
-                            class="w-full bg-gray-900 border border-gray-700 text-white rounded-lg px-3 py-2.5 text-xs file:mr-3 file:text-gamboge-300 file:bg-gray-800 file:border-0 file:rounded file:text-xs file:font-mono file:cursor-pointer"
+                            v-model="accountId"
+                            type="text"
+                            inputmode="numeric"
+                            pattern="[0-9]*"
+                            maxlength="10"
+                            placeholder="Enter your 10-digit account number"
+                            @keydown.enter="openLocker"
+                            @input="accountId = $event.target.value.replace(/\D/g, '').slice(0, 10)"
+                            class="w-full bg-gray-900 border border-gray-700 text-white font-mono rounded-lg px-3 py-2.5 text-sm focus:border-gamboge-300 focus:ring-gamboge-300 focus:outline-none"
+                            data-testid="account-id-input"
                         />
-                        <FileProgressBar v-if="updateState" :state="updateState" :progress="updateProgress" />
-                        <p v-if="updateSuccess" class="text-gamboge-300 text-xs">
-                            File updated. Re-unlock to download the new version.
-                        </p>
-                    </template>
-
-                    <p v-if="updateError" class="text-red-400 text-xs">{{ updateError }}</p>
-                    <p v-if="!isFileLocker && updateSuccess" class="text-gamboge-300 text-xs">Content updated.</p>
-
+                        <p class="text-gray-500 text-xs mt-1">10 digits, numbers only</p>
+                    </div>
+                    <p v-if="authInfoError" class="text-red-400 text-sm">{{ authInfoError }}</p>
                     <button
-                        v-if="!updateState"
-                        @click="isFileLocker ? submitFileUpdate() : submitUpdate()"
-                        :disabled="updating"
-                        class="w-full border border-gamboge-300 text-gamboge-300 hover:bg-gamboge-300/10 font-mono text-xs py-2 rounded-lg transition-colors disabled:opacity-50"
-                        data-testid="update-button"
-                    >{{ updating ? 'Updating…' : (isFileLocker ? 'Replace File' : 'Update') }}</button>
+                        @click="openLocker"
+                        :disabled="accountId.length !== 10"
+                        class="w-full bg-gamboge-300 hover:bg-gamboge-400 disabled:opacity-60 text-gray-900 font-semibold py-2.5 rounded-lg font-mono text-sm transition-colors shadow-neon-cyan-sm hover:shadow-neon-cyan"
+                        data-testid="open-button"
+                    >
+                        Open
+                    </button>
                 </div>
 
-                <!-- Update hint when locked -->
-                <div v-if="lockState !== 'unlocked'" class="bg-gray-800 border border-gray-700 rounded-xl p-4 text-center">
-                    <p class="text-gray-500 text-xs">Unlock your locker to update or delete it.</p>
-                </div>
+                <!-- Phase 2: Unlock + all post-unlock panels -->
+                <template v-if="accountPhase === 'unlock'">
 
-                <!-- Change Passphrase panel — only for legacy (HMAC) lockers -->
-                <div v-if="lockState === 'unlocked' && isLegacyLocker" class="bg-gray-800 border border-gray-700 rounded-xl p-6 space-y-4">
-                    <h2 class="text-gamboge-300 font-mono text-xs uppercase tracking-widest">Change Passphrase</h2>
-                    <p class="text-gray-400 text-xs">Your content will be re-encrypted with the new passphrase. This cannot be undone.</p>
+                    <!-- Upgrade success banner -->
+                    <div
+                        v-if="upgradeSuccess"
+                        data-testid="upgrade-success"
+                        class="bg-gamboge-300/10 border border-gamboge-300/40 rounded-xl p-4 text-gamboge-300 text-sm text-center"
+                    >
+                        Your locker has been upgraded to stronger security.
+                    </div>
 
-                    <div>
-                        <div class="flex gap-2">
-                            <input
-                                v-model="newPassphrase"
-                                type="text"
-                                placeholder="Enter or generate a passphrase"
-                                class="flex-1 bg-gray-900 border border-gray-700 text-white font-mono rounded-lg px-3 py-2.5 text-sm focus:border-gamboge-300 focus:outline-none"
-                            />
-                            <button
-                                @click="generateNewPassphrase"
-                                class="shrink-0 border border-gamboge-300/50 text-gamboge-300 hover:border-gamboge-300 text-xs font-mono px-3 rounded-lg transition-colors"
-                            >Generate</button>
+                    <!-- Upgrade banner — visible after legacy unlock, dismissable -->
+                    <div
+                        v-if="lockState === 'unlocked' && isLegacyLocker && !upgradeSuccess && !upgradeDismissed"
+                        data-testid="upgrade-banner"
+                        class="bg-gamboge-300/10 border border-gamboge-300/40 rounded-xl p-4 flex items-start justify-between gap-4"
+                    >
+                        <div class="text-sm text-gamboge-300">
+                            <p class="font-semibold mb-1">Security upgrade available</p>
+                            <p class="text-gamboge-300/70 text-xs">This locker uses an older security scheme. Upgrade it for stronger protection — takes a moment and requires no passphrase change.</p>
+                            <p v-if="upgradeError" class="text-red-400 text-xs mt-1">{{ upgradeError }}</p>
                         </div>
-                        <div v-if="newPassphrase" class="mt-2">
-                            <div class="h-1 bg-gray-700 rounded-full overflow-hidden">
-                                <div class="h-full rounded-full transition-all duration-300" :class="[newPassphraseStrengthWidth, newPassphraseStrengthBg]" />
-                            </div>
-                            <p class="text-xs mt-1" :class="newPassphraseStrengthColor">{{ newPassphraseStrengthLabel }}</p>
+                        <div class="flex items-center gap-2 shrink-0">
+                            <button
+                                @click="upgradeAuth"
+                                :disabled="upgrading"
+                                data-testid="upgrade-button"
+                                class="border border-gamboge-300 text-gamboge-300 hover:bg-gamboge-300/10 font-mono text-xs px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+                            >{{ upgrading ? 'Upgrading…' : 'Upgrade' }}</button>
+                            <button
+                                @click="upgradeDismissed = true"
+                                :disabled="upgrading"
+                                data-testid="upgrade-dismiss-button"
+                                class="text-gamboge-300/50 hover:text-gamboge-300 font-mono text-xs px-2 py-1.5 transition-colors disabled:opacity-50"
+                                title="Dismiss"
+                            >✕</button>
                         </div>
                     </div>
 
-                    <FileProgressBar v-if="passphraseChangeState" :state="passphraseChangeState" :progress="passphraseChangeProgress" />
-                    <p v-if="passphraseChangeError" class="text-red-400 text-xs">{{ passphraseChangeError }}</p>
-                    <p v-if="passphraseChangeSuccess" class="text-gamboge-300 text-xs">Passphrase changed. Use your new passphrase next time you unlock.</p>
-
-                    <button
-                        v-if="!passphraseChangeState"
-                        @click="changePassphrase"
-                        class="w-full border border-gamboge-300 text-gamboge-300 hover:bg-gamboge-300/10 font-mono text-xs py-2 rounded-lg transition-colors"
-                    >Change Passphrase</button>
-                </div>
-
-                <!-- Credential Rotation — all ECDSA lockers (legacy lockers use Change Passphrase above) -->
-                <div v-if="lockState === 'unlocked' && !isLegacyLocker" class="bg-gray-800 border border-gray-700 rounded-xl p-6 space-y-4">
-                    <h2 class="text-gamboge-300 font-mono text-xs uppercase tracking-widest">Change Credentials</h2>
-                    <p class="text-gray-400 text-xs">Content is re-encrypted with your new credentials. You can switch authentication mode or change your key files.</p>
-
-                    <!-- Auth mode selector -->
-                    <div>
-                        <label class="block text-gamboge-300 font-mono text-xs uppercase tracking-widest mb-2">New Authentication Mode</label>
-                        <div class="flex gap-2">
+                    <!-- Locker header -->
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <div class="text-gamboge-300 font-mono text-xs uppercase tracking-widest mb-0.5">eLocker</div>
+                            <div class="ph-no-capture text-white font-mono text-xl tracking-widest">{{ accountId }}</div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <div v-if="expiresAt" class="text-right">
+                                <div :class="daysRemaining <= 30 ? 'text-red-400' : 'text-gray-400'" class="text-xs font-mono">{{ expiryLabel }}</div>
+                                <a :href="route('lockers.renew.challenge', accountId)" class="text-gamboge-300 hover:text-gamboge-200 text-xs font-mono underline">Renew</a>
+                            </div>
                             <button
-                                v-for="mode in [
-                                    { value: 'passphrase', label: 'Passphrase' },
-                                    { value: 'key_file',  label: 'Key File(s)' },
-                                    { value: 'combined',  label: 'Both' },
-                                ]"
-                                :key="mode.value"
-                                type="button"
-                                @click="rotAuthMode = mode.value; newKeyFiles = []; newPassphraseRot = ''"
-                                class="flex-1 py-2 rounded-lg font-mono text-xs transition-colors border"
-                                :class="rotAuthMode === mode.value
-                                    ? 'bg-gamboge-300/20 border-gamboge-300 text-gamboge-300 shadow-neon-cyan-sm'
-                                    : 'border-gray-600 text-gray-400 hover:border-gray-400'"
-                                data-testid="rot-mode-button"
+                                v-if="lockState === 'unlocked'"
+                                @click="lockLocker"
+                                data-testid="lock-button"
+                                class="flex items-center gap-1.5 border border-gray-600 hover:border-gray-400 text-gray-400 hover:text-white font-mono text-xs px-3 py-1.5 rounded-lg transition-colors"
+                                title="Lock locker"
                             >
-                                {{ mode.label }}
+                                <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/></svg>
+                                Lock
                             </button>
                         </div>
                     </div>
 
-                    <!-- New passphrase (passphrase and combined modes) -->
-                    <div v-if="rotAuthMode !== 'key_file'">
-                        <label class="block text-gamboge-300 font-mono text-xs uppercase tracking-widest mb-1">New Passphrase</label>
-                        <div class="flex gap-2">
-                            <input
-                                v-model="newPassphraseRot"
-                                type="text"
-                                placeholder="Enter or generate a new passphrase"
-                                class="flex-1 bg-gray-900 border border-gray-700 text-white font-mono rounded-lg px-3 py-2.5 text-sm focus:border-gamboge-300 focus:outline-none"
-                                data-testid="new-passphrase-rot-input"
-                            />
-                            <button
-                                @click="newPassphraseRot = enc.generatePasssphrase()"
-                                class="shrink-0 border border-gamboge-300/50 text-gamboge-300 hover:border-gamboge-300 text-xs font-mono px-3 rounded-lg transition-colors"
-                            >Generate</button>
-                        </div>
-                    </div>
+                    <!-- Unlock panel -->
+                    <div class="bg-gray-800 border border-gray-700 rounded-xl p-8">
 
-                    <!-- New key files (key_file and combined modes) -->
-                    <div v-if="rotAuthMode !== 'passphrase'" class="space-y-2">
-                        <label class="block text-gamboge-300 font-mono text-xs uppercase tracking-widest mb-1">New Key Files</label>
-                        <p class="text-gray-500 text-xs">Add your new key files in the order you want to use for future unlocks.</p>
+                        <!-- Locked state -->
+                        <div v-if="lockState !== 'unlocked'" class="flex flex-col items-center gap-6">
+                            <div class="relative w-20 h-20 flex items-center justify-center" data-testid="lock-icon">
+                                <svg viewBox="0 0 64 80" class="w-20 h-20" fill="none" xmlns="http://www.w3.org/2000/svg" :class="{ 'animate-shake': lockState === 'shaking' }">
+                                    <path
+                                        d="M16 32 V20 A16 16 0 0 1 48 20 V32"
+                                        stroke="currentColor" stroke-width="5" stroke-linecap="round" fill="none"
+                                        class="text-gamboge-300 origin-bottom"
+                                        :class="{
+                                            'animate-shackle-rise':  lockState === 'animating',
+                                            'animate-shackle-swing': lockState === 'animating',
+                                        }"
+                                        style="transform-origin: 32px 32px"
+                                    />
+                                    <rect x="8" y="30" width="48" height="38" rx="6" fill="currentColor"
+                                        class="text-gamboge-300"
+                                        :class="{ 'animate-glow-burst': lockState === 'animating' }"
+                                    />
+                                    <circle cx="32" cy="48" r="5" class="fill-gray-900" />
+                                    <rect x="29" y="48" width="6" height="8" rx="1" class="fill-gray-900" />
+                                </svg>
+                            </div>
 
-                        <div v-if="newKeyFiles.length > 0" class="space-y-1">
-                            <div
-                                v-for="(kf, i) in newKeyFiles"
-                                :key="i"
-                                class="flex items-center gap-3 bg-gray-900 rounded-lg px-3 py-2"
-                            >
-                                <span class="text-gamboge-300/60 text-xs w-4 shrink-0">{{ i + 1 }}.</span>
-                                <span class="text-white text-sm flex-1 truncate">{{ kf.file.name }}</span>
+                            <div class="w-full space-y-3">
+                                <!-- Passphrase input — shown when mode needs a passphrase, or when no-clues (generic) -->
+                                <div v-if="showClues ? authMode !== 'key_file' : true">
+                                    <input
+                                        v-model="passphrase"
+                                        type="password"
+                                        placeholder="Enter passphrase to unlock"
+                                        @keydown.enter="canUnlock && unlock()"
+                                        class="w-full bg-gray-900 border border-gray-700 text-white font-mono rounded-lg px-3 py-2.5 text-sm focus:border-gamboge-300 focus:ring-gamboge-300 focus:outline-none"
+                                        data-testid="passphrase-input"
+                                    />
+                                </div>
+
+                                <!-- Key file section — shown when mode needs key files, or when no-clues (generic) -->
+                                <div v-if="showClues ? authMode !== 'passphrase' : true" class="space-y-2">
+                                    <div v-if="showClues" class="text-gamboge-300 font-mono text-xs uppercase tracking-widest">Key Files</div>
+                                    <p v-if="showClues" class="text-gray-500 text-xs">
+                                        Load your key files in the same order as when you created this locker.
+                                        Refer to your saved credential file for the required order.
+                                    </p>
+
+                                    <div v-if="keyFiles.length > 0" class="space-y-1">
+                                        <div
+                                            v-for="(kf, i) in keyFiles"
+                                            :key="i"
+                                            class="flex items-center gap-3 bg-gray-900 rounded-lg px-3 py-2"
+                                        >
+                                            <span class="text-gamboge-300/60 text-xs w-4 shrink-0">{{ i + 1 }}.</span>
+                                            <span class="text-white text-sm flex-1 truncate">{{ kf.file.name }}</span>
+                                            <button
+                                                type="button"
+                                                @click="removeKeyFile(i)"
+                                                class="shrink-0 text-gray-500 hover:text-red-400 font-mono text-xs transition-colors"
+                                                title="Remove"
+                                            >✕</button>
+                                        </div>
+                                    </div>
+
+                                    <div v-if="showClues && keyFileCount" class="text-xs text-gray-500 font-mono">
+                                        {{ keyFiles.length }} / {{ keyFileCount }} loaded
+                                    </div>
+
+                                    <label
+                                        v-if="showClues ? keyFiles.length < (keyFileCount ?? 999) : true"
+                                        class="flex items-center gap-2 cursor-pointer border border-dashed border-gray-600 hover:border-gamboge-300/50 hover:shadow-neon-cyan-sm rounded-lg px-3 py-2 transition-colors text-gray-400 text-sm"
+                                        data-testid="key-file-input-label"
+                                    >
+                                        <span class="font-mono text-xs">+ Add key file</span>
+                                        <input type="file" class="sr-only" @change="onKeyFileAdded" data-testid="key-file-input" />
+                                    </label>
+
+                                    <p v-if="showClues && authMode === 'combined'" class="text-gamboge-300/70 text-xs">Both your passphrase and all {{ keyFileCount }} key file(s) are required to unlock.</p>
+                                </div>
+
+                                <p v-if="decryptError" class="text-red-400 text-sm text-center" data-testid="decrypt-error">{{ decryptError }}</p>
+                                <p v-if="failCount >= 2 && decryptError" class="text-gray-500 text-xs text-center">
+                                    Repeatedly seeing this error? If your credentials are lost, the content of this locker cannot be recovered.
+                                    Credential reset is not possible by design.
+                                </p>
                                 <button
-                                    type="button"
-                                    @click="removeNewKeyFile(i)"
-                                    class="shrink-0 text-gray-500 hover:text-red-400 font-mono text-xs transition-colors"
-                                    title="Remove"
-                                >✕</button>
+                                    @click="unlock"
+                                    :disabled="!canUnlock"
+                                    class="w-full bg-gamboge-300 hover:bg-gamboge-400 disabled:opacity-60 text-gray-900 font-semibold py-2.5 rounded-lg font-mono text-sm transition-colors shadow-neon-cyan-sm hover:shadow-neon-cyan"
+                                    data-testid="unlock-button"
+                                >
+                                    <span v-if="lockState === 'animating'">Unlocking…</span>
+                                    <span v-else>Unlock</span>
+                                </button>
                             </div>
                         </div>
 
-                        <label class="flex items-center gap-2 cursor-pointer border border-dashed border-gray-600 hover:border-gamboge-300/50 hover:shadow-neon-cyan-sm rounded-lg px-3 py-2 transition-colors text-gray-400 text-sm">
-                            <span class="font-mono text-xs">+ Add key file</span>
-                            <input type="file" class="sr-only" @change="onNewKeyFileAdded" data-testid="new-key-file-input" />
-                        </label>
-                        <p class="text-gray-500 text-xs">{{ newKeyFiles.length }} key file(s) added.</p>
+                        <!-- Unlocked: content -->
+                        <Transition name="fade">
+                            <div v-if="lockState === 'unlocked'" class="space-y-4" data-testid="decrypted-content">
+                                <div class="text-gamboge-300 font-mono text-xs uppercase tracking-widest">Decrypted Content</div>
+
+                                <!-- Text locker -->
+                                <div v-if="!isFileLocker" class="bg-gray-900 rounded-lg p-4">
+                                    <pre class="text-white text-sm whitespace-pre-wrap break-words font-mono">{{ decryptedText }}</pre>
+                                </div>
+
+                                <!-- File locker -->
+                                <div v-else class="space-y-3">
+                                    <div class="bg-gray-900 rounded-lg p-4 flex items-center gap-3">
+                                        <span class="text-2xl">🗂</span>
+                                        <div class="flex-1">
+                                            <div class="text-white text-sm font-mono">{{ decryptedFileMeta?.name ?? 'File' }}</div>
+                                            <div class="text-gray-400 text-xs">{{ decryptedFileMeta?.type }}</div>
+                                        </div>
+                                    </div>
+                                    <FileProgressBar v-if="fileState" :state="fileState" :progress="fileProgress" />
+                                    <template v-else>
+                                        <p v-if="downloadError" class="text-red-400 text-xs">{{ downloadError }}</p>
+                                        <button
+                                            @click="downloadFile"
+                                            class="w-full border border-gamboge-300 text-gamboge-300 hover:bg-gamboge-300/10 font-mono text-sm py-2 rounded-lg transition-colors"
+                                        >
+                                            Decrypt &amp; Download
+                                        </button>
+                                    </template>
+                                </div>
+                            </div>
+                        </Transition>
                     </div>
 
-                    <FileProgressBar v-if="credRotateState" :state="credRotateState" :progress="credRotateProgress" />
-                    <p v-if="credRotateError" class="text-red-400 text-xs">{{ credRotateError }}</p>
-                    <p v-if="credRotateSuccess" class="text-gamboge-300 text-xs">Credentials changed. Use your new credentials next time you unlock.</p>
+                    <!-- Update panel — only visible after unlock -->
+                    <div v-if="lockState === 'unlocked'" class="bg-gray-800 border border-gray-700 rounded-xl p-6 space-y-4">
+                        <h2 class="text-gamboge-300 font-mono text-xs uppercase tracking-widest">Update Content</h2>
 
-                    <button
-                        v-if="!credRotateState"
-                        @click="rotateCredentials"
-                        :disabled="credRotating"
-                        class="w-full border border-gamboge-300 text-gamboge-300 hover:bg-gamboge-300/10 font-mono text-xs py-2 rounded-lg transition-colors disabled:opacity-50"
-                        data-testid="rotate-credentials-button"
-                    >{{ credRotating ? 'Rotating…' : 'Change Credentials' }}</button>
-                </div>
-
-                <!-- Locker Settings — unlock hints toggle, shown for all modes when unlocked -->
-                <div v-if="lockState === 'unlocked'" class="bg-gray-800 border border-gray-700 rounded-xl p-6 space-y-3">
-                    <h2 class="text-gamboge-300 font-mono text-xs uppercase tracking-widest">Locker Settings</h2>
-
-                    <div class="flex items-start justify-between gap-4">
-                        <div class="flex-1">
-                            <div class="text-white text-sm mb-0.5">Show unlock hints</div>
-                            <p class="text-gray-500 text-xs">
-                                When enabled, the unlock page shows what credential type is required (passphrase, key file, or both) and how many files are needed.
-                                Disable for maximum security — visitors will see a generic interface with no hints.
-                            </p>
-                        </div>
-                        <button
-                            @click="toggleShowClues"
-                            :disabled="showCluesUpdating"
-                            class="shrink-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none disabled:opacity-50"
-                            :class="showClues ? 'bg-gamboge-300 shadow-neon-cyan-sm' : 'bg-gray-600'"
-                            data-testid="show-clues-toggle"
-                            :title="showClues ? 'Unlock hints visible — click to hide' : 'Unlock hints hidden — click to show'"
-                        >
-                            <span
-                                class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform"
-                                :class="showClues ? 'translate-x-6' : 'translate-x-1'"
+                        <!-- Text locker update -->
+                        <template v-if="!isFileLocker">
+                            <textarea
+                                v-model="newContent"
+                                rows="4"
+                                placeholder="New content…"
+                                class="w-full bg-gray-900 border border-gray-700 text-white font-mono rounded-lg px-3 py-2.5 text-xs focus:border-gamboge-300 focus:outline-none resize-y"
                             />
-                        </button>
-                    </div>
+                        </template>
 
-                    <p v-if="showCluesError" class="text-red-400 text-xs">{{ showCluesError }}</p>
-                </div>
+                        <!-- File locker update -->
+                        <template v-else>
+                            <input
+                                type="file"
+                                @change="onReplacementFileChange"
+                                class="w-full bg-gray-900 border border-gray-700 text-white rounded-lg px-3 py-2.5 text-xs file:mr-3 file:text-gamboge-300 file:bg-gray-800 file:border-0 file:rounded file:text-xs file:font-mono file:cursor-pointer"
+                            />
+                            <FileProgressBar v-if="updateState" :state="updateState" :progress="updateProgress" />
+                            <p v-if="updateSuccess" class="text-gamboge-300 text-xs">
+                                File updated. Re-unlock to download the new version.
+                            </p>
+                        </template>
 
-                <!-- Delete panel — only when unlocked -->
-                <div v-if="lockState === 'unlocked'" class="bg-gray-800 border border-gray-700 rounded-xl p-6 space-y-4">
-                    <h2 class="text-red-400 font-mono text-xs uppercase tracking-widest">Delete Locker</h2>
+                        <p v-if="updateError" class="text-red-400 text-xs">{{ updateError }}</p>
+                        <p v-if="!isFileLocker && updateSuccess" class="text-gamboge-300 text-xs">Content updated.</p>
 
-                    <div v-if="!showDeleteConfirm">
                         <button
-                            @click="showDeleteConfirm = true"
-                            class="text-red-400 hover:text-red-300 font-mono text-xs border border-red-500/30 hover:border-red-500 px-4 py-2 rounded-lg transition-colors"
-                        >Delete this locker permanently</button>
+                            v-if="!updateState"
+                            @click="isFileLocker ? submitFileUpdate() : submitUpdate()"
+                            :disabled="updating"
+                            class="w-full border border-gamboge-300 text-gamboge-300 hover:bg-gamboge-300/10 font-mono text-xs py-2 rounded-lg transition-colors disabled:opacity-50"
+                            data-testid="update-button"
+                        >{{ updating ? 'Updating…' : (isFileLocker ? 'Replace File' : 'Update') }}</button>
                     </div>
 
-                    <div v-else class="space-y-3">
-                        <div class="bg-red-900/20 border border-red-500/50 rounded-lg p-3 space-y-1">
-                            <p class="text-red-200 text-xs font-semibold">This will permanently delete your locker and forfeit your remaining paid time.</p>
-                            <p class="text-red-300/80 text-xs">Your locker expires on {{ new Date(expiresAt).toLocaleDateString() }}. Deleting now means that time is lost — there is no refund or credit. To store content again you would need to purchase a new locker.</p>
+                    <!-- Update hint when locked -->
+                    <div v-if="lockState !== 'unlocked'" class="bg-gray-800 border border-gray-700 rounded-xl p-4 text-center">
+                        <p class="text-gray-500 text-xs">Unlock your locker to update or delete it.</p>
+                    </div>
+
+                    <!-- Change Passphrase panel — only for legacy (HMAC) lockers -->
+                    <div v-if="lockState === 'unlocked' && isLegacyLocker" class="bg-gray-800 border border-gray-700 rounded-xl p-6 space-y-4">
+                        <h2 class="text-gamboge-300 font-mono text-xs uppercase tracking-widest">Change Passphrase</h2>
+                        <p class="text-gray-400 text-xs">Your content will be re-encrypted with the new passphrase. This cannot be undone.</p>
+
+                        <div>
+                            <div class="flex gap-2">
+                                <input
+                                    v-model="newPassphrase"
+                                    type="text"
+                                    placeholder="Enter or generate a passphrase"
+                                    class="flex-1 bg-gray-900 border border-gray-700 text-white font-mono rounded-lg px-3 py-2.5 text-sm focus:border-gamboge-300 focus:outline-none"
+                                />
+                                <button
+                                    @click="generateNewPassphrase"
+                                    class="shrink-0 border border-gamboge-300/50 text-gamboge-300 hover:border-gamboge-300 text-xs font-mono px-3 rounded-lg transition-colors"
+                                >Generate</button>
+                            </div>
+                            <div v-if="newPassphrase" class="mt-2">
+                                <div class="h-1 bg-gray-700 rounded-full overflow-hidden">
+                                    <div class="h-full rounded-full transition-all duration-300" :class="[newPassphraseStrengthWidth, newPassphraseStrengthBg]" />
+                                </div>
+                                <p class="text-xs mt-1" :class="newPassphraseStrengthColor">{{ newPassphraseStrengthLabel }}</p>
+                            </div>
                         </div>
-                        <p v-if="deleteError" class="text-red-400 text-xs">{{ deleteError }}</p>
-                        <div class="flex gap-2">
-                            <button @click="showDeleteConfirm = false" class="flex-1 border border-gray-600 text-gray-400 font-mono text-xs py-2 rounded-lg">Cancel</button>
+
+                        <FileProgressBar v-if="passphraseChangeState" :state="passphraseChangeState" :progress="passphraseChangeProgress" />
+                        <p v-if="passphraseChangeError" class="text-red-400 text-xs">{{ passphraseChangeError }}</p>
+                        <p v-if="passphraseChangeSuccess" class="text-gamboge-300 text-xs">Passphrase changed. Use your new passphrase next time you unlock.</p>
+
+                        <button
+                            v-if="!passphraseChangeState"
+                            @click="changePassphrase"
+                            class="w-full border border-gamboge-300 text-gamboge-300 hover:bg-gamboge-300/10 font-mono text-xs py-2 rounded-lg transition-colors"
+                        >Change Passphrase</button>
+                    </div>
+
+                    <!-- Credential Rotation — all ECDSA lockers (legacy lockers use Change Passphrase above) -->
+                    <div v-if="lockState === 'unlocked' && !isLegacyLocker" class="bg-gray-800 border border-gray-700 rounded-xl p-6 space-y-4">
+                        <h2 class="text-gamboge-300 font-mono text-xs uppercase tracking-widest">Change Credentials</h2>
+                        <p class="text-gray-400 text-xs">Content is re-encrypted with your new credentials. You can switch authentication mode or change your key files.</p>
+
+                        <!-- Auth mode selector -->
+                        <div>
+                            <label class="block text-gamboge-300 font-mono text-xs uppercase tracking-widest mb-2">New Authentication Mode</label>
+                            <div class="flex gap-2">
+                                <button
+                                    v-for="mode in [
+                                        { value: 'passphrase', label: 'Passphrase' },
+                                        { value: 'key_file',  label: 'Key File(s)' },
+                                        { value: 'combined',  label: 'Both' },
+                                    ]"
+                                    :key="mode.value"
+                                    type="button"
+                                    @click="rotAuthMode = mode.value; newKeyFiles = []; newPassphraseRot = ''"
+                                    class="flex-1 py-2 rounded-lg font-mono text-xs transition-colors border"
+                                    :class="rotAuthMode === mode.value
+                                        ? 'bg-gamboge-300/20 border-gamboge-300 text-gamboge-300 shadow-neon-cyan-sm'
+                                        : 'border-gray-600 text-gray-400 hover:border-gray-400'"
+                                    data-testid="rot-mode-button"
+                                >
+                                    {{ mode.label }}
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- New passphrase (passphrase and combined modes) -->
+                        <div v-if="rotAuthMode !== 'key_file'">
+                            <label class="block text-gamboge-300 font-mono text-xs uppercase tracking-widest mb-1">New Passphrase</label>
+                            <div class="flex gap-2">
+                                <input
+                                    v-model="newPassphraseRot"
+                                    type="text"
+                                    placeholder="Enter or generate a new passphrase"
+                                    class="flex-1 bg-gray-900 border border-gray-700 text-white font-mono rounded-lg px-3 py-2.5 text-sm focus:border-gamboge-300 focus:outline-none"
+                                    data-testid="new-passphrase-rot-input"
+                                />
+                                <button
+                                    @click="newPassphraseRot = enc.generatePasssphrase()"
+                                    class="shrink-0 border border-gamboge-300/50 text-gamboge-300 hover:border-gamboge-300 text-xs font-mono px-3 rounded-lg transition-colors"
+                                >Generate</button>
+                            </div>
+                        </div>
+
+                        <!-- New key files (key_file and combined modes) -->
+                        <div v-if="rotAuthMode !== 'passphrase'" class="space-y-2">
+                            <label class="block text-gamboge-300 font-mono text-xs uppercase tracking-widest mb-1">New Key Files</label>
+                            <p class="text-gray-500 text-xs">Add your new key files in the order you want to use for future unlocks.</p>
+
+                            <div v-if="newKeyFiles.length > 0" class="space-y-1">
+                                <div
+                                    v-for="(kf, i) in newKeyFiles"
+                                    :key="i"
+                                    class="flex items-center gap-3 bg-gray-900 rounded-lg px-3 py-2"
+                                >
+                                    <span class="text-gamboge-300/60 text-xs w-4 shrink-0">{{ i + 1 }}.</span>
+                                    <span class="text-white text-sm flex-1 truncate">{{ kf.file.name }}</span>
+                                    <button
+                                        type="button"
+                                        @click="removeNewKeyFile(i)"
+                                        class="shrink-0 text-gray-500 hover:text-red-400 font-mono text-xs transition-colors"
+                                        title="Remove"
+                                    >✕</button>
+                                </div>
+                            </div>
+
+                            <label class="flex items-center gap-2 cursor-pointer border border-dashed border-gray-600 hover:border-gamboge-300/50 hover:shadow-neon-cyan-sm rounded-lg px-3 py-2 transition-colors text-gray-400 text-sm">
+                                <span class="font-mono text-xs">+ Add key file</span>
+                                <input type="file" class="sr-only" @change="onNewKeyFileAdded" data-testid="new-key-file-input" />
+                            </label>
+                            <p class="text-gray-500 text-xs">{{ newKeyFiles.length }} key file(s) added.</p>
+                        </div>
+
+                        <FileProgressBar v-if="credRotateState" :state="credRotateState" :progress="credRotateProgress" />
+                        <p v-if="credRotateError" class="text-red-400 text-xs">{{ credRotateError }}</p>
+                        <p v-if="credRotateSuccess" class="text-gamboge-300 text-xs">Credentials changed. Use your new credentials next time you unlock.</p>
+
+                        <button
+                            v-if="!credRotateState"
+                            @click="rotateCredentials"
+                            :disabled="credRotating"
+                            class="w-full border border-gamboge-300 text-gamboge-300 hover:bg-gamboge-300/10 font-mono text-xs py-2 rounded-lg transition-colors disabled:opacity-50"
+                            data-testid="rotate-credentials-button"
+                        >{{ credRotating ? 'Rotating…' : 'Change Credentials' }}</button>
+                    </div>
+
+                    <!-- Locker Settings — unlock hints toggle, shown for all modes when unlocked -->
+                    <div v-if="lockState === 'unlocked'" class="bg-gray-800 border border-gray-700 rounded-xl p-6 space-y-3">
+                        <h2 class="text-gamboge-300 font-mono text-xs uppercase tracking-widest">Locker Settings</h2>
+
+                        <div class="flex items-start justify-between gap-4">
+                            <div class="flex-1">
+                                <div class="text-white text-sm mb-0.5">Show unlock hints</div>
+                                <p class="text-gray-500 text-xs">
+                                    When enabled, the unlock page shows what credential type is required (passphrase, key file, or both) and how many files are needed.
+                                    Disable for maximum security — visitors will see a generic interface with no hints.
+                                </p>
+                            </div>
                             <button
-                                @click="confirmDelete"
-                                :disabled="deleting"
-                                class="flex-1 bg-red-600 hover:bg-red-700 text-white font-mono text-xs py-2 rounded-lg transition-colors disabled:opacity-50"
-                                data-testid="confirm-delete-button"
-                            >{{ deleting ? 'Deleting…' : 'Confirm Delete' }}</button>
+                                @click="toggleShowClues"
+                                :disabled="showCluesUpdating"
+                                class="shrink-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none disabled:opacity-50"
+                                :class="showClues ? 'bg-gamboge-300 shadow-neon-cyan-sm' : 'bg-gray-600'"
+                                data-testid="show-clues-toggle"
+                                :title="showClues ? 'Unlock hints visible — click to hide' : 'Unlock hints hidden — click to show'"
+                            >
+                                <span
+                                    class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform"
+                                    :class="showClues ? 'translate-x-6' : 'translate-x-1'"
+                                />
+                            </button>
+                        </div>
+
+                        <p v-if="showCluesError" class="text-red-400 text-xs">{{ showCluesError }}</p>
+                    </div>
+
+                    <!-- Delete panel — only when unlocked -->
+                    <div v-if="lockState === 'unlocked'" class="bg-gray-800 border border-gray-700 rounded-xl p-6 space-y-4">
+                        <h2 class="text-red-400 font-mono text-xs uppercase tracking-widest">Delete Locker</h2>
+
+                        <div v-if="!showDeleteConfirm">
+                            <button
+                                @click="showDeleteConfirm = true"
+                                class="text-red-400 hover:text-red-300 font-mono text-xs border border-red-500/30 hover:border-red-500 px-4 py-2 rounded-lg transition-colors"
+                            >Delete this locker permanently</button>
+                        </div>
+
+                        <div v-else class="space-y-3">
+                            <div class="bg-red-900/20 border border-red-500/50 rounded-lg p-3 space-y-1">
+                                <p class="text-red-200 text-xs font-semibold">This will permanently delete your locker and forfeit your remaining paid time.</p>
+                                <p class="text-red-300/80 text-xs">Your locker expires on {{ new Date(expiresAt).toLocaleDateString() }}. Deleting now means that time is lost — there is no refund or credit. To store content again you would need to purchase a new locker.</p>
+                            </div>
+                            <p v-if="deleteError" class="text-red-400 text-xs">{{ deleteError }}</p>
+                            <div class="flex gap-2">
+                                <button @click="showDeleteConfirm = false" class="flex-1 border border-gray-600 text-gray-400 font-mono text-xs py-2 rounded-lg">Cancel</button>
+                                <button
+                                    @click="confirmDelete"
+                                    :disabled="deleting"
+                                    class="flex-1 bg-red-600 hover:bg-red-700 text-white font-mono text-xs py-2 rounded-lg transition-colors disabled:opacity-50"
+                                    data-testid="confirm-delete-button"
+                                >{{ deleting ? 'Deleting…' : 'Confirm Delete' }}</button>
+                            </div>
                         </div>
                     </div>
-                </div>
+
+                </template>
 
             </div>
         </div>

@@ -339,11 +339,14 @@ const submit = async () => {
 
                     <button
                         :disabled="!savedConfirmed"
-                        @click="router.visit(route('lockers.show', credentials.account_id))"
+                        @click="router.visit(route('lockers.open'))"
                         class="w-full bg-gamboge-300 hover:bg-gamboge-400 disabled:opacity-40 disabled:cursor-not-allowed text-gray-900 font-semibold py-2.5 px-4 rounded-lg font-mono text-sm transition-colors shadow-neon-cyan-sm"
                     >
                         Open my locker
                     </button>
+                    <p class="text-gray-400 text-xs text-center mt-2">
+                        Copy your account number above — you will need to enter it on the next screen.
+                    </p>
                 </div>
 
                 <!-- Create form -->

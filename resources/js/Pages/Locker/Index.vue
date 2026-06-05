@@ -25,7 +25,7 @@ const go = () => {
     if (!/^\d{10}$/.test(accountId.value)) return;
     const target = destination.value === 'renew'
         ? route('lockers.renew.challenge', accountId.value)
-        : route('lockers.show', accountId.value);
+        : route('lockers.open');
     router.visit(target);
 };
 </script>
