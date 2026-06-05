@@ -408,9 +408,6 @@ const submit = async () => {
                                 <span v-else-if="authMode === 'key_file'">One or more key files required to unlock.</span>
                                 <span v-else>Both passphrase and all key files required.</span>
                             </p>
-                            <div v-if="authMode !== 'passphrase'" class="mt-2 bg-amber-900/20 border border-amber-500/40 rounded-lg p-3 text-amber-400 text-xs">
-                                &#x26A0; Key file credential rotation is not yet supported. To change your key files in the future, you will need to recreate the locker.
-                            </div>
                         </div>
 
                         <!-- Passphrase — hidden for key_file mode -->
