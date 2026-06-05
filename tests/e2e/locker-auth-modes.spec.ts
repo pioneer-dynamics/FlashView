@@ -32,7 +32,7 @@ test('passphrase-only creation and unlock still works (regression)', async ({ pa
 
 // ─── Scenario 2: Key file creation ────────────────────────────────────────────
 
-test('key file mode creation shows fingerprint and credential panel without passphrase', async ({ page }) => {
+test('key file mode creation shows filename and credential panel without passphrase', async ({ page }) => {
     createLockerCredit('kfcreate01', 'text', 1);
 
     await page.goto('/lockers/create?token=kfcreate01');
@@ -45,11 +45,9 @@ test('key file mode creation shows fingerprint and credential panel without pass
     // Passphrase field should be hidden
     await expect(page.getByPlaceholder('Enter or generate a passphrase')).not.toBeVisible();
 
-    // Add a key file — fingerprint should appear
+    // Add a key file — filename should appear (no fingerprint)
     await page.getByTestId('key-file-input').setInputFiles(KEY_FILE_ALPHA);
-    await page.waitForTimeout(400);
-    // Fingerprint is 8 hex chars shown in a code element
-    await expect(page.locator('code').filter({ hasText: /^[0-9a-f]{8}$/ })).toBeVisible();
+    await expect(page.getByText(KEY_FILE_ALPHA.name)).toBeVisible();
 
     // Risk acknowledgement checkbox must be checked before submit
     await page.getByTestId('key-file-risk-checkbox').check();
@@ -60,8 +58,9 @@ test('key file mode creation shows fingerprint and credential panel without pass
     await expect(page.getByText('Locker created!')).toBeVisible({ timeout: 15000 });
     // Passphrase field not shown in credentials panel (key_file mode)
     await expect(page.getByText('Passphrase', { exact: true })).not.toBeVisible();
-    // Key file fingerprints shown in credentials panel
-    await expect(page.getByText('Key File Fingerprints')).toBeVisible();
+    // Key file names shown in credentials panel (no fingerprints)
+    await expect(page.getByText('Key Files (load in this order)')).toBeVisible();
+    await expect(page.getByText(KEY_FILE_ALPHA.name)).toBeVisible();
 });
 
 test('key file mode creation blocked if risk checkbox is not checked', async ({ page }) => {
@@ -73,7 +72,6 @@ test('key file mode creation blocked if risk checkbox is not checked', async ({ 
     await page.getByRole('button', { name: 'Key File(s)' }).click();
     await page.getByPlaceholder('Choose a 10-digit number').fill('8000000003');
     await page.getByTestId('key-file-input').setInputFiles(KEY_FILE_ALPHA);
-    await page.waitForTimeout(400);
     await page.getByPlaceholder('Enter the content to store…').fill('Content');
     // Do NOT check the risk checkbox
     await page.getByTestId('create-submit-button').click();
@@ -99,7 +97,6 @@ test('key file mode unlock succeeds with correct key file', async ({ page }) => 
 
     // Load the correct key file
     await page.getByTestId('key-file-input').setInputFiles(KEY_FILE_ALPHA);
-    await page.waitForTimeout(400);
 
     await page.getByTestId('unlock-button').click();
 
@@ -118,7 +115,6 @@ test('key file mode unlock fails with wrong key file', async ({ page }) => {
 
     // Load the WRONG key file
     await page.getByTestId('key-file-input').setInputFiles(KEY_FILE_WRONG);
-    await page.waitForTimeout(400);
 
     await page.getByTestId('unlock-button').click();
 
@@ -150,9 +146,10 @@ test('combined mode locker creation completes successfully', async ({ page }) =>
     await createCombinedLockerViaUI(page, '8000000020', 'combined-pass-long', 'Combined mode content', 'cmb02', [KEY_FILE_ALPHA]);
 
     await expect(page.getByText('Locker created!')).toBeVisible();
-    // Both passphrase and fingerprints shown in credentials
+    // Both passphrase and key file names shown in credentials
     await expect(page.getByText('Passphrase', { exact: true })).toBeVisible();
-    await expect(page.getByText('Key File Fingerprints')).toBeVisible();
+    await expect(page.getByText('Key Files (load in this order)')).toBeVisible();
+    await expect(page.getByText(KEY_FILE_ALPHA.name)).toBeVisible();
 });
 
 // ─── Scenario 6: Combined mode unlock success ────────────────────────────────
@@ -166,7 +163,6 @@ test('combined mode unlock succeeds with both passphrase and correct key file', 
 
     await page.getByTestId('passphrase-input').fill('combined-unlock-pass');
     await page.getByTestId('key-file-input').setInputFiles(KEY_FILE_ALPHA);
-    await page.waitForTimeout(400);
 
     await page.getByTestId('unlock-button').click();
 
@@ -200,7 +196,6 @@ test('combined mode unlock fails when key file provided but no passphrase', asyn
 
     // Load key file but NO passphrase — unlock button must remain disabled
     await page.getByTestId('key-file-input').setInputFiles(KEY_FILE_ALPHA);
-    await page.waitForTimeout(400);
 
     // Passphrase is empty → canUnlock should be false
     await expect(page.getByTestId('unlock-button')).toBeDisabled();
@@ -219,12 +214,10 @@ test('multiple key files: creation and successful unlock with all files', async 
     await expect(page.getByTestId('unlock-button')).toBeDisabled();
 
     await page.getByTestId('key-file-input').setInputFiles(KEY_FILE_ALPHA);
-    await page.waitForTimeout(400);
     // Still disabled — only 1 of 2 loaded
     await expect(page.getByTestId('unlock-button')).toBeDisabled();
 
     await page.getByTestId('key-file-input').setInputFiles(KEY_FILE_BETA);
-    await page.waitForTimeout(400);
     // Now enabled
     await expect(page.getByTestId('unlock-button')).toBeEnabled();
 
@@ -245,7 +238,6 @@ test('multiple key files: unlock button disabled when only 1 of 2 files loaded',
 
     // Load only 1 of 2 key files
     await page.getByTestId('key-file-input').setInputFiles(KEY_FILE_ALPHA);
-    await page.waitForTimeout(400);
 
     // Progress indicator shows 1 / 2
     await expect(page.getByText(/1 \/ 2/)).toBeVisible();
@@ -254,9 +246,9 @@ test('multiple key files: unlock button disabled when only 1 of 2 files loaded',
     await expect(page.getByTestId('unlock-button')).toBeDisabled();
 });
 
-// ─── Scenario 11: Credential download includes key file fingerprints ──────────
+// ─── Scenario 11: Credential download includes key file names ────────────────
 
-test('credential download button visible and credential panel shows fingerprints for key file mode', async ({ page }) => {
+test('credential panel shows key file names (not fingerprints) and download button is visible', async ({ page }) => {
     createLockerCredit('credkf01', 'text', 1);
 
     await page.goto('/lockers/create?token=credkf01');
@@ -265,15 +257,15 @@ test('credential download button visible and credential panel shows fingerprints
     await page.getByRole('button', { name: 'Key File(s)' }).click();
     await page.getByPlaceholder('Choose a 10-digit number').fill('8000000040');
     await page.getByTestId('key-file-input').setInputFiles(KEY_FILE_ALPHA);
-    await page.waitForTimeout(400);
     await page.getByTestId('key-file-risk-checkbox').check();
     await page.getByPlaceholder('Enter the content to store…').fill('Credentials test content');
     await page.getByTestId('create-submit-button').click();
 
     await page.waitForSelector('text=Locker created!', { timeout: 15000 });
 
-    // Fingerprint section must be present in the credentials panel
-    await expect(page.getByText('Key File Fingerprints')).toBeVisible();
+    // Key file names shown (no fingerprints)
+    await expect(page.getByText('Key Files (load in this order)')).toBeVisible();
+    await expect(page.getByText(KEY_FILE_ALPHA.name)).toBeVisible();
     await expect(page.getByText('loaded in this exact order')).toBeVisible();
 
     // Download button present
@@ -291,8 +283,7 @@ test('switching back to passphrase mode hides key file section and clears added 
     // Go to key_file mode and add a file
     await page.getByRole('button', { name: 'Key File(s)' }).click();
     await page.getByTestId('key-file-input').setInputFiles(KEY_FILE_ALPHA);
-    await page.waitForTimeout(400);
-    await expect(page.locator('code').filter({ hasText: /^[0-9a-f]{8}$/ })).toBeVisible();
+    await expect(page.getByText(KEY_FILE_ALPHA.name)).toBeVisible();
 
     // Switch back to passphrase — key file list and section should be gone
     await page.getByRole('button', { name: 'Passphrase' }).click();
@@ -320,7 +311,6 @@ test('change passphrase panel hidden for key file mode after unlock', async ({ p
     await page.waitForLoadState('networkidle');
 
     await page.getByTestId('key-file-input').setInputFiles(KEY_FILE_ALPHA);
-    await page.waitForTimeout(400);
     await page.getByTestId('unlock-button').click();
     await expect(page.getByTestId('decrypted-content')).toBeVisible({ timeout: 15000 });
 

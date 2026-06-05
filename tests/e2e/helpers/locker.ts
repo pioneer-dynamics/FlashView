@@ -105,7 +105,6 @@ export async function createKeyFileLockerViaUI(
 
     for (const kf of keyFiles) {
         await page.getByTestId('key-file-input').setInputFiles(kf);
-        await page.waitForTimeout(300); // allow fingerprint computation
     }
 
     await page.getByTestId('key-file-risk-checkbox').check();

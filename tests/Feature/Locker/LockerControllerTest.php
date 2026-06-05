@@ -1026,4 +1026,84 @@ class LockerControllerTest extends TestCase
 
         $response->assertStatus(200)->assertJsonStructure(['payload', 'expires_at', 'is_file_locker']);
     }
+
+    public function test_auth_info_returns_show_clues_true_for_normal_locker(): void
+    {
+        Locker::factory()->create([
+            'account_id' => '3000000001',
+            'show_clues' => true,
+            'auth_mode' => 'key_file',
+            'key_file_count' => 2,
+        ]);
+
+        $response = $this->getJson(route('lockers.auth-info', '3000000001'));
+
+        $response->assertStatus(200)->assertJson([
+            'auth_mode' => 'key_file',
+            'key_file_count' => 2,
+            'show_clues' => true,
+        ]);
+    }
+
+    public function test_auth_info_returns_opaque_response_when_show_clues_false(): void
+    {
+        Locker::factory()->create([
+            'account_id' => '3000000002',
+            'show_clues' => false,
+            'auth_mode' => 'key_file',
+            'key_file_count' => 3,
+        ]);
+
+        $response = $this->getJson(route('lockers.auth-info', '3000000002'));
+
+        // Should return fake passphrase defaults, hiding real auth mode
+        $response->assertStatus(200)->assertJson([
+            'auth_mode' => 'passphrase',
+            'key_file_count' => null,
+            'show_clues' => false,
+        ]);
+
+        $response->assertJsonMissing(['key_file']);
+    }
+
+    public function test_store_saves_show_clues_false(): void
+    {
+        $credit = LockerCredit::factory()->create(['token' => 'sctok01', 'tier' => 'text', 'years' => 1]);
+
+        $this->postJson(route('lockers.store'), [
+            'account_id' => '3000000003',
+            'credit_token' => 'sctok01',
+            'payload' => str_repeat('a', 100),
+            'public_key' => base64_encode(json_encode(['kty' => 'EC'])),
+            'tier' => 'text',
+            'auth_mode' => 'key_file',
+            'key_file_count' => 1,
+            'show_clues' => false,
+        ])->assertStatus(200);
+
+        $this->assertDatabaseHas('lockers', [
+            'account_id' => '3000000003',
+            'show_clues' => false,
+        ]);
+    }
+
+    public function test_store_defaults_show_clues_to_true(): void
+    {
+        $credit = LockerCredit::factory()->create(['token' => 'sctok02', 'tier' => 'text', 'years' => 1]);
+
+        $this->postJson(route('lockers.store'), [
+            'account_id' => '3000000004',
+            'credit_token' => 'sctok02',
+            'payload' => str_repeat('a', 100),
+            'auth_challenge' => str_repeat('c', 64),
+            'auth_verifier' => str_repeat('a', 64),
+            'update_token' => str_repeat('b', 64),
+            'tier' => 'text',
+        ])->assertStatus(200);
+
+        $this->assertDatabaseHas('lockers', [
+            'account_id' => '3000000004',
+            'show_clues' => true,
+        ]);
+    }
 }
