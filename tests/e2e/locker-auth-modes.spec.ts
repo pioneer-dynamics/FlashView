@@ -5,6 +5,7 @@ import {
     createLockerViaUI,
     createKeyFileLockerViaUI,
     createCombinedLockerViaUI,
+    navigateToLocker,
     KEY_FILE_ALPHA,
     KEY_FILE_BETA,
     KEY_FILE_WRONG,
@@ -20,8 +21,7 @@ test('passphrase-only creation and unlock still works (regression)', async ({ pa
     createLockerCredit('regtoken01', 'text', 1);
     const { passphrase } = await createLockerViaUI(page, '8000000001', 'regression-passphrase-ok', 'Regression content', 'regtoken01');
 
-    await page.goto('/lockers/8000000001');
-    await page.waitForLoadState('networkidle');
+    await navigateToLocker(page, '8000000001');
 
     await page.getByTestId('passphrase-input').fill(passphrase);
     await page.getByTestId('unlock-button').click();
@@ -86,8 +86,7 @@ test('key file mode unlock succeeds with correct key file', async ({ page }) => 
     createLockerCredit('kfunlock01', 'text', 1);
     await createKeyFileLockerViaUI(page, '8000000010', 'Unlockable key file content', 'kfunlock01', [KEY_FILE_ALPHA]);
 
-    await page.goto('/lockers/8000000010');
-    await page.waitForLoadState('networkidle');
+    await navigateToLocker(page, '8000000010');
 
     // Passphrase input not shown for key_file mode
     await expect(page.getByTestId('passphrase-input')).not.toBeVisible();
@@ -110,8 +109,7 @@ test('key file mode unlock fails with wrong key file', async ({ page }) => {
     createLockerCredit('kfunlock02', 'text', 1);
     await createKeyFileLockerViaUI(page, '8000000011', 'Content protected by correct file', 'kfunlock02', [KEY_FILE_ALPHA]);
 
-    await page.goto('/lockers/8000000011');
-    await page.waitForLoadState('networkidle');
+    await navigateToLocker(page, '8000000011');
 
     // Load the WRONG key file
     await page.getByTestId('key-file-input').setInputFiles(KEY_FILE_WRONG);
@@ -158,8 +156,7 @@ test('combined mode unlock succeeds with both passphrase and correct key file', 
     createLockerCredit('cmb03', 'text', 1);
     await createCombinedLockerViaUI(page, '8000000021', 'combined-unlock-pass', 'Combined unlock content', 'cmb03', [KEY_FILE_ALPHA]);
 
-    await page.goto('/lockers/8000000021');
-    await page.waitForLoadState('networkidle');
+    await navigateToLocker(page, '8000000021');
 
     await page.getByTestId('passphrase-input').fill('combined-unlock-pass');
     await page.getByTestId('key-file-input').setInputFiles(KEY_FILE_ALPHA);
@@ -176,8 +173,7 @@ test('combined mode unlock fails when passphrase provided but no key file', asyn
     createLockerCredit('cmb04', 'text', 1);
     await createCombinedLockerViaUI(page, '8000000022', 'combined-passonly-pass', 'Content', 'cmb04', [KEY_FILE_ALPHA]);
 
-    await page.goto('/lockers/8000000022');
-    await page.waitForLoadState('networkidle');
+    await navigateToLocker(page, '8000000022');
 
     // Provide passphrase but NO key file — unlock button must remain disabled
     await page.getByTestId('passphrase-input').fill('combined-passonly-pass');
@@ -191,8 +187,7 @@ test('combined mode unlock fails when key file provided but no passphrase', asyn
     createLockerCredit('cmb05', 'text', 1);
     await createCombinedLockerViaUI(page, '8000000023', 'combined-fileonly-pass', 'Content', 'cmb05', [KEY_FILE_ALPHA]);
 
-    await page.goto('/lockers/8000000023');
-    await page.waitForLoadState('networkidle');
+    await navigateToLocker(page, '8000000023');
 
     // Load key file but NO passphrase — unlock button must remain disabled
     await page.getByTestId('key-file-input').setInputFiles(KEY_FILE_ALPHA);
@@ -207,8 +202,7 @@ test('multiple key files: creation and successful unlock with all files', async 
     createLockerCredit('mkf01', 'text', 1);
     await createKeyFileLockerViaUI(page, '8000000030', 'Two key file content', 'mkf01', [KEY_FILE_ALPHA, KEY_FILE_BETA]);
 
-    await page.goto('/lockers/8000000030');
-    await page.waitForLoadState('networkidle');
+    await navigateToLocker(page, '8000000030');
 
     // Unlock button disabled until both files loaded
     await expect(page.getByTestId('unlock-button')).toBeDisabled();
@@ -233,8 +227,7 @@ test('multiple key files: unlock button disabled when only 1 of 2 files loaded',
     createLockerCredit('mkf02', 'text', 1);
     await createKeyFileLockerViaUI(page, '8000000031', 'Two key file content', 'mkf02', [KEY_FILE_ALPHA, KEY_FILE_BETA]);
 
-    await page.goto('/lockers/8000000031');
-    await page.waitForLoadState('networkidle');
+    await navigateToLocker(page, '8000000031');
 
     // Load only 1 of 2 key files
     await page.getByTestId('key-file-input').setInputFiles(KEY_FILE_ALPHA);
@@ -295,8 +288,7 @@ test('show page for key file locker does not show passphrase input', async ({ pa
     createLockerCredit('kfshow01', 'text', 1);
     await createKeyFileLockerViaUI(page, '8000000050', 'Key file show test', 'kfshow01', [KEY_FILE_ALPHA]);
 
-    await page.goto('/lockers/8000000050');
-    await page.waitForLoadState('networkidle');
+    await navigateToLocker(page, '8000000050');
 
     await expect(page.getByTestId('passphrase-input')).not.toBeVisible();
     await expect(page.getByTestId('key-file-input')).toBeAttached();
@@ -307,8 +299,7 @@ test('change passphrase panel hidden for key file mode; change credentials panel
     createLockerCredit('kfcp01', 'text', 1);
     await createKeyFileLockerViaUI(page, '8000000051', 'Key file no passchange', 'kfcp01', [KEY_FILE_ALPHA]);
 
-    await page.goto('/lockers/8000000051');
-    await page.waitForLoadState('networkidle');
+    await navigateToLocker(page, '8000000051');
 
     await page.getByTestId('key-file-input').setInputFiles(KEY_FILE_ALPHA);
     await page.getByTestId('unlock-button').click();

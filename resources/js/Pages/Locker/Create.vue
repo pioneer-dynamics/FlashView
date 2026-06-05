@@ -339,7 +339,7 @@ const submit = async () => {
 
                     <button
                         :disabled="!savedConfirmed"
-                        @click="router.visit(route('lockers.show', credentials.account_id))"
+                        @click="sessionStorage.setItem('locker_prefill_account', credentials.account_id); router.visit(route('lockers.open'))"
                         class="w-full bg-gamboge-300 hover:bg-gamboge-400 disabled:opacity-40 disabled:cursor-not-allowed text-gray-900 font-semibold py-2.5 px-4 rounded-lg font-mono text-sm transition-colors shadow-neon-cyan-sm"
                     >
                         Open my locker
@@ -504,11 +504,12 @@ const submit = async () => {
 
                         <!-- Content -->
                         <div>
-                            <label class="block text-gamboge-300 font-mono text-xs uppercase tracking-widest mb-1">
+                            <label for="locker-content-input" class="block text-gamboge-300 font-mono text-xs uppercase tracking-widest mb-1">
                                 {{ isFileTier ? 'File' : 'Content' }}
                             </label>
                             <textarea
                                 v-if="!isFileTier"
+                                id="locker-content-input"
                                 v-model="content"
                                 rows="6"
                                 class="w-full bg-gray-900 border border-gray-700 text-white font-mono rounded-lg px-3 py-2.5 text-sm focus:border-gamboge-300 focus:ring-gamboge-300 focus:outline-none resize-y"
@@ -517,6 +518,7 @@ const submit = async () => {
                             />
                             <input
                                 v-else
+                                id="locker-content-input"
                                 type="file"
                                 @change="onFileChange"
                                 class="w-full bg-gray-900 border border-gray-700 text-white rounded-lg px-3 py-2.5 text-sm focus:border-gamboge-300 focus:outline-none file:mr-3 file:text-gamboge-300 file:bg-gray-800 file:border-0 file:rounded file:text-xs file:font-mono file:cursor-pointer"

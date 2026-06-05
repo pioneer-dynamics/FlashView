@@ -242,12 +242,16 @@ class LockerController extends Controller
         return response()->json(['ok' => true]);
     }
 
-    public function show(Request $request, string $accountId): Response
+    public function open(Request $request): Response
     {
-        return Inertia::render('Locker/Show', [
-            'account_id' => $accountId,
+        return Inertia::render('Locker/Open', [
             'renewed' => $request->query('renewed') === '1',
         ]);
+    }
+
+    public function show(Request $request, string $accountId): RedirectResponse
+    {
+        return redirect()->route('lockers.open');
     }
 
     public function challenge(Request $request, string $accountId): JsonResponse
@@ -579,8 +583,8 @@ class LockerController extends Controller
                     'years' => $years,
                     'tier' => $tier,
                 ],
-                'success_url' => route('lockers.show', $accountId).'?renewed=1',
-                'cancel_url' => route('lockers.show', $accountId),
+                'success_url' => route('lockers.open').'?renewed=1',
+                'cancel_url' => route('lockers.open'),
             ]);
         } catch (ApiErrorException $e) {
             Log::error('Stripe renewal checkout session creation failed', ['error' => $e->getMessage(), 'account_id' => $accountId]);

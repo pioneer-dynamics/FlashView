@@ -1,6 +1,20 @@
 import { execSync } from 'child_process';
 import { Page } from '@playwright/test';
 
+/**
+ * Navigate to the locker open page, enter the account number, and wait for the unlock form.
+ * Works for all auth modes (passphrase, key_file, combined) since it waits on unlock-button,
+ * not passphrase-input (which is absent in key_file mode).
+ */
+export async function navigateToLocker(page: Page, accountId: string): Promise<void> {
+    await page.goto('/lockers/open');
+    await page.waitForLoadState('networkidle');
+    await page.getByTestId('account-id-input').fill(accountId);
+    await page.getByTestId('open-button').click();
+    // Wait for unlock-button — present in ALL auth modes (passphrase, key_file, combined)
+    await page.getByTestId('unlock-button').waitFor({ state: 'visible', timeout: 5000 });
+}
+
 const ARTISAN = process.env.CI ? 'php artisan' : 'vendor/bin/sail artisan';
 
 /**

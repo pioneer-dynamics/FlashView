@@ -23,10 +23,12 @@ const dismissPending = () => {
 
 const go = () => {
     if (!/^\d{10}$/.test(accountId.value)) return;
-    const target = destination.value === 'renew'
-        ? route('lockers.renew.challenge', accountId.value)
-        : route('lockers.show', accountId.value);
-    router.visit(target);
+    if (destination.value === 'renew') {
+        router.visit(route('lockers.renew.challenge', accountId.value));
+    } else {
+        sessionStorage.setItem('locker_prefill_account', accountId.value);
+        router.visit(route('lockers.open'));
+    }
 };
 </script>
 
