@@ -29,9 +29,10 @@ const content      = ref('');
 const selectedFile = ref(null);
 
 // Auth mode
-const authMode             = ref('passphrase'); // 'passphrase' | 'key_file' | 'combined'
-const keyFiles             = ref([]); // [{ file: File, hash: string, fingerprint: string }]
+const authMode                = ref('passphrase'); // 'passphrase' | 'key_file' | 'combined'
+const keyFiles                = ref([]); // [{ file: File }]
 const keyFileRiskAcknowledged = ref(false);
+const showClues               = ref(true); // when false, unlock page reveals no credential-type hints
 
 // State
 const step          = ref('form'); // 'form' | 'encrypting' | 'uploading' | 'credentials'
@@ -62,15 +63,11 @@ const generatePassphrase = () => { passphrase.value = enc.generatePasssphrase();
 const onFileChange = (e) => { selectedFile.value = e.target.files[0] ?? null; };
 const copyToClipboard = async (text) => { await navigator.clipboard.writeText(text); };
 
-const onKeyFileAdded = async (e) => {
+const onKeyFileAdded = (e) => {
     const file = e.target.files[0];
     if (!file) return;
     e.target.value = '';
-
-    const buffer = await file.arrayBuffer();
-    const hash = await enc.deriveLockerKeyFromFile(buffer);
-    const fingerprint = hash.slice(0, 8);
-    keyFiles.value.push({ file, hash, fingerprint });
+    keyFiles.value.push({ file });
 };
 
 const removeKeyFile = (index) => {
@@ -81,6 +78,7 @@ const setAuthMode = (mode) => {
     authMode.value = mode;
     keyFiles.value = [];
     keyFileRiskAcknowledged.value = false;
+    if (mode === 'passphrase') showClues.value = true;
 };
 
 const computeEffectivePassphrase = async () => {
@@ -113,13 +111,16 @@ const downloadCredentials = () => {
 
     if (authMode.value !== 'passphrase') {
         lines.push('');
-        lines.push('Key File Fingerprints (load in this exact order when unlocking):');
-        credentials.value.keyFileFingerprints.forEach((fp, i) => {
-            lines.push(`  ${i + 1}. ${fp}`);
+        lines.push('Key Files (load in this exact order when unlocking):');
+        credentials.value.keyFileNames.forEach((name, i) => {
+            lines.push(`  ${i + 1}. ${name}`);
         });
         lines.push('');
-        lines.push('IMPORTANT: Key files must be loaded in this exact order. Refer to this file');
-        lines.push('for the required fingerprint sequence. There is no recovery if you lose your key files.');
+        lines.push('IMPORTANT: Key files must be loaded in this exact order. There is no recovery if you lose your key files.');
+        if (!showClues.value) {
+            lines.push('NOTE: The unlock page is configured to show no hints about required credentials.');
+            lines.push('Share access instructions with authorised users through a separate secure channel.');
+        }
     }
 
     lines.push('', `Expires: ${new Date(credentials.value.expires_at).toLocaleDateString()}`);
@@ -245,6 +246,7 @@ const submit = async () => {
                 wrapped_file_key: wrappedFileKey,
                 auth_mode:        authMode.value,
                 key_file_count:   authMode.value !== 'passphrase' ? keyFiles.value.length : null,
+                show_clues:       showClues.value,
             }),
         });
 
@@ -264,11 +266,11 @@ const submit = async () => {
 
         localStorage.removeItem('locker_pending_token');
         credentials.value = {
-            account_id:  data.account_id,
-            passphrase:  passphrase.value,
-            expires_at:  data.expires_at,
-            keyFileFingerprints: keyFiles.value.map(kf => kf.fingerprint),
-            authMode: authMode.value,
+            account_id:   data.account_id,
+            passphrase:   passphrase.value,
+            expires_at:   data.expires_at,
+            keyFileNames: keyFiles.value.map(kf => kf.file.name),
+            authMode:     authMode.value,
         };
         step.value = 'credentials';
 
@@ -311,11 +313,11 @@ const submit = async () => {
                         </div>
 
                         <div v-if="credentials.authMode !== 'passphrase'" class="bg-gray-900 rounded-lg p-3">
-                            <div class="text-gamboge-300 font-mono text-xs uppercase tracking-widest mb-1">Key File Fingerprints (load in this order)</div>
+                            <div class="text-gamboge-300 font-mono text-xs uppercase tracking-widest mb-1">Key Files (load in this order)</div>
                             <div class="space-y-1 mt-2">
-                                <div v-for="(fp, i) in credentials.keyFileFingerprints" :key="i" class="flex items-center gap-2">
-                                    <span class="text-gamboge-300/60 font-mono text-xs w-4">{{ i + 1 }}.</span>
-                                    <code class="text-white text-sm font-mono">{{ fp }}</code>
+                                <div v-for="(name, i) in credentials.keyFileNames" :key="i" class="flex items-center gap-2">
+                                    <span class="text-gamboge-300/60 text-xs w-4 shrink-0">{{ i + 1 }}.</span>
+                                    <span class="text-white text-sm truncate">{{ name }}</span>
                                 </div>
                             </div>
                             <p class="text-gray-500 text-xs mt-2">Key files must be loaded in this exact order when unlocking.</p>
@@ -452,8 +454,7 @@ const submit = async () => {
                                     class="flex items-center gap-3 bg-gray-900 rounded-lg px-3 py-2"
                                 >
                                     <span class="text-gamboge-300/60 font-mono text-xs w-4 shrink-0">{{ i + 1 }}.</span>
-                                    <code class="text-gamboge-300 font-mono text-sm flex-1">{{ kf.fingerprint }}</code>
-                                    <span class="text-gray-500 text-xs truncate max-w-32">{{ kf.file.name }}</span>
+                                    <span class="text-white text-sm flex-1 truncate">{{ kf.file.name }}</span>
                                     <button
                                         type="button"
                                         @click="removeKeyFile(i)"
@@ -469,6 +470,22 @@ const submit = async () => {
                             </label>
                             <p v-if="errors.key_files" class="text-red-400 text-xs mt-1">{{ errors.key_files }}</p>
                             <p v-else class="text-gray-500 text-xs mt-1">{{ keyFiles.length }} key file(s) added. Files are processed locally — no content is uploaded.</p>
+
+                            <!-- Show clues toggle -->
+                            <label class="flex items-start gap-2 text-sm cursor-pointer mt-3">
+                                <input
+                                    type="checkbox"
+                                    v-model="showClues"
+                                    class="mt-0.5 rounded border-gray-600 bg-gray-700 text-gamboge-300 shrink-0"
+                                    data-testid="show-clues-checkbox"
+                                />
+                                <span class="text-gray-400 text-xs">
+                                    Show unlock hints (displays required credential type and count on the unlock page)
+                                </span>
+                            </label>
+                            <p v-if="!showClues" class="text-gray-500 text-xs mt-1 ml-5">
+                                The unlock page will show a generic interface with no hints about what credentials are needed.
+                            </p>
 
                             <!-- Recovery acknowledgement (required) -->
                             <label class="flex items-start gap-2 text-sm cursor-pointer mt-3 p-3 bg-red-900/10 border border-red-500/30 rounded-lg">

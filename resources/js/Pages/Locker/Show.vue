@@ -26,13 +26,16 @@ const upgradeDismissed = ref(false);
 const upgradeError     = ref('');
 
 // Auth mode — fetched on mount from auth-info endpoint
+// When show_clues=false the server returns opaque passphrase defaults, so authMode stays 'passphrase'
+// client-side. The real mode is unknown; computeEffectivePassphrase derives from what the user provides.
 const authMode     = ref('passphrase'); // 'passphrase' | 'key_file' | 'combined'
 const keyFileCount = ref(null);
+const showClues    = ref(true);  // false = server returned opaque response; show generic UI
 
 // Unlock state
-const passphrase        = ref('');
-const effectivePassphrase = ref(''); // Derived on unlock; cleared on lock. Never the raw passphrase for key_file/combined modes.
-const keyFiles          = ref([]); // [{ file: File, fingerprint: string }]
+const passphrase          = ref('');
+const effectivePassphrase = ref(''); // Derived on unlock; cleared on lock.
+const keyFiles            = ref([]); // [{ file: File }]
 const lockState         = ref('locked'); // 'locked' | 'animating' | 'unlocked' | 'shaking'
 const decryptError      = ref('');
 const failCount         = ref(0);
@@ -87,6 +90,10 @@ const generateNewPassphrase = () => { newPassphrase.value = enc.generatePasssphr
 // Computed: whether the unlock button should be enabled
 const canUnlock = computed(() => {
     if (lockState.value === 'animating' || lockState.value === 'shaking') return false;
+    if (!showClues.value) {
+        // No-clues mode: allow attempt if at least one credential has been provided
+        return passphrase.value.length > 0 || keyFiles.value.length > 0;
+    }
     if (authMode.value === 'key_file') {
         return keyFiles.value.length >= (keyFileCount.value ?? 1);
     }
@@ -103,6 +110,7 @@ onMounted(async () => {
         });
         if (infoRes.ok) {
             const info = await infoRes.json();
+            showClues.value = info.show_clues ?? true;
             authMode.value = info.auth_mode ?? 'passphrase';
             keyFileCount.value = info.key_file_count ?? null;
         }
@@ -111,15 +119,11 @@ onMounted(async () => {
     }
 });
 
-const onKeyFileAdded = async (e) => {
+const onKeyFileAdded = (e) => {
     const file = e.target.files[0];
     if (!file) return;
     e.target.value = '';
-
-    const buffer = await file.arrayBuffer();
-    const hash = await enc.deriveLockerKeyFromFile(buffer);
-    const fingerprint = hash.slice(0, 8);
-    keyFiles.value.push({ file, fingerprint });
+    keyFiles.value.push({ file });
 };
 
 const removeKeyFile = (index) => {
@@ -127,16 +131,29 @@ const removeKeyFile = (index) => {
 };
 
 const computeEffectivePassphrase = async () => {
-    if (authMode.value === 'passphrase') {
-        return passphrase.value;
-    }
+    const hasPassphrase = passphrase.value.length > 0;
+    const hasFiles = keyFiles.value.length > 0;
+
     // Re-read buffers from File references at call time to avoid holding large ArrayBuffers
-    const fileHashes = await Promise.all(
+    const getFileHashes = async () => Promise.all(
         keyFiles.value.map(async (kf) => {
             const buf = await kf.file.arrayBuffer();
             return enc.deriveLockerKeyFromFile(buf);
         })
     );
+
+    if (!showClues.value) {
+        // No-clues mode: derive from whatever the user provided
+        if (!hasFiles) return passphrase.value;
+        const fileHashes = await getFileHashes();
+        if (!hasPassphrase) return enc.combineLockerKeyMaterials(fileHashes);
+        return enc.combineLockerKeyMaterials([passphrase.value, ...fileHashes]);
+    }
+
+    if (authMode.value === 'passphrase') {
+        return passphrase.value;
+    }
+    const fileHashes = await getFileHashes();
     if (authMode.value === 'key_file') {
         return enc.combineLockerKeyMaterials(fileHashes);
     }
@@ -759,8 +776,8 @@ const upgradeAuth = async () => {
                         </div>
 
                         <div class="w-full space-y-3">
-                            <!-- Passphrase input — shown for passphrase and combined modes -->
-                            <div v-if="authMode !== 'key_file'">
+                            <!-- Passphrase input — shown when mode needs a passphrase, or when no-clues (generic) -->
+                            <div v-if="showClues ? authMode !== 'key_file' : true">
                                 <input
                                     v-model="passphrase"
                                     type="password"
@@ -771,12 +788,12 @@ const upgradeAuth = async () => {
                                 />
                             </div>
 
-                            <!-- Key file section — shown for key_file and combined modes -->
-                            <div v-if="authMode !== 'passphrase'" class="space-y-2">
-                                <div class="text-gamboge-300 font-mono text-xs uppercase tracking-widest">Key Files</div>
-                                <p class="text-gray-500 text-xs">
+                            <!-- Key file section — shown when mode needs key files, or when no-clues (generic) -->
+                            <div v-if="showClues ? authMode !== 'passphrase' : true" class="space-y-2">
+                                <div v-if="showClues" class="text-gamboge-300 font-mono text-xs uppercase tracking-widest">Key Files</div>
+                                <p v-if="showClues" class="text-gray-500 text-xs">
                                     Load your key files in the same order as when you created this locker.
-                                    Refer to your saved credential file for the required fingerprint sequence.
+                                    Refer to your saved credential file for the required order.
                                 </p>
 
                                 <div v-if="keyFiles.length > 0" class="space-y-1">
@@ -785,9 +802,8 @@ const upgradeAuth = async () => {
                                         :key="i"
                                         class="flex items-center gap-3 bg-gray-900 rounded-lg px-3 py-2"
                                     >
-                                        <span class="text-gamboge-300/60 font-mono text-xs w-4 shrink-0">{{ i + 1 }}.</span>
-                                        <code class="text-gamboge-300 font-mono text-sm flex-1">{{ kf.fingerprint }}</code>
-                                        <span class="text-gray-500 text-xs truncate max-w-32">{{ kf.file.name }}</span>
+                                        <span class="text-gamboge-300/60 text-xs w-4 shrink-0">{{ i + 1 }}.</span>
+                                        <span class="text-white text-sm flex-1 truncate">{{ kf.file.name }}</span>
                                         <button
                                             type="button"
                                             @click="removeKeyFile(i)"
@@ -797,12 +813,12 @@ const upgradeAuth = async () => {
                                     </div>
                                 </div>
 
-                                <div class="flex items-center justify-between text-xs text-gray-500 font-mono">
-                                    <span>{{ keyFiles.length }} / {{ keyFileCount ?? '?' }} loaded</span>
+                                <div v-if="showClues && keyFileCount" class="text-xs text-gray-500 font-mono">
+                                    {{ keyFiles.length }} / {{ keyFileCount }} loaded
                                 </div>
 
                                 <label
-                                    v-if="keyFiles.length < (keyFileCount ?? 999)"
+                                    v-if="showClues ? keyFiles.length < (keyFileCount ?? 999) : true"
                                     class="flex items-center gap-2 cursor-pointer border border-dashed border-gray-600 hover:border-gamboge-300/50 hover:shadow-neon-cyan-sm rounded-lg px-3 py-2 transition-colors text-gray-400 text-sm"
                                     data-testid="key-file-input-label"
                                 >
@@ -810,7 +826,7 @@ const upgradeAuth = async () => {
                                     <input type="file" class="sr-only" @change="onKeyFileAdded" data-testid="key-file-input" />
                                 </label>
 
-                                <p v-if="authMode === 'combined'" class="text-gamboge-300/70 text-xs">Both your passphrase and all {{ keyFileCount }} key file(s) are required to unlock.</p>
+                                <p v-if="showClues && authMode === 'combined'" class="text-gamboge-300/70 text-xs">Both your passphrase and all {{ keyFileCount }} key file(s) are required to unlock.</p>
                             </div>
 
                             <p v-if="decryptError" class="text-red-400 text-sm text-center" data-testid="decrypt-error">{{ decryptError }}</p>
