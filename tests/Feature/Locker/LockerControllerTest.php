@@ -109,13 +109,33 @@ class LockerControllerTest extends TestCase
             ->assertJsonValidationErrors(['account_id']);
     }
 
-    public function test_show_always_renders_for_any_account_id(): void
+    public function test_open_page_renders_open_component(): void
     {
-        // Always renders to prevent account ID enumeration — credentials checked at unlock
-        $response = $this->get(route('lockers.show', '9999999999'));
+        $response = $this->get(route('lockers.open'));
 
         $response->assertStatus(200)
-            ->assertInertia(fn ($page) => $page->component('Locker/Show'));
+            ->assertInertia(fn ($page) => $page->component('Locker/Open'));
+    }
+
+    public function test_open_page_passes_renewed_false_by_default(): void
+    {
+        $response = $this->get(route('lockers.open'));
+
+        $response->assertInertia(fn ($page) => $page->where('renewed', false));
+    }
+
+    public function test_open_page_passes_renewed_true_when_query_param_set(): void
+    {
+        $response = $this->get(route('lockers.open').'?renewed=1');
+
+        $response->assertInertia(fn ($page) => $page->where('renewed', true));
+    }
+
+    public function test_show_route_redirects_to_open_for_any_account_id(): void
+    {
+        $response = $this->get(route('lockers.show', '9999999999'));
+
+        $response->assertRedirect(route('lockers.open'));
     }
 
     public function test_unlock_returns_401_for_unknown_account(): void
@@ -170,14 +190,13 @@ class LockerControllerTest extends TestCase
         $response->assertStatus(200)->assertJsonStructure(['payload', 'expires_at', 'is_file_locker']);
     }
 
-    public function test_show_renders_for_active_locker(): void
+    public function test_show_route_redirects_for_active_locker(): void
     {
         Locker::factory()->create(['account_id' => '1234567890']);
 
         $response = $this->get(route('lockers.show', '1234567890'));
 
-        $response->assertStatus(200)
-            ->assertInertia(fn ($page) => $page->component('Locker/Show'));
+        $response->assertRedirect(route('lockers.open'));
     }
 
     public function test_payload_returns_blob_for_active_locker(): void
