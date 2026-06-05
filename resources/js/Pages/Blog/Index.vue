@@ -44,7 +44,7 @@ defineProps({
                         </div>
 
                         <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-2 group-hover:text-gamboge-300 transition-colors duration-150">
-                            <Link :href="route('blog.show', post.slug)">
+                            <Link :href="route('blog.show', post.slug)" prefetch>
                                 {{ post.title }}
                             </Link>
                         </h2>
@@ -55,6 +55,7 @@ defineProps({
 
                         <Link
                             :href="route('blog.show', post.slug)"
+                            prefetch
                             class="text-sm font-mono text-gamboge-300 hover:text-gamboge-200 transition-colors duration-150"
                         >
                             Read more →

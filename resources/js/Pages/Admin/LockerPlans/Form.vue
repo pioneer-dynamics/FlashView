@@ -76,7 +76,7 @@ const previewButtonLabel = computed(() => {
 
         <Page>
             <div class="mb-6">
-                <Link :href="route('admin.locker-plans.index')" class="text-sm text-gamboge-300 hover:text-gamboge-200">
+                <Link :href="route('admin.locker-plans.index')" prefetch class="text-sm text-gamboge-300 hover:text-gamboge-200">
                     ← Back to Locker Plans
                 </Link>
             </div>
@@ -246,7 +246,7 @@ const previewButtonLabel = computed(() => {
                         <PrimaryButton :disabled="form.processing">
                             {{ isEditing ? 'Update Plan' : 'Create Plan' }}
                         </PrimaryButton>
-                        <Link :href="route('admin.locker-plans.index')">
+                        <Link :href="route('admin.locker-plans.index')" prefetch>
                             <SecondaryButton type="button">Cancel</SecondaryButton>
                         </Link>
                     </div>

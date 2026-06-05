@@ -266,7 +266,7 @@ const submit = () => {
 
         <Page>
             <div class="mb-4">
-                <Link :href="route('admin.plans.index')" class="text-xs text-gamboge-300 hover:underline font-mono">
+                <Link :href="route('admin.plans.index')" prefetch class="text-xs text-gamboge-300 hover:underline font-mono">
                     ← Back to Plans
                 </Link>
             </div>
@@ -553,7 +553,7 @@ const submit = () => {
                     >
                         {{ isEditing ? 'Update Plan' : 'Create Plan' }}
                     </PrimaryButton>
-                    <Link :href="route('admin.plans.index')">
+                    <Link :href="route('admin.plans.index')" prefetch>
                         <SecondaryButton type="button">Cancel</SecondaryButton>
                     </Link>
                 </div>

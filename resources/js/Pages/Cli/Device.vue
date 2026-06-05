@@ -76,7 +76,7 @@ function cancel() {
                 Please upgrade to a plan with API support to use the CLI.
             </p>
             <div class="mt-4 flex justify-center">
-                <Link :href="route('plans.index')">
+                <Link :href="route('plans.index')" prefetch>
                     <PrimaryButton>
                         View Plans
                     </PrimaryButton>
@@ -146,7 +146,7 @@ function cancel() {
                     </p>
                     <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
                         This device was previously authorized. To use a different name, remove the existing installation from your
-                        <Link :href="route('api-tokens.index')" class="underline hover:text-gray-700 dark:hover:text-gray-200">API Tokens</Link>
+                        <Link :href="route('api-tokens.index')" prefetch class="underline hover:text-gray-700 dark:hover:text-gray-200">API Tokens</Link>
                         page first.
                     </p>
                 </div>

@@ -48,7 +48,7 @@ const availabilityLabel = (plan) => {
         <Page>
             <div class="mb-6 flex items-center justify-between">
                 <h1 class="text-xs uppercase tracking-widest text-gamboge-300 font-mono">Plan Management</h1>
-                <Link :href="route('admin.plans.create')">
+                <Link :href="route('admin.plans.create')" prefetch>
                     <PrimaryButton>New Plan</PrimaryButton>
                 </Link>
             </div>
@@ -70,7 +70,7 @@ const availabilityLabel = (plan) => {
                         <tr v-if="plans.length === 0">
                             <td colspan="7" class="px-6 py-8 text-center text-gray-400 dark:text-gray-500">
                                 No plans yet.
-                                <Link :href="route('admin.plans.create')" class="text-gamboge-300 hover:underline ml-1">Create one.</Link>
+                                <Link :href="route('admin.plans.create')" prefetch class="text-gamboge-300 hover:underline ml-1">Create one.</Link>
                             </td>
                         </tr>
                         <tr v-for="plan in plans" :key="plan.id"
@@ -102,7 +102,7 @@ const availabilityLabel = (plan) => {
                             </td>
                             <td class="px-6 py-4 text-right">
                                 <div class="flex justify-end gap-2">
-                                    <Link :href="route('admin.plans.edit', plan.id)">
+                                    <Link :href="route('admin.plans.edit', plan.id)" prefetch>
                                         <SecondaryButton class="text-xs">Edit</SecondaryButton>
                                     </Link>
                                     <DangerButton class="text-xs" @click="confirmDelete(plan)">

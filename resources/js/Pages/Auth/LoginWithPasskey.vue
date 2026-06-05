@@ -115,11 +115,11 @@ const cancelPasskeyLogin = (failed) => {
             </div>
 
             <div class="flex items-center justify-center mt-4">
-                <Link v-if="canResetPassword" :href="route('password.request')" class="underline text-sm text-gamboge-300 dark:text-gamboge-200 hover:text-gamboge-200 dark:hover:text-gamboge-100 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gamboge-500 dark:focus:ring-offset-gray-900">
+                <Link v-if="canResetPassword" :href="route('password.request')" prefetch class="underline text-sm text-gamboge-300 dark:text-gamboge-200 hover:text-gamboge-200 dark:hover:text-gamboge-100 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gamboge-500 dark:focus:ring-offset-gray-900">
                     Forgot your password?
                 </Link>
                 <span class="text-sm text-gray-600 dark:text-gray-400 px-2">|</span>
-                <Link v-if="canResetPassword" :href="route('register')" class="ml-3 underline text-sm text-gamboge-300 dark:text-gamboge-200 hover:text-gamboge-200 dark:hover:text-gamboge-100 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gamboge-500 dark:focus:ring-offset-gray-900">
+                <Link v-if="canResetPassword" :href="route('register')" prefetch class="ml-3 underline text-sm text-gamboge-300 dark:text-gamboge-200 hover:text-gamboge-200 dark:hover:text-gamboge-100 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gamboge-500 dark:focus:ring-offset-gray-900">
                     Register
                 </Link>
 
