@@ -244,6 +244,7 @@ Route::prefix('lockers')->name('lockers.')->group(function () {
     Route::get('/credit-status', [LockerController::class, 'creditStatus'])
         ->middleware('throttle:30,1')->name('credit-status');
     Route::get('/create', [LockerController::class, 'create'])->name('create');
+    Route::get('/open', [LockerController::class, 'open'])->name('open');
     Route::post('/', [LockerController::class, 'store'])
         ->middleware('throttle:6,1')->name('store');
 
