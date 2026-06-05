@@ -307,9 +307,10 @@ test('ECDSA locker passphrase change — new passphrase unlocks, old one fails',
     await page.getByTestId('unlock-button').click();
     await expect(page.getByTestId('decrypted-content')).toBeVisible({ timeout: 15000 });
 
-    await page.getByPlaceholder('Enter or generate a passphrase').last().fill(newPassphrase);
-    await page.getByRole('button', { name: /Change Passphrase/i }).click();
-    await expect(page.getByText(/Passphrase changed/i)).toBeVisible({ timeout: 15000 });
+    // ECDSA lockers use the credential rotation panel, not the legacy passphrase change panel
+    await page.getByTestId('new-passphrase-rot-input').fill(newPassphrase);
+    await page.getByTestId('rotate-credentials-button').click();
+    await expect(page.getByText(/Credentials changed/i)).toBeVisible({ timeout: 15000 });
 
     // Lock — returns to account entry phase
     await page.getByTestId('lock-button').click();

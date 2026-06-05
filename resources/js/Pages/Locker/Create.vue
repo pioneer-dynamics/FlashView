@@ -507,11 +507,12 @@ const submit = async () => {
 
                         <!-- Content -->
                         <div>
-                            <label class="block text-gamboge-300 font-mono text-xs uppercase tracking-widest mb-1">
+                            <label for="locker-content-input" class="block text-gamboge-300 font-mono text-xs uppercase tracking-widest mb-1">
                                 {{ isFileTier ? 'File' : 'Content' }}
                             </label>
                             <textarea
                                 v-if="!isFileTier"
+                                id="locker-content-input"
                                 v-model="content"
                                 rows="6"
                                 class="w-full bg-gray-900 border border-gray-700 text-white font-mono rounded-lg px-3 py-2.5 text-sm focus:border-gamboge-300 focus:ring-gamboge-300 focus:outline-none resize-y"
@@ -520,6 +521,7 @@ const submit = async () => {
                             />
                             <input
                                 v-else
+                                id="locker-content-input"
                                 type="file"
                                 @change="onFileChange"
                                 class="w-full bg-gray-900 border border-gray-700 text-white rounded-lg px-3 py-2.5 text-sm focus:border-gamboge-300 focus:outline-none file:mr-3 file:text-gamboge-300 file:bg-gray-800 file:border-0 file:rounded file:text-xs file:font-mono file:cursor-pointer"
