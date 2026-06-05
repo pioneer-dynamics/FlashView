@@ -131,6 +131,9 @@ class LockerController extends Controller
             'storage_path' => $request->input('storage_path'),
             'wrapped_file_key' => $request->input('wrapped_file_key'),
             'expires_at' => now()->addYears($credit->years),
+            'auth_mode' => $request->input('auth_mode', 'passphrase'),
+            'key_file_count' => $request->input('key_file_count'),
+            'show_clues' => $request->boolean('show_clues', true),
         ];
 
         if ($request->filled('public_key')) {
@@ -180,12 +183,75 @@ class LockerController extends Controller
         ]);
     }
 
-    public function show(Request $request, string $accountId): Response
+    public function authInfo(string $accountId): JsonResponse
     {
-        return Inertia::render('Locker/Show', [
-            'account_id' => $accountId,
+        $locker = Locker::where('account_id', $accountId)->first();
+
+        // Non-existent lockers and lockers with show_clues=false return an opaque
+        // passphrase-default response, preventing enumeration of locker existence and auth mode.
+        if (! $locker || ! $locker->show_clues) {
+            return response()->json(['auth_mode' => 'passphrase', 'key_file_count' => null, 'show_clues' => false]);
+        }
+
+        return response()->json([
+            'auth_mode' => $locker->auth_mode,
+            'key_file_count' => $locker->key_file_count,
+            'show_clues' => true,
+        ]);
+    }
+
+    public function updateSettings(Request $request, string $accountId): JsonResponse
+    {
+        $request->validate(['show_clues' => ['required', 'boolean']]);
+
+        $locker = Locker::where('account_id', $accountId)->first();
+
+        if (! $locker) {
+            abort(404);
+        }
+
+        if ($locker->isExpired()) {
+            abort(410);
+        }
+
+        $verified = false;
+
+        if ($locker->public_key !== null) {
+            $challengeId = $request->header('X-Signing-Challenge-Id');
+            $signature = $request->header('X-Signature');
+
+            if ($challengeId && $signature) {
+                $challengeHex = $this->ecdsaService->consumeChallenge($challengeId, $accountId);
+                if ($challengeHex !== null) {
+                    $verified = $this->ecdsaService->verify($locker->public_key, $challengeHex, $signature);
+                }
+            }
+        } else {
+            $updateToken = $request->header('X-Update-Token');
+            if ($updateToken) {
+                $verified = $locker->verifyUpdateToken($updateToken);
+            }
+        }
+
+        if (! $verified) {
+            return response()->json(['error' => 'Invalid credentials.'], 403);
+        }
+
+        $locker->update(['show_clues' => $request->boolean('show_clues')]);
+
+        return response()->json(['ok' => true]);
+    }
+
+    public function open(Request $request): Response
+    {
+        return Inertia::render('Locker/Open', [
             'renewed' => $request->query('renewed') === '1',
         ]);
+    }
+
+    public function show(Request $request, string $accountId): RedirectResponse
+    {
+        return redirect()->route('lockers.open');
     }
 
     public function challenge(Request $request, string $accountId): JsonResponse
@@ -383,6 +449,11 @@ class LockerController extends Controller
             $updates['wrapped_file_key'] = $request->input('new_wrapped_file_key');
         }
 
+        if ($request->filled('new_auth_mode')) {
+            $updates['auth_mode'] = $request->input('new_auth_mode');
+            $updates['key_file_count'] = $request->input('new_key_file_count');
+        }
+
         $locker->update($updates);
 
         return response()->json(['ok' => true]);
@@ -512,8 +583,8 @@ class LockerController extends Controller
                     'years' => $years,
                     'tier' => $tier,
                 ],
-                'success_url' => route('lockers.show', $accountId).'?renewed=1',
-                'cancel_url' => route('lockers.show', $accountId),
+                'success_url' => route('lockers.open').'?renewed=1',
+                'cancel_url' => route('lockers.open'),
             ]);
         } catch (ApiErrorException $e) {
             Log::error('Stripe renewal checkout session creation failed', ['error' => $e->getMessage(), 'account_id' => $accountId]);

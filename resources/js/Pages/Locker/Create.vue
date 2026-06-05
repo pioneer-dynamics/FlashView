@@ -28,6 +28,12 @@ const passphrase   = ref('');
 const content      = ref('');
 const selectedFile = ref(null);
 
+// Auth mode
+const authMode                = ref('passphrase'); // 'passphrase' | 'key_file' | 'combined'
+const keyFiles                = ref([]); // [{ file: File }]
+const keyFileRiskAcknowledged = ref(false);
+const showClues               = ref(true); // when false, unlock page reveals no credential-type hints
+
 // State
 const step          = ref('form'); // 'form' | 'encrypting' | 'uploading' | 'credentials'
 const uploadProgress = ref(0);
@@ -57,17 +63,73 @@ const generatePassphrase = () => { passphrase.value = enc.generatePasssphrase();
 const onFileChange = (e) => { selectedFile.value = e.target.files[0] ?? null; };
 const copyToClipboard = async (text) => { await navigator.clipboard.writeText(text); };
 
+const onKeyFileAdded = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    e.target.value = '';
+    keyFiles.value.push({ file });
+};
+
+const removeKeyFile = (index) => {
+    keyFiles.value.splice(index, 1);
+};
+
+const setAuthMode = (mode) => {
+    authMode.value = mode;
+    keyFiles.value = [];
+    keyFileRiskAcknowledged.value = false;
+    if (mode === 'passphrase') showClues.value = true;
+};
+
+const computeEffectivePassphrase = async () => {
+    if (authMode.value === 'passphrase') {
+        return passphrase.value;
+    }
+    // Re-read buffers from File references at submit time — avoids holding large ArrayBuffers in memory
+    const fileHashes = await Promise.all(
+        keyFiles.value.map(async (kf) => {
+            const buf = await kf.file.arrayBuffer();
+            return enc.deriveLockerKeyFromFile(buf);
+        })
+    );
+    if (authMode.value === 'key_file') {
+        return enc.combineLockerKeyMaterials(fileHashes);
+    }
+    return enc.combineLockerKeyMaterials([passphrase.value, ...fileHashes]);
+};
+
 const downloadCredentials = () => {
-    const text = [
+    const lines = [
         'eLocker Credentials — Save these securely. They cannot be recovered.',
         '',
         `Account ID: ${credentials.value.account_id}`,
-        `Passphrase: ${credentials.value.passphrase}`,
-        '',
-        `Expires: ${new Date(credentials.value.expires_at).toLocaleDateString()}`,
-        '',
-        'Note: Your passphrase is the only key to decrypt and modify your locker.',
-    ].join('\n');
+    ];
+
+    if (authMode.value !== 'key_file') {
+        lines.push(`Passphrase: ${credentials.value.passphrase}`);
+    }
+
+    if (authMode.value !== 'passphrase') {
+        lines.push('');
+        lines.push('Key Files (load in this exact order when unlocking):');
+        credentials.value.keyFileNames.forEach((name, i) => {
+            lines.push(`  ${i + 1}. ${name}`);
+        });
+        lines.push('');
+        lines.push('IMPORTANT: Key files must be loaded in this exact order. There is no recovery if you lose your key files.');
+        if (!showClues.value) {
+            lines.push('NOTE: The unlock page is configured to show no hints about required credentials.');
+            lines.push('Share access instructions with authorised users through a separate secure channel.');
+        }
+    }
+
+    lines.push('', `Expires: ${new Date(credentials.value.expires_at).toLocaleDateString()}`);
+
+    if (authMode.value === 'passphrase') {
+        lines.push('', 'Note: Your passphrase is the only key to decrypt and modify your locker.');
+    }
+
+    const text = lines.join('\n');
     const blob = new Blob([text], { type: 'text/plain' });
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement('a');
@@ -86,8 +148,16 @@ const submit = async () => {
         errors.value.account_id = 'Account ID must be exactly 10 digits.';
         return;
     }
-    if (!passphrase.value || passphrase.value.length < 8) {
+    if (authMode.value !== 'key_file' && (!passphrase.value || passphrase.value.length < 8)) {
         errors.value.passphrase = 'Passphrase must be at least 8 characters.';
+        return;
+    }
+    if (authMode.value !== 'passphrase' && keyFiles.value.length === 0) {
+        errors.value.key_files = 'Please add at least one key file.';
+        return;
+    }
+    if (authMode.value !== 'passphrase' && !keyFileRiskAcknowledged.value) {
+        errors.value.key_file_risk = 'You must acknowledge the key file risk before continuing.';
         return;
     }
     if (!isFileTier.value && !content.value.trim()) {
@@ -103,29 +173,27 @@ const submit = async () => {
     uploadProgress.value = 0;
 
     try {
-        const { privateKey: _unusedKey, publicKeyJwkBase64 } = await enc.deriveLockerSigningKeypair(passphrase.value, accountId.value);
+        const effectivePassphrase = await computeEffectivePassphrase();
+
+        const { privateKey: _unusedKey, publicKeyJwkBase64 } = await enc.deriveLockerSigningKeypair(effectivePassphrase, accountId.value);
 
         let payload;
         let storagePath = null;
-
         let wrappedFileKey = null;
 
         if (isFileTier.value) {
-            // Encrypt file metadata into the payload field
             const meta = JSON.stringify({
                 name: selectedFile.value.name,
                 type: selectedFile.value.type,
                 size: selectedFile.value.size,
             });
-            payload = await enc.encryptLockerContent(meta, passphrase.value);
+            payload = await enc.encryptLockerContent(meta, effectivePassphrase);
 
-            // Generate DEK, wrap it with passphrase, encrypt file with DEK
             const dek = enc.generateLockerFileKey();
-            wrappedFileKey = await enc.wrapLockerFileKey(dek, passphrase.value, accountId.value);
+            wrappedFileKey = await enc.wrapLockerFileKey(dek, effectivePassphrase, accountId.value);
             const fileBuffer = await selectedFile.value.arrayBuffer();
             const encryptedBytes = await enc.encryptLockerFileToBuffer(fileBuffer, { dek });
 
-            // Get presigned upload URL
             const prepRes = await fetch(route('lockers.file.prepare'), {
                 method: 'POST',
                 headers: {
@@ -141,7 +209,6 @@ const submit = async () => {
             const { upload_url, upload_headers, storage_path } = await prepRes.json();
             storagePath = storage_path;
 
-            // Upload encrypted binary via XHR for progress tracking (encryptedBytes is already Uint8Array)
             step.value = 'uploading';
             await new Promise((resolve, reject) => {
                 const xhr = new XMLHttpRequest();
@@ -159,7 +226,7 @@ const submit = async () => {
                 xhr.send(new Blob([encryptedBytes], { type: 'application/octet-stream' }));
             });
         } else {
-            payload = await enc.encryptLockerContent(content.value, passphrase.value);
+            payload = await enc.encryptLockerContent(content.value, effectivePassphrase);
         }
 
         const res = await fetch(route('lockers.store'), {
@@ -177,6 +244,9 @@ const submit = async () => {
                 tier:             props.tier,
                 storage_path:     storagePath,
                 wrapped_file_key: wrappedFileKey,
+                auth_mode:        authMode.value,
+                key_file_count:   authMode.value !== 'passphrase' ? keyFiles.value.length : null,
+                show_clues:       showClues.value,
             }),
         });
 
@@ -196,9 +266,11 @@ const submit = async () => {
 
         localStorage.removeItem('locker_pending_token');
         credentials.value = {
-            account_id:  data.account_id,
-            passphrase:  passphrase.value,
-            expires_at:  data.expires_at,
+            account_id:   data.account_id,
+            passphrase:   passphrase.value,
+            expires_at:   data.expires_at,
+            keyFileNames: keyFiles.value.map(kf => kf.file.name),
+            authMode:     authMode.value,
         };
         step.value = 'credentials';
 
@@ -219,22 +291,36 @@ const submit = async () => {
                     <h1 class="text-2xl font-bold text-white mb-2">Locker created!</h1>
                     <div class="bg-red-900/20 border border-red-500/40 rounded-lg p-4 mb-6 text-red-300 text-sm">
                         <p class="font-semibold text-red-200 mb-1">Save these credentials now — they cannot be recovered.</p>
-                        Your passphrase is the only key to decrypt, update, or delete this locker. The server has never seen it.
+                        <span v-if="credentials.authMode === 'passphrase'">Your passphrase is the only key to decrypt, update, or delete this locker. The server has never seen it.</span>
+                        <span v-else>Your key file(s) and passphrase are the only way to access this locker. The server has never seen them.</span>
                     </div>
 
                     <div class="space-y-4 mb-6 ph-no-capture">
-                        <div v-for="field in [
-                            { label: 'Account ID', value: credentials.account_id },
-                            { label: 'Passphrase', value: credentials.passphrase },
-                        ]" :key="field.label" class="bg-gray-900 rounded-lg p-3">
-                            <div class="text-gamboge-300 font-mono text-xs uppercase tracking-widest mb-1">{{ field.label }}</div>
+                        <div class="bg-gray-900 rounded-lg p-3">
+                            <div class="text-gamboge-300 font-mono text-xs uppercase tracking-widest mb-1">Account ID</div>
                             <div class="flex items-center gap-2">
-                                <code class="text-white text-sm flex-1 break-all font-mono">{{ field.value }}</code>
-                                <button
-                                    @click="copyToClipboard(field.value)"
-                                    class="shrink-0 text-gray-400 hover:text-gamboge-300 transition-colors text-xs border border-gray-700 hover:border-gamboge-300 rounded px-2 py-1"
-                                >Copy</button>
+                                <code class="text-white text-sm flex-1 break-all font-mono">{{ credentials.account_id }}</code>
+                                <button @click="copyToClipboard(credentials.account_id)" class="shrink-0 text-gray-400 hover:text-gamboge-300 transition-colors text-xs border border-gray-700 hover:border-gamboge-300 rounded px-2 py-1">Copy</button>
                             </div>
+                        </div>
+
+                        <div v-if="credentials.authMode !== 'key_file'" class="bg-gray-900 rounded-lg p-3">
+                            <div class="text-gamboge-300 font-mono text-xs uppercase tracking-widest mb-1">Passphrase</div>
+                            <div class="flex items-center gap-2">
+                                <code class="text-white text-sm flex-1 break-all font-mono">{{ credentials.passphrase }}</code>
+                                <button @click="copyToClipboard(credentials.passphrase)" class="shrink-0 text-gray-400 hover:text-gamboge-300 transition-colors text-xs border border-gray-700 hover:border-gamboge-300 rounded px-2 py-1">Copy</button>
+                            </div>
+                        </div>
+
+                        <div v-if="credentials.authMode !== 'passphrase'" class="bg-gray-900 rounded-lg p-3">
+                            <div class="text-gamboge-300 font-mono text-xs uppercase tracking-widest mb-1">Key Files (load in this order)</div>
+                            <div class="space-y-1 mt-2">
+                                <div v-for="(name, i) in credentials.keyFileNames" :key="i" class="flex items-center gap-2">
+                                    <span class="text-gamboge-300/60 text-xs w-4 shrink-0">{{ i + 1 }}.</span>
+                                    <span class="text-white text-sm truncate">{{ name }}</span>
+                                </div>
+                            </div>
+                            <p class="text-gray-500 text-xs mt-2">Key files must be loaded in this exact order when unlocking.</p>
                         </div>
                     </div>
 
@@ -246,13 +332,14 @@ const submit = async () => {
                     </button>
 
                     <label class="flex items-center gap-2 text-gray-300 text-sm mb-4 cursor-pointer">
-                        <input type="checkbox" v-model="savedConfirmed" class="rounded border-gray-600 bg-gray-700 text-gamboge-300" />
-                        I have saved both credentials
+                        <input type="checkbox" v-model="savedConfirmed" class="rounded border-gray-600 bg-gray-700 text-gamboge-300" data-testid="saved-confirmed-checkbox" />
+                        <span v-if="credentials.authMode === 'passphrase'">I have saved both credentials</span>
+                        <span v-else>I have saved my credentials</span>
                     </label>
 
                     <button
                         :disabled="!savedConfirmed"
-                        @click="router.visit(route('lockers.show', credentials.account_id))"
+                        @click="sessionStorage.setItem('locker_prefill_account', credentials.account_id); router.visit(route('lockers.open'))"
                         class="w-full bg-gamboge-300 hover:bg-gamboge-400 disabled:opacity-40 disabled:cursor-not-allowed text-gray-900 font-semibold py-2.5 px-4 rounded-lg font-mono text-sm transition-colors shadow-neon-cyan-sm"
                     >
                         Open my locker
@@ -295,8 +382,39 @@ const submit = async () => {
                             <p v-else class="text-gray-500 text-xs mt-1">Your memorable number — like a bank account ID.</p>
                         </div>
 
-                        <!-- Passphrase -->
+                        <!-- Authentication Mode -->
                         <div>
+                            <label class="block text-gamboge-300 font-mono text-xs uppercase tracking-widest mb-2">Authentication Mode</label>
+                            <div class="flex gap-2">
+                                <button
+                                    v-for="mode in [
+                                        { value: 'passphrase', label: 'Passphrase' },
+                                        { value: 'key_file',  label: 'Key File(s)' },
+                                        { value: 'combined',  label: 'Both' },
+                                    ]"
+                                    :key="mode.value"
+                                    type="button"
+                                    @click="setAuthMode(mode.value)"
+                                    class="flex-1 py-2 rounded-lg font-mono text-xs transition-colors border"
+                                    :class="authMode === mode.value
+                                        ? 'bg-gamboge-300/20 border-gamboge-300 text-gamboge-300 shadow-neon-cyan-sm'
+                                        : 'border-gray-600 text-gray-400 hover:border-gray-400'"
+                                >
+                                    {{ mode.label }}
+                                </button>
+                            </div>
+                            <p class="text-gray-500 text-xs mt-1">
+                                <span v-if="authMode === 'passphrase'">Passphrase only — current behaviour.</span>
+                                <span v-else-if="authMode === 'key_file'">One or more key files required to unlock.</span>
+                                <span v-else>Both passphrase and all key files required.</span>
+                            </p>
+                            <div v-if="authMode !== 'passphrase'" class="mt-2 bg-amber-900/20 border border-amber-500/40 rounded-lg p-3 text-amber-400 text-xs">
+                                &#x26A0; Key file credential rotation is not yet supported. To change your key files in the future, you will need to recreate the locker.
+                            </div>
+                        </div>
+
+                        <!-- Passphrase — hidden for key_file mode -->
+                        <div v-if="authMode !== 'key_file'">
                             <label class="block text-gamboge-300 font-mono text-xs uppercase tracking-widest mb-1">Passphrase</label>
                             <div class="flex gap-2">
                                 <input
@@ -321,13 +439,77 @@ const submit = async () => {
                             <p v-else class="text-gray-500 text-xs mt-1">This also controls who can update or delete the locker — keep it safe.</p>
                         </div>
 
+                        <!-- Key File section — shown for key_file and combined modes -->
+                        <div v-if="authMode !== 'passphrase'">
+                            <label class="block text-gamboge-300 font-mono text-xs uppercase tracking-widest mb-1">Key Files</label>
+                            <p class="text-gray-500 text-xs mb-3">
+                                Use a unique file only you possess — a personal photo, private document, or generated key file.
+                                Avoid widely-shared files (stock images, public downloads). The file must never change — even a single byte difference will lock you out.
+                            </p>
+
+                            <div v-if="keyFiles.length > 0" class="mb-3 space-y-2">
+                                <div
+                                    v-for="(kf, i) in keyFiles"
+                                    :key="i"
+                                    class="flex items-center gap-3 bg-gray-900 rounded-lg px-3 py-2"
+                                >
+                                    <span class="text-gamboge-300/60 font-mono text-xs w-4 shrink-0">{{ i + 1 }}.</span>
+                                    <span class="text-white text-sm flex-1 truncate">{{ kf.file.name }}</span>
+                                    <button
+                                        type="button"
+                                        @click="removeKeyFile(i)"
+                                        class="shrink-0 text-gray-500 hover:text-red-400 font-mono text-xs transition-colors"
+                                        title="Remove"
+                                    >✕</button>
+                                </div>
+                            </div>
+
+                            <label class="flex items-center gap-2 cursor-pointer border border-dashed border-gray-600 hover:border-gamboge-300/50 hover:shadow-neon-cyan-sm rounded-lg px-3 py-2.5 transition-colors text-gray-400 text-sm">
+                                <span class="font-mono text-xs">+ Add key file</span>
+                                <input type="file" class="sr-only" @change="onKeyFileAdded" data-testid="key-file-input" />
+                            </label>
+                            <p v-if="errors.key_files" class="text-red-400 text-xs mt-1">{{ errors.key_files }}</p>
+                            <p v-else class="text-gray-500 text-xs mt-1">{{ keyFiles.length }} key file(s) added. Files are processed locally — no content is uploaded.</p>
+
+                            <!-- Show clues toggle -->
+                            <label class="flex items-start gap-2 text-sm cursor-pointer mt-3">
+                                <input
+                                    type="checkbox"
+                                    v-model="showClues"
+                                    class="mt-0.5 rounded border-gray-600 bg-gray-700 text-gamboge-300 shrink-0"
+                                    data-testid="show-clues-checkbox"
+                                />
+                                <span class="text-gray-400 text-xs">
+                                    Show unlock hints (displays required credential type and count on the unlock page)
+                                </span>
+                            </label>
+                            <p v-if="!showClues" class="text-gray-500 text-xs mt-1 ml-5">
+                                The unlock page will show a generic interface with no hints about what credentials are needed.
+                            </p>
+
+                            <!-- Recovery acknowledgement (required) -->
+                            <label class="flex items-start gap-2 text-sm cursor-pointer mt-3 p-3 bg-red-900/10 border border-red-500/30 rounded-lg">
+                                <input
+                                    type="checkbox"
+                                    v-model="keyFileRiskAcknowledged"
+                                    class="mt-0.5 rounded border-gray-600 bg-gray-700 text-gamboge-300 shrink-0"
+                                    data-testid="key-file-risk-checkbox"
+                                />
+                                <span class="text-red-300 text-xs">
+                                    I understand that if I lose my key file(s), my locker cannot be unlocked by anyone, including FlashView support. There is no recovery option.
+                                </span>
+                            </label>
+                            <p v-if="errors.key_file_risk" class="text-red-400 text-xs mt-1">{{ errors.key_file_risk }}</p>
+                        </div>
+
                         <!-- Content -->
                         <div>
-                            <label class="block text-gamboge-300 font-mono text-xs uppercase tracking-widest mb-1">
+                            <label for="locker-content-input" class="block text-gamboge-300 font-mono text-xs uppercase tracking-widest mb-1">
                                 {{ isFileTier ? 'File' : 'Content' }}
                             </label>
                             <textarea
                                 v-if="!isFileTier"
+                                id="locker-content-input"
                                 v-model="content"
                                 rows="6"
                                 class="w-full bg-gray-900 border border-gray-700 text-white font-mono rounded-lg px-3 py-2.5 text-sm focus:border-gamboge-300 focus:ring-gamboge-300 focus:outline-none resize-y"
@@ -336,6 +518,7 @@ const submit = async () => {
                             />
                             <input
                                 v-else
+                                id="locker-content-input"
                                 type="file"
                                 @change="onFileChange"
                                 class="w-full bg-gray-900 border border-gray-700 text-white rounded-lg px-3 py-2.5 text-sm focus:border-gamboge-300 focus:outline-none file:mr-3 file:text-gamboge-300 file:bg-gray-800 file:border-0 file:rounded file:text-xs file:font-mono file:cursor-pointer"
@@ -348,6 +531,7 @@ const submit = async () => {
                             @click="submit"
                             :disabled="step !== 'form'"
                             class="w-full bg-gamboge-300 hover:bg-gamboge-400 disabled:opacity-60 disabled:cursor-not-allowed text-gray-900 font-semibold py-3 px-4 rounded-lg font-mono text-sm transition-colors shadow-neon-cyan-sm hover:shadow-neon-cyan"
+                            data-testid="create-submit-button"
                         >
                             <span v-if="step === 'encrypting'">Encrypting…</span>
                             <span v-else-if="step === 'uploading'">Uploading…</span>

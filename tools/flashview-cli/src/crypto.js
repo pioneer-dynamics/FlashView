@@ -19,4 +19,6 @@ export {
     decryptFileFromBuffer,
     deriveSigningKeypair,
     signChallenge,
+    deriveKeyFromFile,
+    combineLockerKeyMaterials,
 } from '@pioneer-dynamics/flashview-crypto';

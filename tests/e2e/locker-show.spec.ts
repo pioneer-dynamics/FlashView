@@ -1,22 +1,56 @@
 import { test, expect } from '@playwright/test';
 import { resetDatabase, clearCache } from './helpers/db';
-import { createLockerCredit, createLockerViaUI, createFileLockerViaUI, createLegacyLockerViaDB } from './helpers/locker';
+import { createLockerCredit, createLockerViaUI, createFileLockerViaUI, createLegacyLockerViaDB, navigateToLocker } from './helpers/locker';
 
 test.beforeEach(() => {
     resetDatabase();
 });
 
-test('show page for unknown account ID returns 404', async ({ page }) => {
-    const response = await page.request.get('/lockers/9999999999');
-    expect(response.status()).toBe(404);
+test('visiting old locker URL redirects to open page', async ({ page }) => {
+    await page.goto('/lockers/9999999999');
+    await page.waitForLoadState('networkidle');
+    await expect(page).toHaveURL('/lockers/open');
+    await expect(page.getByTestId('account-id-input')).toBeVisible();
+});
+
+test('navigating to /lockers/open shows account entry form', async ({ page }) => {
+    await page.goto('/lockers/open');
+    await page.waitForLoadState('networkidle');
+
+    await expect(page.getByTestId('account-id-input')).toBeVisible();
+    await expect(page.getByTestId('open-button')).toBeVisible();
+});
+
+test('entering 10-digit account number transitions to unlock form; URL stays at /lockers/open', async ({ page }) => {
+    createLockerCredit('showtoken00', 'text', 1);
+    await createLockerViaUI(page, '1111111111', 'entry-phase-passphrase', 'Entry phase test', 'showtoken00');
+
+    await page.goto('/lockers/open');
+    await page.waitForLoadState('networkidle');
+
+    await expect(page).toHaveURL('/lockers/open');
+    await page.getByTestId('account-id-input').fill('1111111111');
+    await page.getByTestId('open-button').click();
+
+    await page.getByTestId('unlock-button').waitFor({ state: 'visible', timeout: 5000 });
+    await expect(page).toHaveURL('/lockers/open');
+    await expect(page.getByTestId('passphrase-input')).toBeVisible();
+});
+
+test('renewed=1 query parameter shows renewal banner with account entry instruction', async ({ page }) => {
+    await page.goto('/lockers/open?renewed=1');
+    await page.waitForLoadState('networkidle');
+
+    await expect(page.getByText(/Your renewal was successful/i)).toBeVisible();
+    await expect(page.getByText(/Enter your account number below/i)).toBeVisible();
+    await expect(page.getByTestId('account-id-input')).toBeVisible();
 });
 
 test('lock icon is visible before unlock is attempted', async ({ page }) => {
     createLockerCredit('showtoken01', 'text', 1);
     await createLockerViaUI(page, '2222222222', 'my-show-passphrase-long', 'Test content', 'showtoken01');
 
-    await page.goto('/lockers/2222222222');
-    await page.waitForLoadState('networkidle');
+    await navigateToLocker(page, '2222222222');
 
     await expect(page.getByTestId('lock-icon')).toBeVisible();
     await expect(page.getByTestId('passphrase-input')).toBeVisible();
@@ -27,8 +61,7 @@ test('correct passphrase decrypts and displays content', async ({ page }) => {
     createLockerCredit('showtoken02', 'text', 1);
     const { passphrase } = await createLockerViaUI(page, '3333333333', 'my-correct-passphrase-long', 'My secret locker text', 'showtoken02');
 
-    await page.goto('/lockers/3333333333');
-    await page.waitForLoadState('networkidle');
+    await navigateToLocker(page, '3333333333');
 
     await page.getByTestId('passphrase-input').fill(passphrase);
     await page.getByTestId('unlock-button').click();
@@ -37,12 +70,25 @@ test('correct passphrase decrypts and displays content', async ({ page }) => {
     await expect(page.getByText('My secret locker text')).toBeVisible();
 });
 
+test('URL stays at /lockers/open throughout the unlock flow', async ({ page }) => {
+    createLockerCredit('showtoken02b', 'text', 1);
+    const { passphrase } = await createLockerViaUI(page, '3344556677', 'url-check-passphrase-long', 'URL check content', 'showtoken02b');
+
+    await navigateToLocker(page, '3344556677');
+    await expect(page).toHaveURL('/lockers/open');
+
+    await page.getByTestId('passphrase-input').fill(passphrase);
+    await page.getByTestId('unlock-button').click();
+    await expect(page.getByTestId('decrypted-content')).toBeVisible({ timeout: 15000 });
+
+    await expect(page).toHaveURL('/lockers/open');
+});
+
 test('after submitting correct passphrase, lock animation plays and content is revealed', async ({ page }) => {
     createLockerCredit('showtoken03', 'text', 1);
     const { passphrase } = await createLockerViaUI(page, '4444444444', 'my-anim-passphrase-long', 'Animation test content', 'showtoken03');
 
-    await page.goto('/lockers/4444444444');
-    await page.waitForLoadState('networkidle');
+    await navigateToLocker(page, '4444444444');
 
     await page.getByTestId('passphrase-input').fill(passphrase);
     await page.getByTestId('unlock-button').click();
@@ -58,22 +104,20 @@ test('wrong passphrase shows error and lock shake animation', async ({ page }) =
     createLockerCredit('showtoken04', 'text', 1);
     await createLockerViaUI(page, '5555555555', 'my-real-passphrase-long', 'Content for wrong pass test', 'showtoken04');
 
-    await page.goto('/lockers/5555555555');
-    await page.waitForLoadState('networkidle');
+    await navigateToLocker(page, '5555555555');
 
     await page.getByTestId('passphrase-input').fill('wrong-passphrase-here-!');
     await page.getByTestId('unlock-button').click();
 
     await expect(page.getByTestId('decrypt-error')).toBeVisible({ timeout: 10000 });
-    await expect(page.getByText(/Incorrect passphrase|Decryption failed/i)).toBeVisible();
+    await expect(page.getByText(/Credentials do not match|Decryption failed/i)).toBeVisible();
 });
 
 test('after submitting wrong passphrase, lock shake animation plays and error message appears', async ({ page }) => {
     createLockerCredit('showtoken05', 'text', 1);
     await createLockerViaUI(page, '6666666666', 'my-real-passphrase-long', 'Content for shake test', 'showtoken05');
 
-    await page.goto('/lockers/6666666666');
-    await page.waitForLoadState('networkidle');
+    await navigateToLocker(page, '6666666666');
 
     await page.getByTestId('passphrase-input').fill('wrong!');
     await page.getByTestId('unlock-button').click();
@@ -89,8 +133,7 @@ test('repeated wrong passphrase shows permanent loss warning', async ({ page }) 
     createLockerCredit('showtoken06', 'text', 1);
     await createLockerViaUI(page, '7777777777', 'my-real-passphrase-long', 'Content for repeated fail test', 'showtoken06');
 
-    await page.goto('/lockers/7777777777');
-    await page.waitForLoadState('networkidle');
+    await navigateToLocker(page, '7777777777');
 
     // Two wrong passphrase attempts — clear cache between to avoid rate-limiter blocking 2nd fetch
     for (let i = 0; i < 2; i++) {
@@ -101,27 +144,36 @@ test('repeated wrong passphrase shows permanent loss warning', async ({ page }) 
         clearCache();
     }
 
-    await expect(page.getByText(/passphrase is lost/i)).toBeVisible();
+    await expect(page.getByText(/credentials are lost/i)).toBeVisible();
 });
 
-test('update panel is always visible with lost token warning', async ({ page }) => {
+test('update hint visible in locked state; update panel visible after unlock', async ({ page }) => {
     createLockerCredit('showtoken07', 'text', 1);
-    await createLockerViaUI(page, '8888888888', 'my-real-passphrase-long', 'Content for update panel test', 'showtoken07');
+    const { passphrase } = await createLockerViaUI(page, '8888888888', 'my-real-passphrase-long', 'Content for update panel test', 'showtoken07');
 
-    await page.goto('/lockers/8888888888');
-    await page.waitForLoadState('networkidle');
+    await navigateToLocker(page, '8888888888');
+
+    // Locked state: shows hint, not the update panel
+    await expect(page.getByText('Unlock your locker to update or delete it.')).toBeVisible();
+
+    // Unlock to see the update panel
+    await page.getByTestId('passphrase-input').fill(passphrase);
+    await page.getByTestId('unlock-button').click();
+    await expect(page.getByTestId('decrypted-content')).toBeVisible({ timeout: 15000 });
 
     await expect(page.getByText('Update Content')).toBeVisible();
-    await expect(page.getByText(/If you have lost your Update Token/i)).toBeVisible();
-    await expect(page.getByTestId('update-token-input')).toBeVisible();
+    await expect(page.getByTestId('update-button')).toBeVisible();
 });
 
-test('expiry badge is visible on show page', async ({ page }) => {
+test('expiry badge is visible after unlock', async ({ page }) => {
     createLockerCredit('showtoken08', 'text', 1);
-    await createLockerViaUI(page, '9999111111', 'my-real-passphrase-long', 'Content for expiry badge test', 'showtoken08');
+    const { passphrase } = await createLockerViaUI(page, '9999111111', 'my-real-passphrase-long', 'Content for expiry badge test', 'showtoken08');
 
-    await page.goto('/lockers/9999111111');
-    await page.waitForLoadState('networkidle');
+    await navigateToLocker(page, '9999111111');
+
+    await page.getByTestId('passphrase-input').fill(passphrase);
+    await page.getByTestId('unlock-button').click();
+    await expect(page.getByTestId('decrypted-content')).toBeVisible({ timeout: 15000 });
 
     await expect(page.getByText(/days remaining|Expires/i)).toBeVisible();
     await expect(page.getByText('Renew')).toBeVisible();
@@ -134,8 +186,7 @@ test('file locker shows file metadata after unlock', async ({ page }) => {
     const passphrase = 'my-file-locker-passphrase';
     await createFileLockerViaUI(page, '1122334455', passphrase, 'fileshow01');
 
-    await page.goto('/lockers/1122334455');
-    await page.waitForLoadState('networkidle');
+    await navigateToLocker(page, '1122334455');
 
     // Mock the S3 temporary URL returned by the unlock endpoint
     await page.route('**/1122334455/unlock', async route => {
@@ -162,8 +213,7 @@ test('passphrase change on DEK-based file locker does not re-download the file',
     const newPassphrase = 'brand-new-passphrase-for-locker';
     await createFileLockerViaUI(page, '2233445566', passphrase, 'fileshow02');
 
-    await page.goto('/lockers/2233445566');
-    await page.waitForLoadState('networkidle');
+    await navigateToLocker(page, '2233445566');
 
     // Track any S3 download requests — must be 0 during passphrase change
     const s3Downloads: string[] = [];
@@ -186,11 +236,11 @@ test('passphrase change on DEK-based file locker does not re-download the file',
     await page.getByTestId('unlock-button').click();
     await expect(page.getByTestId('decrypted-content')).toBeVisible({ timeout: 15000 });
 
-    // Change passphrase — for a DEK-based locker this is crypto-only, no file download
-    await page.getByPlaceholder('Enter or generate a passphrase').last().fill(newPassphrase);
-    await page.getByRole('button', { name: /Change Passphrase/i }).click();
+    // Rotate credentials — for a DEK-based ECDSA locker this is crypto-only (re-wraps DEK), no file download
+    await page.getByTestId('new-passphrase-rot-input').fill(newPassphrase);
+    await page.getByTestId('rotate-credentials-button').click();
 
-    await expect(page.getByText(/Passphrase changed/i)).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText(/Credentials changed/i)).toBeVisible({ timeout: 15000 });
 
     // Core assertion: no S3 file was downloaded during passphrase change
     expect(s3Downloads).toHaveLength(0);
@@ -202,8 +252,7 @@ test('ECDSA locker unlock decrypts and displays content', async ({ page }) => {
     createLockerCredit('ecdsashow01', 'text', 1);
     const { passphrase } = await createLockerViaUI(page, '5100000001', 'ecdsa-unlock-passphrase', 'ECDSA secret text', 'ecdsashow01');
 
-    await page.goto('/lockers/5100000001');
-    await page.waitForLoadState('networkidle');
+    await navigateToLocker(page, '5100000001');
 
     await page.getByTestId('passphrase-input').fill(passphrase);
     await page.getByTestId('unlock-button').click();
@@ -216,8 +265,7 @@ test('ECDSA locker update content shows success message', async ({ page }) => {
     createLockerCredit('ecdsashow02', 'text', 1);
     const { passphrase } = await createLockerViaUI(page, '5100000002', 'ecdsa-update-passphrase', 'Original content', 'ecdsashow02');
 
-    await page.goto('/lockers/5100000002');
-    await page.waitForLoadState('networkidle');
+    await navigateToLocker(page, '5100000002');
 
     await page.getByTestId('passphrase-input').fill(passphrase);
     await page.getByTestId('unlock-button').click();
@@ -234,8 +282,7 @@ test('ECDSA locker delete redirects to home', async ({ page }) => {
     createLockerCredit('ecdsashow03', 'text', 1);
     const { passphrase } = await createLockerViaUI(page, '5100000003', 'ecdsa-delete-passphrase', 'Content to delete', 'ecdsashow03');
 
-    await page.goto('/lockers/5100000003');
-    await page.waitForLoadState('networkidle');
+    await navigateToLocker(page, '5100000003');
 
     await page.getByTestId('passphrase-input').fill(passphrase);
     await page.getByTestId('unlock-button').click();
@@ -254,19 +301,26 @@ test('ECDSA locker passphrase change — new passphrase unlocks, old one fails',
     const { accountId } = await createLockerViaUI(page, '5100000004', oldPassphrase, 'Passphrase change content', 'ecdsashow04');
 
     // Unlock with old passphrase and change it
-    await page.goto(`/lockers/${accountId}`);
-    await page.waitForLoadState('networkidle');
+    await navigateToLocker(page, accountId);
 
     await page.getByTestId('passphrase-input').fill(oldPassphrase);
     await page.getByTestId('unlock-button').click();
     await expect(page.getByTestId('decrypted-content')).toBeVisible({ timeout: 15000 });
 
-    await page.getByPlaceholder('Enter or generate a passphrase').last().fill(newPassphrase);
-    await page.getByRole('button', { name: /Change Passphrase/i }).click();
-    await expect(page.getByText(/Passphrase changed/i)).toBeVisible({ timeout: 15000 });
+    // ECDSA lockers use the credential rotation panel, not the legacy passphrase change panel
+    await page.getByTestId('new-passphrase-rot-input').fill(newPassphrase);
+    await page.getByTestId('rotate-credentials-button').click();
+    await expect(page.getByText(/Credentials changed/i)).toBeVisible({ timeout: 15000 });
 
-    // Lock and try old passphrase — should fail
+    // Lock — returns to account entry phase
     await page.getByTestId('lock-button').click();
+
+    // Re-enter account number on the entry form
+    await page.getByTestId('account-id-input').fill(accountId);
+    await page.getByTestId('open-button').click();
+    await page.getByTestId('unlock-button').waitFor({ state: 'visible', timeout: 5000 });
+
+    // Try old passphrase — should fail
     await page.getByTestId('passphrase-input').fill(oldPassphrase);
     await page.getByTestId('unlock-button').click();
     await expect(page.getByTestId('decrypt-error')).toBeVisible({ timeout: 10000 });
@@ -338,9 +392,8 @@ test('upgrade banner appears after legacy unlock and upgrade migrates to ECDSA',
         });
     });
 
-    // Navigate to show page with mocks already active
-    await page.goto(`/lockers/${upgradeAccountId}`);
-    await page.waitForLoadState('networkidle');
+    // Navigate to open page with mocks already active
+    await navigateToLocker(page, upgradeAccountId);
 
     await page.getByTestId('passphrase-input').fill(upgradePassphrase);
     await page.getByTestId('unlock-button').click();
@@ -398,8 +451,7 @@ test('upgrade banner can be dismissed without upgrading', async ({ page }) => {
         });
     });
 
-    await page.goto(`/lockers/${dismissAccountId}`);
-    await page.waitForLoadState('networkidle');
+    await navigateToLocker(page, dismissAccountId);
 
     await page.getByTestId('passphrase-input').fill(dismissPassphrase);
     await page.getByTestId('unlock-button').click();

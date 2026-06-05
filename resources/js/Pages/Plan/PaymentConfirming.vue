@@ -2,37 +2,24 @@
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Page from '../Page.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
-import { router } from '@inertiajs/vue3';
-import { ref, onMounted, onBeforeUnmount } from 'vue';
+import { usePoll } from '@inertiajs/vue3';
+import { ref, onBeforeUnmount } from 'vue';
 
 defineProps({
     sessionId: { type: String, default: null },
 });
 
 const TIMEOUT_MS = 30_000;
-const POLL_INTERVAL_MS = 2_000;
 const timedOut = ref(false);
 
-let intervalHandle = null;
-let timeoutHandle = null;
-let isFetching = false;
+const { stop } = usePoll(2000);
 
-onMounted(() => {
-    intervalHandle = setInterval(() => {
-        if (isFetching) { return; }
-        isFetching = true;
-        router.reload({ onFinish: () => { isFetching = false; } });
-    }, POLL_INTERVAL_MS);
-
-    timeoutHandle = setTimeout(() => {
-        clearInterval(intervalHandle);
-        intervalHandle = null;
-        timedOut.value = true;
-    }, TIMEOUT_MS);
-});
+const timeoutHandle = setTimeout(() => {
+    stop();
+    timedOut.value = true;
+}, TIMEOUT_MS);
 
 onBeforeUnmount(() => {
-    clearInterval(intervalHandle);
     clearTimeout(timeoutHandle);
 });
 </script>

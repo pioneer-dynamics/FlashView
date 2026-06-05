@@ -23,10 +23,12 @@ const dismissPending = () => {
 
 const go = () => {
     if (!/^\d{10}$/.test(accountId.value)) return;
-    const target = destination.value === 'renew'
-        ? route('lockers.renew.challenge', accountId.value)
-        : route('lockers.show', accountId.value);
-    router.visit(target);
+    if (destination.value === 'renew') {
+        router.visit(route('lockers.renew.challenge', accountId.value));
+    } else {
+        sessionStorage.setItem('locker_prefill_account', accountId.value);
+        router.visit(route('lockers.open'));
+    }
 };
 </script>
 
@@ -101,6 +103,7 @@ const go = () => {
                     <p class="text-gray-400 text-sm">Anonymous, zero-knowledge storage. No account required. Text from $20/yr.</p>
                     <Link
                         :href="route('lockers.buy')"
+                        prefetch
                         class="inline-block bg-gamboge-300 hover:bg-gamboge-400 text-gray-900 font-semibold py-2.5 px-8 rounded-lg font-mono text-sm transition-colors shadow-neon-cyan-sm hover:shadow-neon-cyan"
                     >
                         Buy an eLocker

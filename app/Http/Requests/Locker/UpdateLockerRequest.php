@@ -26,6 +26,14 @@ class UpdateLockerRequest extends FormRequest
             'new_update_token' => ['nullable', 'string', 'size:64'],
             'new_wrapped_file_key' => ['nullable', 'string', 'max:512'],
             'new_public_key' => ['nullable', 'string'],
+            'new_auth_mode' => ['sometimes', 'in:passphrase,key_file,combined'],
+            'new_key_file_count' => [
+                'nullable',
+                'prohibited_if:new_auth_mode,passphrase',
+                'required_if:new_auth_mode,key_file',
+                'required_if:new_auth_mode,combined',
+                'integer', 'min:1', 'max:20',
+            ],
         ];
     }
 }

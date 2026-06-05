@@ -109,13 +109,33 @@ class LockerControllerTest extends TestCase
             ->assertJsonValidationErrors(['account_id']);
     }
 
-    public function test_show_always_renders_for_any_account_id(): void
+    public function test_open_page_renders_open_component(): void
     {
-        // Always renders to prevent account ID enumeration — credentials checked at unlock
-        $response = $this->get(route('lockers.show', '9999999999'));
+        $response = $this->get(route('lockers.open'));
 
         $response->assertStatus(200)
-            ->assertInertia(fn ($page) => $page->component('Locker/Show'));
+            ->assertInertia(fn ($page) => $page->component('Locker/Open'));
+    }
+
+    public function test_open_page_passes_renewed_false_by_default(): void
+    {
+        $response = $this->get(route('lockers.open'));
+
+        $response->assertInertia(fn ($page) => $page->where('renewed', false));
+    }
+
+    public function test_open_page_passes_renewed_true_when_query_param_set(): void
+    {
+        $response = $this->get(route('lockers.open').'?renewed=1');
+
+        $response->assertInertia(fn ($page) => $page->where('renewed', true));
+    }
+
+    public function test_show_route_redirects_to_open_for_any_account_id(): void
+    {
+        $response = $this->get(route('lockers.show', '9999999999'));
+
+        $response->assertRedirect(route('lockers.open'));
     }
 
     public function test_unlock_returns_401_for_unknown_account(): void
@@ -170,14 +190,13 @@ class LockerControllerTest extends TestCase
         $response->assertStatus(200)->assertJsonStructure(['payload', 'expires_at', 'is_file_locker']);
     }
 
-    public function test_show_renders_for_active_locker(): void
+    public function test_show_route_redirects_for_active_locker(): void
     {
         Locker::factory()->create(['account_id' => '1234567890']);
 
         $response = $this->get(route('lockers.show', '1234567890'));
 
-        $response->assertStatus(200)
-            ->assertInertia(fn ($page) => $page->component('Locker/Show'));
+        $response->assertRedirect(route('lockers.open'));
     }
 
     public function test_payload_returns_blob_for_active_locker(): void
@@ -867,5 +886,287 @@ class LockerControllerTest extends TestCase
         ]);
 
         $response->assertStatus(200)->assertJson(['ok' => true]);
+    }
+
+    public function test_can_create_locker_with_key_file_auth_mode(): void
+    {
+        $credit = LockerCredit::factory()->create(['token' => 'kftok1', 'tier' => 'text', 'years' => 1]);
+
+        $response = $this->postJson(route('lockers.store'), [
+            'account_id' => '2000000001',
+            'credit_token' => 'kftok1',
+            'payload' => str_repeat('a', 100),
+            'public_key' => base64_encode(json_encode(['kty' => 'EC', 'crv' => 'P-256', 'x' => str_repeat('A', 43), 'y' => str_repeat('B', 43)])),
+            'tier' => 'text',
+            'storage_path' => null,
+            'auth_mode' => 'key_file',
+            'key_file_count' => 2,
+        ]);
+
+        $response->assertStatus(200)->assertJsonStructure(['expires_at', 'account_id']);
+
+        $this->assertDatabaseHas('lockers', [
+            'account_id' => '2000000001',
+            'auth_mode' => 'key_file',
+            'key_file_count' => 2,
+        ]);
+    }
+
+    public function test_can_create_locker_with_combined_auth_mode(): void
+    {
+        $credit = LockerCredit::factory()->create(['token' => 'cmbtok1', 'tier' => 'text', 'years' => 1]);
+
+        $response = $this->postJson(route('lockers.store'), [
+            'account_id' => '2000000002',
+            'credit_token' => 'cmbtok1',
+            'payload' => str_repeat('a', 100),
+            'public_key' => base64_encode(json_encode(['kty' => 'EC', 'crv' => 'P-256', 'x' => str_repeat('A', 43), 'y' => str_repeat('B', 43)])),
+            'tier' => 'text',
+            'storage_path' => null,
+            'auth_mode' => 'combined',
+            'key_file_count' => 1,
+        ]);
+
+        $response->assertStatus(200)->assertJsonStructure(['expires_at', 'account_id']);
+
+        $this->assertDatabaseHas('lockers', [
+            'account_id' => '2000000002',
+            'auth_mode' => 'combined',
+            'key_file_count' => 1,
+        ]);
+    }
+
+    public function test_store_validates_key_file_count_required_for_key_file_mode(): void
+    {
+        $credit = LockerCredit::factory()->create(['token' => 'kftok2', 'tier' => 'text', 'years' => 1]);
+
+        $response = $this->postJson(route('lockers.store'), [
+            'account_id' => '2000000003',
+            'credit_token' => 'kftok2',
+            'payload' => str_repeat('a', 100),
+            'public_key' => base64_encode('{}'),
+            'tier' => 'text',
+            'auth_mode' => 'key_file',
+            // key_file_count intentionally omitted
+        ]);
+
+        $response->assertStatus(422)->assertJsonValidationErrors(['key_file_count']);
+    }
+
+    public function test_store_validates_key_file_count_required_for_combined_mode(): void
+    {
+        $credit = LockerCredit::factory()->create(['token' => 'cmbtok2', 'tier' => 'text', 'years' => 1]);
+
+        $response = $this->postJson(route('lockers.store'), [
+            'account_id' => '2000000004',
+            'credit_token' => 'cmbtok2',
+            'payload' => str_repeat('a', 100),
+            'public_key' => base64_encode('{}'),
+            'tier' => 'text',
+            'auth_mode' => 'combined',
+            // key_file_count intentionally omitted
+        ]);
+
+        $response->assertStatus(422)->assertJsonValidationErrors(['key_file_count']);
+    }
+
+    public function test_store_rejects_key_file_count_when_passphrase_mode(): void
+    {
+        $credit = LockerCredit::factory()->create(['token' => 'pptok1', 'tier' => 'text', 'years' => 1]);
+
+        $response = $this->postJson(route('lockers.store'), [
+            'account_id' => '2000000005',
+            'credit_token' => 'pptok1',
+            'payload' => str_repeat('a', 100),
+            'auth_challenge' => str_repeat('c', 64),
+            'auth_verifier' => str_repeat('a', 64),
+            'update_token' => str_repeat('b', 64),
+            'tier' => 'text',
+            'auth_mode' => 'passphrase',
+            'key_file_count' => 2,
+        ]);
+
+        $response->assertStatus(422)->assertJsonValidationErrors(['key_file_count']);
+    }
+
+    public function test_auth_info_endpoint_returns_mode_and_count(): void
+    {
+        Locker::factory()->create([
+            'account_id' => '2000000006',
+            'auth_mode' => 'key_file',
+            'key_file_count' => 3,
+        ]);
+
+        $response = $this->getJson(route('lockers.auth-info', '2000000006'));
+
+        $response->assertStatus(200)->assertJson([
+            'auth_mode' => 'key_file',
+            'key_file_count' => 3,
+        ]);
+    }
+
+    public function test_auth_info_returns_passphrase_defaults_for_nonexistent_account(): void
+    {
+        $response = $this->getJson(route('lockers.auth-info', '9999999999'));
+
+        $response->assertStatus(200)->assertJson([
+            'auth_mode' => 'passphrase',
+            'key_file_count' => null,
+        ]);
+    }
+
+    public function test_existing_passphrase_locker_auth_info_returns_passphrase_mode(): void
+    {
+        Locker::factory()->create([
+            'account_id' => '2000000007',
+            // auth_mode defaults to 'passphrase' via migration
+        ]);
+
+        $response = $this->getJson(route('lockers.auth-info', '2000000007'));
+
+        $response->assertStatus(200)->assertJson([
+            'auth_mode' => 'passphrase',
+            'key_file_count' => null,
+        ]);
+    }
+
+    public function test_existing_locker_unlock_still_works_regression(): void
+    {
+        $verifier = str_repeat('a', 64);
+        Locker::factory()->create([
+            'account_id' => '2000000008',
+            'auth_verifier' => $verifier,
+            // auth_mode defaults to 'passphrase' — regression check
+        ]);
+
+        $response = $this->postJson(route('lockers.unlock', '2000000008'), [
+            'verifier' => $verifier,
+        ]);
+
+        $response->assertStatus(200)->assertJsonStructure(['payload', 'expires_at', 'is_file_locker']);
+    }
+
+    public function test_auth_info_returns_show_clues_true_for_normal_locker(): void
+    {
+        Locker::factory()->create([
+            'account_id' => '3000000001',
+            'show_clues' => true,
+            'auth_mode' => 'key_file',
+            'key_file_count' => 2,
+        ]);
+
+        $response = $this->getJson(route('lockers.auth-info', '3000000001'));
+
+        $response->assertStatus(200)->assertJson([
+            'auth_mode' => 'key_file',
+            'key_file_count' => 2,
+            'show_clues' => true,
+        ]);
+    }
+
+    public function test_auth_info_returns_opaque_response_when_show_clues_false(): void
+    {
+        Locker::factory()->create([
+            'account_id' => '3000000002',
+            'show_clues' => false,
+            'auth_mode' => 'key_file',
+            'key_file_count' => 3,
+        ]);
+
+        $response = $this->getJson(route('lockers.auth-info', '3000000002'));
+
+        // Should return fake passphrase defaults, hiding real auth mode
+        $response->assertStatus(200)->assertJson([
+            'auth_mode' => 'passphrase',
+            'key_file_count' => null,
+            'show_clues' => false,
+        ]);
+
+        $response->assertJsonMissing(['key_file']);
+    }
+
+    public function test_store_saves_show_clues_false(): void
+    {
+        $credit = LockerCredit::factory()->create(['token' => 'sctok01', 'tier' => 'text', 'years' => 1]);
+
+        $this->postJson(route('lockers.store'), [
+            'account_id' => '3000000003',
+            'credit_token' => 'sctok01',
+            'payload' => str_repeat('a', 100),
+            'public_key' => base64_encode(json_encode(['kty' => 'EC'])),
+            'tier' => 'text',
+            'auth_mode' => 'key_file',
+            'key_file_count' => 1,
+            'show_clues' => false,
+        ])->assertStatus(200);
+
+        $this->assertDatabaseHas('lockers', [
+            'account_id' => '3000000003',
+            'show_clues' => false,
+        ]);
+    }
+
+    public function test_store_defaults_show_clues_to_true(): void
+    {
+        $credit = LockerCredit::factory()->create(['token' => 'sctok02', 'tier' => 'text', 'years' => 1]);
+
+        $this->postJson(route('lockers.store'), [
+            'account_id' => '3000000004',
+            'credit_token' => 'sctok02',
+            'payload' => str_repeat('a', 100),
+            'auth_challenge' => str_repeat('c', 64),
+            'auth_verifier' => str_repeat('a', 64),
+            'update_token' => str_repeat('b', 64),
+            'tier' => 'text',
+        ])->assertStatus(200);
+
+        $this->assertDatabaseHas('lockers', [
+            'account_id' => '3000000004',
+            'show_clues' => true,
+        ]);
+    }
+
+    public function test_update_settings_requires_authentication(): void
+    {
+        Locker::factory()->create(['account_id' => '4000000001']);
+
+        $response = $this->patchJson(route('lockers.settings', '4000000001'), [
+            'show_clues' => false,
+        ]);
+
+        $response->assertStatus(403);
+    }
+
+    public function test_update_settings_updates_show_clues_with_valid_token(): void
+    {
+        $locker = Locker::factory()->create([
+            'account_id' => '4000000002',
+            'auth_verifier' => str_repeat('a', 64),
+            'update_token_hash' => hash('sha256', 'validtoken'),
+            'show_clues' => true,
+        ]);
+
+        $response = $this->patchJson(route('lockers.settings', '4000000002'), [
+            'show_clues' => false,
+        ], ['X-Update-Token' => 'validtoken']);
+
+        $response->assertStatus(200)->assertJson(['ok' => true]);
+
+        $locker->refresh();
+        $this->assertFalse((bool) $locker->show_clues);
+    }
+
+    public function test_update_settings_rejects_invalid_token(): void
+    {
+        Locker::factory()->create([
+            'account_id' => '4000000003',
+            'update_token_hash' => hash('sha256', 'correcttoken'),
+        ]);
+
+        $response = $this->patchJson(route('lockers.settings', '4000000003'), [
+            'show_clues' => false,
+        ], ['X-Update-Token' => 'wrongtoken']);
+
+        $response->assertStatus(403);
     }
 }
