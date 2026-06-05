@@ -72,6 +72,7 @@ const passphraseChangeState    = ref(null); // null | 'encrypting' | 'uploading'
 const passphraseChangeProgress = ref(0);
 
 // Credential rotation state (key_file and combined modes)
+const rotAuthMode           = ref('passphrase'); // chosen new auth mode during rotation
 const newKeyFiles           = ref([]); // [{ file: File }]
 const newPassphraseRot      = ref('');
 const credRotateError       = ref('');
@@ -188,6 +189,7 @@ const lockLocker = () => {
     passphraseChangeError.value   = '';
     passphraseChangeSuccess.value = false;
     newPassphrase.value           = '';
+    rotAuthMode.value             = 'passphrase';
     newKeyFiles.value             = [];
     newPassphraseRot.value        = '';
     credRotateError.value         = '';
@@ -314,6 +316,15 @@ const unlock = async () => {
 
         failCount.value = 0;
         lockState.value = 'unlocked';
+
+        // Initialise rotation mode to the current auth mode (or infer from credentials in no-clues mode)
+        if (!showClues.value) {
+            const usedPassphrase = passphrase.value.length > 0;
+            const usedFiles = keyFiles.value.length > 0;
+            rotAuthMode.value = (usedPassphrase && usedFiles) ? 'combined' : (usedFiles ? 'key_file' : 'passphrase');
+        } else {
+            rotAuthMode.value = authMode.value;
+        }
 
     } catch (err) {
         const elapsed = Date.now() - animationStart;
@@ -649,20 +660,16 @@ const removeNewKeyFile = (index) => {
 };
 
 const computeNewEffectivePassphrase = async () => {
+    if (rotAuthMode.value === 'passphrase') {
+        return newPassphraseRot.value;
+    }
     const fileHashes = await Promise.all(
         newKeyFiles.value.map(async (kf) => {
             const buf = await kf.file.arrayBuffer();
             return enc.deriveLockerKeyFromFile(buf);
         })
     );
-    // In no-clues mode the real authMode is unknown; derive from what was provided
-    if (!showClues.value) {
-        const hasPassphrase = newPassphraseRot.value.length > 0;
-        if (!fileHashes.length) return newPassphraseRot.value;
-        if (!hasPassphrase) return enc.combineLockerKeyMaterials(fileHashes);
-        return enc.combineLockerKeyMaterials([newPassphraseRot.value, ...fileHashes]);
-    }
-    if (authMode.value === 'key_file') {
+    if (rotAuthMode.value === 'key_file') {
         return enc.combineLockerKeyMaterials(fileHashes);
     }
     // combined
@@ -674,19 +681,12 @@ const rotateCredentials = async () => {
     credRotateSuccess.value = false;
 
     // Validation
-    const needsPassphrase = showClues.value ? authMode.value !== 'key_file' : newPassphraseRot.value.length > 0;
-    const needsFiles      = showClues.value ? authMode.value !== 'passphrase' : true;
-
-    if (needsPassphrase && newPassphraseRot.value.length < 8) {
+    if (rotAuthMode.value !== 'key_file' && newPassphraseRot.value.length < 8) {
         credRotateError.value = 'New passphrase must be at least 8 characters.';
         return;
     }
-    if (needsFiles && newKeyFiles.value.length === 0) {
+    if (rotAuthMode.value !== 'passphrase' && newKeyFiles.value.length === 0) {
         credRotateError.value = 'Please add at least one key file.';
-        return;
-    }
-    if (showClues.value && keyFileCount.value && newKeyFiles.value.length !== keyFileCount.value) {
-        credRotateError.value = `Please add exactly ${keyFileCount.value} key file(s) — the same number as at creation.`;
         return;
     }
 
@@ -699,7 +699,12 @@ const rotateCredentials = async () => {
         const newEp = await computeNewEffectivePassphrase();
 
         const { publicKeyJwkBase64: newPublicKey } = await enc.deriveLockerSigningKeypair(newEp, props.account_id);
-        const putBody = { new_public_key: newPublicKey };
+        const newKeyFileCount = rotAuthMode.value !== 'passphrase' ? newKeyFiles.value.length : null;
+        const putBody = {
+            new_public_key:    newPublicKey,
+            new_auth_mode:     rotAuthMode.value,
+            new_key_file_count: newKeyFileCount,
+        };
 
         if (isFileLocker.value && wrappedFileKey.value) {
             // v2 file locker: re-wrap DEK with new credentials — no file re-download needed
@@ -795,6 +800,9 @@ const rotateCredentials = async () => {
         newKeyFiles.value       = [];
         newPassphraseRot.value  = '';
         credRotateSuccess.value = true;
+        // Reflect new auth structure in the current session
+        authMode.value      = rotAuthMode.value;
+        keyFileCount.value  = newKeyFileCount;
 
     } catch (err) {
         credRotateError.value = err.message || 'Rotation failed. Please try again.';
@@ -1137,8 +1145,8 @@ const upgradeAuth = async () => {
                     <p class="text-gray-500 text-xs">Unlock your locker to update or delete it.</p>
                 </div>
 
-                <!-- Change Passphrase panel — only when unlocked and in passphrase mode -->
-                <div v-if="lockState === 'unlocked' && authMode === 'passphrase'" class="bg-gray-800 border border-gray-700 rounded-xl p-6 space-y-4">
+                <!-- Change Passphrase panel — only for legacy (HMAC) lockers -->
+                <div v-if="lockState === 'unlocked' && isLegacyLocker" class="bg-gray-800 border border-gray-700 rounded-xl p-6 space-y-4">
                     <h2 class="text-gamboge-300 font-mono text-xs uppercase tracking-widest">Change Passphrase</h2>
                     <p class="text-gray-400 text-xs">Your content will be re-encrypted with the new passphrase. This cannot be undone.</p>
 
@@ -1174,15 +1182,37 @@ const upgradeAuth = async () => {
                     >Change Passphrase</button>
                 </div>
 
-                <!-- Credential Rotation — key_file and combined modes, or no-clues mode (may have files) -->
-                <div v-if="lockState === 'unlocked' && (authMode !== 'passphrase' || !showClues)" class="bg-gray-800 border border-gray-700 rounded-xl p-6 space-y-4">
+                <!-- Credential Rotation — all ECDSA lockers (legacy lockers use Change Passphrase above) -->
+                <div v-if="lockState === 'unlocked' && !isLegacyLocker" class="bg-gray-800 border border-gray-700 rounded-xl p-6 space-y-4">
                     <h2 class="text-gamboge-300 font-mono text-xs uppercase tracking-widest">Change Credentials</h2>
-                    <p class="text-gray-400 text-xs">
-                        Your locker content will be re-encrypted with your new credentials. The key file count cannot change — provide the same number as when you created this locker.
-                    </p>
+                    <p class="text-gray-400 text-xs">Content is re-encrypted with your new credentials. You can switch authentication mode or change your key files.</p>
 
-                    <!-- New passphrase (combined mode or no-clues with passphrase) -->
-                    <div v-if="showClues ? authMode === 'combined' : true">
+                    <!-- Auth mode selector -->
+                    <div>
+                        <label class="block text-gamboge-300 font-mono text-xs uppercase tracking-widest mb-2">New Authentication Mode</label>
+                        <div class="flex gap-2">
+                            <button
+                                v-for="mode in [
+                                    { value: 'passphrase', label: 'Passphrase' },
+                                    { value: 'key_file',  label: 'Key File(s)' },
+                                    { value: 'combined',  label: 'Both' },
+                                ]"
+                                :key="mode.value"
+                                type="button"
+                                @click="rotAuthMode = mode.value; newKeyFiles = []; newPassphraseRot = ''"
+                                class="flex-1 py-2 rounded-lg font-mono text-xs transition-colors border"
+                                :class="rotAuthMode === mode.value
+                                    ? 'bg-gamboge-300/20 border-gamboge-300 text-gamboge-300 shadow-neon-cyan-sm'
+                                    : 'border-gray-600 text-gray-400 hover:border-gray-400'"
+                                data-testid="rot-mode-button"
+                            >
+                                {{ mode.label }}
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- New passphrase (passphrase and combined modes) -->
+                    <div v-if="rotAuthMode !== 'key_file'">
                         <label class="block text-gamboge-300 font-mono text-xs uppercase tracking-widest mb-1">New Passphrase</label>
                         <div class="flex gap-2">
                             <input
@@ -1190,6 +1220,7 @@ const upgradeAuth = async () => {
                                 type="text"
                                 placeholder="Enter or generate a new passphrase"
                                 class="flex-1 bg-gray-900 border border-gray-700 text-white font-mono rounded-lg px-3 py-2.5 text-sm focus:border-gamboge-300 focus:outline-none"
+                                data-testid="new-passphrase-rot-input"
                             />
                             <button
                                 @click="newPassphraseRot = enc.generatePasssphrase()"
@@ -1198,12 +1229,10 @@ const upgradeAuth = async () => {
                         </div>
                     </div>
 
-                    <!-- New key files -->
-                    <div v-if="showClues ? authMode !== 'passphrase' : true" class="space-y-2">
+                    <!-- New key files (key_file and combined modes) -->
+                    <div v-if="rotAuthMode !== 'passphrase'" class="space-y-2">
                         <label class="block text-gamboge-300 font-mono text-xs uppercase tracking-widest mb-1">New Key Files</label>
-                        <p v-if="showClues && keyFileCount" class="text-gray-500 text-xs">
-                            Add {{ keyFileCount }} new key file(s) in the same order you want for future unlocks.
-                        </p>
+                        <p class="text-gray-500 text-xs">Add your new key files in the order you want to use for future unlocks.</p>
 
                         <div v-if="newKeyFiles.length > 0" class="space-y-1">
                             <div
@@ -1222,22 +1251,16 @@ const upgradeAuth = async () => {
                             </div>
                         </div>
 
-                        <label
-                            v-if="showClues ? newKeyFiles.length < (keyFileCount ?? 999) : true"
-                            class="flex items-center gap-2 cursor-pointer border border-dashed border-gray-600 hover:border-gamboge-300/50 hover:shadow-neon-cyan-sm rounded-lg px-3 py-2 transition-colors text-gray-400 text-sm"
-                        >
-                            <span class="font-mono text-xs">+ Add new key file</span>
+                        <label class="flex items-center gap-2 cursor-pointer border border-dashed border-gray-600 hover:border-gamboge-300/50 hover:shadow-neon-cyan-sm rounded-lg px-3 py-2 transition-colors text-gray-400 text-sm">
+                            <span class="font-mono text-xs">+ Add key file</span>
                             <input type="file" class="sr-only" @change="onNewKeyFileAdded" data-testid="new-key-file-input" />
                         </label>
-
-                        <p v-if="showClues && keyFileCount" class="text-xs text-gray-500 font-mono">
-                            {{ newKeyFiles.length }} / {{ keyFileCount }} added
-                        </p>
+                        <p class="text-gray-500 text-xs">{{ newKeyFiles.length }} key file(s) added.</p>
                     </div>
 
                     <FileProgressBar v-if="credRotateState" :state="credRotateState" :progress="credRotateProgress" />
                     <p v-if="credRotateError" class="text-red-400 text-xs">{{ credRotateError }}</p>
-                    <p v-if="credRotateSuccess" class="text-gamboge-300 text-xs">Credentials changed successfully. Use your new credentials next time you unlock.</p>
+                    <p v-if="credRotateSuccess" class="text-gamboge-300 text-xs">Credentials changed. Use your new credentials next time you unlock.</p>
 
                     <button
                         v-if="!credRotateState"

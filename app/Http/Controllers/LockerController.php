@@ -445,6 +445,11 @@ class LockerController extends Controller
             $updates['wrapped_file_key'] = $request->input('new_wrapped_file_key');
         }
 
+        if ($request->filled('new_auth_mode')) {
+            $updates['auth_mode'] = $request->input('new_auth_mode');
+            $updates['key_file_count'] = $request->input('new_key_file_count');
+        }
+
         $locker->update($updates);
 
         return response()->json(['ok' => true]);
