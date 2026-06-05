@@ -236,11 +236,11 @@ test('passphrase change on DEK-based file locker does not re-download the file',
     await page.getByTestId('unlock-button').click();
     await expect(page.getByTestId('decrypted-content')).toBeVisible({ timeout: 15000 });
 
-    // Change passphrase — for a DEK-based locker this is crypto-only, no file download
-    await page.getByPlaceholder('Enter or generate a passphrase').last().fill(newPassphrase);
-    await page.getByRole('button', { name: /Change Passphrase/i }).click();
+    // Rotate credentials — for a DEK-based ECDSA locker this is crypto-only (re-wraps DEK), no file download
+    await page.getByTestId('new-passphrase-rot-input').fill(newPassphrase);
+    await page.getByTestId('rotate-credentials-button').click();
 
-    await expect(page.getByText(/Passphrase changed/i)).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText(/Credentials changed/i)).toBeVisible({ timeout: 15000 });
 
     // Core assertion: no S3 file was downloaded during passphrase change
     expect(s3Downloads).toHaveLength(0);
