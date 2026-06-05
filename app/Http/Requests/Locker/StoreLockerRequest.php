@@ -40,6 +40,7 @@ class StoreLockerRequest extends FormRequest
                 'required_if:auth_mode,combined',
                 'integer', 'min:1', 'max:20',
             ],
+            'show_clues' => ['sometimes', 'boolean'],
         ];
     }
 

@@ -133,6 +133,7 @@ class LockerController extends Controller
             'expires_at' => now()->addYears($credit->years),
             'auth_mode' => $request->input('auth_mode', 'passphrase'),
             'key_file_count' => $request->input('key_file_count'),
+            'show_clues' => $request->boolean('show_clues', true),
         ];
 
         if ($request->filled('public_key')) {
@@ -186,13 +187,16 @@ class LockerController extends Controller
     {
         $locker = Locker::where('account_id', $accountId)->first();
 
-        if (! $locker) {
-            return response()->json(['auth_mode' => 'passphrase', 'key_file_count' => null]);
+        // Non-existent lockers and lockers with show_clues=false return an opaque
+        // passphrase-default response, preventing enumeration of locker existence and auth mode.
+        if (! $locker || ! $locker->show_clues) {
+            return response()->json(['auth_mode' => 'passphrase', 'key_file_count' => null, 'show_clues' => false]);
         }
 
         return response()->json([
             'auth_mode' => $locker->auth_mode,
             'key_file_count' => $locker->key_file_count,
+            'show_clues' => true,
         ]);
     }
 

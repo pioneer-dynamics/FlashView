@@ -24,6 +24,7 @@ class Locker extends Model
         'expires_at',
         'auth_mode',
         'key_file_count',
+        'show_clues',
     ];
 
     protected function casts(): array
@@ -32,6 +33,7 @@ class Locker extends Model
             'expires_at' => 'datetime',
             'wrapped_file_key' => 'encrypted',
             'key_file_count' => 'integer',
+            'show_clues' => 'boolean',
         ];
     }
 
