@@ -1,7 +1,7 @@
 <script setup>
 import AppLayout from '@/Layouts/AppLayout.vue';
 import FileProgressBar from '@/Components/FileProgressBar.vue';
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { router } from '@inertiajs/vue3';
 import { encryption, LockerDecryptionError } from '@/encryption.js';
 
@@ -135,6 +135,17 @@ const openLocker = async () => {
     }
     accountPhase.value = 'unlock';
 };
+
+// If a previous page (Index or Create) stored the account number, auto-fill and skip entry phase.
+// sessionStorage keeps the number off the URL and off the server; cleared on first use.
+onMounted(async () => {
+    const prefill = sessionStorage.getItem('locker_prefill_account');
+    if (prefill && /^\d{10}$/.test(prefill)) {
+        sessionStorage.removeItem('locker_prefill_account');
+        accountId.value = prefill;
+        await openLocker();
+    }
+});
 
 const onKeyFileAdded = (e) => {
     const file = e.target.files[0];
