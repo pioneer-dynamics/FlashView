@@ -2,6 +2,21 @@ import { execSync } from 'child_process';
 import { Page } from '@playwright/test';
 
 /**
+ * Navigate to the locker renew page via the sessionStorage prefill pattern.
+ * The account ID is stored in sessionStorage before navigating to /lockers/renew
+ * so it never appears in the URL.
+ */
+export async function navigateToLockerRenew(page: Page, accountId: string): Promise<void> {
+    await page.goto('/lockers/open');
+    await page.waitForLoadState('networkidle');
+    await page.evaluate((id) => {
+        sessionStorage.setItem('locker_prefill_account_renew', id);
+    }, accountId);
+    await page.goto('/lockers/renew');
+    await page.waitForLoadState('networkidle');
+}
+
+/**
  * Navigate to the locker open page, enter the account number, and wait for the unlock form.
  * Works for all auth modes (passphrase, key_file, combined) since it waits on unlock-button,
  * not passphrase-input (which is absent in key_file mode).
