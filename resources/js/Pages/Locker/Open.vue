@@ -366,11 +366,11 @@ const downloadFile = async () => {
     fileProgress.value = 0;
 
     try {
-        const url = await fetchDownloadUrl();
+        const presignedUrl = await fetchDownloadUrl();
 
         const encryptedBytes = await new Promise((resolve, reject) => {
             const xhr = new XMLHttpRequest();
-            xhr.open('GET', url);
+            xhr.open('GET', presignedUrl);
             xhr.responseType = 'arraybuffer';
             xhr.onprogress = (e) => {
                 if (e.lengthComputable) fileProgress.value = Math.round((e.loaded / e.total) * 100);
