@@ -339,7 +339,7 @@ const submit = async () => {
 
                     <button
                         :disabled="!savedConfirmed"
-                        @click="sessionStorage.setItem('locker_prefill_account', credentials.account_id); router.visit(route('lockers.open'))"
+                        @click="router.visit(route('lockers.open'))"
                         class="w-full bg-gamboge-300 hover:bg-gamboge-400 disabled:opacity-40 disabled:cursor-not-allowed text-gray-900 font-semibold py-2.5 px-4 rounded-lg font-mono text-sm transition-colors shadow-neon-cyan-sm"
                     >
                         Open my locker
