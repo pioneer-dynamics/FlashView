@@ -190,13 +190,21 @@ class LockerController extends Controller
         // Non-existent lockers and lockers with show_clues=false return an opaque
         // passphrase-default response, preventing enumeration of locker existence and auth mode.
         if (! $locker || ! $locker->show_clues) {
-            return response()->json(['auth_mode' => 'passphrase', 'key_file_count' => null, 'show_clues' => false]);
+            return response()->json([
+                'auth_mode' => 'passphrase',
+                'key_file_count' => null,
+                'show_clues' => false,
+                'tier' => null,
+                'expires_at' => null,
+            ]);
         }
 
         return response()->json([
             'auth_mode' => $locker->auth_mode,
             'key_file_count' => $locker->key_file_count,
             'show_clues' => true,
+            'tier' => $locker->isFileLocker() ? 'file' : 'text',
+            'expires_at' => $locker->expires_at->toIso8601String(),
         ]);
     }
 
@@ -247,6 +255,11 @@ class LockerController extends Controller
         return Inertia::render('Locker/Open', [
             'renewed' => $request->query('renewed') === '1',
         ]);
+    }
+
+    public function renewPage(): Response
+    {
+        return Inertia::render('Locker/Renew');
     }
 
     public function show(Request $request, string $accountId): RedirectResponse
@@ -503,29 +516,25 @@ class LockerController extends Controller
         return response()->json(['ok' => true]);
     }
 
-    public function renewChallenge(Request $request, string $accountId): JsonResponse|Response
+    public function renewChallenge(Request $request, string $accountId): JsonResponse
     {
+        if (! $request->wantsJson()) {
+            abort(404);
+        }
+
         $locker = Locker::where('account_id', $accountId)->first();
 
         if (! $locker || $locker->isExpired()) {
             abort(404);
         }
 
-        if ($request->wantsJson()) {
-            if ($locker->public_key !== null) {
-                $data = $this->ecdsaService->issueChallenge($accountId);
+        if ($locker->public_key !== null) {
+            $data = $this->ecdsaService->issueChallenge($accountId);
 
-                return response()->json($data);
-            }
-
-            return response()->json(['challenge' => $locker->auth_challenge]);
+            return response()->json($data);
         }
 
-        return Inertia::render('Locker/Renew', [
-            'account_id' => $locker->account_id,
-            'tier' => $locker->isFileLocker() ? 'file' : 'text',
-            'expires_at' => $locker->expires_at->toIso8601String(),
-        ]);
+        return response()->json(['challenge' => $locker->auth_challenge]);
     }
 
     public function renewPurchase(RenewLockerRequest $request, string $accountId): JsonResponse
