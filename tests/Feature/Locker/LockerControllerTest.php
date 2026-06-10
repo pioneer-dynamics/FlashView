@@ -368,7 +368,7 @@ class LockerControllerTest extends TestCase
             ->assertJsonStructure(['upload_url', 'upload_headers', 'storage_path']);
     }
 
-    public function test_unlock_returns_presigned_download_url_for_file_locker(): void
+    public function test_unlock_does_not_return_presigned_download_url_for_file_locker(): void
     {
         Storage::fake();
         $storagePath = 'lockers/test.bin';
@@ -384,11 +384,12 @@ class LockerControllerTest extends TestCase
             'verifier' => str_repeat('a', 64),
         ]);
 
-        $response->assertStatus(200)
-            ->assertJsonStructure(['download_url']);
+        $response->assertStatus(200);
+        $this->assertArrayNotHasKey('download_url', $response->json());
+        $response->assertJsonStructure(['wrapped_file_key']);
     }
 
-    public function test_payload_returns_presigned_download_url_for_file_locker(): void
+    public function test_payload_does_not_return_presigned_download_url_for_file_locker(): void
     {
         Storage::fake();
         $storagePath = 'lockers/test.bin';
@@ -403,7 +404,8 @@ class LockerControllerTest extends TestCase
         $response = $this->getJson(route('lockers.payload', '1234567890'));
 
         $response->assertStatus(200)
-            ->assertJsonStructure(['payload', 'auth_challenge', 'download_url']);
+            ->assertJsonStructure(['payload', 'auth_challenge']);
+        $this->assertArrayNotHasKey('download_url', $response->json());
     }
 
     public function test_server_upload_route_does_not_exist(): void
@@ -1083,6 +1085,61 @@ class LockerControllerTest extends TestCase
         ]);
 
         $response->assertJsonMissing(['key_file']);
+        // Tier and expires_at are revealed even in privacy mode — the renew page needs them.
+        $response->assertJson(['tier' => 'text']);
+        $response->assertJsonPath('expires_at', fn ($v) => $v !== null);
+    }
+
+    public function test_renew_page_route_renders_inertia_component(): void
+    {
+        $response = $this->get(route('lockers.renew'));
+
+        $response->assertStatus(200);
+        $response->assertInertia(fn ($page) => $page->component('Locker/Renew'));
+    }
+
+    public function test_auth_info_includes_tier_and_expires_at_for_real_locker(): void
+    {
+        Locker::factory()->create([
+            'account_id' => '4000000001',
+            'show_clues' => true,
+            'auth_mode' => 'passphrase',
+        ]);
+
+        $response = $this->getJson(route('lockers.auth-info', '4000000001'));
+
+        $response->assertStatus(200);
+        $response->assertJsonStructure(['tier', 'expires_at']);
+        $response->assertJson(['tier' => 'text', 'show_clues' => true]);
+        $this->assertNotNull($response->json('expires_at'));
+    }
+
+    public function test_auth_info_includes_file_tier_for_file_locker(): void
+    {
+        Locker::factory()->fileLocker()->create([
+            'account_id' => '4000000002',
+            'show_clues' => true,
+        ]);
+
+        $response = $this->getJson(route('lockers.auth-info', '4000000002'));
+
+        $response->assertStatus(200)->assertJson(['tier' => 'file']);
+    }
+
+    public function test_auth_info_returns_null_tier_and_expires_at_for_unknown_locker(): void
+    {
+        $response = $this->getJson(route('lockers.auth-info', '9999999998'));
+
+        $response->assertStatus(200)->assertJson(['tier' => null, 'expires_at' => null]);
+    }
+
+    public function test_renew_challenge_returns_404_for_html_requests(): void
+    {
+        Locker::factory()->create(['account_id' => '4000000003']);
+
+        $response = $this->get(route('lockers.renew.challenge', '4000000003'));
+
+        $response->assertStatus(404);
     }
 
     public function test_store_saves_show_clues_false(): void
@@ -1168,5 +1225,108 @@ class LockerControllerTest extends TestCase
         ], ['X-Update-Token' => 'wrongtoken']);
 
         $response->assertStatus(403);
+    }
+
+    public function test_download_url_returns_presigned_url_with_valid_ecdsa_auth(): void
+    {
+        Storage::fake();
+        $storagePath = 'lockers/ecdsa-dl.bin';
+        Storage::put($storagePath, 'encrypted-content');
+
+        [$publicKey, $privateKeyPem] = $this->generateEcdsaKeypair();
+        Locker::factory()->create([
+            'account_id' => '5000000001',
+            'public_key' => $publicKey,
+            'auth_challenge' => null,
+            'auth_verifier' => null,
+            'update_token_hash' => null,
+            'storage_path' => $storagePath,
+        ]);
+
+        $challengeData = $this->getJson(route('lockers.challenge', '5000000001'))->json();
+        $signature = $this->ecdsaSign($challengeData['challenge'], $privateKeyPem);
+
+        $response = $this->getJson(
+            route('lockers.download-url', '5000000001'),
+            ['X-Signing-Challenge-Id' => $challengeData['challenge_id'], 'X-Signature' => $signature]
+        );
+
+        $response->assertStatus(200)->assertJsonStructure(['download_url']);
+    }
+
+    public function test_download_url_returns_403_with_invalid_ecdsa_signature(): void
+    {
+        Storage::fake();
+
+        [$publicKey] = $this->generateEcdsaKeypair();
+        Locker::factory()->create([
+            'account_id' => '5000000002',
+            'public_key' => $publicKey,
+            'auth_challenge' => null,
+            'auth_verifier' => null,
+            'update_token_hash' => null,
+            'storage_path' => 'lockers/invalid-sig.bin',
+        ]);
+
+        $challengeData = $this->getJson(route('lockers.challenge', '5000000002'))->json();
+
+        $response = $this->getJson(
+            route('lockers.download-url', '5000000002'),
+            ['X-Signing-Challenge-Id' => $challengeData['challenge_id'], 'X-Signature' => base64_encode(str_repeat("\x00", 64))]
+        );
+
+        $response->assertStatus(403);
+    }
+
+    public function test_download_url_returns_404_for_nonexistent_locker(): void
+    {
+        $response = $this->getJson(route('lockers.download-url', 'doesnotexist'));
+
+        $response->assertStatus(404);
+    }
+
+    public function test_download_url_returns_410_for_expired_locker(): void
+    {
+        Storage::fake();
+        $storagePath = 'lockers/expired-dl.bin';
+        Storage::put($storagePath, 'encrypted-content');
+
+        [$publicKey, $privateKeyPem] = $this->generateEcdsaKeypair();
+        Locker::factory()->create([
+            'account_id' => '5000000003',
+            'public_key' => $publicKey,
+            'auth_challenge' => null,
+            'auth_verifier' => null,
+            'update_token_hash' => null,
+            'storage_path' => $storagePath,
+            'expires_at' => now()->subDay(),
+        ]);
+
+        $response = $this->getJson(route('lockers.download-url', '5000000003'));
+
+        $response->assertStatus(410);
+    }
+
+    public function test_download_url_returns_404_for_text_locker(): void
+    {
+        [$publicKey, $privateKeyPem] = $this->generateEcdsaKeypair();
+        Locker::factory()->create([
+            'account_id' => '5000000004',
+            'public_key' => $publicKey,
+            'auth_challenge' => null,
+            'auth_verifier' => null,
+            'update_token_hash' => null,
+            'storage_path' => null,
+        ]);
+
+        $challengeData = $this->getJson(route('lockers.challenge', '5000000004'))->json();
+        $signature = $this->ecdsaSign($challengeData['challenge'], $privateKeyPem);
+
+        $response = $this->getJson(
+            route('lockers.download-url', '5000000004'),
+            ['X-Signing-Challenge-Id' => $challengeData['challenge_id'], 'X-Signature' => $signature]
+        );
+
+        $response->assertStatus(404);
     }
 }

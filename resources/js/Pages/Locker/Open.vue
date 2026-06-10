@@ -43,7 +43,6 @@ const decryptError      = ref('');
 const failCount         = ref(0);
 const decryptedText     = ref('');
 const decryptedFileMeta = ref(null); // { name, type, size }
-const downloadUrl       = ref('');
 
 // File download state
 const fileState    = ref(null); // null | 'downloading'
@@ -188,6 +187,11 @@ const computeEffectivePassphrase = async () => {
     return enc.combineLockerKeyMaterials([passphrase.value, ...fileHashes]);
 };
 
+const navigateToRenew = () => {
+    sessionStorage.setItem('locker_prefill_account_renew', accountId.value);
+    router.visit(route('lockers.renew'));
+};
+
 const lockLocker = () => {
     // Reset to account-entry phase — user must re-present account number to unlock again
     accountPhase.value             = 'entry';
@@ -199,7 +203,6 @@ const lockLocker = () => {
     passphrase.value              = '';
     decryptedText.value           = '';
     decryptedFileMeta.value       = null;
-    downloadUrl.value             = '';
     authChallenge.value           = '';
     wrappedFileKey.value          = '';
     decryptError.value            = '';
@@ -330,7 +333,6 @@ const unlock = async () => {
             } catch {
                 decryptedFileMeta.value = { name: 'download', type: 'application/octet-stream', size: 0 };
             }
-            downloadUrl.value = data.download_url ?? '';
         } else {
             decryptedText.value = new TextDecoder().decode(result.data);
         }
@@ -360,18 +362,15 @@ const downloadFile = async () => {
     if (fileState.value) return;
     downloadError.value = '';
 
-    if (!downloadUrl.value) {
-        downloadError.value = 'No download URL available — this file may not have been uploaded correctly.';
-        return;
-    }
-
     fileState.value    = 'downloading';
     fileProgress.value = 0;
 
     try {
+        const presignedUrl = await fetchDownloadUrl();
+
         const encryptedBytes = await new Promise((resolve, reject) => {
             const xhr = new XMLHttpRequest();
-            xhr.open('GET', downloadUrl.value);
+            xhr.open('GET', presignedUrl);
             xhr.responseType = 'arraybuffer';
             xhr.onprogress = (e) => {
                 if (e.lengthComputable) fileProgress.value = Math.round((e.loaded / e.total) * 100);
@@ -421,6 +420,21 @@ const fetchSigningHeaders = async () => {
         const updateToken = await enc.deriveLockerUpdateToken(effectivePassphrase.value, accountId.value);
         return { 'X-Update-Token': updateToken };
     }
+};
+
+const fetchDownloadUrl = async () => {
+    const authHeaders = await fetchSigningHeaders();
+    const res = await fetch(route('lockers.download-url', accountId.value), {
+        headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest', ...authHeaders },
+    });
+    if (!res.ok) {
+        if (res.status === 403) {
+            throw new Error('Your session has expired. Please lock and re-open your locker to try again.');
+        }
+        throw new Error('Could not fetch download URL. Please try again.');
+    }
+    const data = await res.json();
+    return data.download_url;
 };
 
 const submitUpdate = async () => {
@@ -520,7 +534,6 @@ const submitFileUpdate = async () => {
         wrappedFileKey.value = newWrappedFileKey;
         decryptedFileMeta.value = JSON.parse(meta);
         replacementFile.value  = null;
-        downloadUrl.value = '';
     } catch (err) {
         updateError.value = err.message || 'Update failed. Please try again.';
     } finally {
@@ -589,9 +602,10 @@ const changePassphrase = async () => {
             const meta = JSON.stringify(decryptedFileMeta.value);
             newPayload = await enc.encryptLockerContent(meta, newPassphrase.value);
 
+            const reencryptDownloadUrl = await fetchDownloadUrl();
             const encryptedBytes = await new Promise((resolve, reject) => {
                 const xhr = new XMLHttpRequest();
-                xhr.open('GET', downloadUrl.value);
+                xhr.open('GET', reencryptDownloadUrl);
                 xhr.responseType = 'arraybuffer';
                 xhr.onprogress = (e) => {
                     if (e.lengthComputable) passphraseChangeProgress.value = Math.round((e.loaded / e.total) * 50);
@@ -639,7 +653,6 @@ const changePassphrase = async () => {
 
             effectivePassphrase.value = newPassphrase.value;
             passphrase.value          = newPassphrase.value;
-            downloadUrl.value         = '';
             newPassphrase.value           = '';
             passphraseChangeSuccess.value = true;
 
@@ -752,9 +765,10 @@ const rotateCredentials = async () => {
             const meta = JSON.stringify(decryptedFileMeta.value);
             const newPayload = await enc.encryptLockerContent(meta, newEp);
 
+            const rotateDownloadUrl = await fetchDownloadUrl();
             const encryptedBytes = await new Promise((resolve, reject) => {
                 const xhr = new XMLHttpRequest();
-                xhr.open('GET', downloadUrl.value);
+                xhr.open('GET', rotateDownloadUrl);
                 xhr.responseType = 'arraybuffer';
                 xhr.onprogress = (e) => {
                     if (e.lengthComputable) credRotateProgress.value = Math.round((e.loaded / e.total) * 50);
@@ -800,7 +814,6 @@ const rotateCredentials = async () => {
             if (!res.ok) { credRotateError.value = data.error ?? 'Rotation failed.'; return; }
 
             effectivePassphrase.value = newEp;
-            downloadUrl.value         = '';
 
         } else {
             // Text locker
@@ -1008,7 +1021,11 @@ const upgradeAuth = async () => {
                         <div class="flex items-center gap-3">
                             <div v-if="expiresAt" class="text-right">
                                 <div :class="daysRemaining <= 30 ? 'text-red-400' : 'text-gray-400'" class="text-xs font-mono">{{ expiryLabel }}</div>
-                                <a :href="route('lockers.renew.challenge', accountId)" class="text-gamboge-300 hover:text-gamboge-200 text-xs font-mono underline">Renew</a>
+                                <button
+                                    @click="navigateToRenew"
+                                    data-testid="renew-button"
+                                    class="text-gamboge-300 hover:text-gamboge-200 text-xs font-mono underline bg-transparent border-0 p-0 cursor-pointer"
+                                >Renew</button>
                             </div>
                             <button
                                 v-if="lockState === 'unlocked'"
@@ -1141,9 +1158,10 @@ const upgradeAuth = async () => {
                                     </div>
                                     <FileProgressBar v-if="fileState" :state="fileState" :progress="fileProgress" />
                                     <template v-else>
-                                        <p v-if="downloadError" class="text-red-400 text-xs">{{ downloadError }}</p>
+                                        <p v-if="downloadError" class="text-red-400 text-xs" data-testid="download-error">{{ downloadError }}</p>
                                         <button
                                             @click="downloadFile"
+                                            data-testid="download-button"
                                             class="w-full border border-gamboge-300 text-gamboge-300 hover:bg-gamboge-300/10 font-mono text-sm py-2 rounded-lg transition-colors"
                                         >
                                             Decrypt &amp; Download
