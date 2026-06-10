@@ -1158,9 +1158,10 @@ const upgradeAuth = async () => {
                                     </div>
                                     <FileProgressBar v-if="fileState" :state="fileState" :progress="fileProgress" />
                                     <template v-else>
-                                        <p v-if="downloadError" class="text-red-400 text-xs">{{ downloadError }}</p>
+                                        <p v-if="downloadError" class="text-red-400 text-xs" data-testid="download-error">{{ downloadError }}</p>
                                         <button
                                             @click="downloadFile"
+                                            data-testid="download-button"
                                             class="w-full border border-gamboge-300 text-gamboge-300 hover:bg-gamboge-300/10 font-mono text-sm py-2 rounded-lg transition-colors"
                                         >
                                             Decrypt &amp; Download
