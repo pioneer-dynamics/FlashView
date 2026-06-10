@@ -257,7 +257,7 @@ class LockerController extends Controller
         ]);
     }
 
-    public function renewPage(): Response
+    public function renewPage(Request $request): Response
     {
         return Inertia::render('Locker/Renew');
     }

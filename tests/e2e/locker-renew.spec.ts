@@ -8,7 +8,6 @@ import {
     navigateToLocker,
     navigateToLockerRenew,
     KEY_FILE_ALPHA,
-    KEY_FILE_BETA,
 } from './helpers/locker';
 
 test.beforeEach(() => {

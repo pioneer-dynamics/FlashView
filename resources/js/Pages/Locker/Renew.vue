@@ -187,12 +187,12 @@ const submit = async () => {
                 <!-- Initialising skeleton -->
                 <div v-if="initialising" class="bg-gray-800 border border-gray-700 rounded-xl p-8 space-y-6">
                     <div class="space-y-2">
-                        <div class="h-3 w-24 bg-gray-700 rounded animate-pulse" />
-                        <div class="h-6 w-40 bg-gray-700 rounded animate-pulse" />
+                        <div class="h-3 w-24 bg-gray-700 rounded animate-shimmer" />
+                        <div class="h-6 w-40 bg-gray-700 rounded animate-shimmer" />
                     </div>
                     <div class="bg-gray-900 rounded-lg p-4 space-y-3">
-                        <div class="h-4 w-full bg-gray-700 rounded animate-pulse" />
-                        <div class="h-4 w-3/4 bg-gray-700 rounded animate-pulse" />
+                        <div class="h-4 w-full bg-gray-700 rounded animate-shimmer" />
+                        <div class="h-4 w-3/4 bg-gray-700 rounded animate-shimmer" />
                     </div>
                     <div class="text-gray-500 text-xs text-center font-mono animate-pulse">Loading locker details…</div>
                 </div>
