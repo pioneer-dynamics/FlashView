@@ -1083,6 +1083,61 @@ class LockerControllerTest extends TestCase
         ]);
 
         $response->assertJsonMissing(['key_file']);
+        // Tier and expires_at are revealed even in privacy mode — the renew page needs them.
+        $response->assertJson(['tier' => 'text']);
+        $response->assertJsonPath('expires_at', fn ($v) => $v !== null);
+    }
+
+    public function test_renew_page_route_renders_inertia_component(): void
+    {
+        $response = $this->get(route('lockers.renew'));
+
+        $response->assertStatus(200);
+        $response->assertInertia(fn ($page) => $page->component('Locker/Renew'));
+    }
+
+    public function test_auth_info_includes_tier_and_expires_at_for_real_locker(): void
+    {
+        Locker::factory()->create([
+            'account_id' => '4000000001',
+            'show_clues' => true,
+            'auth_mode' => 'passphrase',
+        ]);
+
+        $response = $this->getJson(route('lockers.auth-info', '4000000001'));
+
+        $response->assertStatus(200);
+        $response->assertJsonStructure(['tier', 'expires_at']);
+        $response->assertJson(['tier' => 'text', 'show_clues' => true]);
+        $this->assertNotNull($response->json('expires_at'));
+    }
+
+    public function test_auth_info_includes_file_tier_for_file_locker(): void
+    {
+        Locker::factory()->fileLocker()->create([
+            'account_id' => '4000000002',
+            'show_clues' => true,
+        ]);
+
+        $response = $this->getJson(route('lockers.auth-info', '4000000002'));
+
+        $response->assertStatus(200)->assertJson(['tier' => 'file']);
+    }
+
+    public function test_auth_info_returns_null_tier_and_expires_at_for_unknown_locker(): void
+    {
+        $response = $this->getJson(route('lockers.auth-info', '9999999998'));
+
+        $response->assertStatus(200)->assertJson(['tier' => null, 'expires_at' => null]);
+    }
+
+    public function test_renew_challenge_returns_404_for_html_requests(): void
+    {
+        Locker::factory()->create(['account_id' => '4000000003']);
+
+        $response = $this->get(route('lockers.renew.challenge', '4000000003'));
+
+        $response->assertStatus(404);
     }
 
     public function test_store_saves_show_clues_false(): void

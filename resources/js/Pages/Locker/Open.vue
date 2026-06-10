@@ -188,6 +188,11 @@ const computeEffectivePassphrase = async () => {
     return enc.combineLockerKeyMaterials([passphrase.value, ...fileHashes]);
 };
 
+const navigateToRenew = () => {
+    sessionStorage.setItem('locker_prefill_account_renew', accountId.value);
+    router.visit(route('lockers.renew'));
+};
+
 const lockLocker = () => {
     // Reset to account-entry phase — user must re-present account number to unlock again
     accountPhase.value             = 'entry';
@@ -1008,7 +1013,11 @@ const upgradeAuth = async () => {
                         <div class="flex items-center gap-3">
                             <div v-if="expiresAt" class="text-right">
                                 <div :class="daysRemaining <= 30 ? 'text-red-400' : 'text-gray-400'" class="text-xs font-mono">{{ expiryLabel }}</div>
-                                <a :href="route('lockers.renew.challenge', accountId)" class="text-gamboge-300 hover:text-gamboge-200 text-xs font-mono underline">Renew</a>
+                                <button
+                                    @click="navigateToRenew"
+                                    data-testid="renew-button"
+                                    class="text-gamboge-300 hover:text-gamboge-200 text-xs font-mono underline bg-transparent border-0 p-0 cursor-pointer"
+                                >Renew</button>
                             </div>
                             <button
                                 v-if="lockState === 'unlocked'"
