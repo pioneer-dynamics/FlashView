@@ -372,7 +372,6 @@ class LockerController extends Controller
         ];
 
         if ($locker->isFileLocker()) {
-            $data['download_url'] = Storage::temporaryUrl($locker->storage_path, now()->addMinutes(15));
             $data['wrapped_file_key'] = $locker->wrapped_file_key;
         }
 
@@ -396,11 +395,44 @@ class LockerController extends Controller
             'auth_challenge' => $locker->auth_challenge,
         ];
 
-        if ($locker->isFileLocker()) {
-            $data['download_url'] = Storage::temporaryUrl($locker->storage_path, now()->addMinutes(15));
+        return response()->json($data);
+    }
+
+    public function downloadUrl(Request $request, string $accountId): JsonResponse
+    {
+        $locker = Locker::where('account_id', $accountId)->first();
+
+        if (! $locker) {
+            return response()->json(['error' => 'Locker not found.'], 404);
         }
 
-        return response()->json($data);
+        if ($locker->isExpired()) {
+            return response()->json(['error' => 'This locker has expired.'], 410);
+        }
+
+        if (! $locker->isFileLocker()) {
+            return response()->json(['error' => 'Locker not found.'], 404);
+        }
+
+        $challengeId = $request->header('X-Signing-Challenge-Id');
+        $signature = $request->header('X-Signature');
+
+        $verified = false;
+
+        if ($challengeId && $signature) {
+            $challengeHex = $this->ecdsaService->consumeChallenge($challengeId, $accountId);
+            if ($challengeHex !== null) {
+                $verified = $this->ecdsaService->verify($locker->public_key, $challengeHex, $signature);
+            }
+        }
+
+        if (! $verified) {
+            return response()->json(['error' => 'Invalid credentials.'], 403);
+        }
+
+        $downloadUrl = Storage::temporaryUrl($locker->storage_path, now()->addMinutes(5));
+
+        return response()->json(['download_url' => $downloadUrl]);
     }
 
     public function update(UpdateLockerRequest $request, string $accountId): JsonResponse
