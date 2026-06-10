@@ -187,15 +187,26 @@ class LockerController extends Controller
     {
         $locker = Locker::where('account_id', $accountId)->first();
 
-        // Non-existent lockers and lockers with show_clues=false return an opaque
-        // passphrase-default response, preventing enumeration of locker existence and auth mode.
-        if (! $locker || ! $locker->show_clues) {
+        // Non-existent lockers return a fully opaque response to prevent enumeration.
+        if (! $locker) {
             return response()->json([
                 'auth_mode' => 'passphrase',
                 'key_file_count' => null,
                 'show_clues' => false,
                 'tier' => null,
                 'expires_at' => null,
+            ]);
+        }
+
+        // show_clues=false hides auth mechanism (passphrase vs key files) but not renewal
+        // metadata — the renew page needs tier and expires_at to build the correct payload.
+        if (! $locker->show_clues) {
+            return response()->json([
+                'auth_mode' => 'passphrase',
+                'key_file_count' => null,
+                'show_clues' => false,
+                'tier' => $locker->isFileLocker() ? 'file' : 'text',
+                'expires_at' => $locker->expires_at->toIso8601String(),
             ]);
         }
 

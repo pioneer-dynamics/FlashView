@@ -1083,7 +1083,9 @@ class LockerControllerTest extends TestCase
         ]);
 
         $response->assertJsonMissing(['key_file']);
-        $response->assertJson(['tier' => null, 'expires_at' => null]);
+        // Tier and expires_at are revealed even in privacy mode — the renew page needs them.
+        $response->assertJson(['tier' => 'text']);
+        $response->assertJsonPath('expires_at', fn ($v) => $v !== null);
     }
 
     public function test_renew_page_route_renders_inertia_component(): void

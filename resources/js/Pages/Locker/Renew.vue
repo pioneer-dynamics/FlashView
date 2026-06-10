@@ -28,12 +28,12 @@ const daysRemaining = computed(() => {
 });
 
 const tierLabel = computed(() => {
-    if (!showClues.value || !tier.value) return 'Hidden (privacy mode)';
+    if (!tier.value) return '—';
     return tier.value === 'file' ? 'File Locker' : 'Text Locker';
 });
 
 const daysLabel = computed(() => {
-    if (!showClues.value || daysRemaining.value === null) return 'Hidden (privacy mode)';
+    if (daysRemaining.value === null) return '—';
     return daysRemaining.value;
 });
 
