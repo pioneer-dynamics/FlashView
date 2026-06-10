@@ -23,7 +23,7 @@ test('renew navigation from index page does not include account number in URL', 
 
 test('renew page without sessionStorage redirects to locker index', async ({ page }) => {
     await page.goto('/lockers/renew');
-    await page.waitForLoadState('networkidle');
+    await page.waitForURL(/\/lockers\/?$/, { timeout: 10000 });
 
     await expect(page).toHaveURL(/\/lockers\/?$/);
 });
@@ -37,7 +37,7 @@ test('renew link from open page navigates to /lockers/renew without account numb
     await page.getByTestId('unlock-button').click();
     await expect(page.getByTestId('decrypted-content')).toBeVisible({ timeout: 15000 });
 
-    await page.getByText('Renew').click();
+    await page.getByTestId('renew-button').click();
 
     await expect(page).toHaveURL(/\/lockers\/renew$/);
     expect(page.url()).not.toContain('1082082082');

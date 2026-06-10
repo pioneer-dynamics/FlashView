@@ -1015,6 +1015,7 @@ const upgradeAuth = async () => {
                                 <div :class="daysRemaining <= 30 ? 'text-red-400' : 'text-gray-400'" class="text-xs font-mono">{{ expiryLabel }}</div>
                                 <button
                                     @click="navigateToRenew"
+                                    data-testid="renew-button"
                                     class="text-gamboge-300 hover:text-gamboge-200 text-xs font-mono underline bg-transparent border-0 p-0 cursor-pointer"
                                 >Renew</button>
                             </div>

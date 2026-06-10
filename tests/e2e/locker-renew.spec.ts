@@ -23,7 +23,7 @@ test('renew link on open page leads to renew page without account number in URL'
     await page.getByTestId('unlock-button').click();
     await expect(page.getByTestId('decrypted-content')).toBeVisible({ timeout: 15000 });
 
-    await page.getByText('Renew').click();
+    await page.getByTestId('renew-button').click();
 
     await expect(page).toHaveURL(/\/lockers\/renew$/);
     await expect(page.getByText(/Renew eLocker/i)).toBeVisible();
@@ -129,7 +129,7 @@ test('ECDSA locker renewal with wrong passphrase shows error', async ({ page }) 
 test('renew page without sessionStorage redirects to locker index', async ({ page }) => {
     // Navigate directly without setting sessionStorage — must redirect to /lockers
     await page.goto('/lockers/renew');
-    await page.waitForLoadState('networkidle');
+    await page.waitForURL(/\/lockers\/?$/, { timeout: 10000 });
 
     await expect(page).toHaveURL(/\/lockers\/?$/);
 });
