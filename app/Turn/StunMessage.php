@@ -150,17 +150,11 @@ class StunMessage
         return $this->attributes[$type] ?? null;
     }
 
-    /**
-     * @param  array{ip: string, port: int}  $address
-     */
     public function addXorMappedAddress(string $ip, int $port): void
     {
         $this->attributes[self::ATTR_XOR_MAPPED_ADDRESS] = ['ip' => $ip, 'port' => $port];
     }
 
-    /**
-     * @param  array{ip: string, port: int}  $address
-     */
     public function addXorRelayedAddress(string $ip, int $port): void
     {
         $this->attributes[self::ATTR_XOR_RELAYED_ADDRESS] = ['ip' => $ip, 'port' => $port];
@@ -268,9 +262,7 @@ class StunMessage
         return $body;
     }
 
-    /**
-     * @param  array{ip: string, port: int}  $addr
-     */
+    /** @return array{ip: string, port: int} */
     private static function decodeXorAddress(string $value, string $txnId): array
     {
         // Byte 0: reserved; Byte 1: family (0x01=IPv4)
@@ -303,6 +295,7 @@ class StunMessage
         return "\x00\x01".pack('nN', $xorPort, $xorIp);
     }
 
+    /** @return array{code: int, reason: string} */
     private static function decodeErrorCode(string $value): array
     {
         $class = ord($value[2]) & 0x07;

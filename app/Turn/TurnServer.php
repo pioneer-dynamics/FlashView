@@ -21,6 +21,8 @@ class TurnServer
     /** @var array<int> */
     private array $usedRelayPorts = [];
 
+    private int $lastMemoryReport = 0;
+
     public function __construct(
         private readonly string $host,
         private readonly int $port,
@@ -102,6 +104,7 @@ class TurnServer
             }
 
             $this->expireAllocations();
+            $this->reportMemoryIfDue();
         }
     }
 
@@ -125,10 +128,6 @@ class TurnServer
     {
         return $this->publicIp;
     }
-
-    // -------------------------------------------------------------------------
-    // Public IP resolution
-    // -------------------------------------------------------------------------
 
     private function resolvePublicIp(): string
     {
@@ -172,10 +171,6 @@ class TurnServer
 
         return $result !== false ? trim($result) : null;
     }
-
-    // -------------------------------------------------------------------------
-    // Packet dispatch
-    // -------------------------------------------------------------------------
 
     private function receiveFromClient(): void
     {
@@ -437,10 +432,6 @@ class TurnServer
         $this->sendResponse($ind, $alloc->clientIp, $alloc->clientPort);
     }
 
-    // -------------------------------------------------------------------------
-    // Helpers
-    // -------------------------------------------------------------------------
-
     private function verifyCredentials(StunMessage $msg, string $username, string $realm): bool
     {
         if ($username !== $this->username || $realm !== $this->realm) {
@@ -529,6 +520,26 @@ class TurnServer
         socket_set_nonblock($sock);
 
         return $sock;
+    }
+
+    private function reportMemoryIfDue(): void
+    {
+        if (! $this->logPackets) {
+            return;
+        }
+
+        $now = time();
+
+        if ($now - $this->lastMemoryReport < 60) {
+            return;
+        }
+
+        $this->lastMemoryReport = $now;
+
+        $mb = round(memory_get_usage(true) / 1_048_576, 2);
+        $peak = round(memory_get_peak_usage(true) / 1_048_576, 2);
+
+        Log::info("[TURN] Memory: {$mb} MB (peak {$peak} MB) | Allocations: ".count($this->allocations));
     }
 
     private function allocationForRelay(\Socket $sock): ?TurnAllocation

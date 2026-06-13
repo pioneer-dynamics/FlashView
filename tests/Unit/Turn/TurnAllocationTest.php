@@ -30,11 +30,6 @@ class TurnAllocationTest extends TestCase
         );
     }
 
-    protected function tearDown(): void
-    {
-        parent::tearDown();
-    }
-
     public function test_is_not_expired_when_fresh(): void
     {
         $alloc = $this->makeAllocation(ttl: 600);
