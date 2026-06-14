@@ -15,6 +15,7 @@ class JoinCallSessionRequest extends FormRequest
     {
         return [
             'signature' => ['required', 'string'],
+            'public_key' => ['nullable', 'string', 'max:512'],
         ];
     }
 }

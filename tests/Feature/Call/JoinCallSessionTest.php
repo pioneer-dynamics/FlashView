@@ -181,4 +181,47 @@ class JoinCallSessionTest extends TestCase
         $this->assertNotEquals((string) $session->id, $bridgeNumber);
         $this->assertEquals($session->hash_id, $bridgeNumber);
     }
+
+    public function test_join_stores_public_key_when_provided(): void
+    {
+        [$privateKey, , $session] = $this->generateKeyPairAndSession();
+        $challenge = $this->fetchChallenge($session);
+        $signature = $this->signChallenge($privateKey, $challenge);
+        // Synthetic placeholder — not a real P-256 JWK; tests DB persistence only
+        $publicKey = base64_encode(random_bytes(65));
+
+        $this->postJson("/call-sessions/{$session->hash_id}/join", [
+            'signature' => $signature,
+            'public_key' => $publicKey,
+        ])->assertOk();
+
+        $this->assertDatabaseHas('call_participants', [
+            'call_session_id' => $session->id,
+            'public_key' => $publicKey,
+        ]);
+    }
+
+    public function test_join_succeeds_when_public_key_is_omitted(): void
+    {
+        [$privateKey, , $session] = $this->generateKeyPairAndSession();
+        $challenge = $this->fetchChallenge($session);
+        $signature = $this->signChallenge($privateKey, $challenge);
+
+        $this->postJson("/call-sessions/{$session->hash_id}/join", [
+            'signature' => $signature,
+        ])->assertOk();
+
+        $participant = $session->fresh()->participants->first();
+        $this->assertNull($participant->public_key);
+    }
+
+    public function test_join_rejects_oversized_public_key(): void
+    {
+        $session = CallSession::factory()->create();
+
+        $this->postJson("/call-sessions/{$session->hash_id}/join", [
+            'signature' => base64_encode(random_bytes(64)),
+            'public_key' => str_repeat('A', 513),
+        ])->assertUnprocessable()->assertJsonValidationErrors(['public_key']);
+    }
 }

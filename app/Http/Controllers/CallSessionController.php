@@ -45,6 +45,7 @@ class CallSessionController extends Controller
         $participant = $callSession->participants()->create([
             'joined_at' => now(),
             'ip_address' => $request->ip(),
+            'public_key' => $request->input('public_key'),
         ]);
 
         $remainingSeconds = max(60, (int) now()->diffInSeconds($callSession->ends_at, absolute: true));

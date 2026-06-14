@@ -7,6 +7,9 @@ import {
     generateFileKey, wrapFileKey, unwrapFileKey,
     deriveSigningKeypair, signChallenge,
     deriveKeyFromFile, combineLockerKeyMaterials,
+    encryptKeyForDevice, decryptKeyFromDevice,
+    generateCallEphemeralKeypair, generateCallSessionAesKey,
+    wrapCallSessionKey, unwrapCallSessionKey,
 } from '../src/index.js';
 
 // Known vectors generated from the pre-migration CLI implementation (tools/flashview-cli/src/crypto.js)
@@ -616,5 +619,123 @@ describe('combineLockerKeyMaterials', () => {
     it('throws on null or undefined', async () => {
         await assert.rejects(() => combineLockerKeyMaterials(null), Error);
         await assert.rejects(() => combineLockerKeyMaterials(undefined), Error);
+    });
+});
+
+// ─── Call Key Exchange (E2E) ──────────────────────────────────────────────────
+
+describe('generateCallEphemeralKeypair', () => {
+    it('returns publicKeyBase64 and privateKeyBase64 strings', async () => {
+        const keypair = await generateCallEphemeralKeypair();
+        assert.equal(typeof keypair.publicKeyBase64, 'string', 'publicKeyBase64 should be a string');
+        assert.equal(typeof keypair.privateKeyBase64, 'string', 'privateKeyBase64 should be a string');
+        assert.ok(keypair.publicKeyBase64.length > 0, 'publicKeyBase64 should be non-empty');
+        assert.ok(keypair.privateKeyBase64.length > 0, 'privateKeyBase64 should be non-empty');
+    });
+
+    it('publicKeyBase64 decodes to a valid P-256 JWK without d field (public only)', async () => {
+        const { publicKeyBase64 } = await generateCallEphemeralKeypair();
+        const jwk = JSON.parse(atob(publicKeyBase64));
+        assert.equal(jwk.kty, 'EC', 'JWK kty should be EC');
+        assert.equal(jwk.crv, 'P-256', 'JWK crv should be P-256');
+        assert.ok(jwk.x, 'JWK should have x coordinate');
+        assert.ok(jwk.y, 'JWK should have y coordinate');
+        assert.equal(jwk.d, undefined, 'Public JWK must not contain d (private scalar)');
+    });
+
+    it('generates unique keypairs on each call', async () => {
+        const a = await generateCallEphemeralKeypair();
+        const b = await generateCallEphemeralKeypair();
+        assert.notEqual(a.publicKeyBase64, b.publicKeyBase64, 'Two keypairs should have different public keys');
+        assert.notEqual(a.privateKeyBase64, b.privateKeyBase64, 'Two keypairs should have different private keys');
+    });
+});
+
+describe('generateCallSessionAesKey', () => {
+    it('returns a base64 string that decodes to 32 bytes', () => {
+        const key = generateCallSessionAesKey();
+        assert.equal(typeof key, 'string', 'Should return a string');
+        const bytes = Uint8Array.from(atob(key), c => c.charCodeAt(0));
+        assert.equal(bytes.length, 32, 'Decoded key should be exactly 32 bytes');
+    });
+
+    it('generates unique keys on each call', () => {
+        const a = generateCallSessionAesKey();
+        const b = generateCallSessionAesKey();
+        assert.notEqual(a, b, 'Two generated keys should differ');
+    });
+});
+
+describe('wrapCallSessionKey + unwrapCallSessionKey', () => {
+    it('roundtrips a session key between two participants', async () => {
+        const senderKeypair = await generateCallEphemeralKeypair();
+        const recipientKeypair = await generateCallEphemeralKeypair();
+        const sessionKey = generateCallSessionAesKey();
+
+        const wrapped = await wrapCallSessionKey(
+            sessionKey,
+            recipientKeypair.publicKeyBase64,
+            senderKeypair.privateKeyBase64,
+        );
+
+        const unwrapped = await unwrapCallSessionKey(
+            wrapped,
+            recipientKeypair.privateKeyBase64,
+            senderKeypair.publicKeyBase64,
+        );
+
+        assert.equal(unwrapped, sessionKey, 'Unwrapped key must match original session key');
+    });
+
+    it('fails to unwrap with wrong private key', async () => {
+        const senderKeypair = await generateCallEphemeralKeypair();
+        const recipientKeypair = await generateCallEphemeralKeypair();
+        const wrongKeypair = await generateCallEphemeralKeypair();
+        const sessionKey = generateCallSessionAesKey();
+
+        const wrapped = await wrapCallSessionKey(
+            sessionKey,
+            recipientKeypair.publicKeyBase64,
+            senderKeypair.privateKeyBase64,
+        );
+
+        await assert.rejects(
+            () => unwrapCallSessionKey(wrapped, wrongKeypair.privateKeyBase64, senderKeypair.publicKeyBase64),
+            'Should reject when unwrapping with the wrong private key',
+        );
+    });
+
+    it('produces different output each call due to random IV', async () => {
+        const senderKeypair = await generateCallEphemeralKeypair();
+        const recipientKeypair = await generateCallEphemeralKeypair();
+        const sessionKey = generateCallSessionAesKey();
+
+        const wrapped1 = await wrapCallSessionKey(
+            sessionKey, recipientKeypair.publicKeyBase64, senderKeypair.privateKeyBase64,
+        );
+        const wrapped2 = await wrapCallSessionKey(
+            sessionKey, recipientKeypair.publicKeyBase64, senderKeypair.privateKeyBase64,
+        );
+
+        assert.notEqual(wrapped1, wrapped2, 'Random IV should produce different blobs each call');
+    });
+
+    it('is domain-separated from decryptKeyFromDevice (pipe pairing cannot decrypt call-wrapped key)', async () => {
+        // Same ECDH key pair used for both operations — isolates the HKDF salt as the only difference
+        const keypair = await generateCallEphemeralKeypair();
+        const sessionKey = generateCallSessionAesKey();
+
+        const callWrapped = await wrapCallSessionKey(
+            sessionKey,
+            keypair.publicKeyBase64,
+            keypair.privateKeyBase64,
+        );
+
+        // Pipe pairing uses HKDF salt 'flashview-pipe-pairing-v1'; call uses 'flashview-call-key-exchange-v1'
+        // Attempting to unwrap the call blob with the pipe pairing function must fail
+        await assert.rejects(
+            () => decryptKeyFromDevice(callWrapped, keypair.privateKeyBase64, keypair.publicKeyBase64),
+            'Pipe pairing decryption must not succeed on a call-domain wrapped key',
+        );
     });
 });
