@@ -2,7 +2,6 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import { router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
-import Alert from '@/Components/Alert.vue';
 import axios from 'axios';
 import { encryption } from '@/encryption.js';
 
@@ -23,9 +22,8 @@ const sessionData = raw ? JSON.parse(raw) : null;
 
 // Reactive state
 const localStream = ref(null);
-const peers = ref({});         // { [participantId]: { pc, stream, connectionFailed } }
+const peers = ref({});         // { [participantId]: { pc, connectionFailed } }
 const isMuted = ref(false);
-const isCameraOff = ref(false);
 const mediaError = ref(null);  // null | 'denied' | 'unavailable'
 const timeRemaining = ref(null);
 const callEnded = ref(false);
@@ -34,6 +32,9 @@ const signalCursor = ref(null);
 const confirmingLeave = ref(false);
 const participantCount = ref(1);
 const showTurnWarning = ref(sessionData?.turn_warning === true);
+
+// Hidden <audio> elements for remote participants — not reactive, managed directly
+const remoteAudioElements = {};
 
 // Timer handles
 const participantPollTimer = ref(null);
@@ -105,14 +106,26 @@ function createPeerConnection(peerId) {
         }
     };
     pc.ontrack = ({ streams }) => {
-        peers.value[peerId] = { ...peers.value[peerId], stream: streams[0] };
+        if (streams[0]) {
+            // Play remote audio via a hidden <audio> element (audio-only call)
+            if (!remoteAudioElements[peerId]) {
+                const audio = document.createElement('audio');
+                audio.autoplay = true;
+                audio.style.display = 'none';
+                document.body.appendChild(audio);
+                remoteAudioElements[peerId] = audio;
+            }
+            remoteAudioElements[peerId].srcObject = streams[0];
+        }
     };
     pc.onconnectionstatechange = () => {
         if (pc.connectionState === 'failed') {
-            peers.value[peerId] = { ...peers.value[peerId], connectionFailed: true };
+            // Spread to a new object so Vue 3 detects the change
+            peers.value = { ...peers.value, [peerId]: { ...peers.value[peerId], connectionFailed: true } };
         }
     };
-    peers.value[peerId] = { pc, stream: null, connectionFailed: false };
+    // Spread to a new object so Vue 3 detects the key addition
+    peers.value = { ...peers.value, [peerId]: { pc, connectionFailed: false } };
     return pc;
 }
 
@@ -250,17 +263,16 @@ function cleanup() {
     clearInterval(redirectTimer.value);
     Object.values(peers.value).forEach(({ pc }) => pc.close());
     localStream.value?.getTracks().forEach(t => t.stop());
+    Object.values(remoteAudioElements).forEach(a => {
+        a.srcObject = null;
+        a.remove();
+    });
     sessionStorage.removeItem(storageKey);
 }
 
 function toggleMute() {
     isMuted.value = !isMuted.value;
     localStream.value?.getAudioTracks().forEach(t => { t.enabled = !isMuted.value; });
-}
-
-function toggleCamera() {
-    isCameraOff.value = !isCameraOff.value;
-    localStream.value?.getVideoTracks().forEach(t => { t.enabled = !isCameraOff.value; });
 }
 
 function requestLeave()  { confirmingLeave.value = true; }
@@ -271,7 +283,7 @@ onMounted(async () => {
     if (!sessionData) return;
 
     try {
-        localStream.value = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        localStream.value = await navigator.mediaDevices.getUserMedia({ audio: true });
     } catch (e) {
         mediaError.value = e.name === 'NotFoundError' ? 'unavailable' : 'denied';
         return;
@@ -288,20 +300,20 @@ onUnmounted(cleanup);
     <AppLayout title="Secure Line — Call">
         <div class="dark min-h-screen bg-gray-950">
 
-            <!-- Media permission error screen -->
+            <!-- Microphone permission error screen -->
             <div v-if="mediaError" class="flex items-center justify-center min-h-screen px-4">
                 <div class="max-w-md w-full bg-gray-900 border border-red-700/50 rounded-xl p-8 space-y-4 text-center">
                     <div class="text-red-400 font-mono text-xs uppercase tracking-widest mb-2">Permission Required</div>
-                    <h2 class="text-white text-xl font-bold">Camera &amp; Microphone Access Needed</h2>
+                    <h2 class="text-white text-xl font-bold">Microphone Access Needed</h2>
                     <p v-if="mediaError === 'unavailable'" class="text-gray-400 text-sm">
-                        No camera or microphone was found on this device. Please connect a webcam and microphone and reload.
+                        No microphone was found on this device. Please connect a microphone and reload.
                     </p>
                     <p v-else class="text-gray-400 text-sm">
-                        Camera and microphone access was denied. To join the call, allow access in your browser settings and reload this page.
+                        Microphone access was denied. To join the call, allow access in your browser settings and reload this page.
                     </p>
                     <p class="text-gray-500 text-xs">
-                        In Chrome: click the lock icon in the address bar → Site settings → Allow Camera and Microphone.<br>
-                        In Firefox: click the camera icon in the address bar → Remove block.
+                        In Chrome: click the lock icon in the address bar → Site settings → Allow Microphone.<br>
+                        In Firefox: click the microphone icon in the address bar → Remove block.
                     </p>
                     <button
                         @click="router.visit(route('calls.join', session.bridge_number))"
@@ -330,61 +342,59 @@ onUnmounted(cleanup);
                     <button @click="showTurnWarning = false" class="text-amber-400 hover:text-amber-200 text-xs font-mono shrink-0">Dismiss</button>
                 </div>
 
-                <!-- Video grid -->
-                <div class="flex-1 p-4">
-                    <div class="grid gap-4 h-full" :class="Object.keys(peers).length === 0 ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2'">
+                <!-- Audio call area — pb-24 clears the fixed controls bar -->
+                <div class="flex-1 flex flex-col items-center justify-center gap-10 pb-24 px-8">
 
-                        <!-- Local video tile -->
-                        <div class="relative bg-gray-900 rounded-xl overflow-hidden aspect-video">
-                            <video
-                                v-if="localStream"
-                                :srcObject="localStream"
-                                autoplay
-                                muted
-                                playsinline
-                                class="w-full h-full object-cover"
-                            />
-                            <div v-else class="flex items-center justify-center h-full text-gray-600">
-                                <span class="font-mono text-sm">Loading camera…</span>
-                            </div>
-                            <div class="absolute bottom-2 left-2 text-xs font-mono text-gamboge-300 bg-gray-950/70 px-2 py-0.5 rounded">You</div>
-                            <div v-if="isMuted" class="absolute top-2 right-2 text-red-400 bg-gray-950/70 rounded-full p-1">
-                                <svg class="size-4" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 19L5 5m5.5 4.5A4 4 0 0 0 12 12v3m-4 2.5c.8.8 2 1.5 4 1.5s3.2-.7 4-1.5m.5-8.5a4 4 0 0 0-8 0v4"/></svg>
-                            </div>
+                    <!-- Waiting state — shown until a second participant joins -->
+                    <div v-if="participantCount <= 1" class="text-center space-y-4">
+                        <div class="w-24 h-24 rounded-full bg-gray-900 border-2 border-gray-700 flex items-center justify-center mx-auto">
+                            <svg class="w-10 h-10 text-gray-600 animate-pulse" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 18.75a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 0 1-3-3V4.5a3 3 0 1 1 6 0v8.25a3 3 0 0 1-3 3Z"/>
+                            </svg>
                         </div>
-
-                        <!-- Remote video tiles -->
-                        <template v-for="(peer, peerId) in peers" :key="peerId">
-                            <div class="relative bg-gray-900 rounded-xl overflow-hidden aspect-video">
-                                <video
-                                    v-if="peer.stream"
-                                    :srcObject="peer.stream"
-                                    autoplay
-                                    playsinline
-                                    class="w-full h-full object-cover"
-                                />
-                                <div v-else class="flex items-center justify-center h-full text-gray-600">
-                                    <span class="font-mono text-sm animate-pulse">Connecting…</span>
-                                </div>
-                                <!-- Connection failed overlay -->
-                                <div v-if="peer.connectionFailed" class="absolute inset-0 bg-gray-950/80 flex items-center justify-center p-4">
-                                    <p class="text-red-400 text-xs text-center font-mono">
-                                        Connection lost. This may recover automatically — if not, ask the participant to rejoin.
-                                    </p>
-                                </div>
-                            </div>
-                        </template>
-
-                        <!-- Empty state — no peers yet -->
-                        <div v-if="Object.keys(peers).length === 0" class="bg-gray-900/50 border border-gray-700/50 rounded-xl aspect-video flex items-center justify-center">
-                            <p class="text-gray-500 font-mono text-sm animate-pulse">Waiting for others to join…</p>
-                        </div>
-
+                        <p class="text-gray-500 font-mono text-sm">Waiting for others to join…</p>
                     </div>
+
+                    <!-- Active call — participant circles, one per person -->
+                    <div v-else class="flex flex-wrap gap-8 justify-center">
+                        <!-- You -->
+                        <div class="flex flex-col items-center gap-2">
+                            <div
+                                class="w-20 h-20 rounded-full bg-gray-800 border-2 flex items-center justify-center transition-colors"
+                                :class="isMuted ? 'border-gray-700' : 'border-gamboge-300 shadow-neon-cyan-sm'"
+                            >
+                                <svg class="w-8 h-8 text-gray-300" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z"/>
+                                </svg>
+                            </div>
+                            <span class="text-xs font-mono text-gamboge-300">You{{ isMuted ? ' (muted)' : '' }}</span>
+                        </div>
+
+                        <!-- Remote participants — one circle per additional participant -->
+                        <div
+                            v-for="i in (participantCount - 1)"
+                            :key="i"
+                            class="flex flex-col items-center gap-2"
+                        >
+                            <div class="w-20 h-20 rounded-full bg-gray-800 border-2 border-gray-600 flex items-center justify-center">
+                                <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z"/>
+                                </svg>
+                            </div>
+                            <span class="text-xs font-mono text-gray-400">Participant {{ i }}</span>
+                        </div>
+                    </div>
+
+                    <!-- Bridge number display -->
+                    <div class="text-center">
+                        <p class="text-xs uppercase tracking-widest text-gray-600 font-mono mb-1">Bridge</p>
+                        <p class="font-mono text-gamboge-300 text-lg tracking-widest">{{ session.bridge_number }}</p>
+                    </div>
+
                 </div>
 
-                <!-- Controls bar -->
-                <div class="bg-gray-900 border-t border-gray-800 px-4 py-4">
+                <!-- Controls bar — fixed to viewport bottom, above any page footer -->
+                <div class="fixed bottom-0 left-0 right-0 z-10 bg-gray-900 border-t border-gray-800 px-4 py-4">
                     <div class="max-w-lg mx-auto flex items-center justify-between gap-4">
 
                         <!-- Left — participant count + time -->
@@ -398,7 +408,7 @@ onUnmounted(cleanup);
                             </div>
                         </div>
 
-                        <!-- Centre — mic / camera -->
+                        <!-- Centre — mute only (audio-only call, no camera button) -->
                         <div class="flex gap-3">
                             <button
                                 @click="toggleMute"
@@ -409,17 +419,6 @@ onUnmounted(cleanup);
                                 <svg class="size-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
                                     <path v-if="!isMuted" stroke-linecap="round" stroke-linejoin="round" d="M12 18.75a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 0 1-3-3V4.5a3 3 0 1 1 6 0v8.25a3 3 0 0 1-3 3Z"/>
                                     <path v-else stroke-linecap="round" stroke-linejoin="round" d="M19 19L5 5m5.5 4.5A4 4 0 0 0 12 12v3m-4 2.5c.8.8 2 1.5 4 1.5s3.2-.7 4-1.5m.5-8.5a4 4 0 0 0-8 0v4"/>
-                                </svg>
-                            </button>
-                            <button
-                                @click="toggleCamera"
-                                :title="isCameraOff ? 'Turn camera on' : 'Turn camera off'"
-                                :class="isCameraOff ? 'bg-red-700 hover:bg-red-600 text-white' : 'bg-gray-700 hover:bg-gray-600 text-gray-200'"
-                                class="p-3 rounded-full transition-colors shadow-neon-cyan-sm"
-                            >
-                                <svg class="size-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
-                                    <path v-if="!isCameraOff" stroke-linecap="round" stroke-linejoin="round" d="m15.75 10.5 4.72-4.72a.75.75 0 0 1 1.28.53v11.38a.75.75 0 0 1-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25h-9A2.25 2.25 0 0 0 2.25 7.5v9a2.25 2.25 0 0 0 2.25 2.25Z"/>
-                                    <path v-else stroke-linecap="round" stroke-linejoin="round" d="M15.75 10.5 4.72-4.72m0 0a.75.75 0 0 0-1.28.53v11.38a.75.75 0 0 0 1.28.53l4.72-4.72M4.5 18.75h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25h-9A2.25 2.25 0 0 0 2.25 7.5v9a2.25 2.25 0 0 0 2.25 2.25Z"/>
                                 </svg>
                             </button>
                         </div>
