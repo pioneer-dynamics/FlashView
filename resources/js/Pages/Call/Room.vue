@@ -305,7 +305,7 @@ onUnmounted(cleanup);
                     </p>
                     <button
                         @click="router.visit(route('calls.join', session.bridge_number))"
-                        class="w-full border border-gray-700 text-gray-300 hover:text-white py-2.5 rounded-lg font-mono text-sm transition-colors"
+                        class="w-full border border-gray-700 text-gray-300 hover:text-white py-2.5 rounded-lg font-mono text-sm transition-colors shadow-neon-cyan-sm"
                     >
                         ← Back to join page
                     </button>
@@ -404,7 +404,7 @@ onUnmounted(cleanup);
                                 @click="toggleMute"
                                 :title="isMuted ? 'Unmute' : 'Mute'"
                                 :class="isMuted ? 'bg-red-700 hover:bg-red-600 text-white' : 'bg-gray-700 hover:bg-gray-600 text-gray-200'"
-                                class="p-3 rounded-full transition-colors"
+                                class="p-3 rounded-full transition-colors shadow-neon-cyan-sm"
                             >
                                 <svg class="size-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
                                     <path v-if="!isMuted" stroke-linecap="round" stroke-linejoin="round" d="M12 18.75a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 0 1-3-3V4.5a3 3 0 1 1 6 0v8.25a3 3 0 0 1-3 3Z"/>
@@ -415,7 +415,7 @@ onUnmounted(cleanup);
                                 @click="toggleCamera"
                                 :title="isCameraOff ? 'Turn camera on' : 'Turn camera off'"
                                 :class="isCameraOff ? 'bg-red-700 hover:bg-red-600 text-white' : 'bg-gray-700 hover:bg-gray-600 text-gray-200'"
-                                class="p-3 rounded-full transition-colors"
+                                class="p-3 rounded-full transition-colors shadow-neon-cyan-sm"
                             >
                                 <svg class="size-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
                                     <path v-if="!isCameraOff" stroke-linecap="round" stroke-linejoin="round" d="m15.75 10.5 4.72-4.72a.75.75 0 0 1 1.28.53v11.38a.75.75 0 0 1-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25h-9A2.25 2.25 0 0 0 2.25 7.5v9a2.25 2.25 0 0 0 2.25 2.25Z"/>
@@ -434,7 +434,7 @@ onUnmounted(cleanup);
                             <button
                                 v-else
                                 @click="requestLeave"
-                                class="bg-red-800 hover:bg-red-700 text-white font-mono text-sm px-4 py-2 rounded-lg transition-colors"
+                                class="bg-red-800 hover:bg-red-700 text-white font-mono text-sm px-4 py-2 rounded-lg transition-colors shadow-neon-cyan-sm"
                             >
                                 Leave
                             </button>
