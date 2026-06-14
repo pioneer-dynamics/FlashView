@@ -3,6 +3,7 @@
 namespace Tests\Unit\Turn;
 
 use App\Contracts\TurnProvider;
+use App\Turn\FlashviewTurnProvider;
 use App\Turn\MeteredTurnProvider;
 use App\Turn\TurnManager;
 use App\Turn\XirsysTurnProvider;
@@ -17,6 +18,15 @@ class TurnManagerTest extends TestCase
         $manager = new TurnManager($this->app);
 
         $this->assertEquals('metered', $manager->getDefaultDriver());
+    }
+
+    public function test_can_resolve_flashview_driver(): void
+    {
+        config(['turn.drivers.flashview' => ['host' => 'turn.flashview.io', 'auth_secret' => 's', 'ttl' => 3600]]);
+
+        $manager = new TurnManager($this->app);
+
+        $this->assertInstanceOf(FlashviewTurnProvider::class, $manager->driver('flashview'));
     }
 
     public function test_can_resolve_metered_driver(): void
