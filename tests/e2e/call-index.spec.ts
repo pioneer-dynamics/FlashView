@@ -10,7 +10,7 @@ test('navigating to /calls renders the Secure Line index page with a bridge numb
     await page.goto('/calls');
     await page.waitForLoadState('networkidle');
 
-    await expect(page.getByText('Secure Line')).toBeVisible();
+    await expect(page.getByText('Encrypted, Ephemeral Video Calls')).toBeVisible();
     await expect(page.getByTestId('bridge-number-input')).toBeVisible();
     await expect(page.getByTestId('join-line-button')).toBeVisible();
 });
@@ -45,7 +45,8 @@ test('submitting an empty bridge number does not navigate', async ({ page }) => 
     await page.goto('/calls');
     await page.waitForLoadState('networkidle');
 
-    await page.getByTestId('join-line-button').click();
+    // Button is disabled when input is empty — force-click to verify navigation is blocked
+    await page.getByTestId('join-line-button').click({ force: true });
 
     await expect(page).toHaveURL('/calls');
 });
@@ -61,6 +62,6 @@ test('the Buy a Line card is visible with a link to plans', async ({ page }) => 
     await page.goto('/calls');
     await page.waitForLoadState('networkidle');
 
-    await expect(page.getByText('Buy a Line')).toBeVisible();
+    await expect(page.getByText('Buy a Line', { exact: true })).toBeVisible();
     await expect(page.getByText('Buy a Line →')).toBeVisible();
 });
