@@ -125,6 +125,10 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('call-sessions-join', function (Request $request) {
             return Limit::perMinute(10)->by($request->ip().'|'.$request->route('callSession'));
         });
+
+        RateLimiter::for('call-signal-store', fn (Request $request) => Limit::perMinute(120)->by($request->ip()));
+
+        RateLimiter::for('call-signal-poll', fn (Request $request) => Limit::perMinute(300)->by($request->ip()));
     }
 
     private function planThrottleLimit(User $user): Limit

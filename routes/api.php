@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\CallSignalController;
 use App\Http\Controllers\Api\ConfigController;
 use App\Http\Controllers\Api\FileUploadController;
 use App\Http\Controllers\Api\PipeController;
@@ -7,6 +8,7 @@ use App\Http\Controllers\Api\PipePairingController;
 use App\Http\Controllers\Api\PipeSignalController;
 use App\Http\Controllers\Api\SecretController;
 use App\Http\Controllers\Api\WebhookController;
+use App\Http\Controllers\CallSessionController;
 use App\Http\Middleware\EnsurePlanHasApiAccess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -73,5 +75,21 @@ Route::prefix('v1')->as('api.v1.')->group(function () {
         Route::delete('pipe/{sessionId}', [PipeController::class, 'destroy'])->name('pipe.destroy');
         Route::post('pipe/{sessionId}/signal', [PipeSignalController::class, 'store'])->name('pipe.signal.store');
         Route::get('pipe/{sessionId}/signal', [PipeSignalController::class, 'index'])->name('pipe.signal.index');
+    });
+
+    // Call routes — no auth required; Ed25519 challenge-response gates join, participant UUID gates signaling
+    Route::prefix('calls')->name('calls.')->group(function () {
+        Route::post('{callSession}/join', [CallSessionController::class, 'join'])
+            ->name('join')
+            ->middleware('throttle:call-sessions-join');
+        Route::get('{callSession}/participants', [CallSignalController::class, 'participants'])
+            ->name('participants')
+            ->middleware('throttle:call-signal-poll');
+        Route::post('{callSession}/signal', [CallSignalController::class, 'store'])
+            ->name('signal.store')
+            ->middleware('throttle:call-signal-store');
+        Route::get('{callSession}/signal', [CallSignalController::class, 'index'])
+            ->name('signal.index')
+            ->middleware('throttle:call-signal-poll');
     });
 });
