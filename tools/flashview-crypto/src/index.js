@@ -957,3 +957,161 @@ export function signCallChallenge(privateKeyBytes, challengeHex) {
     const signature = ed25519.sign(hexToBuffer(challengeHex), privateKeyBytes);
     return uint8ArrayToBase64(new Uint8Array(signature));
 }
+
+// ─── Call Key Exchange (E2E) ──────────────────────────────────────────────────
+
+const CALL_KEY_EXCHANGE_HKDF_SALT = new TextEncoder().encode('flashview-call-key-exchange-v1');
+
+/**
+ * Generate an ephemeral P-256 ECDH key pair for call E2E key exchange.
+ * Each participant generates a fresh pair on join; the private key never leaves the browser.
+ *
+ * @returns {Promise<{ publicKeyBase64: string, privateKeyBase64: string }>} JWK-format, base64-encoded
+ */
+export async function generateCallEphemeralKeypair() {
+    const keypair = await globalThis.crypto.subtle.generateKey(
+        { name: 'ECDH', namedCurve: 'P-256' },
+        true,
+        ['deriveBits'],
+    );
+
+    const [publicJwk, privateJwk] = await Promise.all([
+        globalThis.crypto.subtle.exportKey('jwk', keypair.publicKey),
+        globalThis.crypto.subtle.exportKey('jwk', keypair.privateKey),
+    ]);
+
+    return {
+        publicKeyBase64: btoa(JSON.stringify(publicJwk)),
+        privateKeyBase64: btoa(JSON.stringify(privateJwk)),
+    };
+}
+
+/**
+ * Generate a random 256-bit AES-GCM session key for call E2E encryption.
+ *
+ * @returns {string} base64-encoded 32-byte key
+ */
+export function generateCallSessionAesKey() {
+    const key = new Uint8Array(32);
+    globalThis.crypto.getRandomValues(key);
+    return uint8ArrayToBase64(key);
+}
+
+/**
+ * ECIES: wrap an AES session key for a specific call participant.
+ *
+ * Algorithm:
+ *   1. sharedSecret = ECDH(ownPrivateKey, peerPublicKey)
+ *   2. wrappingKey = HKDF-SHA-256(ikm=sharedSecret, salt='flashview-call-key-exchange-v1', info='wrapCallSessionKey', length=32)
+ *   3. iv = 12 random bytes
+ *   4. ciphertext+tag = AES-256-GCM(plaintext=sessionKeyBytes, key=wrappingKey, iv, aad=none)
+ *   5. blob = base64( iv[12] || ciphertext || tag[16] )
+ *
+ * @param {string} sessionKeyBase64 - 32-byte AES session key, base64-encoded
+ * @param {string} peerPublicKeyBase64 - recipient's ECDH public key, JWK base64
+ * @param {string} ownPrivateKeyBase64 - sender's ECDH private key, JWK base64
+ * @returns {Promise<string>} base64-encoded ECIES blob
+ */
+export async function wrapCallSessionKey(sessionKeyBase64, peerPublicKeyBase64, ownPrivateKeyBase64) {
+    const peerPublicKey = await globalThis.crypto.subtle.importKey(
+        'jwk',
+        JSON.parse(atob(peerPublicKeyBase64)),
+        { name: 'ECDH', namedCurve: 'P-256' },
+        false,
+        [],
+    );
+    const ownPrivateKey = await globalThis.crypto.subtle.importKey(
+        'jwk',
+        JSON.parse(atob(ownPrivateKeyBase64)),
+        { name: 'ECDH', namedCurve: 'P-256' },
+        false,
+        ['deriveBits'],
+    );
+
+    const sharedBits = await globalThis.crypto.subtle.deriveBits(
+        { name: 'ECDH', public: peerPublicKey },
+        ownPrivateKey,
+        256,
+    );
+
+    const sharedKey = await globalThis.crypto.subtle.importKey('raw', sharedBits, 'HKDF', false, ['deriveKey']);
+    const aesKey = await globalThis.crypto.subtle.deriveKey(
+        {
+            name: 'HKDF',
+            hash: 'SHA-256',
+            salt: CALL_KEY_EXCHANGE_HKDF_SALT,
+            info: new TextEncoder().encode('wrapCallSessionKey'),
+        },
+        sharedKey,
+        { name: 'AES-GCM', length: 256 },
+        false,
+        ['encrypt'],
+    );
+
+    const iv = new Uint8Array(12);
+    globalThis.crypto.getRandomValues(iv);
+
+    const keyBytes = base64ToUint8Array(sessionKeyBase64);
+    const ciphertext = await globalThis.crypto.subtle.encrypt({ name: 'AES-GCM', iv }, aesKey, keyBytes);
+
+    const blob = new Uint8Array(12 + ciphertext.byteLength);
+    blob.set(iv);
+    blob.set(new Uint8Array(ciphertext), 12);
+    return uint8ArrayToBase64(blob);
+}
+
+/**
+ * ECIES: unwrap an AES session key received via the signaling channel.
+ *
+ * ECDH is symmetric: ECDH(A_priv, B_pub) == ECDH(B_priv, A_pub).
+ * The argument order is swapped vs wrapCallSessionKey — pass the recipient's
+ * private key and the sender's public key.
+ *
+ * @param {string} wrappedKeyBase64 - base64-encoded blob (iv[12] + ciphertext + tag[16])
+ * @param {string} ownPrivateKeyBase64 - recipient's ECDH private key, JWK base64
+ * @param {string} peerPublicKeyBase64 - sender's ECDH public key, JWK base64
+ * @returns {Promise<string>} session key as base64
+ */
+export async function unwrapCallSessionKey(wrappedKeyBase64, ownPrivateKeyBase64, peerPublicKeyBase64) {
+    const peerPublicKey = await globalThis.crypto.subtle.importKey(
+        'jwk',
+        JSON.parse(atob(peerPublicKeyBase64)),
+        { name: 'ECDH', namedCurve: 'P-256' },
+        false,
+        [],
+    );
+    const ownPrivateKey = await globalThis.crypto.subtle.importKey(
+        'jwk',
+        JSON.parse(atob(ownPrivateKeyBase64)),
+        { name: 'ECDH', namedCurve: 'P-256' },
+        false,
+        ['deriveBits'],
+    );
+
+    const sharedBits = await globalThis.crypto.subtle.deriveBits(
+        { name: 'ECDH', public: peerPublicKey },
+        ownPrivateKey,
+        256,
+    );
+
+    const sharedKey = await globalThis.crypto.subtle.importKey('raw', sharedBits, 'HKDF', false, ['deriveKey']);
+    const aesKey = await globalThis.crypto.subtle.deriveKey(
+        {
+            name: 'HKDF',
+            hash: 'SHA-256',
+            salt: CALL_KEY_EXCHANGE_HKDF_SALT,
+            info: new TextEncoder().encode('wrapCallSessionKey'),
+        },
+        sharedKey,
+        { name: 'AES-GCM', length: 256 },
+        false,
+        ['decrypt'],
+    );
+
+    const blob = base64ToUint8Array(wrappedKeyBase64);
+    const iv = blob.slice(0, 12);
+    const ciphertext = blob.slice(12);
+
+    const decrypted = await globalThis.crypto.subtle.decrypt({ name: 'AES-GCM', iv }, aesKey, ciphertext);
+    return uint8ArrayToBase64(new Uint8Array(decrypted));
+}
