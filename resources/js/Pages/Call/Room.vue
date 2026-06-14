@@ -15,9 +15,6 @@ const props = defineProps({
 
 const storageKey = `call_session:${props.session.bridge_number}`;
 const raw = sessionStorage.getItem(storageKey);
-if (!raw) {
-    router.visit(route('calls.join', props.session.bridge_number));
-}
 const sessionData = raw ? JSON.parse(raw) : null;
 
 // Reactive state
@@ -280,7 +277,10 @@ function cancelLeave()   { confirmingLeave.value = false; }
 function confirmLeave()  { cleanup(); router.visit(route('calls.index')); }
 
 onMounted(async () => {
-    if (!sessionData) return;
+    if (!sessionData) {
+        router.visit(route('calls.join', props.session.bridge_number));
+        return;
+    }
 
     try {
         localStream.value = await navigator.mediaDevices.getUserMedia({ audio: true });
