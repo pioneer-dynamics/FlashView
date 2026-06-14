@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\AdminPlanController;
 use App\Http\Controllers\Admin\AdminUserController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\BlogController;
+use App\Http\Controllers\CallSessionController;
 use App\Http\Controllers\CliAuthController;
 use App\Http\Controllers\CliDeviceController;
 use App\Http\Controllers\CliInstallationController;
@@ -231,6 +232,17 @@ Route::middleware([
     Route::get('users', [AdminUserController::class, 'index'])->name('users.index');
     Route::post('users/{user}/suspend', [AdminUserController::class, 'suspend'])->name('users.suspend');
     Route::delete('users/{user}/suspend', [AdminUserController::class, 'unsuspend'])->name('users.unsuspend');
+});
+
+// Call session routes — no auth required; Ed25519 challenge-response verifies access
+Route::prefix('call-sessions')->name('call-sessions.')->group(function () {
+    Route::get('/{callSession}/challenge', [CallSessionController::class, 'challenge'])
+        ->name('challenge')
+        ->middleware('throttle:call-sessions-challenge');
+
+    Route::post('/{callSession}/join', [CallSessionController::class, 'join'])
+        ->name('join')
+        ->middleware('throttle:call-sessions-join');
 });
 
 // eLocker routes — no auth required; all anonymous

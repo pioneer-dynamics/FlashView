@@ -44,6 +44,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'cli/token',
             'cli/device/initiate',
             'cli/device/poll',
+            'call-sessions/*',
         ]);
 
         $middleware->alias([

@@ -117,6 +117,14 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('locker-account-lock', fn (Request $request) => Limit::perHour(3)->by($request->route('accountId')));
         // Controller key pattern: 'locker-account-cooldown:{accountId}' — NOT 'locker-account-cooldown|{accountId}'.
         RateLimiter::for('locker-account-cooldown', fn (Request $request) => Limit::perMinutes(5, 1)->by($request->route('accountId')));
+
+        RateLimiter::for('call-sessions-challenge', function (Request $request) {
+            return Limit::perMinute(20)->by($request->ip().'|'.$request->route('callSession'));
+        });
+
+        RateLimiter::for('call-sessions-join', function (Request $request) {
+            return Limit::perMinute(10)->by($request->ip().'|'.$request->route('callSession'));
+        });
     }
 
     private function planThrottleLimit(User $user): Limit

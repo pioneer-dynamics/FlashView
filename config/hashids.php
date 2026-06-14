@@ -34,6 +34,11 @@ return [
             // 'alphabet' => 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890'
         ],
 
+        'CallSession' => [
+            'salt' => env('HASH_ID_SALT_CALL_SESSION', ''),
+            'length' => 10,
+        ],
+
     ],
 
 ];
