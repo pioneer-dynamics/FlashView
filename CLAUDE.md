@@ -494,3 +494,7 @@ Rules:
 - `crypto.subtle`, `PBKDF2`, `AES-GCM`, and key derivation logic must ONLY appear in `tools/flashview-crypto/src/index.js`
 - When adding a new crypto operation (e.g., `encryptBuffer`, `decryptBuffer`), add it to flashview-crypto first, then import and use it in both wrappers
 - Thin wrappers in `encryption.js` and `crypto.js` may add platform-specific helpers (e.g., reading a `File` object for browser, reading from disk for CLI) but must delegate all crypto to the shared package
+
+## Issue Tracking
+
+This project uses **Linear** (not Jira) for issue tracking. Ticket IDs follow the format `PIO-###`. Use the `mcp__linear-server__*` tools to look up, create, and update issues — never the Atlassian/Jira tools.
