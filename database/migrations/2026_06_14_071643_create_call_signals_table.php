@@ -21,7 +21,7 @@ return new class extends Migration
             $table->timestamp('created_at')->useCurrent();
 
             // Efficient poll: all signals in a session addressed to me, in order
-            $table->index(['call_session_id', 'to_participant_id', 'id']);
+            $table->index(['call_session_id', 'to_participant_id', 'id'], 'idx_call_signals_session_to_id');
         });
     }
 
