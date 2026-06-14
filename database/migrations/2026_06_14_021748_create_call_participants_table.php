@@ -14,7 +14,7 @@ return new class extends Migration
             $table->text('public_key')->nullable(); // ECDH public key — populated in PIO-115 key exchange
             $table->timestamp('joined_at');
             $table->timestamp('left_at')->nullable();
-            $table->string('ip_address'); // encrypted via model cast
+            $table->text('ip_address'); // encrypted via model cast — text required for ciphertext length
             $table->timestamps();
         });
     }
