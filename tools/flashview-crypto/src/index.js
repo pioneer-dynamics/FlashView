@@ -1,5 +1,6 @@
 import { generate } from 'random-words';
 import { p256 } from '@noble/curves/p256';
+import { ed25519 } from '@noble/curves/ed25519';
 
 const PBKDF2_ITERATIONS = 64000;
 const KEY_LENGTH_BITS = 256;
@@ -897,4 +898,62 @@ export async function decryptMessage(ciphertextString, passphrase) {
     );
 
     return new TextDecoder().decode(decrypted);
+}
+
+// ─── Call Session Auth ────────────────────────────────────────────────────────
+
+/**
+ * Derives a deterministic Ed25519 key pair from a password and PBKDF2 salt.
+ *
+ * SHA-256 is used here (not SHA-512 like other PBKDF2 derivations in this module)
+ * because Ed25519 private key seeds are 32 bytes, and deriving 256 bits with SHA-256
+ * is marginally faster. Security margin is equivalent — PBKDF2 iteration count
+ * (64,000) is the primary hardening factor, not the hash choice.
+ *
+ * @param {string} password
+ * @param {string} saltBase64 - base64-encoded 32-byte salt (from session's key_salt column)
+ * @returns {Promise<{ privateKey: Uint8Array, publicKey: Uint8Array, publicKeyBase64: string }>}
+ */
+export async function deriveCallKeyPair(password, saltBase64) {
+    const enc = new TextEncoder();
+    const keyMaterial = await globalThis.crypto.subtle.importKey(
+        'raw',
+        enc.encode(password),
+        'PBKDF2',
+        false,
+        ['deriveBits'],
+    );
+
+    const privateKeyBytes = new Uint8Array(
+        await globalThis.crypto.subtle.deriveBits(
+            {
+                name: 'PBKDF2',
+                salt: Uint8Array.from(atob(saltBase64), (c) => c.charCodeAt(0)),
+                iterations: 64000,
+                hash: 'SHA-256',
+            },
+            keyMaterial,
+            256,
+        ),
+    );
+
+    const publicKeyBytes = ed25519.getPublicKey(privateKeyBytes);
+
+    return {
+        privateKey: privateKeyBytes,
+        publicKey: publicKeyBytes,
+        publicKeyBase64: uint8ArrayToBase64(publicKeyBytes),
+    };
+}
+
+/**
+ * Signs a challenge hex string with an Ed25519 private key.
+ *
+ * @param {Uint8Array} privateKeyBytes
+ * @param {string} challengeHex - hex string from GET /call-sessions/{hash_id}/challenge
+ * @returns {string} base64-encoded 64-byte signature
+ */
+export function signCallChallenge(privateKeyBytes, challengeHex) {
+    const signature = ed25519.sign(hexToBuffer(challengeHex), privateKeyBytes);
+    return uint8ArrayToBase64(new Uint8Array(signature));
 }
