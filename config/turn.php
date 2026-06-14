@@ -11,7 +11,7 @@ return [
     |
     */
 
-    'default' => env('TURN_DRIVER', 'metered'),
+    'default' => env('TURN_DRIVER', 'flashview'),
 
     /*
     |--------------------------------------------------------------------------
@@ -20,6 +20,11 @@ return [
     */
 
     'drivers' => [
+
+        'flashview' => [
+            'host' => env('TURN_HOST', ''),
+            'auth_secret' => env('TURN_AUTH_SECRET', ''),
+        ],
 
         'metered' => [
             'api_key' => env('TURN_METERED_API_KEY', ''),

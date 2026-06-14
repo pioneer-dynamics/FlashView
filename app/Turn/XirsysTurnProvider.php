@@ -9,7 +9,7 @@ class XirsysTurnProvider implements TurnProvider
 {
     public function __construct(private readonly array $config) {}
 
-    public function getIceServers(): array
+    public function getIceServers(?int $ttlSeconds = null): array
     {
         $response = Http::withBasicAuth($this->config['api_key'], $this->config['secret'])
             ->put("https://global.xirsys.net/_turn/{$this->config['channel']}");

@@ -9,7 +9,7 @@ class MeteredTurnProvider implements TurnProvider
 {
     public function __construct(private readonly array $config) {}
 
-    public function getIceServers(): array
+    public function getIceServers(?int $ttlSeconds = null): array
     {
         $domain = $this->config['domain'];
         $apiKey = $this->config['api_key'];

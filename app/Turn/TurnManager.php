@@ -12,6 +12,11 @@ class TurnManager extends Manager
         return config('turn.default', 'metered');
     }
 
+    public function createFlashviewDriver(): TurnProvider
+    {
+        return new FlashviewTurnProvider(config('turn.drivers.flashview'));
+    }
+
     public function createMeteredDriver(): TurnProvider
     {
         return new MeteredTurnProvider(config('turn.drivers.metered'));
