@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\AdminPlanController;
 use App\Http\Controllers\Admin\AdminUserController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\BlogController;
+use App\Http\Controllers\CallPageController;
 use App\Http\Controllers\CallSessionController;
 use App\Http\Controllers\CliAuthController;
 use App\Http\Controllers\CliDeviceController;
@@ -232,6 +233,13 @@ Route::middleware([
     Route::get('users', [AdminUserController::class, 'index'])->name('users.index');
     Route::post('users/{user}/suspend', [AdminUserController::class, 'suspend'])->name('users.suspend');
     Route::delete('users/{user}/suspend', [AdminUserController::class, 'unsuspend'])->name('users.unsuspend');
+});
+
+// Call page routes — Inertia views; no auth required
+Route::prefix('calls')->name('calls.')->group(function () {
+    Route::get('/', [CallPageController::class, 'index'])->name('index');
+    Route::get('/{callSession}', [CallPageController::class, 'show'])->name('join');
+    Route::get('/{callSession}/room', [CallPageController::class, 'room'])->name('room');
 });
 
 // Call session routes — no auth required; Ed25519 challenge-response verifies access
