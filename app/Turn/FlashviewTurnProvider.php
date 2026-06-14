@@ -8,12 +8,10 @@ class FlashviewTurnProvider implements TurnProvider
 {
     public function __construct(private readonly array $config) {}
 
-    public function getIceServers(): array
+    public function getIceServers(?int $ttlSeconds = null): array
     {
         $host = $this->config['host'];
-        $ttl = $this->config['ttl'] ?? 3600;
-
-        $expiry = time() + $ttl;
+        $expiry = time() + ($ttlSeconds ?? $this->config['ttl'] ?? 3600);
         $username = $expiry.':flashview';
         $credential = base64_encode(hash_hmac('sha1', $username, $this->config['auth_secret'], true));
 

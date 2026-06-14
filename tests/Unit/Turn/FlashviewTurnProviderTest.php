@@ -54,10 +54,10 @@ class FlashviewTurnProviderTest extends TestCase
         $this->assertArrayNotHasKey('credential', $stunServer);
     }
 
-    public function test_credential_expiry_reflects_configured_ttl(): void
+    public function test_credential_expiry_reflects_passed_ttl(): void
     {
         $before = time();
-        $result = $this->makeProvider(['ttl' => 7200])->getIceServers();
+        $result = $this->makeProvider()->getIceServers(7200);
         $after = time();
 
         $turnServer = collect($result)->first(fn ($s) => str_starts_with($s['urls'], 'turn:'));
@@ -65,5 +65,18 @@ class FlashviewTurnProviderTest extends TestCase
 
         $this->assertGreaterThanOrEqual($before + 7200, $expiry);
         $this->assertLessThanOrEqual($after + 7200, $expiry);
+    }
+
+    public function test_credential_expiry_falls_back_to_one_hour_when_ttl_not_passed(): void
+    {
+        $before = time();
+        $result = $this->makeProvider()->getIceServers();
+        $after = time();
+
+        $turnServer = collect($result)->first(fn ($s) => str_starts_with($s['urls'], 'turn:'));
+        $expiry = (int) explode(':', $turnServer['username'])[0];
+
+        $this->assertGreaterThanOrEqual($before + 3600, $expiry);
+        $this->assertLessThanOrEqual($after + 3600, $expiry);
     }
 }

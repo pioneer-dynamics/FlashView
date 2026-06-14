@@ -24,7 +24,6 @@ return [
         'flashview' => [
             'host' => env('TURN_HOST', ''),
             'auth_secret' => env('TURN_AUTH_SECRET', ''),
-            'ttl' => env('TURN_CREDENTIAL_TTL', 3600),  // seconds; credentials expire after this window
         ],
 
         'metered' => [

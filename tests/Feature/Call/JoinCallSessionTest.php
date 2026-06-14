@@ -41,8 +41,6 @@ class JoinCallSessionTest extends TestCase
 
     public function test_can_join_with_correct_signature(): void
     {
-        Http::fake(['*' => Http::response([['urls' => 'stun:stun.example.com']], 200)]);
-
         [$privateKey, , $session] = $this->generateKeyPairAndSession();
         $challenge = $this->fetchChallenge($session);
         $signature = $this->signChallenge($privateKey, $challenge);
@@ -85,8 +83,6 @@ class JoinCallSessionTest extends TestCase
 
     public function test_join_prevents_challenge_replay(): void
     {
-        Http::fake(['*' => Http::response([['urls' => 'stun:stun.example.com']], 200)]);
-
         [$privateKey, , $session] = $this->generateKeyPairAndSession();
         $challenge = $this->fetchChallenge($session);
         $signature = $this->signChallenge($privateKey, $challenge);
@@ -102,8 +98,11 @@ class JoinCallSessionTest extends TestCase
 
     public function test_join_returns_ice_servers_from_turn_service(): void
     {
-        $fakeServers = [['urls' => 'turn:relay.example.com', 'username' => 'u', 'credential' => 'p']];
-        Http::fake(['*' => Http::response($fakeServers, 200)]);
+        // Flashview provider generates credentials locally (no HTTP) — returns turn: + stun: entries
+        config([
+            'turn.default' => 'flashview',
+            'turn.drivers.flashview' => ['host' => 'turn.flashview.io', 'auth_secret' => 'testsecret'],
+        ]);
 
         [$privateKey, , $session] = $this->generateKeyPairAndSession();
         $challenge = $this->fetchChallenge($session);
@@ -114,15 +113,20 @@ class JoinCallSessionTest extends TestCase
 
         $response->assertOk()
             ->assertJsonPath('turn_available', true)
-            ->assertJsonCount(1, 'ice_servers');
+            ->assertJsonCount(2, 'ice_servers'); // turn: entry + stun: entry
     }
 
     public function test_join_returns_empty_ice_servers_when_turn_service_fails(): void
     {
+        // Switch to metered driver so we can simulate a remote API failure via Http::fake
+        config([
+            'turn.default' => 'metered',
+            'turn.drivers.metered' => ['domain' => 'testapp', 'api_key' => 'k'],
+        ]);
+
         [$privateKey, , $session] = $this->generateKeyPairAndSession();
         $challenge = $this->fetchChallenge($session);
 
-        // Fake TURN provider failure AFTER the challenge request (avoids intercepting Cloudflare proxy lookup)
         Http::fake(['*.metered.ca/*' => Http::response('error', 500)]);
 
         $response = $this->postJson("/call-sessions/{$session->hash_id}/join", [
@@ -136,8 +140,6 @@ class JoinCallSessionTest extends TestCase
 
     public function test_join_creates_participant_record(): void
     {
-        Http::fake(['*' => Http::response([], 200)]);
-
         [$privateKey, , $session] = $this->generateKeyPairAndSession();
         $challenge = $this->fetchChallenge($session);
 
@@ -168,8 +170,6 @@ class JoinCallSessionTest extends TestCase
 
     public function test_join_response_includes_hash_id_not_integer_pk(): void
     {
-        Http::fake(['*' => Http::response([], 200)]);
-
         [$privateKey, , $session] = $this->generateKeyPairAndSession();
         $challenge = $this->fetchChallenge($session);
 

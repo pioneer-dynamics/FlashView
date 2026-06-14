@@ -47,8 +47,10 @@ class CallSessionController extends Controller
             'ip_address' => $request->ip(),
         ]);
 
+        $remainingSeconds = max(60, (int) now()->diffInSeconds($callSession->ends_at, absolute: true));
+
         try {
-            $iceServers = Turn::getIceServers();
+            $iceServers = Turn::getIceServers($remainingSeconds);
         } catch (\RuntimeException $e) {
             Log::warning('TURN provider failed during join', ['error' => $e->getMessage()]);
             $iceServers = [];
