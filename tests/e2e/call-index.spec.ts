@@ -10,7 +10,7 @@ test('navigating to /calls renders the Secure Line index page with a bridge numb
     await page.goto('/calls');
     await page.waitForLoadState('networkidle');
 
-    await expect(page.getByText('Encrypted, Ephemeral Video Calls')).toBeVisible();
+    await expect(page.getByText('Encrypted, Ephemeral Audio Calls')).toBeVisible();
     await expect(page.getByTestId('bridge-number-input')).toBeVisible();
     await expect(page.getByTestId('join-line-button')).toBeVisible();
 });

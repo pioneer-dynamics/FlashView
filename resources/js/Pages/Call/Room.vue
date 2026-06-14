@@ -427,8 +427,8 @@ onUnmounted(cleanup);
                         <div class="text-right">
                             <div v-if="confirmingLeave" class="flex gap-2 items-center">
                                 <span class="text-xs text-gray-400 font-mono">Leave call?</span>
-                                <button @click="cancelLeave" class="text-xs text-gray-400 hover:text-white font-mono border border-gray-700 px-2 py-1 rounded transition-colors">Stay</button>
-                                <button @click="confirmLeave" class="text-xs text-red-400 hover:text-red-300 font-mono border border-red-700 px-2 py-1 rounded transition-colors">Leave call</button>
+                                <button @click="cancelLeave" class="text-xs text-gray-400 hover:text-white font-mono border border-gray-700 px-2 py-1 rounded transition-colors shadow-neon-cyan-sm">Stay</button>
+                                <button @click="confirmLeave" class="text-xs text-red-400 hover:text-red-300 font-mono border border-red-700 px-2 py-1 rounded transition-colors shadow-neon-cyan-sm">Leave call</button>
                             </div>
                             <button
                                 v-else

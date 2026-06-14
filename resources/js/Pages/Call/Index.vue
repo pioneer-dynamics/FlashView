@@ -20,7 +20,7 @@ function joinLine() {
                 <!-- Hero -->
                 <div class="text-center">
                     <div class="text-gamboge-300 font-mono text-xs uppercase tracking-widest mb-2">Secure Line</div>
-                    <h1 class="text-3xl font-bold text-white mb-3">Encrypted, Ephemeral Video Calls</h1>
+                    <h1 class="text-3xl font-bold text-white mb-3">Encrypted, Ephemeral Audio Calls</h1>
                     <p class="text-gray-400 text-sm max-w-lg mx-auto">
                         Time-limited, end-to-end encrypted calls. No account needed to join — just a bridge number and password.
                     </p>
