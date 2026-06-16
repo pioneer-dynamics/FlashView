@@ -108,7 +108,12 @@ function createPeerConnection(peerId) {
         if (candidate) {
             console.log('[WebRTC] onicecandidate', candidate.type, candidate.protocol, candidate.address);
             sendSignal(peerId, 'ice-candidate', { candidate });
+        } else {
+            console.log('[WebRTC] ICE gathering complete');
         }
+    };
+    pc.onicegatheringstatechange = () => {
+        console.log('[WebRTC] iceGatheringState →', pc.iceGatheringState);
     };
     pc.oniceconnectionstatechange = () => {
         console.log('[WebRTC] iceConnectionState →', pc.iceConnectionState);
@@ -210,6 +215,7 @@ async function pollParticipants() {
                 const offer = await pc.createOffer();
                 await pc.setLocalDescription(offer);
                 await sendSignal(p.id, 'offer', { sdp: offer });
+                console.log('[WebRTC] offer sent to', p.id);
 
                 if (p.public_key) {
                     const enc = new encryption();
@@ -230,7 +236,7 @@ async function pollParticipants() {
                 createPeerConnection(p.id);
             }
         }
-    } catch (_) { /* swallow poll errors */ }
+    } catch (e) { console.error('[WebRTC] pollParticipants error:', e); }
     participantPollTimer.value = setTimeout(pollParticipants, 3000);
 }
 
@@ -243,7 +249,7 @@ async function pollSignals() {
         if (data.signals.length > 0) {
             signalCursor.value = data.signals.at(-1).id;
         }
-    } catch (_) { /* swallow poll errors */ }
+    } catch (e) { console.error('[WebRTC] pollSignals error:', e); }
     signalPollTimer.value = setTimeout(pollSignals, 1500);
 }
 
