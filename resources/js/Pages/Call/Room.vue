@@ -42,6 +42,9 @@ const redirectTimer = ref(null);
 // ICE candidate queue — plain object, not reactive
 const pendingCandidates = {};
 
+// Guard against duplicate leave calls (cleanup() fires from both confirmLeave and onUnmounted)
+let hasCalledLeave = false;
+
 // Participant ECDH public key cache — populated during participant polling
 const participantPublicKeys = {};
 
@@ -113,6 +116,8 @@ function createPeerConnection(peerId) {
                 remoteAudioElements[peerId] = audio;
             }
             remoteAudioElements[peerId].srcObject = streams[0];
+            // Autoplay may be blocked after Inertia client-side navigation; call play() explicitly
+            remoteAudioElements[peerId].play().catch(() => {});
         }
     };
     pc.onconnectionstatechange = () => {
@@ -253,7 +258,19 @@ function startExpiryCountdown() {
     }, 1000);
 }
 
+function leaveCall() {
+    if (!sessionData?.participant_id || hasCalledLeave) return;
+    hasCalledLeave = true;
+    fetch(`/api/v1/calls/${props.session.bridge_number}/leave`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ participant_id: sessionData.participant_id }),
+        keepalive: true,
+    }).catch(() => {});
+}
+
 function cleanup() {
+    leaveCall();
     clearTimeout(participantPollTimer.value);
     clearTimeout(signalPollTimer.value);
     clearInterval(expiryTimer.value);

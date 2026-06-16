@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Call\CreateCallSignalRequest;
+use App\Http\Requests\Call\LeaveCallRequest;
 use App\Http\Requests\Call\ListCallSignalsRequest;
 use App\Models\CallParticipant;
 use App\Models\CallSession;
@@ -52,6 +53,21 @@ class CallSignalController extends Controller
         ]);
 
         return response()->json(['signal_id' => $signal->id], 201);
+    }
+
+    public function leave(LeaveCallRequest $request, CallSession $callSession): JsonResponse
+    {
+        $participant = CallParticipant::where('id', $request->participant_id)
+            ->where('call_session_id', $callSession->id)
+            ->first();
+
+        if (! $participant) {
+            return response()->json(['message' => 'Participant not found.'], 404);
+        }
+
+        $participant->update(['left_at' => now()]);
+
+        return response()->json(['message' => 'Left.']);
     }
 
     public function index(ListCallSignalsRequest $request, CallSession $callSession): JsonResponse
