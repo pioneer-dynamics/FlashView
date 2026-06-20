@@ -98,12 +98,11 @@ async function drainPendingCandidates(fromId, pc) {
 }
 
 function sanitizeSdp(sdpString) {
-    // Chrome's Unified Plan SDP parser rejects a=ssrc: msid attributes — they are
-    // Plan B artefacts that Chrome still generates for backwards compatibility but
-    // refuses to accept when parsing received SDP. Remove these lines entirely; the
-    // media-level a=msid: attribute conveys the same MSID information in Unified Plan.
+    // Chrome's Unified Plan parser rejects all a=ssrc: source attributes (cname, msid,
+    // mslabel, label) — they are Plan B artefacts. Remove all of them; Unified Plan
+    // conveys CNAME via RTCP SDES and MSID via the media-level a=msid: attribute.
     return sdpString.split('\r\n')
-        .filter(line => !/^a=ssrc:\d+ msid:/.test(line))
+        .filter(line => !/^a=ssrc:/.test(line))
         .join('\r\n');
 }
 
