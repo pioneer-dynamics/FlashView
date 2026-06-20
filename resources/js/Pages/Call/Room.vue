@@ -106,41 +106,28 @@ function sanitizeSdp(sdpString) {
     // treats the last line as invalid if it is not CRLF-terminated.
     const lines = sdpString.split('\r\n');
     const filtered = lines.filter(line => !/^a=ssrc:/.test(line));
-    console.log('[D] sanitizeSdp: lines before:', lines.length, 'after:', filtered.length, '(removed', lines.length - filtered.length, 'a=ssrc: lines)', '| input ends CRLF:', sdpString.endsWith('\r\n'));
     const joined = filtered.join('\r\n');
     const result = joined.endsWith('\r\n') ? joined : joined + '\r\n';
-    console.log('[D] sanitized SDP dump:\n' + result);
     return result;
 }
 
 function createPeerConnection(peerId) {
-    console.log('[D] createPeerConnection', peerId, 'iceServers:', JSON.stringify(sessionData.ice_servers));
     const pc = new RTCPeerConnection({ iceServers: sessionData.ice_servers });
     localStream.value.getTracks().forEach(track => {
-        console.log('[D] addTrack', track.kind, track.label);
         pc.addTrack(track, localStream.value);
     });
     pc.onicecandidate = ({ candidate }) => {
-        console.log('[D] icecandidate', candidate ? candidate.type + ' ' + candidate.protocol : 'null (gathering complete)');
         if (candidate) {
             sendSignal(peerId, 'ice-candidate', { candidate });
         }
     };
-    pc.onicegatheringstatechange = () => {
-        console.log('[D] iceGatheringState ->', pc.iceGatheringState);
-    };
-    pc.oniceconnectionstatechange = () => {
-        console.log('[D] iceConnectionState ->', pc.iceConnectionState);
-    };
     pc.onconnectionstatechange = () => {
-        console.log('[D] connectionState ->', pc.connectionState);
         if (pc.connectionState === 'failed') {
             // Spread to a new object so Vue 3 detects the change
             peers.value = { ...peers.value, [peerId]: { ...peers.value[peerId], connectionFailed: true } };
         }
     };
-    pc.ontrack = ({ streams, track }) => {
-        console.log('[D] ontrack', track.kind, 'streams:', streams.length);
+    pc.ontrack = ({ streams }) => {
         if (streams[0]) {
             // Play remote audio via a hidden <audio> element (audio-only call)
             if (!remoteAudioElements[peerId]) {
@@ -152,9 +139,7 @@ function createPeerConnection(peerId) {
             }
             remoteAudioElements[peerId].srcObject = streams[0];
             // Autoplay may be blocked after Inertia client-side navigation; call play() explicitly
-            remoteAudioElements[peerId].play()
-                .then(() => console.log('[D] audio.play() resolved'))
-                .catch(err => console.log('[D] audio.play() rejected:', err.message));
+            remoteAudioElements[peerId].play().catch(() => {});
         }
     };
     // Spread to a new object so Vue 3 detects the key addition
@@ -180,30 +165,25 @@ async function processSignal(signal) {
     }
 
     if (type === 'offer') {
-        console.log('[D] processSignal: offer from', fromId);
         const pc = peers.value[fromId]?.pc ?? createPeerConnection(fromId);
         const offerSdp = payload.sdp?.sdp
             ? { ...payload.sdp, sdp: sanitizeSdp(payload.sdp.sdp) }
             : payload.sdp;
         await pc.setRemoteDescription(new RTCSessionDescription(offerSdp));
-        console.log('[D] setRemoteDescription (offer) OK, signalingState:', pc.signalingState);
         await drainPendingCandidates(fromId, pc);
         const answer = await pc.createAnswer();
         await pc.setLocalDescription(answer);
         await sendSignal(fromId, 'answer', { sdp: answer });
-        console.log('[D] answer sent to', fromId);
         return;
     }
 
     if (type === 'answer') {
-        console.log('[D] processSignal: answer from', fromId);
         const pc = peers.value[fromId]?.pc;
         if (pc) {
             const answerSdp = payload.sdp?.sdp
                 ? { ...payload.sdp, sdp: sanitizeSdp(payload.sdp.sdp) }
                 : payload.sdp;
             await pc.setRemoteDescription(new RTCSessionDescription(answerSdp));
-            console.log('[D] setRemoteDescription (answer) OK, signalingState:', pc.signalingState);
             await drainPendingCandidates(fromId, pc);
         }
         return;
@@ -236,7 +216,6 @@ async function pollParticipants() {
                 const pc = createPeerConnection(p.id);
                 const offer = await pc.createOffer();
                 await pc.setLocalDescription(offer);
-                console.log('[D] sending offer to', p.id);
                 await sendSignal(p.id, 'offer', { sdp: offer });
 
                 if (p.public_key) {
@@ -258,7 +237,7 @@ async function pollParticipants() {
                 createPeerConnection(p.id);
             }
         }
-    } catch (e) { console.log('[D] pollParticipants error:', e.message); }
+    } catch { }
     participantPollTimer.value = setTimeout(pollParticipants, 3000);
 }
 
@@ -272,9 +251,9 @@ async function pollSignals() {
         for (const signal of data.signals) {
             try {
                 await processSignal(signal);
-            } catch (e) { console.log('[D] processSignal error:', signal.type, e.message); }
+            } catch { }
         }
-    } catch (e) { console.log('[D] pollSignals error:', e.message); }
+    } catch { }
     signalPollTimer.value = setTimeout(pollSignals, 1500);
 }
 
