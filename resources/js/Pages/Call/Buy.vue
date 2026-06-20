@@ -28,7 +28,7 @@ const formatDuration = (minutes) => minutes >= 60 ? `${minutes / 60} hour${minut
 
 <template>
     <AppLayout title="Buy a Secure Line">
-        <div class="dark min-h-screen bg-gray-950 py-16 px-4">
+        <div class="dark min-h-screen bg-gray-900 py-16 px-4">
             <div class="max-w-3xl mx-auto space-y-10">
 
                 <!-- Pending token recovery banner -->

@@ -96,7 +96,7 @@ onMounted(async () => {
 
 <template>
     <AppLayout title="Your Secure Line">
-        <div class="dark min-h-screen bg-gray-950 flex items-center justify-center py-16 px-4">
+        <div class="dark min-h-screen bg-gray-900 flex items-center justify-center py-16 px-4">
             <div class="max-w-xl w-full">
 
                 <!-- Creating / shimmer state -->
@@ -141,7 +141,7 @@ onMounted(async () => {
                     </div>
 
                     <!-- Bridge Number -->
-                    <div class="bg-gray-950 rounded-lg p-4">
+                    <div class="bg-gray-800 rounded-lg p-4">
                         <div class="text-gamboge-300 font-mono text-xs uppercase tracking-widest mb-2">Bridge Number</div>
                         <div class="flex items-center gap-3">
                             <code class="text-white text-lg flex-1 font-mono" data-testid="bridge-number">{{ bridgeNumber }}</code>
@@ -154,7 +154,7 @@ onMounted(async () => {
                     </div>
 
                     <!-- Call Password -->
-                    <div class="bg-gray-950 rounded-lg p-4">
+                    <div class="bg-gray-800 rounded-lg p-4">
                         <div class="text-gamboge-300 font-mono text-xs uppercase tracking-widest mb-2">Call Password</div>
                         <div class="flex items-center gap-3">
                             <code class="text-white text-sm flex-1 break-all font-mono" data-testid="call-password">{{ callPassword }}</code>
@@ -168,13 +168,13 @@ onMounted(async () => {
 
                     <!-- Session expiry -->
                     <div class="bg-yellow-900/20 border border-yellow-600/40 rounded-lg p-4">
-                        <div class="text-yellow-400 font-mono text-xs uppercase tracking-widest mb-1">Session Closes</div>
+                        <div class="text-gamboge-300 font-mono text-xs uppercase tracking-widest mb-1">Session Closes</div>
                         <p class="text-yellow-200 text-sm font-semibold" data-testid="session-expiry">{{ formattedExpiry }}</p>
                         <p class="text-yellow-300/70 text-xs mt-0.5">{{ minutesRemaining }}</p>
                     </div>
 
                     <!-- Participant instructions -->
-                    <div class="bg-gray-950 rounded-lg p-4">
+                    <div class="bg-gray-800 rounded-lg p-4">
                         <div class="text-gamboge-300 font-mono text-xs uppercase tracking-widest mb-2">Participant Instructions</div>
                         <p class="text-gray-300 text-sm">
                             Your participant visits

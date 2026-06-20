@@ -47,7 +47,7 @@ onUnmounted(() => clearInterval(pollInterval));
 
 <template>
     <AppLayout title="Confirming Payment — Secure Line">
-        <div class="dark min-h-screen bg-gray-950 flex items-center justify-center px-4 py-16">
+        <div class="dark min-h-screen bg-gray-900 flex items-center justify-center px-4 py-16">
             <div class="max-w-lg w-full">
 
                 <div class="bg-gray-900 border border-gray-700 rounded-xl p-8">
@@ -56,7 +56,7 @@ onUnmounted(() => clearInterval(pollInterval));
                     <p class="text-gray-400 text-sm mb-6">Your Secure Line credit will appear here automatically once Stripe confirms payment.</p>
 
                     <!-- Payment reference -->
-                    <div class="bg-gray-950 border border-gamboge-300/30 rounded-lg p-4 mb-6">
+                    <div class="bg-gray-800 border border-gamboge-300/30 rounded-lg p-4 mb-6">
                         <div class="text-gamboge-300 font-mono text-xs uppercase tracking-widest mb-2">Payment Reference</div>
                         <div class="font-mono text-xs text-white break-all">{{ session_id }}</div>
                         <p class="text-gray-400 text-xs mt-2">

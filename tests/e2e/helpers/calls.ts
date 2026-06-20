@@ -8,10 +8,7 @@ const ARTISAN = process.env.CI ? 'php artisan' : 'vendor/bin/sail artisan';
  */
 export function createSecureLineCredit(token: string, used: boolean = false): void {
     const usedAt = used ? `'used_at' => now()` : `'used_at' => null`;
-    const script = [
-        `$p = App\\\\Models\\\\SecureLineProduct::factory()->withStripePrice()->create(['duration_minutes' => 30, 'max_participants' => 5]);`,
-        `App\\\\Models\\\\SecureLineCredit::create(['token' => '${token}', 'stripe_session_id' => 'cs_test_e2e_${token}', 'secure_line_product_id' => $p->id, ${usedAt}]);`,
-    ].join(' ');
+    const script = `App\\\\Models\\\\SecureLineCredit::create(['token' => '${token}', 'stripe_session_id' => 'cs_test_e2e_${token}', 'secure_line_product_id' => App\\\\Models\\\\SecureLineProduct::factory()->withStripePrice()->create(['duration_minutes' => 30, 'max_participants' => 5])->id, ${usedAt}]);`;
     execSync(
         `${ARTISAN} tinker --no-interaction --env=testing --execute="${script}"`,
         { stdio: 'pipe' }
