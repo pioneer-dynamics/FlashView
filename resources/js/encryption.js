@@ -9,6 +9,7 @@ import {
     deriveKeyFromFile, combineLockerKeyMaterials,
     generateCallEphemeralKeypair, generateCallSessionAesKey,
     wrapCallSessionKey, unwrapCallSessionKey,
+    deriveCallKeyPair, signCallChallenge,
 } from '@pioneer-dynamics/flashview-crypto';
 export { LockerBlobVersionError, LockerDecryptionError } from '@pioneer-dynamics/flashview-crypto';
 
@@ -134,6 +135,14 @@ export class encryption {
 
     async combineLockerKeyMaterials(materials) {
         return combineLockerKeyMaterials(materials);
+    }
+
+    async deriveCallKeyPair(password, saltBase64) {
+        return deriveCallKeyPair(password, saltBase64);
+    }
+
+    signCallChallenge(privateKeyBytes, challengeHex) {
+        return signCallChallenge(privateKeyBytes, challengeHex);
     }
 
     async generateCallEphemeralKeypair() {

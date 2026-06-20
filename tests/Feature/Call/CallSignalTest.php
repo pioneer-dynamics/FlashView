@@ -28,6 +28,55 @@ class CallSignalTest extends TestCase
         return CallParticipant::factory()->for($session, 'session')->create();
     }
 
+    // ─── leave ────────────────────────────────────────────────────────────────
+
+    public function test_leave_marks_participant_as_left(): void
+    {
+        $session = $this->activeSession();
+        $participant = $this->participantIn($session);
+
+        $response = $this->postJson("/api/v1/calls/{$session->hash_id}/leave", [
+            'participant_id' => $participant->id,
+        ]);
+
+        $response->assertOk();
+        $this->assertNotNull($participant->fresh()->left_at);
+    }
+
+    public function test_leave_returns_404_when_participant_not_in_session(): void
+    {
+        $session = $this->activeSession();
+        $otherSession = $this->activeSession();
+        $participant = $this->participantIn($otherSession);
+
+        $response = $this->postJson("/api/v1/calls/{$session->hash_id}/leave", [
+            'participant_id' => $participant->id,
+        ]);
+
+        $response->assertNotFound();
+    }
+
+    public function test_leave_is_idempotent_when_participant_already_left(): void
+    {
+        $session = $this->activeSession();
+        $participant = CallParticipant::factory()->for($session, 'session')->create(['left_at' => now()->subMinute()]);
+
+        $response = $this->postJson("/api/v1/calls/{$session->hash_id}/leave", [
+            'participant_id' => $participant->id,
+        ]);
+
+        $response->assertOk();
+    }
+
+    public function test_leave_returns_422_when_participant_id_is_missing(): void
+    {
+        $session = $this->activeSession();
+
+        $response = $this->postJson("/api/v1/calls/{$session->hash_id}/leave", []);
+
+        $response->assertUnprocessable()->assertJsonValidationErrors(['participant_id']);
+    }
+
     // ─── participants ──────────────────────────────────────────────────────────
 
     public function test_participants_returns_active_participants(): void

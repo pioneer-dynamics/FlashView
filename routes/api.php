@@ -91,5 +91,8 @@ Route::prefix('v1')->as('api.v1.')->group(function () {
         Route::get('{callSession}/signal', [CallSignalController::class, 'index'])
             ->name('signal.index')
             ->middleware('throttle:call-signal-poll');
+        Route::post('{callSession}/leave', [CallSignalController::class, 'leave'])
+            ->name('leave')
+            ->middleware('throttle:call-signal-poll');
     });
 });
