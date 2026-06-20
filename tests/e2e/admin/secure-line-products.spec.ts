@@ -88,8 +88,9 @@ test('admin can update a product and see the change reflected in the table', asy
     await page.getByRole('button', { name: 'Edit' }).first().click();
     await page.waitForLoadState('networkidle');
 
-    // Use attribute selector since getByDisplayValue is not available in Playwright 1.60
-    const nameInput = page.locator('input[value="Short Call"]');
+    // Locate by placeholder (stable); value attribute disappears after clear()
+    const nameInput = page.locator('input[placeholder="30-minute Line"]');
+    await expect(nameInput).toHaveValue('Short Call');
     await nameInput.clear();
     await nameInput.fill('Extended Call');
 
@@ -117,7 +118,9 @@ test('clicking Delete opens a confirmation modal; confirming removes the product
     await page.getByRole('button', { name: 'Delete Product' }).click();
     await page.waitForLoadState('networkidle');
 
-    await expect(page.getByText('Call To Delete')).not.toBeVisible();
+    // Wait for the modal to close before asserting the row is gone
+    await expect(page.getByRole('dialog')).not.toBeVisible();
+    await expect(page.locator('tbody').getByText('Call To Delete')).not.toBeVisible();
 });
 
 test('an inactive product appears visually dimmed in the table', async ({ page }) => {
