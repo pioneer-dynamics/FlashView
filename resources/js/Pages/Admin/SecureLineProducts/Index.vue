@@ -73,6 +73,7 @@ const formatDuration = (minutes) => {
                             </td>
                         </tr>
                         <tr v-for="product in products" :key="product.id"
+                            :data-testid="`product-row-${product.id}`"
                             class="odd:bg-white odd:dark:bg-gray-900 even:bg-gray-50 even:dark:bg-gray-800 border-b dark:border-gray-700"
                             :class="{ 'opacity-50': !product.is_active }">
                             <th scope="row" class="px-6 py-4 font-semibold text-gray-900 dark:text-white">

@@ -19,6 +19,30 @@ export function clearCache(): void {
     execSync(`${ARTISAN} cache:clear --env=testing --no-interaction`, { stdio: 'pipe' });
 }
 
+export function createSecureLineProduct(overrides: Record<string, string | number | boolean> = {}): void {
+    const attrs = {
+        name: 'Quick Call',
+        duration_minutes: 30,
+        max_participants: 5,
+        amount_cents: 2000,
+        stripe_price_id: null,
+        is_active: true,
+        ...overrides,
+    };
+    const phpAttrs = Object.entries(attrs)
+        .map(([k, v]) => {
+            if (v === null) { return `'${k}' => null`; }
+            if (typeof v === 'boolean') { return `'${k}' => ${v ? 'true' : 'false'}`; }
+            if (typeof v === 'number') { return `'${k}' => ${v}`; }
+            return `'${k}' => '${v}'`;
+        })
+        .join(', ');
+    execSync(
+        `${ARTISAN} tinker --no-interaction --env=testing --execute="App\\\\Models\\\\SecureLineProduct::create([${phpAttrs}])"`,
+        { stdio: 'pipe' }
+    );
+}
+
 export function expireAllSecrets(): void {
     // Replicates what ClearExpiredSecrets job does for text secrets.
     // There is no artisan command for this — use tinker directly.
