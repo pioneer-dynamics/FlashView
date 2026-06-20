@@ -98,35 +98,24 @@ async function drainPendingCandidates(fromId, pc) {
 }
 
 function createPeerConnection(peerId) {
-    console.log('[WebRTC] createPeerConnection', peerId, 'ice_servers:', sessionData.ice_servers);
     const pc = new RTCPeerConnection({ iceServers: sessionData.ice_servers });
     localStream.value.getTracks().forEach(track => {
-        console.log('[WebRTC] addTrack', track.kind, track.label);
         pc.addTrack(track, localStream.value);
     });
     pc.onicecandidate = ({ candidate }) => {
         if (candidate) {
-            console.log('[WebRTC] onicecandidate', candidate.type, candidate.protocol, candidate.address);
             sendSignal(peerId, 'ice-candidate', { candidate });
-        } else {
-            console.log('[WebRTC] ICE gathering complete');
         }
     };
-    pc.onicegatheringstatechange = () => {
-        console.log('[WebRTC] iceGatheringState →', pc.iceGatheringState);
-    };
-    pc.oniceconnectionstatechange = () => {
-        console.log('[WebRTC] iceConnectionState →', pc.iceConnectionState);
-    };
+    pc.onicegatheringstatechange = () => { };
+    pc.oniceconnectionstatechange = () => { };
     pc.onconnectionstatechange = () => {
-        console.log('[WebRTC] connectionState →', pc.connectionState);
         if (pc.connectionState === 'failed') {
             // Spread to a new object so Vue 3 detects the change
             peers.value = { ...peers.value, [peerId]: { ...peers.value[peerId], connectionFailed: true } };
         }
     };
-    pc.ontrack = ({ streams, track }) => {
-        console.log('[WebRTC] ontrack', track.kind, 'streams:', streams.length);
+    pc.ontrack = ({ streams }) => {
         if (streams[0]) {
             // Play remote audio via a hidden <audio> element (audio-only call)
             if (!remoteAudioElements[peerId]) {
@@ -138,9 +127,7 @@ function createPeerConnection(peerId) {
             }
             remoteAudioElements[peerId].srcObject = streams[0];
             // Autoplay may be blocked after Inertia client-side navigation; call play() explicitly
-            remoteAudioElements[peerId].play()
-                .then(() => console.log('[WebRTC] audio.play() succeeded'))
-                .catch(err => console.warn('[WebRTC] audio.play() rejected:', err));
+            remoteAudioElements[peerId].play().catch(() => { });
         }
     };
     // Spread to a new object so Vue 3 detects the key addition
@@ -166,19 +153,16 @@ async function processSignal(signal) {
     }
 
     if (type === 'offer') {
-        console.log('[WebRTC] processSignal: offer from', fromId);
         const pc = peers.value[fromId]?.pc ?? createPeerConnection(fromId);
         await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
         await drainPendingCandidates(fromId, pc);
         const answer = await pc.createAnswer();
         await pc.setLocalDescription(answer);
         await sendSignal(fromId, 'answer', { sdp: answer });
-        console.log('[WebRTC] answer sent to', fromId);
         return;
     }
 
     if (type === 'answer') {
-        console.log('[WebRTC] processSignal: answer from', fromId);
         const pc = peers.value[fromId]?.pc;
         if (pc) {
             await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
@@ -215,7 +199,6 @@ async function pollParticipants() {
                 const offer = await pc.createOffer();
                 await pc.setLocalDescription(offer);
                 await sendSignal(p.id, 'offer', { sdp: offer });
-                console.log('[WebRTC] offer sent to', p.id);
 
                 if (p.public_key) {
                     const enc = new encryption();
@@ -325,11 +308,8 @@ onMounted(async () => {
         return;
     }
 
-    console.log('[WebRTC] sessionData.ice_servers:', JSON.stringify(sessionData.ice_servers));
-
     try {
         localStream.value = await navigator.mediaDevices.getUserMedia({ audio: true });
-        console.log('[WebRTC] getUserMedia ok, tracks:', localStream.value.getTracks().map(t => t.kind));
     } catch (e) {
         mediaError.value = e.name === 'NotFoundError' ? 'unavailable' : 'denied';
         return;
