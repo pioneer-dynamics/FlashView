@@ -74,8 +74,9 @@ test('clicking Edit navigates to the edit form pre-populated with product data',
     await page.getByRole('button', { name: 'Edit' }).first().click();
 
     await expect(page).toHaveURL(/secure-line-products\/\d+\/edit/);
-    await expect(page.getByDisplayValue('Hour Session')).toBeVisible();
-    await expect(page.getByDisplayValue('60')).toBeVisible();
+    // Use attribute selector since getByDisplayValue is not available in Playwright 1.60
+    await expect(page.locator('input[value="Hour Session"]')).toBeVisible();
+    await expect(page.locator('input[value="60"]').first()).toBeVisible();
 });
 
 test('admin can update a product and see the change reflected in the table', async ({ page }) => {
@@ -87,7 +88,8 @@ test('admin can update a product and see the change reflected in the table', asy
     await page.getByRole('button', { name: 'Edit' }).first().click();
     await page.waitForLoadState('networkidle');
 
-    const nameInput = page.getByDisplayValue('Short Call');
+    // Use attribute selector since getByDisplayValue is not available in Playwright 1.60
+    const nameInput = page.locator('input[value="Short Call"]');
     await nameInput.clear();
     await nameInput.fill('Extended Call');
 
@@ -109,7 +111,8 @@ test('clicking Delete opens a confirmation modal; confirming removes the product
     await page.getByRole('button', { name: 'Delete' }).first().click();
 
     await expect(page.getByText('Delete Secure Line Product')).toBeVisible();
-    await expect(page.getByText('Call To Delete')).toBeVisible();
+    // Scope to the modal dialog to avoid strict-mode collision with the table row
+    await expect(page.getByRole('dialog').getByText('Call To Delete')).toBeVisible();
 
     await page.getByRole('button', { name: 'Delete Product' }).click();
     await page.waitForLoadState('networkidle');
@@ -124,10 +127,11 @@ test('an inactive product appears visually dimmed in the table', async ({ page }
     await page.waitForLoadState('networkidle');
 
     await expect(page.getByText('Inactive Product')).toBeVisible();
-    await expect(page.getByText('No')).toBeVisible();
+    // Scope "No" to the product row to avoid matching other text on the page
+    const row = page.locator('tr', { has: page.getByText('Inactive Product') });
+    await expect(row.getByText('No', { exact: true })).toBeVisible();
 
     // Row gets opacity-50 class when inactive
-    const row = page.locator('tr', { has: page.getByText('Inactive Product') });
     await expect(row).toHaveClass(/opacity-50/);
 });
 
