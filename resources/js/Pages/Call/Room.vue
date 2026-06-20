@@ -97,21 +97,9 @@ async function drainPendingCandidates(fromId, pc) {
     delete pendingCandidates[fromId];
 }
 
-function sanitizeSdp(sdpString) {
-    return sdpString.split('\r\n')
-        .map(line => {
-            // Some browsers (Safari, older Chrome) emit a=ssrc lines with a two-token msid value
-            // (stream-id + track-id separated by a space). Chrome's Unified Plan parser rejects the
-            // space inside the msid attribute value. Strip the trailing track-id token.
-            const m = line.match(/^(a=ssrc:\d+ msid:\S+)\s+\S+$/);
-            return m ? m[1] : line;
-        })
-        .join('\r\n');
-}
-
 function createPeerConnection(peerId) {
     console.log('[WebRTC] createPeerConnection', peerId, 'ice_servers:', sessionData.ice_servers);
-    const pc = new RTCPeerConnection({ iceServers: sessionData.ice_servers, sdpSemantics: 'unified-plan' });
+    const pc = new RTCPeerConnection({ iceServers: sessionData.ice_servers });
     localStream.value.getTracks().forEach(track => {
         console.log('[WebRTC] addTrack', track.kind, track.label);
         pc.addTrack(track, localStream.value);
@@ -180,9 +168,7 @@ async function processSignal(signal) {
     if (type === 'offer') {
         console.log('[WebRTC] processSignal: offer from', fromId);
         const pc = peers.value[fromId]?.pc ?? createPeerConnection(fromId);
-        const rawSdp = payload.sdp;
-        const cleanSdp = rawSdp?.sdp ? { ...rawSdp, sdp: sanitizeSdp(rawSdp.sdp) } : rawSdp;
-        await pc.setRemoteDescription(new RTCSessionDescription(cleanSdp));
+        await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
         await drainPendingCandidates(fromId, pc);
         const answer = await pc.createAnswer();
         await pc.setLocalDescription(answer);
@@ -195,9 +181,7 @@ async function processSignal(signal) {
         console.log('[WebRTC] processSignal: answer from', fromId);
         const pc = peers.value[fromId]?.pc;
         if (pc) {
-            const rawSdp = payload.sdp;
-            const cleanSdp = rawSdp?.sdp ? { ...rawSdp, sdp: sanitizeSdp(rawSdp.sdp) } : rawSdp;
-            await pc.setRemoteDescription(new RTCSessionDescription(cleanSdp));
+            await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
             await drainPendingCandidates(fromId, pc);
         }
         return;
