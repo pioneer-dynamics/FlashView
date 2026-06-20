@@ -2,7 +2,7 @@
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { router } from '@inertiajs/vue3';
 import { ref, onMounted, computed } from 'vue';
-import { generatePassphrase, deriveCallKeyPair } from '@pioneer-dynamics/flashview-crypto';
+import { generatePassphrase, deriveCallKeyPair, generateCallKeySalt } from '@pioneer-dynamics/flashview-crypto';
 
 const props = defineProps({
     credit_token: String,
@@ -57,8 +57,7 @@ const downloadCredentials = () => {
 onMounted(async () => {
     try {
         const password = generatePassphrase();
-        const saltBytes = crypto.getRandomValues(new Uint8Array(32));
-        const keySalt = btoa(String.fromCharCode(...saltBytes));
+        const keySalt = generateCallKeySalt();
         const { publicKeyBase64 } = await deriveCallKeyPair(password, keySalt);
 
         const res = await fetch(route('calls.store'), {
