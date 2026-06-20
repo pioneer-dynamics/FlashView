@@ -101,10 +101,14 @@ function sanitizeSdp(sdpString) {
     // Chrome's Unified Plan parser rejects all a=ssrc: source attributes (cname, msid,
     // mslabel, label) — they are Plan B artefacts. Remove all of them; Unified Plan
     // conveys CNAME via RTCP SDES and MSID via the media-level a=msid: attribute.
+    //
+    // After filtering, rejoin and guarantee a trailing \r\n. Chrome's SDP parser
+    // treats the last line as invalid if it is not CRLF-terminated.
     const lines = sdpString.split('\r\n');
     const filtered = lines.filter(line => !/^a=ssrc:/.test(line));
-    console.log('[D] sanitizeSdp: lines before:', lines.length, 'after:', filtered.length, '(removed', lines.length - filtered.length, 'a=ssrc: lines)');
-    const result = filtered.join('\r\n');
+    console.log('[D] sanitizeSdp: lines before:', lines.length, 'after:', filtered.length, '(removed', lines.length - filtered.length, 'a=ssrc: lines)', '| input ends CRLF:', sdpString.endsWith('\r\n'));
+    const joined = filtered.join('\r\n');
+    const result = joined.endsWith('\r\n') ? joined : joined + '\r\n';
     console.log('[D] sanitized SDP dump:\n' + result);
     return result;
 }
