@@ -117,8 +117,6 @@ function createPeerConnection(peerId) {
             sendSignal(peerId, 'ice-candidate', { candidate });
         }
     };
-    pc.onicegatheringstatechange = () => { };
-    pc.oniceconnectionstatechange = () => { };
     pc.onconnectionstatechange = () => {
         if (pc.connectionState === 'failed') {
             // Spread to a new object so Vue 3 detects the change
@@ -235,7 +233,7 @@ async function pollParticipants() {
                 createPeerConnection(p.id);
             }
         }
-    } catch (e) { console.error('[WebRTC] pollParticipants error:', e); }
+    } catch (e) { }
     participantPollTimer.value = setTimeout(pollParticipants, 3000);
 }
 
@@ -249,11 +247,9 @@ async function pollSignals() {
         for (const signal of data.signals) {
             try {
                 await processSignal(signal);
-            } catch (e) {
-                console.error('[WebRTC] processSignal error:', signal.type, e);
-            }
+            } catch (e) { }
         }
-    } catch (e) { console.error('[WebRTC] pollSignals error:', e); }
+    } catch (e) { }
     signalPollTimer.value = setTimeout(pollSignals, 1500);
 }
 
