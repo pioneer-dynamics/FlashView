@@ -97,6 +97,16 @@ async function drainPendingCandidates(fromId, pc) {
     delete pendingCandidates[fromId];
 }
 
+function sanitizeSdp(sdpString) {
+    // Chrome's Unified Plan SDP parser rejects a=ssrc: msid attributes — they are
+    // Plan B artefacts that Chrome still generates for backwards compatibility but
+    // refuses to accept when parsing received SDP. Remove these lines entirely; the
+    // media-level a=msid: attribute conveys the same MSID information in Unified Plan.
+    return sdpString.split('\r\n')
+        .filter(line => !/^a=ssrc:\d+ msid:/.test(line))
+        .join('\r\n');
+}
+
 function createPeerConnection(peerId) {
     const pc = new RTCPeerConnection({ iceServers: sessionData.ice_servers });
     localStream.value.getTracks().forEach(track => {
@@ -154,7 +164,10 @@ async function processSignal(signal) {
 
     if (type === 'offer') {
         const pc = peers.value[fromId]?.pc ?? createPeerConnection(fromId);
-        await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
+        const offerSdp = payload.sdp?.sdp
+            ? { ...payload.sdp, sdp: sanitizeSdp(payload.sdp.sdp) }
+            : payload.sdp;
+        await pc.setRemoteDescription(new RTCSessionDescription(offerSdp));
         await drainPendingCandidates(fromId, pc);
         const answer = await pc.createAnswer();
         await pc.setLocalDescription(answer);
@@ -165,7 +178,10 @@ async function processSignal(signal) {
     if (type === 'answer') {
         const pc = peers.value[fromId]?.pc;
         if (pc) {
-            await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
+            const answerSdp = payload.sdp?.sdp
+                ? { ...payload.sdp, sdp: sanitizeSdp(payload.sdp.sdp) }
+                : payload.sdp;
+            await pc.setRemoteDescription(new RTCSessionDescription(answerSdp));
             await drainPendingCandidates(fromId, pc);
         }
         return;
