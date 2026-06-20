@@ -36,7 +36,7 @@ test('buy page shows "How it works" block and active products', async ({ page })
     await expect(page.getByText(/Your call window starts the moment/)).toBeVisible();
 
     await expect(page.getByText('Quick Call')).toBeVisible();
-    await expect(page.getByText('$20')).toBeVisible();
+    await expect(page.getByTestId('product-price')).toContainText('$20');
     await expect(page.getByTestId('purchase-button')).toBeVisible();
 });
 
@@ -114,8 +114,10 @@ test('await-credit shows retry button after timeout', async ({ page }) => {
     await page.goto('/calls/await-credit?session=cs_test_timeout');
     await page.waitForLoadState('networkidle');
 
-    // Fast-forward 60 seconds to trigger the timeout
-    await page.clock.fastForward(62000);
+    // Step through 32 intervals of 2s each so Vue flushes reactivity between ticks
+    for (let i = 0; i < 32; i++) {
+        await page.clock.tick(2000);
+    }
 
     await expect(page.getByRole('button', { name: 'Try again' })).toBeVisible({ timeout: 5000 });
     await expect(page.getByText('Bank transfers may take 1–3 business days')).toBeVisible();

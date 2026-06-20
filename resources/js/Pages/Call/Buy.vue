@@ -87,7 +87,7 @@ const formatDuration = (minutes) => minutes >= 60 ? `${minutes / 60} hour${minut
                     >
                         <div>
                             <div class="text-gamboge-300 font-mono text-xs uppercase tracking-widest mb-1">{{ product.name }}</div>
-                            <div class="text-3xl font-bold text-white">{{ formatPrice(product.amount_cents) }}</div>
+                            <div class="text-3xl font-bold text-white" data-testid="product-price">{{ formatPrice(product.amount_cents) }}</div>
                             <div class="text-gray-400 text-xs mt-1">one-time payment</div>
                         </div>
                         <ul class="space-y-1 text-sm text-gray-300">

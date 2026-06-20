@@ -14,7 +14,7 @@ function joinLine() {
 
 <template>
     <AppLayout title="Secure Line">
-        <div class="dark min-h-screen bg-gray-950 py-16 px-4">
+        <div class="dark min-h-screen bg-gray-900 py-16 px-4">
             <div class="max-w-3xl mx-auto space-y-10">
 
                 <!-- Hero -->
@@ -39,7 +39,7 @@ function joinLine() {
                             placeholder="Bridge number"
                             @keydown.enter="joinLine"
                             data-testid="bridge-number-input"
-                            class="w-full bg-gray-950 border border-gray-700 text-white font-mono rounded-lg px-3 py-2.5 text-sm focus:border-gamboge-300 focus:outline-none"
+                            class="w-full bg-gray-800 border border-gray-700 text-white font-mono rounded-lg px-3 py-2.5 text-sm focus:border-gamboge-300 focus:outline-none"
                         />
                         <button
                             @click="joinLine"
