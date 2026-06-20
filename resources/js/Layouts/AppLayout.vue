@@ -159,6 +159,9 @@ const logout = () => {
                                                     <DropdownLink :href="route('admin.locker-plans.index')">
                                                         eLocker Plans
                                                     </DropdownLink>
+                                                    <DropdownLink :href="route('admin.secure-line-products.index')">
+                                                        Secure Line Products
+                                                    </DropdownLink>
                                                     <DropdownLink :href="route('admin.users.index')">
                                                         Manage Users
                                                     </DropdownLink>
@@ -400,6 +403,14 @@ const logout = () => {
                                 <ResponsiveNavLink :href="route('admin.plans.index')"
                                     :active="route().current('admin.plans.*')">
                                     Plans
+                                </ResponsiveNavLink>
+                                <ResponsiveNavLink :href="route('admin.locker-plans.index')"
+                                    :active="route().current('admin.locker-plans.*')">
+                                    eLocker Plans
+                                </ResponsiveNavLink>
+                                <ResponsiveNavLink :href="route('admin.secure-line-products.index')"
+                                    :active="route().current('admin.secure-line-products.*')">
+                                    Secure Line Products
                                 </ResponsiveNavLink>
                                 <ResponsiveNavLink :href="route('admin.users.index')"
                                     :active="route().current('admin.users.*')">
