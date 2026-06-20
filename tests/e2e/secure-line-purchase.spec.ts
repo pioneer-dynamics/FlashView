@@ -116,7 +116,7 @@ test('await-credit shows retry button after timeout', async ({ page }) => {
 
     // Step through 32 intervals of 2s each so Vue flushes reactivity between ticks
     for (let i = 0; i < 32; i++) {
-        await page.clock.tick(2000);
+        await page.clock.runFor(2000);
     }
 
     await expect(page.getByRole('button', { name: 'Try again' })).toBeVisible({ timeout: 5000 });
