@@ -12,6 +12,7 @@ use App\Features\SupportFeature;
 use App\Features\ThrottlingFeature;
 use App\Features\WebhookNotificationFeature;
 use App\Listeners\HandleLockerStripeWebhook;
+use App\Listeners\HandleSecureLineStripeWebhook;
 use App\Models\PersonalAccessToken;
 use App\Models\User;
 use App\Observers\SubscriptionObserver;
@@ -66,6 +67,7 @@ class AppServiceProvider extends ServiceProvider
         Subscription::observe(SubscriptionObserver::class);
 
         Event::listen(WebhookReceived::class, HandleLockerStripeWebhook::class);
+        Event::listen(WebhookReceived::class, HandleSecureLineStripeWebhook::class);
 
         Sanctum::usePersonalAccessTokenModel(PersonalAccessToken::class);
 
@@ -117,6 +119,18 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('locker-account-lock', fn (Request $request) => Limit::perHour(3)->by($request->route('accountId')));
         // Controller key pattern: 'locker-account-cooldown:{accountId}' — NOT 'locker-account-cooldown|{accountId}'.
         RateLimiter::for('locker-account-cooldown', fn (Request $request) => Limit::perMinutes(5, 1)->by($request->route('accountId')));
+
+        RateLimiter::for('call-sessions-challenge', function (Request $request) {
+            return Limit::perMinute(20)->by($request->ip().'|'.$request->route('callSession'));
+        });
+
+        RateLimiter::for('call-sessions-join', function (Request $request) {
+            return Limit::perMinute(10)->by($request->ip().'|'.$request->route('callSession'));
+        });
+
+        RateLimiter::for('call-signal-store', fn (Request $request) => Limit::perMinute(120)->by($request->ip()));
+
+        RateLimiter::for('call-signal-poll', fn (Request $request) => Limit::perMinute(300)->by($request->ip()));
     }
 
     private function planThrottleLimit(User $user): Limit

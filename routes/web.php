@@ -2,9 +2,12 @@
 
 use App\Http\Controllers\Admin\AdminLockerPlanController;
 use App\Http\Controllers\Admin\AdminPlanController;
+use App\Http\Controllers\Admin\AdminSecureLineProductController;
 use App\Http\Controllers\Admin\AdminUserController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\BlogController;
+use App\Http\Controllers\CallPageController;
+use App\Http\Controllers\CallSessionController;
 use App\Http\Controllers\CliAuthController;
 use App\Http\Controllers\CliDeviceController;
 use App\Http\Controllers\CliInstallationController;
@@ -17,6 +20,7 @@ use App\Http\Controllers\NotificationSettingsController;
 use App\Http\Controllers\PaymentConfirmingController;
 use App\Http\Controllers\PlanController;
 use App\Http\Controllers\SecretController;
+use App\Http\Controllers\SecureLineCheckoutController;
 use App\Http\Controllers\SenderIdentityController;
 use App\Http\Controllers\WebhookSettingsController;
 use App\Http\Middleware\EnsurePlanHasApiAccess;
@@ -228,9 +232,39 @@ Route::middleware([
 ])->prefix('admin')->name('admin.')->group(function () {
     Route::resource('plans', AdminPlanController::class)->except(['show']);
     Route::resource('locker-plans', AdminLockerPlanController::class)->except(['show']);
+    Route::resource('secure-line-products', AdminSecureLineProductController::class)->except(['show']);
     Route::get('users', [AdminUserController::class, 'index'])->name('users.index');
     Route::post('users/{user}/suspend', [AdminUserController::class, 'suspend'])->name('users.suspend');
     Route::delete('users/{user}/suspend', [AdminUserController::class, 'unsuspend'])->name('users.unsuspend');
+});
+
+// Call page routes — Inertia views; no auth required
+Route::prefix('calls')->name('calls.')->group(function () {
+    Route::get('/', [CallPageController::class, 'index'])->name('index');
+
+    // Anonymous purchase flow — static routes must precede /{callSession} wildcard
+    Route::get('/buy', [SecureLineCheckoutController::class, 'buy'])->name('buy');
+    Route::post('/checkout', [SecureLineCheckoutController::class, 'checkout'])->name('checkout');
+    Route::get('/await-credit', [SecureLineCheckoutController::class, 'awaitCredit'])->name('await-credit');
+    Route::get('/credit-status', [SecureLineCheckoutController::class, 'creditStatus'])
+        ->middleware('throttle:30,1')->name('credit-status');
+    Route::get('/create', [SecureLineCheckoutController::class, 'create'])->name('create');
+    Route::post('/', [SecureLineCheckoutController::class, 'store'])
+        ->middleware('throttle:6,1')->name('store');
+
+    Route::get('/{callSession}', [CallPageController::class, 'show'])->name('join');
+    Route::get('/{callSession}/room', [CallPageController::class, 'room'])->name('room');
+});
+
+// Call session routes — no auth required; Ed25519 challenge-response verifies access
+Route::prefix('call-sessions')->name('call-sessions.')->group(function () {
+    Route::get('/{callSession}/challenge', [CallSessionController::class, 'challenge'])
+        ->name('challenge')
+        ->middleware('throttle:call-sessions-challenge');
+
+    Route::post('/{callSession}/join', [CallSessionController::class, 'join'])
+        ->name('join')
+        ->middleware('throttle:call-sessions-join');
 });
 
 // eLocker routes — no auth required; all anonymous

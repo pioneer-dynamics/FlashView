@@ -125,6 +125,9 @@ const logout = () => {
                                                 </div>
                                             </div>
                                         </div>
+                                        <NavLink :href="route('calls.index')" :active="route().current('calls.*')">
+                                            Secure Line
+                                        </NavLink>
                                         <NavLink :href="route('blog.index')" :active="route().current('blog.*')">
                                             Blog
                                         </NavLink>
@@ -155,6 +158,9 @@ const logout = () => {
                                                     </DropdownLink>
                                                     <DropdownLink :href="route('admin.locker-plans.index')">
                                                         eLocker Plans
+                                                    </DropdownLink>
+                                                    <DropdownLink :href="route('admin.secure-line-products.index')">
+                                                        Secure Line Products
                                                     </DropdownLink>
                                                     <DropdownLink :href="route('admin.users.index')">
                                                         Manage Users
@@ -377,6 +383,9 @@ const logout = () => {
                                 <ResponsiveNavLink :href="route('lockers.buy')" :active="route().current('lockers.buy')">
                                     eLocker — Buy
                                 </ResponsiveNavLink>
+                                <ResponsiveNavLink :href="route('calls.index')" :active="route().current('calls.*')">
+                                    Secure Line
+                                </ResponsiveNavLink>
                                 <ResponsiveNavLink :href="route('blog.index')" :active="route().current('blog.*')">
                                     Blog
                                 </ResponsiveNavLink>
@@ -394,6 +403,14 @@ const logout = () => {
                                 <ResponsiveNavLink :href="route('admin.plans.index')"
                                     :active="route().current('admin.plans.*')">
                                     Plans
+                                </ResponsiveNavLink>
+                                <ResponsiveNavLink :href="route('admin.locker-plans.index')"
+                                    :active="route().current('admin.locker-plans.*')">
+                                    eLocker Plans
+                                </ResponsiveNavLink>
+                                <ResponsiveNavLink :href="route('admin.secure-line-products.index')"
+                                    :active="route().current('admin.secure-line-products.*')">
+                                    Secure Line Products
                                 </ResponsiveNavLink>
                                 <ResponsiveNavLink :href="route('admin.users.index')"
                                     :active="route().current('admin.users.*')">
