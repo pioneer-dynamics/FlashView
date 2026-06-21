@@ -3,6 +3,19 @@ import { execSync } from 'child_process';
 const ARTISAN = process.env.CI ? 'php artisan' : 'vendor/bin/sail artisan';
 
 /**
+ * Create a SecureLineCredit with a known token via tinker.
+ * Creates a product with a stripe_price_id automatically.
+ */
+export function createSecureLineCredit(token: string, used: boolean = false): void {
+    const usedAt = used ? `'used_at' => now()` : `'used_at' => null`;
+    const script = `App\\\\Models\\\\SecureLineCredit::create(['token' => '${token}', 'stripe_session_id' => 'cs_test_e2e_${token}', 'secure_line_product_id' => App\\\\Models\\\\SecureLineProduct::factory()->withStripePrice()->create(['duration_minutes' => 30, 'max_participants' => 5])->id, ${usedAt}]);`;
+    execSync(
+        `${ARTISAN} tinker --no-interaction --env=testing --execute="${script}"`,
+        { stdio: 'pipe' }
+    );
+}
+
+/**
  * Create an active call session via tinker and return its hash_id.
  */
 export function createActiveCallSession(): string {

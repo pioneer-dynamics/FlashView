@@ -12,6 +12,7 @@ use App\Features\SupportFeature;
 use App\Features\ThrottlingFeature;
 use App\Features\WebhookNotificationFeature;
 use App\Listeners\HandleLockerStripeWebhook;
+use App\Listeners\HandleSecureLineStripeWebhook;
 use App\Models\PersonalAccessToken;
 use App\Models\User;
 use App\Observers\SubscriptionObserver;
@@ -66,6 +67,7 @@ class AppServiceProvider extends ServiceProvider
         Subscription::observe(SubscriptionObserver::class);
 
         Event::listen(WebhookReceived::class, HandleLockerStripeWebhook::class);
+        Event::listen(WebhookReceived::class, HandleSecureLineStripeWebhook::class);
 
         Sanctum::usePersonalAccessTokenModel(PersonalAccessToken::class);
 

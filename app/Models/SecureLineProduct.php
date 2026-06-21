@@ -5,6 +5,7 @@ namespace App\Models;
 use Database\Factories\SecureLineProductFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class SecureLineProduct extends Model
@@ -29,6 +30,11 @@ class SecureLineProduct extends Model
             'max_participants' => 'integer',
             'amount_cents' => 'integer',
         ];
+    }
+
+    public function secureLineCredits(): HasMany
+    {
+        return $this->hasMany(SecureLineCredit::class);
     }
 
     public function amountDollars(): float

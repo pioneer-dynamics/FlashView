@@ -20,6 +20,7 @@ use App\Http\Controllers\NotificationSettingsController;
 use App\Http\Controllers\PaymentConfirmingController;
 use App\Http\Controllers\PlanController;
 use App\Http\Controllers\SecretController;
+use App\Http\Controllers\SecureLineCheckoutController;
 use App\Http\Controllers\SenderIdentityController;
 use App\Http\Controllers\WebhookSettingsController;
 use App\Http\Middleware\EnsurePlanHasApiAccess;
@@ -240,6 +241,17 @@ Route::middleware([
 // Call page routes — Inertia views; no auth required
 Route::prefix('calls')->name('calls.')->group(function () {
     Route::get('/', [CallPageController::class, 'index'])->name('index');
+
+    // Anonymous purchase flow — static routes must precede /{callSession} wildcard
+    Route::get('/buy', [SecureLineCheckoutController::class, 'buy'])->name('buy');
+    Route::post('/checkout', [SecureLineCheckoutController::class, 'checkout'])->name('checkout');
+    Route::get('/await-credit', [SecureLineCheckoutController::class, 'awaitCredit'])->name('await-credit');
+    Route::get('/credit-status', [SecureLineCheckoutController::class, 'creditStatus'])
+        ->middleware('throttle:30,1')->name('credit-status');
+    Route::get('/create', [SecureLineCheckoutController::class, 'create'])->name('create');
+    Route::post('/', [SecureLineCheckoutController::class, 'store'])
+        ->middleware('throttle:6,1')->name('store');
+
     Route::get('/{callSession}', [CallPageController::class, 'show'])->name('join');
     Route::get('/{callSession}/room', [CallPageController::class, 'room'])->name('room');
 });

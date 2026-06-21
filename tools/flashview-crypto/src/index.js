@@ -903,6 +903,18 @@ export async function decryptMessage(ciphertextString, passphrase) {
 // ─── Call Session Auth ────────────────────────────────────────────────────────
 
 /**
+ * Generate a cryptographically random 32-byte PBKDF2 salt for call key derivation (base64-encoded).
+ * Used as the key_salt stored in CallSession and passed to deriveCallKeyPair.
+ *
+ * @returns {string} base64-encoded 32-byte salt
+ */
+export function generateCallKeySalt() {
+    const salt = new Uint8Array(32);
+    globalThis.crypto.getRandomValues(salt);
+    return uint8ArrayToBase64(salt);
+}
+
+/**
  * Derives a deterministic Ed25519 key pair from a password and PBKDF2 salt.
  *
  * SHA-256 is used here (not SHA-512 like other PBKDF2 derivations in this module)
