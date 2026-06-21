@@ -172,6 +172,7 @@ const submit = () => {
                             <option value="">All Products</option>
                             <option value="locker">eLocker only</option>
                             <option value="secure_line">Secure Line only</option>
+                            <option value="subscription">Subscriptions only</option>
                             <option value="both">Both (eLocker &amp; Secure Line)</option>
                         </select>
                         <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">

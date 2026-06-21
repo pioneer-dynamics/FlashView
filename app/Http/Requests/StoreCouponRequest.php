@@ -25,7 +25,7 @@ class StoreCouponRequest extends FormRequest
             'duration' => ['required', 'in:once,forever,repeating'],
             'duration_in_months' => ['required_if:duration,repeating', 'nullable', 'integer', 'min:1', 'max:36'],
             'currency' => ['required_if:discount_type,amount', 'nullable', 'string', 'size:3'],
-            'applies_to' => ['nullable', 'in:locker,secure_line,both'],
+            'applies_to' => ['nullable', 'in:locker,secure_line,subscription,both'],
             'max_redemptions' => ['nullable', 'integer', 'min:1'],
             'max_redemptions_per_user' => ['nullable', 'integer', 'min:1'],
             'minimum_amount' => ['nullable', 'numeric', 'min:0'],

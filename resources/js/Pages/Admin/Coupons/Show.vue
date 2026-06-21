@@ -142,7 +142,7 @@ const durationLabel = (coupon) => {
                 </div>
 
                 <p class="mt-4 text-xs text-gray-500 dark:text-gray-400">
-                    Customers can enter promotion codes at the eLocker or Secure Line checkout page.
+                    Customers can enter promotion codes at the eLocker, Secure Line, or subscription checkout page.
                 </p>
             </div>
 

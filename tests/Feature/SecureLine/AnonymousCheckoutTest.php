@@ -397,4 +397,54 @@ class AnonymousCheckoutTest extends TestCase
 
         $this->assertDatabaseCount('secure_line_credits', 0);
     }
+
+    public function test_webhook_creates_credit_for_100_percent_off_coupon(): void
+    {
+        $product = SecureLineProduct::factory()->withStripePrice()->create();
+        $listener = new HandleSecureLineStripeWebhook;
+
+        $event = new WebhookReceived([
+            'type' => 'checkout.session.completed',
+            'data' => [
+                'object' => [
+                    'id' => 'cs_test_free_coupon',
+                    'payment_status' => 'no_payment_required',
+                    'metadata' => [
+                        'product_type' => 'secure_line',
+                        'secure_line_product_id' => $product->id,
+                    ],
+                ],
+            ],
+        ]);
+
+        $listener->handle($event);
+
+        $this->assertDatabaseHas('secure_line_credits', [
+            'stripe_session_id' => 'cs_test_free_coupon',
+            'secure_line_product_id' => $product->id,
+        ]);
+    }
+
+    public function test_webhook_skips_when_product_not_found_in_database(): void
+    {
+        $listener = new HandleSecureLineStripeWebhook;
+
+        $event = new WebhookReceived([
+            'type' => 'checkout.session.completed',
+            'data' => [
+                'object' => [
+                    'id' => 'cs_test_missing_product',
+                    'payment_status' => 'paid',
+                    'metadata' => [
+                        'product_type' => 'secure_line',
+                        'secure_line_product_id' => 99999,
+                    ],
+                ],
+            ],
+        ]);
+
+        $listener->handle($event);
+
+        $this->assertDatabaseCount('secure_line_credits', 0);
+    }
 }

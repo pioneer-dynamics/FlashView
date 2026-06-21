@@ -3,6 +3,7 @@
 namespace App\Listeners;
 
 use App\Models\SecureLineCredit;
+use App\Models\SecureLineProduct;
 use Illuminate\Support\Facades\Log;
 use Laravel\Cashier\Events\WebhookReceived;
 
@@ -22,11 +23,13 @@ class HandleSecureLineStripeWebhook
             return;
         }
 
-        // Guard: async payment methods (SEPA, BACS) fire completed before money clears.
-        if (($session['payment_status'] ?? null) !== 'paid') {
+        // Guard: accept paid (normal) and no_payment_required (100%-off coupon); reject unpaid (async methods).
+        $paymentStatus = $session['payment_status'] ?? null;
+
+        if ($paymentStatus !== 'paid' && $paymentStatus !== 'no_payment_required') {
             Log::info('SecureLine webhook: skipping non-paid session', [
                 'stripe_session_id' => $session['id'],
-                'payment_status' => $session['payment_status'] ?? null,
+                'payment_status' => $paymentStatus,
             ]);
 
             return;
@@ -41,6 +44,15 @@ class HandleSecureLineStripeWebhook
         if (! $productId) {
             Log::warning('SecureLine webhook: missing secure_line_product_id', [
                 'stripe_session_id' => $session['id'],
+            ]);
+
+            return;
+        }
+
+        if (! SecureLineProduct::where('id', $productId)->exists()) {
+            Log::warning('SecureLine webhook: secure_line_product_id not found in database', [
+                'stripe_session_id' => $session['id'],
+                'secure_line_product_id' => $productId,
             ]);
 
             return;

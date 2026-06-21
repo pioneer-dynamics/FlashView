@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreCouponRequest;
 use App\Http\Requests\TogglePromoCodeRequest;
 use App\Models\LockerPlan;
+use App\Models\Plan;
 use App\Models\SecureLineProduct;
 use App\Services\StripePromotionService;
 use Illuminate\Http\RedirectResponse;
@@ -188,6 +189,17 @@ class AdminCouponController extends Controller
         foreach ($priceIds as $priceId) {
             $price = Cashier::stripe()->prices->retrieve($priceId);
             $productIds[] = $price->product;
+        }
+
+        // Plans store stripe_product_id directly — no extra Stripe API call needed.
+        if ($appliesTo === 'subscription') {
+            $subscriptionProductIds = Plan::whereNotNull('stripe_product_id')
+                ->get()
+                ->filter(fn (Plan $plan) => $plan->isCurrentlyAvailable())
+                ->pluck('stripe_product_id')
+                ->toArray();
+
+            $productIds = array_merge($productIds, $subscriptionProductIds);
         }
 
         return array_unique($productIds);

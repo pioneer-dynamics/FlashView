@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Admin;
 
+use App\Models\Plan;
 use App\Models\User;
 use App\Services\StripePromotionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -253,6 +254,31 @@ class AdminCouponTest extends TestCase
                 'active' => true,
             ])
             ->assertRedirect(route('admin.coupons.show', 'coupon_test123'));
+    }
+
+    public function test_admin_can_create_coupon_applies_to_subscription(): void
+    {
+        $admin = $this->adminUser();
+        $mock = $this->mockPromoService();
+        $plan = Plan::factory()->create(['stripe_product_id' => 'prod_sub_test']);
+        $capturedCouponData = null;
+
+        $mock->shouldReceive('createCoupon')
+            ->once()
+            ->andReturnUsing(function (array $data) use (&$capturedCouponData) {
+                $capturedCouponData = $data;
+
+                return $this->fakeCoupon();
+            });
+
+        $mock->shouldReceive('createPromotionCode')->once()->andReturn($this->fakePromoCode());
+
+        $this->actingAs($admin)->postJson(route('admin.coupons.store'), $this->couponPayload([
+            'applies_to' => 'subscription',
+        ]))->assertRedirect();
+
+        $this->assertNotNull($capturedCouponData);
+        $this->assertContains('prod_sub_test', $capturedCouponData['applies_to']['products']);
     }
 
     public function test_store_validates_missing_required_fields(): void
