@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\AdminCouponController;
 use App\Http\Controllers\Admin\AdminLockerPlanController;
 use App\Http\Controllers\Admin\AdminPlanController;
 use App\Http\Controllers\Admin\AdminSecureLineProductController;
@@ -233,6 +234,9 @@ Route::middleware([
     Route::resource('plans', AdminPlanController::class)->except(['show']);
     Route::resource('locker-plans', AdminLockerPlanController::class)->except(['show']);
     Route::resource('secure-line-products', AdminSecureLineProductController::class)->except(['show']);
+    Route::resource('coupons', AdminCouponController::class)->only(['index', 'create', 'store', 'show', 'destroy']);
+    Route::patch('coupons/{coupon}/promotion-codes/{promoCode}', [AdminCouponController::class, 'togglePromoCode'])
+        ->name('coupons.promo-codes.toggle');
     Route::get('users', [AdminUserController::class, 'index'])->name('users.index');
     Route::post('users/{user}/suspend', [AdminUserController::class, 'suspend'])->name('users.suspend');
     Route::delete('users/{user}/suspend', [AdminUserController::class, 'unsuspend'])->name('users.unsuspend');
