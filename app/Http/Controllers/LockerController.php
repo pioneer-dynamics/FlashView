@@ -67,6 +67,7 @@ class LockerController extends Controller
         try {
             $session = Cashier::stripe()->checkout->sessions->create([
                 'mode' => 'payment',
+                'allow_promotion_codes' => true,
                 'line_items' => [['price' => $priceId, 'quantity' => 1]],
                 'metadata' => ['action' => 'create', 'years' => $years, 'tier' => $tier],
                 'success_url' => route('lockers.await-credit').'?session={CHECKOUT_SESSION_ID}',
@@ -628,6 +629,7 @@ class LockerController extends Controller
         try {
             $session = Cashier::stripe()->checkout->sessions->create([
                 'mode' => 'payment',
+                'allow_promotion_codes' => true,
                 'line_items' => [['price' => $priceId, 'quantity' => 1]],
                 'metadata' => [
                     'action' => 'renewal',
