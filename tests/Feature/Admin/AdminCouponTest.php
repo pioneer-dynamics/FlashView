@@ -353,4 +353,15 @@ class AdminCouponTest extends TestCase
             ->postJson(route('admin.coupons.store'), $this->couponPayload())
             ->assertStatus(403);
     }
+
+    public function test_non_admin_cannot_toggle_promo_code(): void
+    {
+        $user = $this->nonAdminUser();
+
+        $this->actingAs($user)
+            ->patch(route('admin.coupons.promo-codes.toggle', ['coupon' => 'coupon_test123', 'promoCode' => 'promo_test456']), [
+                'active' => false,
+            ])
+            ->assertStatus(403);
+    }
 }

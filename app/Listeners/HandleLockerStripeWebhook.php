@@ -32,6 +32,16 @@ class HandleLockerStripeWebhook
 
     private function handleCreate(array $session): void
     {
+        // Guard: async payment methods and 100%-off coupons can produce non-paid sessions.
+        if (($session['payment_status'] ?? null) !== 'paid' && ($session['payment_status'] ?? null) !== 'no_payment_required') {
+            Log::info('Locker create webhook: skipping non-paid session', [
+                'stripe_session_id' => $session['id'],
+                'payment_status' => $session['payment_status'] ?? null,
+            ]);
+
+            return;
+        }
+
         if (LockerCredit::where('stripe_session_id', $session['id'])->exists()) {
             return;
         }
