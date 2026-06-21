@@ -4,11 +4,11 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreCouponRequest;
+use App\Http\Requests\TogglePromoCodeRequest;
 use App\Models\LockerPlan;
 use App\Models\SecureLineProduct;
 use App\Services\StripePromotionService;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -95,7 +95,7 @@ class AdminCouponController extends Controller
             ->with('flash', ['success' => 'Coupon deleted.']);
     }
 
-    public function togglePromoCode(Request $request, string $couponId, string $promoCodeId): RedirectResponse
+    public function togglePromoCode(TogglePromoCodeRequest $request, string $couponId, string $promoCodeId): RedirectResponse
     {
         $active = $request->boolean('active');
         $this->stripePromotion->updatePromotionCode($promoCodeId, $active);
