@@ -40,6 +40,7 @@ class SecureLineCheckoutController extends Controller
         try {
             $session = Cashier::stripe()->checkout->sessions->create([
                 'mode' => 'payment',
+                'allow_promotion_codes' => true,
                 'line_items' => [['price' => $product->stripe_price_id, 'quantity' => 1]],
                 'metadata' => [
                     'product_type' => 'secure_line',
