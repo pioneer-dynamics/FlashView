@@ -12,6 +12,7 @@ import type { PageProps } from '@/types';
 import type { Team } from '@/types';
 
 import { index as secretsIndex } from '@/actions/App/Http/Controllers/SecretController';
+import { index as callsIndexAction } from '@/actions/App/Http/Controllers/CallPageController';
 import { index as plansIndex } from '@/actions/App/Http/Controllers/PlanController';
 import { index as lockersIndex, buy as lockersBuy } from '@/actions/App/Http/Controllers/LockerController';
 import { index as blogIndex } from '@/actions/App/Http/Controllers/BlogController';
@@ -142,7 +143,7 @@ const logout = (): void => {
                                                 </div>
                                             </div>
                                         </div>
-                                        <NavLink :href="route('calls.index')" :active="route().current('calls.*')">
+                                        <NavLink :href="callsIndexAction.url()" :active="route().current('calls.*')">
                                             Secure Line
                                         </NavLink>
                                         <NavLink :href="blogIndex.url()" :active="route().current('blog.*')">
@@ -403,7 +404,7 @@ const logout = (): void => {
                                 <ResponsiveNavLink :href="lockersBuy.url()" :active="route().current('lockers.buy')">
                                     eLocker — Buy
                                 </ResponsiveNavLink>
-                                <ResponsiveNavLink :href="route('calls.index')" :active="route().current('calls.*')">
+                                <ResponsiveNavLink :href="callsIndexAction.url()" :active="route().current('calls.*')">
                                     Secure Line
                                 </ResponsiveNavLink>
                                 <ResponsiveNavLink :href="blogIndex.url()" :active="route().current('blog.*')">

@@ -45,16 +45,14 @@
             preserveState: true,
             onSuccess: () => {
                 const page = usePage<PageProps>();
-                console.log('from server', page.props.jetstream.flash.options);
                 startRegistration(JSON.parse(JSON.stringify(page.props.jetstream.flash.options)))
                     .then((res) =>{
                         form.passkey = res;
-                        console.log(res);
                         form.post(route('passkeys.store'), {
                             preserveScroll: true
                         })
                     })
-                    .catch((err: unknown) => console.log(err))
+                    .catch((_err: unknown) => { /* registration cancelled or failed */ })
                     .finally(() => closeModal());
             }
         })

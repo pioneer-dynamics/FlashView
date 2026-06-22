@@ -8,20 +8,10 @@ import InputError from '@/Components/InputError.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
-
-interface Session {
-    agent: {
-        is_desktop: boolean
-        platform: string | null
-        browser: string | null
-    }
-    ip_address: string
-    is_current_device: boolean
-    last_active: string
-}
+import type { BrowserSession } from '@/types';
 
 interface Props {
-    sessions: Session[]
+    sessions: BrowserSession[]
 }
 
 defineProps<Props>();
