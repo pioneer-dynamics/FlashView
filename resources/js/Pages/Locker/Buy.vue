@@ -3,6 +3,7 @@ import AppLayout from '@/Layouts/AppLayout.vue';
 import { Link, router } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue';
 import type { LockerPlan } from '@/types';
+import { create } from '@/actions/App/Http/Controllers/LockerController';
 
 interface Props {
     pricing?: Record<string, Record<number, LockerPlan>>
@@ -17,7 +18,7 @@ onMounted(() => {
 });
 
 const resumeCreation = (): void => {
-    router.visit(route('lockers.create') + '?token=' + encodeURIComponent(pendingToken.value ?? ''));
+    router.visit(create.url({ query: { token: pendingToken.value ?? '' } }));
 };
 
 const dismissPending = (): void => {

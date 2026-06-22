@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { Head, Link, router, usePage } from '@inertiajs/vue3'
+import { authorize } from '@/actions/App/Http/Controllers/CliAuthController'
+import { index as plansIndex } from '@/actions/App/Http/Controllers/PlanController'
 import type { PageProps } from '@/types'
 import AuthenticationCard from '@/Components/AuthenticationCard.vue'
 import AuthenticationCardLogo from '@/Components/AuthenticationCardLogo.vue'
@@ -29,7 +31,7 @@ const installationName = ref(props.existingDeviceName || props.name || '')
 
 function submit(action: string): void {
     processing.value = true
-    router.post(route('cli.authorize.store'), {
+    router.post(authorize.url(), {
         port: props.port,
         state: props.state,
         action: action,
@@ -60,7 +62,7 @@ function submit(action: string): void {
                 <SecondaryButton @click="submit('deny')" :disabled="processing">
                     Close
                 </SecondaryButton>
-                <Link :href="route('plans.index')" prefetch>
+                <Link :href="plansIndex.url()" prefetch>
                     <PrimaryButton>
                         View Plans
                     </PrimaryButton>

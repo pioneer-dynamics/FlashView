@@ -7,6 +7,8 @@ import ActionSection from '@/Components/ActionSection.vue';
 import FormSection from '@/Components/FormSection.vue';
 import Checkbox from '@/Components/Checkbox.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
+import { update } from '@/actions/App/Http/Controllers/NotificationPreferencesController';
+import { index } from '@/actions/App/Http/Controllers/PlanController';
 
 const page = usePage<PageProps>();
 const user = computed(() => page.props.auth.user);
@@ -24,7 +26,7 @@ const form = useForm({
 });
 
 const updateNotificationPreferences = () => {
-    form.put(route('user.notification-preferences.update'), {
+    form.submit(update(), {
         preserveScroll: true,
     });
 };
@@ -79,7 +81,7 @@ const updateNotificationPreferences = () => {
         <template #content>
             <p class="text-sm text-gray-600 dark:text-gray-400">
                 Secret retrieval notifications are available on paid plans.
-                <Link :href="route('plans.index')" prefetch class="underline text-sm text-gamboge-300 dark:text-gamboge-200 hover:text-gamboge-200 dark:hover:text-gamboge-100 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gamboge-500 dark:focus:ring-offset-gray-900">
+                <Link :href="index.url()" prefetch class="underline text-sm text-gamboge-300 dark:text-gamboge-200 hover:text-gamboge-200 dark:hover:text-gamboge-100 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gamboge-500 dark:focus:ring-offset-gray-900">
                     View plans
                 </Link>
             </p>

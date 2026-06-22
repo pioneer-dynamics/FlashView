@@ -2,6 +2,8 @@
     import FlatActionSection from '@/Components/FlatActionSection.vue';
     import { Link } from '@inertiajs/vue3';
     import Faq from '@/Components/Faq.vue';
+    import { index as secretsIndex } from '@/actions/App/Http/Controllers/SecretController';
+    import { index as plansIndex } from '@/actions/App/Http/Controllers/PlanController';
 </script>
 <template>
     <FlatActionSection v-if="!$page.props.jetstream.flash?.secret?.url" class="pt-4">
@@ -20,7 +22,7 @@
             While it is convenient for the end user to encode the passphrase into the link, it would also mean that our server receives the passphrase and so does a man in the middle. By not including the passphrase in the link, we have completely cut off ourselves and any man in the middle from being able to retrieve the secret message.
         </Faq>
         <Faq question="How do I delete the secret message?">
-            The secret message is deleted when it reaches the expiry set while generating the secure link, or on the first attempt to retrieve the message - whichever comes first. If you wish to delete the secret before it is retrieved, you could visit the same link, give any random password and press retrieve to delete the message, or, if you have an account, you could go to <Link :href="route('secrets.index')" prefetch class="underline text-gamboge-300">My Secrets</Link> and click on "Burn" against the Message ID.
+            The secret message is deleted when it reaches the expiry set while generating the secure link, or on the first attempt to retrieve the message - whichever comes first. If you wish to delete the secret before it is retrieved, you could visit the same link, give any random password and press retrieve to delete the message, or, if you have an account, you could go to <Link :href="secretsIndex.url()" prefetch class="underline text-gamboge-300">My Secrets</Link> and click on "Burn" against the Message ID.
         </Faq>
         <Faq question="How long will the secret be available?">
             The secret message is deleted when it reaches the expiry set while generating the secure link, or on the first attempt to retrieve the message - whichever comes first.
@@ -46,7 +48,7 @@
             If you are a legal authority, you can email us at <a class="underline text-gamboge-300" :href="'mailto:' + $page.props.config.support.legal ">{{ $page.props.config.support.legal }}</a>. The request should have the retrieval URL for the message, a scanned copy of the notarized court order, and the reason for the request. To speed up the process (that is to help us validate the authority of the court order) we recommend that the email be sent from the registered domain name for the court or the legal authority and be signed using a valid digital signature.
         </Faq>
         <Faq question="Are there any limits to the number of secret links I can generate?">
-            We rate limit the number of times an anonymous user can generate links to avoid abuse. Currently, anonymous users can create {{ $page.props.config.secrets.rate_limit.guest.per_minute }} links per minute and {{ $page.props.config.secrets.rate_limit.guest.per_day }} links per day. <Link class="underline text-gamboge-300" prefetch :href="route('login')">Login</Link> or <Link class="underline text-gamboge-300" prefetch :href="route('register')">create a free account!</Link> to increase the limit. Authenticated users on the free plan can create {{ $page.props.config.secrets.rate_limit.user.per_minute }} links per minute. Check out our <Link class="underline text-gamboge-300" prefetch :href="route('plans.index')">paid plans</Link> if you need to send larger messages.
+            We rate limit the number of times an anonymous user can generate links to avoid abuse. Currently, anonymous users can create {{ $page.props.config.secrets.rate_limit.guest.per_minute }} links per minute and {{ $page.props.config.secrets.rate_limit.guest.per_day }} links per day. <Link class="underline text-gamboge-300" prefetch :href="route('login')">Login</Link> or <Link class="underline text-gamboge-300" prefetch :href="route('register')">create a free account!</Link> to increase the limit. Authenticated users on the free plan can create {{ $page.props.config.secrets.rate_limit.user.per_minute }} links per minute. Check out our <Link class="underline text-gamboge-300" prefetch :href="plansIndex.url()">paid plans</Link> if you need to send larger messages.
         </Faq>
     </FlatActionSection>
 </template>

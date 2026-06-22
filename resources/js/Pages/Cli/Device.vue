@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { Head, Link, router, usePage } from '@inertiajs/vue3'
+import { activate } from '@/actions/App/Http/Controllers/CliDeviceController'
+import { index as plansIndex } from '@/actions/App/Http/Controllers/PlanController'
 import type { PageProps } from '@/types'
 import AuthenticationCard from '@/Components/AuthenticationCard.vue'
 import AuthenticationCardLogo from '@/Components/AuthenticationCardLogo.vue'
@@ -37,7 +39,7 @@ function handleInput(event: Event): void {
 function submit(): void {
     processing.value = true
     cancelled.value = false
-    router.post(route('cli.device.activate'), {
+    router.post(activate.url(), {
         user_code: userCode.value,
         name: installationName.value || null,
         permissions: selectedPermissions.value,
@@ -73,7 +75,7 @@ function cancel(): void {
                 Please upgrade to a plan with API support to use the CLI.
             </p>
             <div class="mt-4 flex justify-center">
-                <Link :href="route('plans.index')" prefetch>
+                <Link :href="plansIndex.url()" prefetch>
                     <PrimaryButton>
                         View Plans
                     </PrimaryButton>

@@ -2,6 +2,7 @@
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { Link, router } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue';
+import { create } from '@/actions/App/Http/Controllers/SecureLineCheckoutController';
 import type { SecureLineProduct } from '@/types';
 
 interface Props {
@@ -17,7 +18,7 @@ onMounted(() => {
 });
 
 const resumeSetup = (): void => {
-    router.visit(route('calls.create') + '?token=' + encodeURIComponent(pendingToken.value!));
+    router.visit(create.url({ query: { token: pendingToken.value! } }));
 };
 
 const dismissPending = (): void => {
