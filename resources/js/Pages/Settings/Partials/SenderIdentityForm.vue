@@ -197,8 +197,8 @@ const updateIncludeByDefault = (val: boolean | unknown[]): void => {
 
                     <div v-else class="space-y-4">
                         <!-- Active retry in progress -->
-                        <div v-if="hasActiveRetry" class="rounded-md bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 p-3">
-                            <p class="text-sm text-blue-700 dark:text-blue-400">
+                        <div v-if="hasActiveRetry" class="rounded-md bg-gamboge-900/20 border border-gamboge-800/40 p-3">
+                            <p class="text-sm text-gamboge-300">
                                 We're checking your domain in the background — you'll get an email when it's verified.
                             </p>
                         </div>

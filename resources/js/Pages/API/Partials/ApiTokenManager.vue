@@ -2,6 +2,7 @@
 import { ref } from 'vue';
 import { useForm, Link } from '@inertiajs/vue3';
 import type { ApiToken } from '@/types';
+import { destroy as destroyCliInstallation } from '@/actions/App/Http/Controllers/CliInstallationController';
 import ActionMessage from '@/Components/ActionMessage.vue';
 import ActionSection from '@/Components/ActionSection.vue';
 import Checkbox from '@/Components/Checkbox.vue';
@@ -71,7 +72,7 @@ const confirmApiTokenDeletion = (token: ApiToken): void => {
 const deleteApiToken = (): void => {
     const token = apiTokenBeingDeleted.value!;
     const deleteRoute = token.type === 'cli'
-        ? route('cli-installations.destroy', token)
+        ? destroyCliInstallation.url(token.id)
         : route('api-tokens.destroy', token);
 
     deleteApiTokenForm.delete(deleteRoute, {
