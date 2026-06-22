@@ -163,7 +163,7 @@ const closeModal = (): void => {
             <template #footer>
                 <div class="w-full text-sm text-gray-600 dark:text-gray-400">
                     Having problems?
-                    <button @click="usePassword" class="text-blue-600 dark:text-blue-400 hover:underline">
+                    <button @click="usePassword" class="text-gamboge-300 hover:underline">
                         Use your password
                     </button>
                 </div>

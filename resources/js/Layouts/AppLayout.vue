@@ -343,12 +343,12 @@ const logout = (): void => {
                                     </Dropdown>
                                     <template v-else>
                                         <Link :href="route('login')" prefetch
-                                            class="rounded-md px-3 py-2 text-gamboge-700 ring-1 ring-transparent transition hover:text-gamboge-200 focus:outline-none focus-visible:ring-[#FF2D20] dark:text-white dark:hover:text-white/80 dark:focus-visible:ring-white">
+                                            class="rounded-md px-3 py-2 text-gamboge-700 ring-1 ring-transparent transition hover:text-gamboge-200 focus:outline-none focus-visible:ring-gamboge-500 dark:text-white dark:hover:text-white/80 dark:focus-visible:ring-white">
                                         Log in
                                         </Link>
 
                                         <Link :href="route('register')" prefetch
-                                            class="rounded-md px-3 py-2 text-gamboge-700 ring-1 ring-transparent transition hover:text-gamboge-200 focus:outline-none focus-visible:ring-[#FF2D20] dark:text-white dark:hover:text-white/80 dark:focus-visible:ring-white">
+                                            class="rounded-md px-3 py-2 text-gamboge-700 ring-1 ring-transparent transition hover:text-gamboge-200 focus:outline-none focus-visible:ring-gamboge-500 dark:text-white dark:hover:text-white/80 dark:focus-visible:ring-white">
                                         Register
                                         </Link>
                                     </template>

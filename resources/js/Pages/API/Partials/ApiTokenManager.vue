@@ -160,7 +160,7 @@ const deleteApiToken = (): void => {
                                         {{ token.name }}
                                         <span
                                             v-if="token.type === 'cli'"
-                                            class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300"
+                                            class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gamboge-900/30 text-gamboge-300 border border-gamboge-800/40"
                                         >
                                             CLI
                                         </span>
