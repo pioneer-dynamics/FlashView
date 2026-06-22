@@ -64,11 +64,12 @@ export interface JetstreamFlash {
     webhookSecret?: string
     options?: unknown
     verified?: boolean
-    error?: { code?: number; message?: string } | string
+    error?: { code?: number; message?: string }
     secret?: {
         url?: string
         is_file?: boolean
         message?: string
+        file_download_url?: string
     }
 }
 
@@ -87,6 +88,7 @@ export interface JetstreamConfig {
 }
 
 export interface PageProps {
+    [key: string]: unknown
     auth: Auth
     errors: Record<string, string>
     flash: Flash
