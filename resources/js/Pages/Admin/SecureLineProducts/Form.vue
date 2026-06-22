@@ -8,7 +8,7 @@ import InputError from '@/Components/InputError.vue';
 import { Link, useForm } from '@inertiajs/vue3';
 import { computed, watch } from 'vue';
 import type { SecureLineProduct } from '@/types';
-import { index, store, update } from '@/actions/App/Http/Controllers/Admin/AdminSecureLineProductController';
+import AdminSecureLineProductController from '@/actions/App/Http/Controllers/Admin/AdminSecureLineProductController';
 
 interface Props {
     product: SecureLineProduct | null
@@ -55,9 +55,9 @@ const showActiveWarning = computed((): boolean =>
 
 const submit = (): void => {
     if (isEditing.value) {
-        form.submit(update(props.product!.id));
+        form.submit(AdminSecureLineProductController.update(props.product!.id));
     } else {
-        form.submit(store());
+        form.submit(AdminSecureLineProductController.store());
     }
 };
 
@@ -79,7 +79,7 @@ const previewStripeStatus = computed((): string => {
 
         <Page>
             <div class="mb-6">
-                <Link :href="index.url()" prefetch class="text-sm text-gamboge-300 hover:text-gamboge-200">
+                <Link :href="AdminSecureLineProductController.index.url()" prefetch class="text-sm text-gamboge-300 hover:text-gamboge-200">
                     ← Back to Secure Line Products
                 </Link>
             </div>
@@ -226,7 +226,7 @@ const previewStripeStatus = computed((): string => {
                         <PrimaryButton :disabled="form.processing">
                             {{ isEditing ? 'Update Product' : 'Create Product' }}
                         </PrimaryButton>
-                        <Link :href="index.url()" prefetch>
+                        <Link :href="AdminSecureLineProductController.index.url()" prefetch>
                             <SecondaryButton type="button">Cancel</SecondaryButton>
                         </Link>
                     </div>

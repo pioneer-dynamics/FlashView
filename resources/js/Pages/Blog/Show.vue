@@ -3,7 +3,7 @@ import { Link } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Page from '@/Pages/Page.vue';
 import type { BlogPost } from '@/types';
-import { index as blogIndex } from '@/actions/App/Http/Controllers/BlogController';
+import BlogController from '@/actions/App/Http/Controllers/BlogController';
 
 interface Props {
     post: BlogPost
@@ -18,7 +18,7 @@ defineProps<Props>();
             <div class="max-w-3xl mx-auto px-4 py-10">
                 <!-- Back link -->
                 <Link
-                    :href="blogIndex.url()"
+                    :href="BlogController.index.url()"
                     prefetch
                     class="inline-flex items-center gap-1 text-xs font-mono text-gamboge-300 hover:text-gamboge-200 uppercase tracking-widest mb-8 transition-colors duration-150"
                 >
@@ -58,7 +58,7 @@ defineProps<Props>();
                 <!-- Footer -->
                 <div class="mt-12 pt-8 border-t border-gray-200 dark:border-gray-700">
                     <Link
-                        :href="blogIndex.url()"
+                        :href="BlogController.index.url()"
                         prefetch
                         class="text-sm font-mono text-gamboge-300 hover:text-gamboge-200 transition-colors duration-150"
                     >

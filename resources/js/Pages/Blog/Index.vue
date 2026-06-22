@@ -3,7 +3,7 @@ import { Link } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Page from '@/Pages/Page.vue';
 import type { BlogPost } from '@/types';
-import { show } from '@/actions/App/Http/Controllers/BlogController';
+import BlogController from '@/actions/App/Http/Controllers/BlogController';
 
 interface Props {
     posts?: BlogPost[]
@@ -45,7 +45,7 @@ defineProps<Props>();
                         </div>
 
                         <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-2 group-hover:text-gamboge-300 transition-colors duration-150">
-                            <Link :href="show.url(post.slug)" prefetch>
+                            <Link :href="BlogController.show.url(post.slug)" prefetch>
                                 {{ post.title }}
                             </Link>
                         </h2>
@@ -55,7 +55,7 @@ defineProps<Props>();
                         </p>
 
                         <Link
-                            :href="show.url(post.slug)"
+                            :href="BlogController.show.url(post.slug)"
                             prefetch
                             class="text-sm font-mono text-gamboge-300 hover:text-gamboge-200 transition-colors duration-150"
                         >

@@ -6,7 +6,7 @@ import StoreMaskedEmailForm from '@/Pages/Settings/Partials/StoreMaskedEmailForm
 import Page from '../Page.vue';
 import SectionBorder from '@/Components/SectionBorder.vue';
 import type { SenderIdentityDetail } from '@/types';
-import { index as plansIndex } from '@/actions/App/Http/Controllers/PlanController';
+import PlanController from '@/actions/App/Http/Controllers/PlanController';
 
 interface Props {
     storeMaskedRecipientEmail: boolean
@@ -41,7 +41,7 @@ withDefaults(defineProps<Props>(), {
 
                 <div v-else class="text-sm text-gray-500 dark:text-gray-400 py-2">
                     Prime subscribers can add a Verified Sender badge to their secret links.
-                    <Link :href="plansIndex.url()" prefetch class="underline text-sm text-gamboge-300 dark:text-gamboge-200 hover:text-gamboge-200 dark:hover:text-gamboge-100 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gamboge-500 dark:focus:ring-offset-gray-900">Upgrade to Prime →</Link>
+                    <Link :href="PlanController.index.url()" prefetch class="underline text-sm text-gamboge-300 dark:text-gamboge-200 hover:text-gamboge-200 dark:hover:text-gamboge-100 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gamboge-500 dark:focus:ring-offset-gray-900">Upgrade to Prime →</Link>
                 </div>
             </div>
         </Page>

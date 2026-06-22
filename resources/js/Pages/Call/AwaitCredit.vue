@@ -2,7 +2,7 @@
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { router } from '@inertiajs/vue3';
 import { ref, onMounted, onUnmounted } from 'vue';
-import { creditStatus, create } from '@/actions/App/Http/Controllers/SecureLineCheckoutController';
+import SecureLineCheckoutController from '@/actions/App/Http/Controllers/SecureLineCheckoutController';
 
 interface Props {
     session_id?: string;
@@ -17,12 +17,12 @@ let elapsed = 0;
 const poll = async () => {
     if (!props.session_id) return;
     try {
-        const res = await fetch(creditStatus.url({ query: { session: props.session_id } }));
+        const res = await fetch(SecureLineCheckoutController.creditStatus.url({ query: { session: props.session_id } }));
         const data = await res.json();
         if (data.token) {
             clearInterval(pollInterval);
             localStorage.setItem('secure_line_pending_token', data.token);
-            router.visit(create.url({ query: { token: data.token } }));
+            router.visit(SecureLineCheckoutController.create.url({ query: { token: data.token } }));
         }
     } catch {
         // network error — keep polling

@@ -7,7 +7,7 @@ import ConfirmationModal from '@/Components/ConfirmationModal.vue';
 import { Link, useForm, router } from '@inertiajs/vue3';
 import { ref } from 'vue';
 import type { StripeCoupon, PromoCodeRestrictions, StripePromoCode } from '@/types';
-import { index, destroy, togglePromoCode as togglePromoCodeRoute } from '@/actions/App/Http/Controllers/Admin/AdminCouponController';
+import AdminCouponController from '@/actions/App/Http/Controllers/Admin/AdminCouponController';
 
 interface Props {
     coupon: StripeCoupon
@@ -20,7 +20,7 @@ const showDeleteModal = ref(false);
 const deleteForm = useForm({});
 
 const deleteCoupon = (): void => {
-    deleteForm.delete(destroy.url(props.coupon.id), {
+    deleteForm.delete(AdminCouponController.destroy.url(props.coupon.id), {
         onSuccess: () => { showDeleteModal.value = false; },
         onError:   () => { showDeleteModal.value = false; },
     });
@@ -28,7 +28,7 @@ const deleteCoupon = (): void => {
 
 const togglePromoCode = (code: StripePromoCode): void => {
     router.patch(
-        togglePromoCodeRoute.url({ coupon: props.coupon.id, promoCode: code.id }),
+        AdminCouponController.togglePromoCode.url({ coupon: props.coupon.id, promoCode: code.id }),
         { active: !code.active },
         { preserveScroll: true }
     );
@@ -89,7 +89,7 @@ const durationLabel = (coupon: StripeCoupon): string => {
 
         <Page>
             <div class="mb-6 flex items-center justify-between">
-                <Link :href="index.url()" prefetch class="text-sm text-gamboge-300 hover:text-gamboge-200">
+                <Link :href="AdminCouponController.index.url()" prefetch class="text-sm text-gamboge-300 hover:text-gamboge-200">
                     ← Back to Coupons
                 </Link>
                 <DangerButton @click="showDeleteModal = true" data-testid="delete-coupon-btn">

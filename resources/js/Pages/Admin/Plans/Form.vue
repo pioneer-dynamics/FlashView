@@ -11,7 +11,7 @@ import Checkbox from '@/Components/Checkbox.vue';
 import SelectInput from '@/Components/SelectInput.vue';
 import Feature from '../../Plan/Partials/Feature.vue';
 import { Link, router } from '@inertiajs/vue3';
-import { index, store, update } from '@/actions/App/Http/Controllers/Admin/AdminPlanController';
+import AdminPlanController from '@/actions/App/Http/Controllers/Admin/AdminPlanController';
 import type { FormDataConvertible } from '@inertiajs/core';
 import { reactive, ref, computed, watch } from 'vue';
 import type { ConfigSchemaField, AvailableFeature, IncludedFeature, PlanFeatureEntry, AdminPlan } from '@/types';
@@ -255,9 +255,9 @@ const submit = (): void => {
     const onFinish = (): void => { processing.value = false; };
 
     if (isEditing.value) {
-        router.put(update.url(props.plan!.id), payload as Record<string, FormDataConvertible>, { onError, onFinish });
+        router.put(AdminPlanController.update.url(props.plan!.id), payload as Record<string, FormDataConvertible>, { onError, onFinish });
     } else {
-        router.post(store.url(), payload as Record<string, FormDataConvertible>, { onError, onFinish });
+        router.post(AdminPlanController.store.url(), payload as Record<string, FormDataConvertible>, { onError, onFinish });
     }
 };
 </script>
@@ -268,7 +268,7 @@ const submit = (): void => {
 
         <Page>
             <div class="mb-4">
-                <Link :href="index.url()" prefetch class="text-xs text-gamboge-300 hover:underline font-mono">
+                <Link :href="AdminPlanController.index.url()" prefetch class="text-xs text-gamboge-300 hover:underline font-mono">
                     ← Back to Plans
                 </Link>
             </div>
@@ -555,7 +555,7 @@ const submit = (): void => {
                     >
                         {{ isEditing ? 'Update Plan' : 'Create Plan' }}
                     </PrimaryButton>
-                    <Link :href="index.url()" prefetch>
+                    <Link :href="AdminPlanController.index.url()" prefetch>
                         <SecondaryButton type="button">Cancel</SecondaryButton>
                     </Link>
                 </div>

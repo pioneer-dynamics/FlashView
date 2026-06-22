@@ -8,7 +8,7 @@ import ConfirmationModal from '@/Components/ConfirmationModal.vue';
 import { Link, useForm } from '@inertiajs/vue3';
 import { ref } from 'vue';
 import type { SecureLineProduct } from '@/types';
-import { create, edit, destroy } from '@/actions/App/Http/Controllers/Admin/AdminSecureLineProductController';
+import AdminSecureLineProductController from '@/actions/App/Http/Controllers/Admin/AdminSecureLineProductController';
 
 interface Props {
     products: SecureLineProduct[]
@@ -22,7 +22,7 @@ const deleteForm = useForm({});
 const confirmDelete = (product: SecureLineProduct): void => { productBeingDeleted.value = product; };
 
 const deleteProduct = (): void => {
-    deleteForm.delete(destroy.url(productBeingDeleted.value!.id), {
+    deleteForm.delete(AdminSecureLineProductController.destroy.url(productBeingDeleted.value!.id), {
         preserveScroll: true,
         onSuccess: () => { productBeingDeleted.value = null; },
         onError:   () => { productBeingDeleted.value = null; },
@@ -51,7 +51,7 @@ const formatDuration = (minutes: number): string => {
         <Page>
             <div class="mb-6 flex items-center justify-between">
                 <h1 class="text-xs uppercase tracking-widest text-gamboge-300 font-mono">Secure Line Product Management</h1>
-                <Link :href="create.url()" prefetch>
+                <Link :href="AdminSecureLineProductController.create.url()" prefetch>
                     <PrimaryButton>New Product</PrimaryButton>
                 </Link>
             </div>
@@ -73,7 +73,7 @@ const formatDuration = (minutes: number): string => {
                         <tr v-if="products.length === 0">
                             <td colspan="7" class="px-6 py-8 text-center text-gray-400 dark:text-gray-500">
                                 No products yet.
-                                <Link :href="create.url()" prefetch class="text-gamboge-300 hover:underline ml-1">Create one.</Link>
+                                <Link :href="AdminSecureLineProductController.create.url()" prefetch class="text-gamboge-300 hover:underline ml-1">Create one.</Link>
                             </td>
                         </tr>
                         <tr v-for="product in products" :key="product.id"
@@ -102,7 +102,7 @@ const formatDuration = (minutes: number): string => {
                             </td>
                             <td class="px-6 py-4 text-right">
                                 <div class="flex justify-end gap-2">
-                                    <Link :href="edit.url(product.id)" prefetch>
+                                    <Link :href="AdminSecureLineProductController.edit.url(product.id)" prefetch>
                                         <SecondaryButton class="text-xs">Edit</SecondaryButton>
                                     </Link>
                                     <DangerButton class="text-xs" @click="confirmDelete(product)">

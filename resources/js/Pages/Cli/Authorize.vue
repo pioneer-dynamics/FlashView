@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { Head, Link, router, usePage } from '@inertiajs/vue3'
-import { authorize } from '@/actions/App/Http/Controllers/CliAuthController'
-import { index as plansIndex } from '@/actions/App/Http/Controllers/PlanController'
+import CliAuthController from '@/actions/App/Http/Controllers/CliAuthController'
+import PlanController from '@/actions/App/Http/Controllers/PlanController'
 import type { PageProps } from '@/types'
 import AuthenticationCard from '@/Components/AuthenticationCard.vue'
 import AuthenticationCardLogo from '@/Components/AuthenticationCardLogo.vue'
@@ -31,7 +31,7 @@ const installationName = ref(props.existingDeviceName || props.name || '')
 
 function submit(action: string): void {
     processing.value = true
-    router.post(authorize.url(), {
+    router.post(CliAuthController.authorize.url(), {
         port: props.port,
         state: props.state,
         action: action,
@@ -62,7 +62,7 @@ function submit(action: string): void {
                 <SecondaryButton @click="submit('deny')" :disabled="processing">
                     Close
                 </SecondaryButton>
-                <Link :href="plansIndex.url()" prefetch>
+                <Link :href="PlanController.index.url()" prefetch>
                     <PrimaryButton>
                         View Plans
                     </PrimaryButton>
@@ -80,7 +80,7 @@ function submit(action: string): void {
                 for your account ({{ page.props.auth.user.email }}).
             </p>
             <p v-if="existingDeviceName" class="mt-1 text-xs text-gray-500 dark:text-gray-400 text-center">
-                Re-authorizing your existing CLI installation. Your token will be refreshed with the selected permissions.
+                Re-authorising your existing CLI installation. Your token will be refreshed with the selected permissions.
             </p>
             <p v-else class="mt-1 text-xs text-gray-500 dark:text-gray-400 text-center">
                 This will create a new CLI installation. Your existing CLI connections will not be affected.
@@ -95,7 +95,7 @@ function submit(action: string): void {
                         {{ existingDeviceName }}
                     </p>
                     <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                        This device was previously authorized. To use a different name, remove the existing installation from your
+                        This device was previously authorised. To use a different name, remove the existing installation from your
                         <Link :href="route('api-tokens.index')" prefetch class="underline hover:text-gray-700 dark:hover:text-gray-200">API Tokens</Link>
                         page first.
                     </p>
@@ -143,8 +143,8 @@ function submit(action: string): void {
                     @click="submit('approve')"
                     :disabled="processing || selectedPermissions.length === 0"
                 >
-                    <span v-if="processing">Authorizing...</span>
-                    <span v-else-if="existingDeviceName">Re-authorize</span>
+                    <span v-if="processing">Authorising...</span>
+                    <span v-else-if="existingDeviceName">Re-authorise</span>
                     <span v-else>Approve</span>
                 </PrimaryButton>
             </div>

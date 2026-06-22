@@ -5,7 +5,7 @@ import { router } from '@inertiajs/vue3';
 import { ref, computed, onMounted } from 'vue';
 import { encryption } from '@/encryption.js';
 import type { LockerCredentials } from '@/types';
-import { create, open, prepareFile, store as lockerStore } from '@/actions/App/Http/Controllers/LockerController';
+import LockerController from '@/actions/App/Http/Controllers/LockerController';
 
 interface Props {
     credit_token?: string;
@@ -19,7 +19,7 @@ onMounted(() => {
     if (!props.credit_token) {
         const saved = localStorage.getItem('locker_pending_token');
         if (saved) {
-            router.visit(create.url({ query: { token: saved } }));
+            router.visit(LockerController.create.url({ query: { token: saved } }));
         }
     }
 });
@@ -202,7 +202,7 @@ const submit = async () => {
             const fileBuffer = await selectedFile.value.arrayBuffer();
             const encryptedBytes = await enc.encryptLockerFileToBuffer(fileBuffer, { dek });
 
-            const prepRes = await fetch(prepareFile.url(), {
+            const prepRes = await fetch(LockerController.prepareFile.url(), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -237,7 +237,7 @@ const submit = async () => {
             payload = await enc.encryptLockerContent(content.value, effectivePassphrase);
         }
 
-        const res = await fetch(lockerStore.url(), {
+        const res = await fetch(LockerController.store.url(), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -347,7 +347,7 @@ const submit = async () => {
 
                     <button
                         :disabled="!savedConfirmed"
-                        @click="router.visit(open.url())"
+                        @click="router.visit(LockerController.open.url())"
                         class="w-full bg-gamboge-300 hover:bg-gamboge-400 disabled:opacity-40 disabled:cursor-not-allowed text-gray-900 font-semibold py-2.5 px-4 rounded-lg font-mono text-sm transition-colors shadow-neon-cyan-sm"
                     >
                         Open my locker

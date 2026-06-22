@@ -3,7 +3,7 @@ import AppLayout from '@/Layouts/AppLayout.vue';
 import { Link } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue';
 import { router } from '@inertiajs/vue3';
-import { buy, open, renewPage, create } from '@/actions/App/Http/Controllers/LockerController';
+import LockerController from '@/actions/App/Http/Controllers/LockerController';
 
 const accountId = ref('');
 const destination = ref<'open' | 'renew'>('open');
@@ -14,7 +14,7 @@ onMounted(() => {
 });
 
 const resumeCreation = (): void => {
-    router.visit(create.url({ query: { token: pendingToken.value ?? '' } }));
+    router.visit(LockerController.create.url({ query: { token: pendingToken.value ?? '' } }));
 };
 
 const dismissPending = (): void => {
@@ -26,10 +26,10 @@ const go = (): void => {
     if (!/^\d{10}$/.test(accountId.value)) return;
     if (destination.value === 'renew') {
         sessionStorage.setItem('locker_prefill_account_renew', accountId.value);
-        router.visit(renewPage.url());
+        router.visit(LockerController.renewPage.url());
     } else {
         sessionStorage.setItem('locker_prefill_account', accountId.value);
-        router.visit(open.url());
+        router.visit(LockerController.open.url());
     }
 };
 </script>
@@ -104,7 +104,7 @@ const go = (): void => {
                     <div class="text-white font-semibold">Don't have a locker yet?</div>
                     <p class="text-gray-400 text-sm">Anonymous, zero-knowledge storage. No account required. Text from $20/yr.</p>
                     <Link
-                        :href="buy.url()"
+                        :href="LockerController.buy.url()"
                         prefetch
                         class="inline-block bg-gamboge-300 hover:bg-gamboge-400 text-gray-900 font-semibold py-2.5 px-8 rounded-lg font-mono text-sm transition-colors shadow-neon-cyan-sm hover:shadow-neon-cyan"
                     >

@@ -5,7 +5,7 @@ import AppLayout from '@/Layouts/AppLayout.vue';
 import axios from 'axios';
 import { encryption } from '@/encryption.js';
 import type { RoomSession, PeerEntry } from '@/types';
-import { index as callsIndex, show as callsJoin } from '@/actions/App/Http/Controllers/CallPageController';
+import CallPageController from '@/actions/App/Http/Controllers/CallPageController';
 
 interface Props {
     session: RoomSession;
@@ -278,7 +278,7 @@ function startExpiryCountdown(): void {
                 if (redirectCountdown.value <= 0) {
                     clearInterval(redirectTimer.value);
                     cleanup();
-                    router.visit(callsIndex.url());
+                    router.visit(CallPageController.index.url());
                 }
             }, 1000);
         }
@@ -318,11 +318,11 @@ function toggleMute(): void {
 
 function requestLeave(): void  { confirmingLeave.value = true; }
 function cancelLeave(): void   { confirmingLeave.value = false; }
-function confirmLeave(): void  { cleanup(); router.visit(callsIndex.url()); }
+function confirmLeave(): void  { cleanup(); router.visit(CallPageController.index.url()); }
 
 onMounted(async () => {
     if (!sessionData) {
-        router.visit(callsJoin.url(props.session.bridge_number as unknown as number));
+        router.visit(CallPageController.show.url(props.session.bridge_number as unknown as number));
         return;
     }
 
@@ -361,7 +361,7 @@ onUnmounted(cleanup);
                         In Firefox: click the microphone icon in the address bar → Remove block.
                     </p>
                     <button
-                        @click="router.visit(callsJoin.url(session.bridge_number as unknown as number))"
+                        @click="router.visit(CallPageController.show.url(session.bridge_number as unknown as number))"
                         class="w-full border border-gray-700 text-gray-300 hover:text-white py-2.5 rounded-lg font-mono text-sm transition-colors shadow-neon-cyan-sm"
                     >
                         ← Back to join page

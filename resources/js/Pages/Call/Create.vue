@@ -4,8 +4,8 @@ import { router } from '@inertiajs/vue3';
 import { ref, onMounted, computed } from 'vue';
 import { generatePassphrase, deriveCallKeyPair, generateCallKeySalt } from '@pioneer-dynamics/flashview-crypto';
 import type { SecureLineProduct } from '@/types';
-import { index } from '@/actions/App/Http/Controllers/CallPageController';
-import { buy, store } from '@/actions/App/Http/Controllers/SecureLineCheckoutController';
+import CallPageController from '@/actions/App/Http/Controllers/CallPageController';
+import SecureLineCheckoutController from '@/actions/App/Http/Controllers/SecureLineCheckoutController';
 
 interface Props {
     credit_token?: string;
@@ -41,7 +41,7 @@ const copyToClipboard = async (text: string | null): Promise<void> => {
 };
 
 const downloadCredentials = (): void => {
-    const callsUrl = index.url();
+    const callsUrl = CallPageController.index.url();
     const lines = [
         'Secure Line Credentials',
         '=======================',
@@ -67,7 +67,7 @@ onMounted(async () => {
         const keySalt = generateCallKeySalt();
         const { publicKeyBase64 } = await deriveCallKeyPair(password, keySalt);
 
-        const res = await fetch(store.url(), {
+        const res = await fetch(SecureLineCheckoutController.store.url(), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -128,7 +128,7 @@ onMounted(async () => {
                     <h1 class="text-2xl font-bold text-white mb-3">Setup failed</h1>
                     <p class="text-red-300 text-sm mb-6">{{ errorMessage }}</p>
                     <button
-                        @click="router.visit(buy.url())"
+                        @click="router.visit(SecureLineCheckoutController.buy.url())"
                         class="w-full border border-gamboge-300 text-gamboge-300 hover:bg-gamboge-300/10 font-mono text-sm py-2.5 rounded-lg transition-colors"
                     >
                         ← Back to Buy
@@ -185,7 +185,7 @@ onMounted(async () => {
                         <div class="text-gamboge-300 font-mono text-xs uppercase tracking-widest mb-2">Participant Instructions</div>
                         <p class="text-gray-300 text-sm">
                             Your participant visits
-                            <a :href="index.url()" class="font-mono text-gamboge-300 hover:underline">{{ index.url() }}</a>,
+                            <a :href="CallPageController.index.url()" class="font-mono text-gamboge-300 hover:underline">{{ CallPageController.index.url() }}</a>,
                             enters the bridge number under <span class="font-mono text-white">Join a Line</span>,
                             and enters the call password when prompted.
                         </p>
@@ -214,7 +214,7 @@ onMounted(async () => {
                     <!-- Done button -->
                     <button
                         :disabled="!savedConfirmed"
-                        @click="router.visit(index.url())"
+                        @click="router.visit(CallPageController.index.url())"
                         class="w-full bg-gamboge-300 hover:bg-gamboge-400 disabled:opacity-40 disabled:cursor-not-allowed text-gray-900 font-semibold py-2.5 px-4 rounded-lg font-mono text-sm transition-colors shadow-neon-cyan-sm"
                         data-testid="done-button"
                     >

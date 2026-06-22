@@ -5,7 +5,7 @@ import Checkbox from '@/Components/Checkbox.vue';
 import ConfirmsPasswordOrPasskey from '@/Components/ConfirmsPasswordOrPasskey.vue';
 import FormSection from '@/Components/FormSection.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
-import { update } from '@/actions/App/Http/Controllers/ConfigurationController';
+import ConfigurationController from '@/actions/App/Http/Controllers/ConfigurationController';
 
 interface Props {
     storeMaskedRecipientEmail?: boolean;
@@ -20,7 +20,7 @@ const form = useForm({
 });
 
 const saveConfiguration = (): void => {
-    form.submit(update(), {
+    form.submit(ConfigurationController.update(), {
         preserveScroll: true,
     });
 };

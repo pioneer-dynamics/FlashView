@@ -3,7 +3,7 @@ import AppLayout from '@/Layouts/AppLayout.vue';
 import { Link, router } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue';
 import type { LockerPlan } from '@/types';
-import { create, checkout as lockerCheckout } from '@/actions/App/Http/Controllers/LockerController';
+import LockerController from '@/actions/App/Http/Controllers/LockerController';
 
 interface Props {
     pricing?: Record<string, Record<number, LockerPlan>>
@@ -18,7 +18,7 @@ onMounted(() => {
 });
 
 const resumeCreation = (): void => {
-    router.visit(create.url({ query: { token: pendingToken.value ?? '' } }));
+    router.visit(LockerController.create.url({ query: { token: pendingToken.value ?? '' } }));
 };
 
 const dismissPending = (): void => {
@@ -139,7 +139,7 @@ const savingsPercent = (tier: string, years: number): number | null => {
                                 </div>
 
                                 <Link
-                                    :href="lockerCheckout.url()"
+                                    :href="LockerController.checkout.url()"
                                     method="post"
                                     :data="{ tier: tier.key, years }"
                                     as="button"

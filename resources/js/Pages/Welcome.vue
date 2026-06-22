@@ -6,7 +6,7 @@
     import AppLayout from '@/Layouts/AppLayout.vue';
     import Page from './Page.vue';
     import type { BlogPost } from '@/types';
-    import { show } from '@/actions/App/Http/Controllers/BlogController';
+    import BlogController from '@/actions/App/Http/Controllers/BlogController';
 
     interface Props {
         canLogin?: boolean
@@ -58,7 +58,7 @@
                         <div v-if="latestPost" class="mt-12">
                             <p class="text-xs uppercase tracking-widest font-mono text-gamboge-300 mb-4">From the Blog</p>
                             <Link
-                                :href="show.url(latestPost.slug)"
+                                :href="BlogController.show.url(latestPost.slug)"
                                 prefetch
                                 class="group block border border-gray-200 dark:border-gray-700 dark:hover:border-gamboge-700 rounded-lg p-6 transition-colors duration-150 dark:hover:shadow-neon-cyan-sm"
                             >

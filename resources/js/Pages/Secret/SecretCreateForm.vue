@@ -15,9 +15,9 @@
     import FileUploadZone from '@/Components/FileUploadZone.vue';
     import InputLabel from '@/Components/InputLabel.vue';
     import type { PageProps } from '@/types';
-    import { store } from '@/actions/App/Http/Controllers/SecretController';
-    import { prepare } from '@/actions/App/Http/Controllers/FileUploadController';
-    import { index as plansIndex } from '@/actions/App/Http/Controllers/PlanController';
+    import SecretController from '@/actions/App/Http/Controllers/SecretController';
+    import FileUploadController from '@/actions/App/Http/Controllers/FileUploadController';
+    import PlanController from '@/actions/App/Http/Controllers/PlanController';
 
     const stage = ref<string>('generating');
 
@@ -115,7 +115,7 @@
 
             // Step 1: Ask server for a presigned S3 PUT URL (or server fallback URL).
             const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '';
-            const prepareRes = await fetch(prepare.url(), {
+            const prepareRes = await fetch(FileUploadController.prepare.url(), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken },
             });
@@ -168,7 +168,7 @@
             if (form.email) { formData.append('email', form.email); }
             if (form.include_sender_identity) { formData.append('include_sender_identity', '1'); }
 
-            router.post(store.url(), formData, {
+            router.post(SecretController.store.url(), formData, {
                 preserveScroll: true,
                 onSuccess: () => {
                     uploadState.value = null;
@@ -205,7 +205,7 @@
         e.encryptMessage(form.message, other.password)
             .then((data) => {
                 form.transform((formdata) => ({ ...formdata, message: data.secret }))
-                    .post(store.url(), {
+                    .post(SecretController.store.url(), {
                         preserveScroll: true,
                         onSuccess: () => {
                             if (usePage<PageProps>().props.jetstream.flash?.error) {
@@ -290,7 +290,7 @@
                                 Is {{ maxLength }} characters too short, or need a longer expiry? - <Link class="underline text-gamboge-300" prefetch :href="route('login')">login</Link> or <Link class="underline text-gamboge-300" prefetch :href="route('register')">create a free account!</Link> to increase the limit.
                             </div>
                             <div v-else-if="!$page.props.auth.user.subscription" class="flex flex-wrap gap-1">
-                                Is {{ maxLength }} characters still too short, or need a longer expiry? - <a as="a" class="underline text-gamboge-300" :href="plansIndex.url()">subscribe to a paid plan</a> to increase the limits.
+                                Is {{ maxLength }} characters still too short, or need a longer expiry? - <a as="a" class="underline text-gamboge-300" :href="PlanController.index.url()">subscribe to a paid plan</a> to increase the limits.
                             </div>
                         </span>
                     </div>
@@ -319,17 +319,17 @@
                         <template v-if="!$page.props.auth.user">
                             <Link class="underline text-gamboge-300" prefetch :href="route('login')">Log in</Link>
                             or
-                            <Link class="underline text-gamboge-300" prefetch :href="plansIndex.url()">signup to an eligible plan</Link>
+                            <Link class="underline text-gamboge-300" prefetch :href="PlanController.index.url()">signup to an eligible plan</Link>
                             to share encrypted files.
                         </template>
                         <template v-else-if="$page.props.auth.user.subscription">
                             File uploads are not included in your current plan.
-                            <a class="underline text-gamboge-300" :href="plansIndex.url()">View available plans</a>
+                            <a class="underline text-gamboge-300" :href="PlanController.index.url()">View available plans</a>
                             to upgrade.
                         </template>
                         <template v-else>
                             File uploads are not available on your current plan.
-                            <a class="underline text-gamboge-300" :href="plansIndex.url()">View available plans</a>
+                            <a class="underline text-gamboge-300" :href="PlanController.index.url()">View available plans</a>
                             to unlock this feature.
                         </template>
                     </p>

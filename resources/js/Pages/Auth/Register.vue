@@ -5,14 +5,14 @@ import InputError from '@/Components/InputError.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
-import { store } from '@/actions/App/Http/Controllers/Auth/RegisterController';
+import RegisterController from '@/actions/App/Http/Controllers/Auth/RegisterController';
 
 const form = useForm({
     email: '',
 });
 
 const submit = (): void => {
-    form.post(store.url());
+    form.post(RegisterController.store.url());
 };
 </script>
 

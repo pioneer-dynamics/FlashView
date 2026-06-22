@@ -5,7 +5,7 @@ import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
 import InputError from '@/Components/InputError.vue';
-import { index, store, update } from '@/actions/App/Http/Controllers/Admin/AdminLockerPlanController';
+import AdminLockerPlanController from '@/actions/App/Http/Controllers/Admin/AdminLockerPlanController';
 import { Link, useForm } from '@inertiajs/vue3';
 import { computed, watch } from 'vue';
 import type { LockerPlan } from '@/types';
@@ -46,9 +46,9 @@ const amountDollars = computed({
 
 const submit = (): void => {
     if (isEditing.value) {
-        form.submit(update(props.plan!.id));
+        form.submit(AdminLockerPlanController.update(props.plan!.id));
     } else {
-        form.submit(store());
+        form.submit(AdminLockerPlanController.store());
     }
 };
 
@@ -80,7 +80,7 @@ const previewButtonLabel = computed((): string => {
 
         <Page>
             <div class="mb-6">
-                <Link :href="index.url()" prefetch class="text-sm text-gamboge-300 hover:text-gamboge-200">
+                <Link :href="AdminLockerPlanController.index.url()" prefetch class="text-sm text-gamboge-300 hover:text-gamboge-200">
                     ← Back to Locker Plans
                 </Link>
             </div>
@@ -250,7 +250,7 @@ const previewButtonLabel = computed((): string => {
                         <PrimaryButton :disabled="form.processing">
                             {{ isEditing ? 'Update Plan' : 'Create Plan' }}
                         </PrimaryButton>
-                        <Link :href="index.url()" prefetch>
+                        <Link :href="AdminLockerPlanController.index.url()" prefetch>
                             <SecondaryButton type="button">Cancel</SecondaryButton>
                         </Link>
                     </div>

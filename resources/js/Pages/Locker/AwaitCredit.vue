@@ -2,7 +2,7 @@
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { router } from '@inertiajs/vue3';
 import { ref, onMounted, onUnmounted } from 'vue';
-import { creditStatus, create } from '@/actions/App/Http/Controllers/LockerController';
+import LockerController from '@/actions/App/Http/Controllers/LockerController';
 
 interface Props {
     session_id?: string;
@@ -17,12 +17,12 @@ let elapsed = 0;
 const poll = async () => {
     if (!props.session_id) return;
     try {
-        const res = await fetch(creditStatus.url({ query: { session: props.session_id } }));
+        const res = await fetch(LockerController.creditStatus.url({ query: { session: props.session_id } }));
         const data = await res.json();
         if (data.token) {
             if (pollInterval !== null) clearInterval(pollInterval);
             localStorage.setItem('locker_pending_token', data.token);
-            router.visit(create.url({ query: { token: data.token } }));
+            router.visit(LockerController.create.url({ query: { token: data.token } }));
         }
     } catch {
         // network error — keep polling

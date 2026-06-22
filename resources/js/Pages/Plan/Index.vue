@@ -14,7 +14,7 @@ import ToggleButton from '@/Components/ToggleButton.vue';
 import Feature from './Partials/Feature.vue';
 import Alert from '@/Components/Alert.vue';
 import type { PageProps, PricingPlan, PricingPlanCollection } from '@/types';
-import { subscribe, unsubscribe, resume } from '@/actions/App/Http/Controllers/PlanController';
+import PlanController from '@/actions/App/Http/Controllers/PlanController';
 
 interface Props {
     plans: PricingPlanCollection;
@@ -56,7 +56,7 @@ const confirmCancellation = (): void => {
 };
 
 const submitCancellation = (): void => {
-    cancelForm.post(unsubscribe.url(), {
+    cancelForm.post(PlanController.unsubscribe.url(), {
         onSuccess: () => { showCancellationModal.value = false; },
     });
 };
@@ -68,7 +68,7 @@ const confirmPlanSwitch = (plan: PricingPlan): void => {
 };
 
 const proceedWithSwitch = (): void => {
-    router.visit(subscribe.url({
+    router.visit(PlanController.subscribe.url({
         plan: planBeingSwitchedTo.value!.id,
         period: planFrequency.value,
     }));
@@ -154,7 +154,7 @@ const formatDate = (d: string | null): string | null => d ? DateTime.fromISO(d).
                                     <Link
                                         v-if="$page.props.auth.user.subscription.ends_at"
                                         method="post"
-                                        :href="resume.url()"
+                                        :href="PlanController.resume.url()"
                                         class="inline-flex w-full items-center justify-center px-4 py-2 bg-green-800 dark:bg-transparent border border-transparent dark:border-green-400/60 rounded-md font-semibold text-xs text-white dark:text-green-400 uppercase tracking-widest hover:bg-green-700 dark:hover:bg-green-400/10 dark:hover:border-green-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 disabled:opacity-50 transition ease-in-out duration-150"
                                     >
                                         Resume Plan
@@ -189,7 +189,7 @@ const formatDate = (d: string | null): string | null => d ? DateTime.fromISO(d).
                                     </PrimaryButton>
                                     <a
                                         v-else
-                                        :href="subscribe.url({ plan: plan.id, period: planFrequency })"
+                                        :href="PlanController.subscribe.url({ plan: plan.id, period: planFrequency })"
                                         class="w-full justify-center inline-flex items-center px-4 py-2 bg-gamboge-800 dark:bg-transparent border border-transparent dark:border-gamboge-300 rounded-md font-semibold text-xs text-white dark:text-gamboge-300 uppercase tracking-widest hover:bg-gamboge-700 dark:hover:bg-gamboge-300 dark:hover:text-gray-900 dark:hover:shadow-neon-cyan-sm focus:bg-gamboge-700 dark:focus:bg-gamboge-300 dark:focus:text-gray-900 active:bg-gamboge-900 dark:active:bg-gamboge-300 dark:active:text-gray-900 focus:outline-none focus:ring-2 focus:ring-gamboge-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 disabled:opacity-50 transition ease-in-out duration-150"
                                     >
                                         Choose This Plan

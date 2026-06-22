@@ -6,8 +6,8 @@ import InputError from '@/Components/InputError.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
-import { storeComplete } from '@/actions/App/Http/Controllers/Auth/RegisterController';
-import { terms, privacy } from '@/actions/App/Http/Controllers/MarkdownDocumentController';
+import RegisterController from '@/actions/App/Http/Controllers/Auth/RegisterController';
+import MarkdownDocumentController from '@/actions/App/Http/Controllers/MarkdownDocumentController';
 
 interface Props {
     email?: string;
@@ -28,7 +28,7 @@ const submit = (): void => {
     // Build the POST URL with the signed query parameters preserved.
     // Laravel's 'signed' middleware validates the signature from query params, not POST body.
     const signed = new URL(props.signedUrl!);
-    const postUrl = storeComplete.url()
+    const postUrl = RegisterController.storeComplete.url()
         + '?email=' + encodeURIComponent(signed.searchParams.get('email') ?? '')
         + '&expires=' + (signed.searchParams.get('expires') ?? '')
         + '&signature=' + (signed.searchParams.get('signature') ?? '');
@@ -139,7 +139,7 @@ const submit = (): void => {
                         <Checkbox id="terms" v-model:checked="form.terms" name="terms" required />
 
                         <div class="ms-2">
-                            I agree to the <a target="_blank" :href="terms.url()" class="underline text-sm text-gamboge-300 dark:text-gamboge-200 hover:text-gamboge-200 dark:hover:text-gamboge-100 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gamboge-500 dark:focus:ring-offset-gray-900">Terms of Service</a> and <a target="_blank" :href="privacy.url()" class="underline text-sm text-gamboge-300 dark:text-gamboge-200 hover:text-gamboge-200 dark:hover:text-gamboge-100 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gamboge-500 dark:focus:ring-offset-gray-900">Privacy Policy</a>
+                            I agree to the <a target="_blank" :href="MarkdownDocumentController.terms.url()" class="underline text-sm text-gamboge-300 dark:text-gamboge-200 hover:text-gamboge-200 dark:hover:text-gamboge-100 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gamboge-500 dark:focus:ring-offset-gray-900">Terms of Service</a> and <a target="_blank" :href="MarkdownDocumentController.privacy.url()" class="underline text-sm text-gamboge-300 dark:text-gamboge-200 hover:text-gamboge-200 dark:hover:text-gamboge-100 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gamboge-500 dark:focus:ring-offset-gray-900">Privacy Policy</a>
                         </div>
                     </div>
                     <InputError class="mt-2" :message="form.errors.terms" />

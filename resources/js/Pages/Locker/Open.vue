@@ -5,7 +5,7 @@ import { ref, computed, onMounted } from 'vue';
 import { router } from '@inertiajs/vue3';
 import { encryption, LockerDecryptionError } from '@/encryption.js';
 import type { FileMeta } from '@/types';
-import { authInfo, challenge, unlock as unlockAction, downloadUrl, update as updateAction, prepareFile, updateSettings, destroy as destroyAction, upgradeAuth as upgradeAuthAction, renewPage } from '@/actions/App/Http/Controllers/LockerController';
+import LockerController from '@/actions/App/Http/Controllers/LockerController';
 
 interface Props {
     renewed?: boolean;
@@ -127,7 +127,7 @@ const openLocker = async () => {
     if (accountId.value.length !== 10) { return; }
     authInfoError.value = '';
     try {
-        const infoRes = await fetch(authInfo.url(accountId.value), {
+        const infoRes = await fetch(LockerController.authInfo.url(accountId.value), {
             headers: { 'Accept': 'application/json' },
         });
         if (infoRes.ok) {
@@ -199,7 +199,7 @@ const computeEffectivePassphrase = async () => {
 
 const navigateToRenew = () => {
     sessionStorage.setItem('locker_prefill_account_renew', accountId.value);
-    router.visit(renewPage.url());
+    router.visit(LockerController.renewPage.url());
 };
 
 const lockLocker = () => {
@@ -273,7 +273,7 @@ const unlock = async () => {
         const ep = await computeEffectivePassphrase();
 
         // Step 1: Fetch challenge (always returns one — fake for non-existent accounts)
-        const challengeRes = await fetch(challenge.url(accountId.value), {
+        const challengeRes = await fetch(LockerController.challenge.url(accountId.value), {
             headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
         });
 
@@ -301,7 +301,7 @@ const unlock = async () => {
         }
 
         // Step 3: POST unlock — server verifies, returns payload only if correct
-        const unlockRes = await fetch(unlockAction.url(accountId.value), {
+        const unlockRes = await fetch(LockerController.unlock.url(accountId.value), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -413,7 +413,7 @@ const downloadFile = async () => {
 };
 
 const fetchSigningHeaders = async () => {
-    const challengeRes = await fetch(challenge.url(accountId.value), {
+    const challengeRes = await fetch(LockerController.challenge.url(accountId.value), {
         headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
     });
     if (!challengeRes.ok) throw new Error('Could not fetch challenge.');
@@ -434,7 +434,7 @@ const fetchSigningHeaders = async () => {
 
 const fetchDownloadUrl = async () => {
     const authHeaders = await fetchSigningHeaders();
-    const res = await fetch(downloadUrl.url(accountId.value), {
+    const res = await fetch(LockerController.downloadUrl.url(accountId.value), {
         headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest', ...authHeaders },
     });
     if (!res.ok) {
@@ -457,7 +457,7 @@ const submitUpdate = async () => {
         const payload  = await enc.encryptLockerContent(newContent.value, effectivePassphrase.value);
         const authHeaders = await fetchSigningHeaders();
 
-        const res = await fetch(updateAction.url(accountId.value), {
+        const res = await fetch(LockerController.update.url(accountId.value), {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
@@ -499,7 +499,7 @@ const submitFileUpdate = async () => {
         const fileBuffer = await replacementFile.value.arrayBuffer();
         const bytes = await enc.encryptLockerFileToBuffer(fileBuffer, { dek: newDek });
 
-        const prepRes = await fetch(prepareFile.url(), {
+        const prepRes = await fetch(LockerController.prepareFile.url(), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-XSRF-TOKEN': getXsrf() },
             body: JSON.stringify({}),
@@ -531,7 +531,7 @@ const submitFileUpdate = async () => {
             body.new_wrapped_file_key = newWrappedFileKey;
         }
 
-        const res = await fetch(updateAction.url(accountId.value), {
+        const res = await fetch(LockerController.update.url(accountId.value), {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-XSRF-TOKEN': getXsrf(), ...authHeaders },
             body: JSON.stringify(body),
@@ -593,7 +593,7 @@ const changePassphrase = async () => {
             putBody.new_wrapped_file_key = newWrappedKey;
             putBody.payload = newPayload;
 
-            const res = await fetch(updateAction.url(accountId.value), {
+            const res = await fetch(LockerController.update.url(accountId.value), {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-XSRF-TOKEN': getXsrf(), ...authHeaders },
                 body: JSON.stringify(putBody),
@@ -628,7 +628,7 @@ const changePassphrase = async () => {
             const fileData = await enc.decryptLockerFileFromBuffer(encryptedBytes, { passphrase: effectivePassphrase.value });
             const reEncryptedBytes = await enc.encryptLockerFileToBuffer(fileData, { passphrase: newPassphrase.value });
 
-            const prepRes = await fetch(prepareFile.url(), {
+            const prepRes = await fetch(LockerController.prepareFile.url(), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-XSRF-TOKEN': getXsrf() },
                 body: JSON.stringify({}),
@@ -652,7 +652,7 @@ const changePassphrase = async () => {
             putBody.payload = newPayload;
             putBody.storage_path = newStoragePath;
 
-            const res = await fetch(updateAction.url(accountId.value), {
+            const res = await fetch(LockerController.update.url(accountId.value), {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-XSRF-TOKEN': getXsrf(), ...authHeaders },
                 body: JSON.stringify(putBody),
@@ -670,7 +670,7 @@ const changePassphrase = async () => {
             newPayload = await enc.encryptLockerContent(decryptedText.value, newPassphrase.value);
             putBody.payload = newPayload;
 
-            const res = await fetch(updateAction.url(accountId.value), {
+            const res = await fetch(LockerController.update.url(accountId.value), {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-XSRF-TOKEN': getXsrf(), ...authHeaders },
                 body: JSON.stringify(putBody),
@@ -760,7 +760,7 @@ const rotateCredentials = async () => {
             putBody.new_wrapped_file_key = newWrappedKey;
             putBody.payload = newPayload;
 
-            const res = await fetch(updateAction.url(accountId.value), {
+            const res = await fetch(LockerController.update.url(accountId.value), {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-XSRF-TOKEN': getXsrf(), ...authHeaders },
                 body: JSON.stringify(putBody),
@@ -792,7 +792,7 @@ const rotateCredentials = async () => {
             const fileData = await enc.decryptLockerFileFromBuffer(encryptedBytes, { passphrase: effectivePassphrase.value });
             const reEncryptedBytes = await enc.encryptLockerFileToBuffer(fileData, { passphrase: newEp });
 
-            const prepRes = await fetch(prepareFile.url(), {
+            const prepRes = await fetch(LockerController.prepareFile.url(), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-XSRF-TOKEN': getXsrf() },
                 body: JSON.stringify({}),
@@ -816,7 +816,7 @@ const rotateCredentials = async () => {
             putBody.payload      = newPayload;
             putBody.storage_path = newStoragePath;
 
-            const res = await fetch(updateAction.url(accountId.value), {
+            const res = await fetch(LockerController.update.url(accountId.value), {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-XSRF-TOKEN': getXsrf(), ...authHeaders },
                 body: JSON.stringify(putBody),
@@ -831,7 +831,7 @@ const rotateCredentials = async () => {
             const newPayload = await enc.encryptLockerContent(decryptedText.value, newEp);
             putBody.payload  = newPayload;
 
-            const res = await fetch(updateAction.url(accountId.value), {
+            const res = await fetch(LockerController.update.url(accountId.value), {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-XSRF-TOKEN': getXsrf(), ...authHeaders },
                 body: JSON.stringify(putBody),
@@ -868,7 +868,7 @@ const toggleShowClues = async () => {
         const authHeaders = await fetchSigningHeaders();
         const newValue = !showClues.value;
 
-        const res = await fetch(updateSettings.url(accountId.value), {
+        const res = await fetch(LockerController.updateSettings.url(accountId.value), {
             method: 'PATCH',
             headers: {
                 'Content-Type': 'application/json',
@@ -896,7 +896,7 @@ const confirmDelete = async () => {
     try {
         const authHeaders = await fetchSigningHeaders();
 
-        const res = await fetch(destroyAction.url(accountId.value), {
+        const res = await fetch(LockerController.destroy.url(accountId.value), {
             method: 'DELETE',
             headers: {
                 'Accept': 'application/json',
@@ -924,7 +924,7 @@ const upgradeAuth = async () => {
         const verifier = await enc.computeLockerVerifier(authKey, authChallenge.value);
         const { publicKeyJwkBase64 } = await enc.deriveLockerSigningKeypair(effectivePassphrase.value, accountId.value);
 
-        const res = await fetch(upgradeAuthAction.url(accountId.value), {
+        const res = await fetch(LockerController.upgradeAuth.url(accountId.value), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-XSRF-TOKEN': getXsrf() },
             body: JSON.stringify({ verifier, public_key: publicKeyJwkBase64 }),

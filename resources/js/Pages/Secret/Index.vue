@@ -9,7 +9,7 @@ import SecondaryButton from '@/Components/SecondaryButton.vue';
 import DangerButton from '@/Components/DangerButton.vue';
 import Paginator from '@/Components/Paginator.vue';
 import type { Secret, Pagination } from '@/types';
-import { destroy } from '@/actions/App/Http/Controllers/SecretController';
+import SecretController from '@/actions/App/Http/Controllers/SecretController';
 
 interface Props {
     secrets: Pagination<Secret>
@@ -33,7 +33,7 @@ const form = useForm({})
 const messageIdBeingDeleted = ref<Secret | null>(null)
 
 const burn = (): void => {
-    form.submit(destroy(messageIdBeingDeleted.value!.hash_id), {
+    form.submit(SecretController.destroy(messageIdBeingDeleted.value!.hash_id), {
         preserveScroll: true,
         onFinish: () => { messageIdBeingDeleted.value = null; }
     });

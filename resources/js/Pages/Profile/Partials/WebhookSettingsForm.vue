@@ -2,9 +2,9 @@
 import { computed, ref } from 'vue';
 import { Link, useForm, usePage, router } from '@inertiajs/vue3';
 import type { PageProps } from '@/types';
-import { update, revealSecret as revealSecretAction, regenerateSecret as regenerateSecretAction, destroy, test } from '@/actions/App/Http/Controllers/WebhookSettingsController';
-import { webhooks } from '@/actions/App/Http/Controllers/MarkdownDocumentController';
-import { index as plansIndex } from '@/actions/App/Http/Controllers/PlanController';
+import WebhookSettingsController from '@/actions/App/Http/Controllers/WebhookSettingsController';
+import MarkdownDocumentController from '@/actions/App/Http/Controllers/MarkdownDocumentController';
+import PlanController from '@/actions/App/Http/Controllers/PlanController';
 import ActionMessage from '@/Components/ActionMessage.vue';
 import ActionSection from '@/Components/ActionSection.vue';
 import CodeBlock from '@/Components/CodeBlock.vue';
@@ -36,7 +36,7 @@ const form = useForm({
 });
 
 const updateWebhookSettings = () => {
-    form.submit(update(), {
+    form.submit(WebhookSettingsController.update(), {
         preserveScroll: true,
         onSuccess: () => {
             revealedSecret.value = null;
@@ -47,7 +47,7 @@ const updateWebhookSettings = () => {
 const revealSecret = () => {
     revealing.value = true;
 
-    router.post(revealSecretAction.url(), {}, {
+    router.post(WebhookSettingsController.revealSecret.url(), {}, {
         preserveScroll: true,
         onSuccess: () => {
             revealedSecret.value = page.props.jetstream.flash.webhookSecret;
@@ -65,7 +65,7 @@ const hideSecret = () => {
 const regenerateSecret = () => {
     regenerating.value = true;
 
-    router.post(regenerateSecretAction.url(), {}, {
+    router.post(WebhookSettingsController.regenerateSecret.url(), {}, {
         preserveScroll: true,
         onSuccess: () => {
             confirmingSecretRegeneration.value = false;
@@ -80,7 +80,7 @@ const regenerateSecret = () => {
 const deleteWebhook = () => {
     deleting.value = true;
 
-    router.delete(destroy.url(), {
+    router.delete(WebhookSettingsController.destroy.url(), {
         preserveScroll: true,
         onSuccess: () => {
             confirmingWebhookDeletion.value = false;
@@ -96,7 +96,7 @@ const deleteWebhook = () => {
 const testWebhook = () => {
     testing.value = true;
 
-    router.post(test.url(), {}, {
+    router.post(WebhookSettingsController.test.url(), {}, {
         preserveScroll: true,
         onSuccess: () => {
             testDispatched.value = true;
@@ -132,7 +132,7 @@ const testWebhook = () => {
                 <InputError :message="form.errors.webhook_url" class="mt-2" />
                 <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
                     We will send a signed HTTP POST to this URL when your secrets are retrieved. Must be HTTPS.
-                    <Link :href="webhooks.url()" prefetch class="underline text-sm text-gamboge-300 dark:text-gamboge-200 hover:text-gamboge-200 dark:hover:text-gamboge-100 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gamboge-500 dark:focus:ring-offset-gray-900">
+                    <Link :href="MarkdownDocumentController.webhooks.url()" prefetch class="underline text-sm text-gamboge-300 dark:text-gamboge-200 hover:text-gamboge-200 dark:hover:text-gamboge-100 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gamboge-500 dark:focus:ring-offset-gray-900">
                         Learn more
                     </Link>
                 </p>
@@ -197,7 +197,7 @@ const testWebhook = () => {
         <template #content>
             <p class="text-sm text-gray-600 dark:text-gray-400">
                 Webhook notifications are available on the Prime plan.
-                <Link :href="plansIndex.url()" prefetch class="underline text-sm text-gamboge-300 dark:text-gamboge-200 hover:text-gamboge-200 dark:hover:text-gamboge-100 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gamboge-500 dark:focus:ring-offset-gray-900">
+                <Link :href="PlanController.index.url()" prefetch class="underline text-sm text-gamboge-300 dark:text-gamboge-200 hover:text-gamboge-200 dark:hover:text-gamboge-100 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gamboge-500 dark:focus:ring-offset-gray-900">
                     View plans
                 </Link>
             </p>

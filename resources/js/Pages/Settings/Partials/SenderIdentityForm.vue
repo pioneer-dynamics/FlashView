@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { router, useForm, usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
-import { store, verify, destroy } from '@/actions/App/Http/Controllers/SenderIdentityController';
+import SenderIdentityController from '@/actions/App/Http/Controllers/SenderIdentityController';
 import ActionMessage from '@/Components/ActionMessage.vue';
 import CodeBlock from '@/Components/CodeBlock.vue';
 import ConfirmsPasswordOrPasskey from '@/Components/ConfirmsPasswordOrPasskey.vue';
@@ -69,19 +69,19 @@ const selectType = (type: 'email' | 'domain'): void => {
 };
 
 const save = (): void => {
-    form.submit(store(), {
+    form.submit(SenderIdentityController.store(), {
         preserveScroll: true,
     });
 };
 
 const verifyDomain = (): void => {
-    verifyForm.submit(verify(), {
+    verifyForm.submit(SenderIdentityController.verify(), {
         preserveScroll: true,
     });
 };
 
 const removeIdentity = (): void => {
-    router.delete(destroy.url(), {
+    router.delete(SenderIdentityController.destroy.url(), {
         preserveScroll: true,
     });
 };

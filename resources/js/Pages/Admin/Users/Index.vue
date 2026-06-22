@@ -7,7 +7,7 @@ import ConfirmationModal from '@/Components/ConfirmationModal.vue';
 import { useForm, usePage } from '@inertiajs/vue3';
 import { ref } from 'vue';
 import type { PageProps, AdminUser } from '@/types';
-import { suspend, unsuspend } from '@/actions/App/Http/Controllers/Admin/AdminUserController';
+import AdminUserController from '@/actions/App/Http/Controllers/Admin/AdminUserController';
 
 interface Props {
     users: AdminUser[]
@@ -27,7 +27,7 @@ const confirmSuspend = (user: AdminUser): void => {
 };
 
 const suspendUser = (): void => {
-    suspendForm.submit(suspend(userBeingSuspended.value!.id), {
+    suspendForm.submit(AdminUserController.suspend(userBeingSuspended.value!.id), {
         preserveScroll: true,
         onSuccess: () => { userBeingSuspended.value = null; },
         onError: () => { userBeingSuspended.value = null; },
@@ -35,7 +35,7 @@ const suspendUser = (): void => {
 };
 
 const unsuspendUser = (user: AdminUser): void => {
-    unsuspendForm.submit(unsuspend(user.id), {
+    unsuspendForm.submit(AdminUserController.unsuspend(user.id), {
         preserveScroll: true,
     });
 };

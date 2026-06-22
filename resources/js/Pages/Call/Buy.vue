@@ -2,7 +2,7 @@
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { Link, router } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue';
-import { create, checkout } from '@/actions/App/Http/Controllers/SecureLineCheckoutController';
+import SecureLineCheckoutController from '@/actions/App/Http/Controllers/SecureLineCheckoutController';
 import type { SecureLineProduct } from '@/types';
 
 interface Props {
@@ -18,7 +18,7 @@ onMounted(() => {
 });
 
 const resumeSetup = (): void => {
-    router.visit(create.url({ query: { token: pendingToken.value! } }));
+    router.visit(SecureLineCheckoutController.create.url({ query: { token: pendingToken.value! } }));
 };
 
 const dismissPending = (): void => {
@@ -109,7 +109,7 @@ const formatDuration = (minutes: number): string => minutes >= 60 ? `${minutes /
                             </li>
                         </ul>
                         <Link
-                            :href="checkout.url()"
+                            :href="SecureLineCheckoutController.checkout.url()"
                             method="post"
                             :data="{ product_id: product.id }"
                             as="button"
