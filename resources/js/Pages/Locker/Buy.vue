@@ -3,7 +3,7 @@ import AppLayout from '@/Layouts/AppLayout.vue';
 import { Link, router } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue';
 import type { LockerPlan } from '@/types';
-import { create } from '@/actions/App/Http/Controllers/LockerController';
+import { create, checkout as lockerCheckout } from '@/actions/App/Http/Controllers/LockerController';
 
 interface Props {
     pricing?: Record<string, Record<number, LockerPlan>>
@@ -139,7 +139,7 @@ const savingsPercent = (tier: string, years: number): number | null => {
                                 </div>
 
                                 <Link
-                                    :href="route('lockers.checkout')"
+                                    :href="lockerCheckout.url()"
                                     method="post"
                                     :data="{ tier: tier.key, years }"
                                     as="button"

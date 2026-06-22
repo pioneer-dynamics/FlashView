@@ -6,6 +6,8 @@ import Alert from '@/Components/Alert.vue';
 import axios from 'axios';
 import { encryption } from '@/encryption.js';
 import type { CallSession } from '@/types';
+import { challenge, join as callSessionJoin } from '@/actions/App/Http/Controllers/CallSessionController';
+import { room } from '@/actions/App/Http/Controllers/CallPageController';
 
 interface Props {
     session: CallSession;
@@ -43,7 +45,7 @@ async function handleJoin(): Promise<void> {
     stage.value = 'joining';
     try {
         const { data: challengeData } = await axios.get(
-            route('call-sessions.challenge', props.session.bridge_number)
+            challenge.url(props.session.bridge_number as unknown as number)
         );
 
         const enc = new encryption();
@@ -54,7 +56,7 @@ async function handleJoin(): Promise<void> {
         const signature = enc.signCallChallenge(keypair.privateKey, challengeData.challenge);
 
         const { data: responseData } = await axios.post(
-            route('call-sessions.join', props.session.bridge_number),
+            callSessionJoin['/call-sessions/{callSession}/join'].url(props.session.bridge_number as unknown as number),
             { signature, public_key: ecdhKeypair.publicKeyBase64 }
         );
 
@@ -74,7 +76,7 @@ async function handleJoin(): Promise<void> {
             return;
         }
 
-        router.visit(route('calls.room', props.session.bridge_number));
+        router.visit(room.url(props.session.bridge_number as unknown as number));
     } catch (e: unknown) {
         stage.value = 'error';
         const err = e as { response?: { status?: number; data?: { message?: string } } };
@@ -95,7 +97,7 @@ async function handleJoin(): Promise<void> {
 }
 
 function continueToRoom(): void {
-    router.visit(route('calls.room', props.session.bridge_number));
+    router.visit(room.url(props.session.bridge_number as unknown as number));
 }
 
 function retryJoin(): void {

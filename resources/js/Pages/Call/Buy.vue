@@ -2,7 +2,7 @@
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { Link, router } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue';
-import { create } from '@/actions/App/Http/Controllers/SecureLineCheckoutController';
+import { create, checkout } from '@/actions/App/Http/Controllers/SecureLineCheckoutController';
 import type { SecureLineProduct } from '@/types';
 
 interface Props {
@@ -109,7 +109,7 @@ const formatDuration = (minutes: number): string => minutes >= 60 ? `${minutes /
                             </li>
                         </ul>
                         <Link
-                            :href="route('calls.checkout')"
+                            :href="checkout.url()"
                             method="post"
                             :data="{ product_id: product.id }"
                             as="button"

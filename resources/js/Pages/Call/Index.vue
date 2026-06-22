@@ -2,13 +2,15 @@
 import { ref } from 'vue';
 import { router, Link } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import { show as callJoin } from '@/actions/App/Http/Controllers/CallPageController';
+import { buy } from '@/actions/App/Http/Controllers/SecureLineCheckoutController';
 
 const bridgeNumber = ref('');
 
 function joinLine(): void {
     const trimmed = bridgeNumber.value.trim();
     if (!trimmed) return;
-    router.visit(route('calls.join', trimmed));
+    router.visit(callJoin.url(trimmed as unknown as number));
 }
 </script>
 
@@ -58,7 +60,7 @@ function joinLine(): void {
                             Host your own encrypted call window. Time-limited, zero-knowledge, no account needed for participants.
                         </p>
                         <Link
-                            :href="route('calls.buy')"
+                            :href="buy.url()"
                             class="block w-full text-center bg-gamboge-300 hover:bg-gamboge-400 text-gray-900 font-semibold py-2.5 rounded-lg font-mono text-sm transition-colors shadow-neon-cyan-sm hover:shadow-neon-cyan"
                         >
                             Buy a Line →

@@ -5,7 +5,7 @@ import { router } from '@inertiajs/vue3';
 import { ref, computed, onMounted } from 'vue';
 import { encryption } from '@/encryption.js';
 import type { LockerCredentials } from '@/types';
-import { create, open, prepareFile } from '@/actions/App/Http/Controllers/LockerController';
+import { create, open, prepareFile, store as lockerStore } from '@/actions/App/Http/Controllers/LockerController';
 
 interface Props {
     credit_token?: string;
@@ -237,7 +237,7 @@ const submit = async () => {
             payload = await enc.encryptLockerContent(content.value, effectivePassphrase);
         }
 
-        const res = await fetch(route('lockers.store'), {
+        const res = await fetch(lockerStore.url(), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
