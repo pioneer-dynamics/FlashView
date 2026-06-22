@@ -25,6 +25,10 @@ yarn-error.log
 .claude
 .claude.d
 
+/resources/js/actions
+/resources/js/routes
+/resources/js/wayfinder
+
 /playwright-report
 /test-results
 /.playwright
