@@ -1,0 +1,21 @@
+{
+    "extends": "@vue/tsconfig/tsconfig.dom.json",
+    "include": ["resources/js/**/*"],
+    "compilerOptions": {
+        "baseUrl": ".",
+        "paths": {
+            "@/*": ["resources/js/*"]
+        },
+        "ignoreDeprecations": "6.0",
+        "noImplicitAny": true,
+        "allowJs": true,
+        "strict": false,
+        "module": "ESNext",
+        "moduleResolution": "bundler",
+        "jsx": "preserve",
+        "lib": ["ESNext", "DOM"],
+        "target": "ESNext",
+        "skipLibCheck": true,
+        "verbatimModuleSyntax": true
+    }
+}
