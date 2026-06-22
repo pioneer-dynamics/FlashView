@@ -8,6 +8,7 @@ import SecondaryButton from '@/Components/SecondaryButton.vue';
 import { Link, router, useForm } from '@inertiajs/vue3';
 import { ref } from 'vue';
 import type { AdminPlan } from '@/types';
+import { create, edit, destroy } from '@/actions/App/Http/Controllers/Admin/AdminPlanController';
 
 interface Props {
     plans: AdminPlan[]
@@ -23,7 +24,7 @@ const confirmDelete = (plan: AdminPlan): void => {
 };
 
 const deletePlan = (): void => {
-    deleteForm.delete(route('admin.plans.destroy', planBeingDeleted.value!.id), {
+    deleteForm.delete(destroy.url(planBeingDeleted.value!.id), {
         preserveScroll: true,
         onSuccess: () => { planBeingDeleted.value = null; },
         onError: () => { planBeingDeleted.value = null; },
@@ -51,7 +52,7 @@ const availabilityLabel = (plan: AdminPlan): string => {
         <Page>
             <div class="mb-6 flex items-center justify-between">
                 <h1 class="text-xs uppercase tracking-widest text-gamboge-300 font-mono">Plan Management</h1>
-                <Link :href="route('admin.plans.create')" prefetch>
+                <Link :href="create.url()" prefetch>
                     <PrimaryButton>New Plan</PrimaryButton>
                 </Link>
             </div>
@@ -73,7 +74,7 @@ const availabilityLabel = (plan: AdminPlan): string => {
                         <tr v-if="plans.length === 0">
                             <td colspan="7" class="px-6 py-8 text-center text-gray-400 dark:text-gray-500">
                                 No plans yet.
-                                <Link :href="route('admin.plans.create')" prefetch class="text-gamboge-300 hover:underline ml-1">Create one.</Link>
+                                <Link :href="create.url()" prefetch class="text-gamboge-300 hover:underline ml-1">Create one.</Link>
                             </td>
                         </tr>
                         <tr v-for="plan in plans" :key="plan.id"
@@ -105,7 +106,7 @@ const availabilityLabel = (plan: AdminPlan): string => {
                             </td>
                             <td class="px-6 py-4 text-right">
                                 <div class="flex justify-end gap-2">
-                                    <Link :href="route('admin.plans.edit', plan.id)" prefetch>
+                                    <Link :href="edit.url(plan.id)" prefetch>
                                         <SecondaryButton class="text-xs">Edit</SecondaryButton>
                                     </Link>
                                     <DangerButton class="text-xs" @click="confirmDelete(plan)">

@@ -7,6 +7,7 @@ import TextInput from '@/Components/TextInput.vue';
 import InputError from '@/Components/InputError.vue';
 import { Link, useForm } from '@inertiajs/vue3';
 import { computed } from 'vue';
+import { index, store } from '@/actions/App/Http/Controllers/Admin/AdminCouponController';
 
 const form = useForm({
     name:                     '',
@@ -34,7 +35,7 @@ const showMinAmountCurrencyHint = computed(() =>
 );
 
 const submit = (): void => {
-    form.post(route('admin.coupons.store'));
+    form.submit(store());
 };
 </script>
 
@@ -44,7 +45,7 @@ const submit = (): void => {
 
         <Page>
             <div class="mb-6">
-                <Link :href="route('admin.coupons.index')" prefetch class="text-sm text-gamboge-300 hover:text-gamboge-200">
+                <Link :href="index.url()" prefetch class="text-sm text-gamboge-300 hover:text-gamboge-200">
                     ← Back to Coupons
                 </Link>
             </div>
@@ -273,7 +274,7 @@ const submit = (): void => {
                         <PrimaryButton :disabled="form.processing" data-testid="submit-coupon">
                             Create Coupon
                         </PrimaryButton>
-                        <Link :href="route('admin.coupons.index')" prefetch>
+                        <Link :href="index.url()" prefetch>
                             <SecondaryButton type="button">Cancel</SecondaryButton>
                         </Link>
                     </div>

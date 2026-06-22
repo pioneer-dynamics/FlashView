@@ -8,6 +8,7 @@ import ConfirmationModal from '@/Components/ConfirmationModal.vue';
 import { Link, useForm } from '@inertiajs/vue3';
 import { ref } from 'vue';
 import type { StripeCoupon } from '@/types';
+import { create, show, destroy } from '@/actions/App/Http/Controllers/Admin/AdminCouponController';
 
 interface Props {
     coupons: StripeCoupon[]
@@ -21,7 +22,7 @@ const deleteForm = useForm({});
 const confirmDelete = (coupon: StripeCoupon): void => { couponBeingDeleted.value = coupon; };
 
 const deleteCoupon = (): void => {
-    deleteForm.delete(route('admin.coupons.destroy', couponBeingDeleted.value!.id), {
+    deleteForm.delete(destroy(couponBeingDeleted.value!.id).url, {
         preserveScroll: true,
         onSuccess: () => { couponBeingDeleted.value = null; },
         onError:   () => { couponBeingDeleted.value = null; },
@@ -59,7 +60,7 @@ const formatRedemptions = (coupon: StripeCoupon): string => {
         <Page>
             <div class="mb-6 flex items-center justify-between">
                 <h1 class="text-xs uppercase tracking-widest text-gamboge-300 font-mono">Coupon &amp; Promotion Code Management</h1>
-                <Link :href="route('admin.coupons.create')" prefetch>
+                <Link :href="create.url()" prefetch>
                     <PrimaryButton>New Coupon</PrimaryButton>
                 </Link>
             </div>
@@ -81,7 +82,7 @@ const formatRedemptions = (coupon: StripeCoupon): string => {
                         <tr v-if="coupons.length === 0">
                             <td colspan="7" class="px-6 py-8 text-center text-gray-400 dark:text-gray-500">
                                 No coupons yet.
-                                <Link :href="route('admin.coupons.create')" prefetch class="text-gamboge-300 hover:underline ml-1">Create one.</Link>
+                                <Link :href="create.url()" prefetch class="text-gamboge-300 hover:underline ml-1">Create one.</Link>
                             </td>
                         </tr>
                         <tr
@@ -114,7 +115,7 @@ const formatRedemptions = (coupon: StripeCoupon): string => {
                             </td>
                             <td class="px-6 py-4 text-right">
                                 <div class="flex justify-end gap-2">
-                                    <Link :href="route('admin.coupons.show', coupon.id)" prefetch>
+                                    <Link :href="show.url(coupon.id)" prefetch>
                                         <SecondaryButton class="text-xs">View</SecondaryButton>
                                     </Link>
                                     <DangerButton class="text-xs" @click="confirmDelete(coupon)">
