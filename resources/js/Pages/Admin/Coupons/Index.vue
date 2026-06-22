@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import Page from '@/Pages/Page.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
@@ -7,25 +7,28 @@ import SecondaryButton from '@/Components/SecondaryButton.vue';
 import ConfirmationModal from '@/Components/ConfirmationModal.vue';
 import { Link, useForm } from '@inertiajs/vue3';
 import { ref } from 'vue';
+import type { StripeCoupon } from '@/types';
 
-const props = defineProps({
-    coupons: Array,
-});
+interface Props {
+    coupons: StripeCoupon[]
+}
 
-const couponBeingDeleted = ref(null);
+const props = defineProps<Props>();
+
+const couponBeingDeleted = ref<StripeCoupon | null>(null);
 const deleteForm = useForm({});
 
-const confirmDelete = (coupon) => { couponBeingDeleted.value = coupon; };
+const confirmDelete = (coupon: StripeCoupon): void => { couponBeingDeleted.value = coupon; };
 
-const deleteCoupon = () => {
-    deleteForm.delete(route('admin.coupons.destroy', couponBeingDeleted.value.id), {
+const deleteCoupon = (): void => {
+    deleteForm.delete(route('admin.coupons.destroy', couponBeingDeleted.value!.id), {
         preserveScroll: true,
         onSuccess: () => { couponBeingDeleted.value = null; },
         onError:   () => { couponBeingDeleted.value = null; },
     });
 };
 
-const formatDiscount = (coupon) => {
+const formatDiscount = (coupon: StripeCoupon): string => {
     if (coupon.percent_off) {
         return `${coupon.percent_off}% off`;
     }
@@ -37,12 +40,12 @@ const formatDiscount = (coupon) => {
     return '—';
 };
 
-const formatExpiry = (redeemBy) => {
+const formatExpiry = (redeemBy: number | null): string => {
     if (!redeemBy) { return 'No expiry'; }
     return new Date(redeemBy * 1000).toLocaleDateString('en-AU');
 };
 
-const formatRedemptions = (coupon) => {
+const formatRedemptions = (coupon: StripeCoupon): string => {
     const used = coupon.times_redeemed ?? 0;
     const limit = coupon.max_redemptions;
     return limit ? `${used} / ${limit}` : `${used} / Unlimited`;

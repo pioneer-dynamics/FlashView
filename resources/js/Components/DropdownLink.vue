@@ -1,10 +1,12 @@
-<script setup>
+<script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
 
-defineProps({
-    href: String,
-    as: String,
-});
+interface Props {
+    href?: string;
+    as?: string;
+}
+
+defineProps<Props>();
 
 defineOptions({ inheritAttrs: false });
 </script>

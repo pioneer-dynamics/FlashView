@@ -1,21 +1,26 @@
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue';
 import { Link, useForm, usePage } from '@inertiajs/vue3';
+import type { PageProps } from '@/types';
 import ActionMessage from '@/Components/ActionMessage.vue';
 import ActionSection from '@/Components/ActionSection.vue';
 import FormSection from '@/Components/FormSection.vue';
 import Checkbox from '@/Components/Checkbox.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 
-const page = usePage();
+const page = usePage<PageProps>();
 const user = computed(() => page.props.auth.user);
 
 const planSupportsNotifications = computed(() =>
     page.props.auth.planSupportsEmailNotifications ?? false
 );
 
+interface UserWithNotifications {
+    notify_secret_retrieved?: boolean
+}
+
 const form = useForm({
-    notify_secret_retrieved: user.value.notify_secret_retrieved ?? false,
+    notify_secret_retrieved: ((user.value as unknown as UserWithNotifications)?.notify_secret_retrieved) ?? false,
 });
 
 const updateNotificationPreferences = () => {

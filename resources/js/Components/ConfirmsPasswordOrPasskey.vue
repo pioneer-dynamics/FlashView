@@ -1,35 +1,31 @@
-<script setup>
+<script setup lang="ts">
 import { ref, reactive, computed, nextTick } from 'vue';
 import { usePage } from '@inertiajs/vue3';
+import type { PageProps } from '@/types';
 import DialogModal from './DialogModal.vue';
 import InputError from './InputError.vue';
 import PrimaryButton from './PrimaryButton.vue';
 import TextInput from './TextInput.vue';
 import ConfirmsPasskey from './ConfirmsPasskey.vue';
 
-const emit = defineEmits(['confirmed']);
+const emit = defineEmits<{
+    confirmed: [];
+}>();
 
-const props = defineProps({
-    title: {
-        type: String,
-        default: 'Confirm Authority',
-    },
-    content: {
-        type: String,
-        default: 'For your security, please confirm your authority to continue.',
-    },
-    button: {
-        type: String,
-        default: 'Confirm',
-    },
-    mandatory: {
-        type: Boolean,
-        default: false,
-    },
-    seconds: {
-        type: Number,
-        default: 0,
-    }
+interface Props {
+    title?: string;
+    content?: string;
+    button?: string;
+    mandatory?: boolean;
+    seconds?: number;
+}
+
+const props = withDefaults(defineProps<Props>(), {
+    title: 'Confirm Authority',
+    content: 'For your security, please confirm your authority to continue.',
+    button: 'Confirm',
+    mandatory: false,
+    seconds: 0,
 });
 
 const confirmingPassword = ref(false);
@@ -37,11 +33,11 @@ const showingAuthChoice = ref(false);
 const passkeyFailed = ref(false);
 const passkeyVerifying = ref(false);
 
-const passkeyConfirmation = ref(null);
+const passkeyConfirmation = ref<InstanceType<typeof ConfirmsPasskey> | null>(null);
 
-const userHasPasskeys = computed(() => {
-    const user = usePage().props.auth?.user;
-    return user?.passkeys?.length > 0;
+const userHasPasskeys = computed((): boolean => {
+    const user = usePage<PageProps>().props.auth?.user;
+    return (user?.passkeys?.length ?? 0) > 0;
 });
 
 const form = reactive({
@@ -50,16 +46,15 @@ const form = reactive({
     processing: false,
 });
 
-const passwordInput = ref(null);
+const passwordInput = ref<InstanceType<typeof TextInput> | null>(null);
 
-const askForPassword = () => {
+const askForPassword = (): void => {
     confirmingPassword.value = true;
-    setTimeout(() => passwordInput.value.focus(), 250);
+    setTimeout(() => passwordInput.value?.focus(), 250);
+};
 
-}
-
-const startConfirmingPassword = () => {
-    axios.get(route('password.confirmation', props.seconds > 0 ? {seconds: props.seconds} : {})).then(response => {
+const startConfirmingPassword = (): void => {
+    axios.get(route('password.confirmation', props.seconds > 0 ? {seconds: props.seconds} : {})).then((response: { data: { confirmed: boolean } }) => {
         if (response.data.confirmed && !props.mandatory) {
             emit('confirmed');
         } else if (userHasPasskeys.value) {
@@ -71,37 +66,37 @@ const startConfirmingPassword = () => {
     });
 };
 
-const usePasskey = () => {
+const usePasskey = (): void => {
     passkeyFailed.value = false;
     passkeyVerifying.value = true;
-    passkeyConfirmation.value.start();
+    passkeyConfirmation.value?.start();
 };
 
-const onPasskeyConfirmed = () => {
+const onPasskeyConfirmed = (): void => {
     showingAuthChoice.value = false;
     passkeyFailed.value = false;
     passkeyVerifying.value = false;
     emit('confirmed');
 };
 
-const onPasskeyCancelled = () => {
+const onPasskeyCancelled = (): void => {
     passkeyFailed.value = true;
     passkeyVerifying.value = false;
 };
 
-const usePassword = () => {
+const usePassword = (): void => {
     showingAuthChoice.value = false;
     passkeyFailed.value = false;
     askForPassword();
 };
 
-const closeAuthChoice = () => {
+const closeAuthChoice = (): void => {
     showingAuthChoice.value = false;
     passkeyFailed.value = false;
     passkeyVerifying.value = false;
 };
 
-const confirmPassword = () => {
+const confirmPassword = (): void => {
     form.processing = true;
 
     axios.post(route('password.confirm'), {
@@ -112,14 +107,14 @@ const confirmPassword = () => {
         closeModal();
         nextTick().then(() => emit('confirmed'));
 
-    }).catch(error => {
+    }).catch((error: { response: { data: { errors: { password: string[] } } } }) => {
         form.processing = false;
         form.error = error.response.data.errors.password[0];
-        passwordInput.value.focus();
+        passwordInput.value?.focus();
     });
 };
 
-const closeModal = () => {
+const closeModal = (): void => {
     confirmingPassword.value = false;
     form.password = '';
     form.error = '';

@@ -1,16 +1,14 @@
-<script setup>
-import { nextTick, onMounted, ref } from 'vue';
+<script setup lang="ts">
+import { onMounted, ref } from 'vue';
 
-    const props = defineProps({
-        phrases: {
-            type: Array,
-            required: true
-        },
-        speed: {
-            type: Number,
-            default: 100
-        },
-    })
+interface Props {
+    phrases: string[];
+    speed?: number;
+}
+
+const props = withDefaults(defineProps<Props>(), {
+    speed: 100,
+});
 
     const currentPhrase = ref(0);
 

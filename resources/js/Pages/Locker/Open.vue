@@ -1,15 +1,20 @@
-<script setup>
+<script setup lang="ts">
 import AppLayout from '@/Layouts/AppLayout.vue';
 import FileProgressBar from '@/Components/FileProgressBar.vue';
 import { ref, computed, onMounted } from 'vue';
 import { router } from '@inertiajs/vue3';
 import { encryption, LockerDecryptionError } from '@/encryption.js';
+import type { FileMeta } from '@/types';
 
-const props = defineProps({
-    renewed: Boolean,
-});
+interface Props {
+    renewed?: boolean;
+}
+
+const props = defineProps<Props>();
 
 const enc = new encryption();
+
+type FileProgressState = 'encrypting' | 'uploading' | 'decrypting' | 'downloading';
 
 // Account entry state — account number never touches the URL
 const accountId    = ref('');
@@ -18,7 +23,7 @@ const authInfoError = ref('');
 
 // Populated after successful unlock — not passed from server initially (prevents enumeration)
 const isFileLocker   = ref(false);
-const expiresAt      = ref(null); // ISO string or null
+const expiresAt      = ref<string | null>(null);
 const authChallenge  = ref('');
 const wrappedFileKey = ref('');  // base64 KEK-wrapped DEK; empty for legacy lockers
 
@@ -31,34 +36,37 @@ const upgradeError     = ref('');
 
 // Auth mode — fetched on account entry from auth-info endpoint
 const authMode     = ref('passphrase'); // 'passphrase' | 'key_file' | 'combined'
-const keyFileCount = ref(null);
+const keyFileCount = ref<number | null>(null);
 const showClues    = ref(true);  // false = server returned opaque response; show generic UI
 
 // Unlock state
 const passphrase          = ref('');
 const effectivePassphrase = ref(''); // Derived on unlock; cleared on lock.
-const keyFiles            = ref([]); // [{ file: File }]
+const keyFiles            = ref<{ file: File }[]>([]);
 const lockState         = ref('locked'); // 'locked' | 'animating' | 'unlocked' | 'shaking'
 const decryptError      = ref('');
 const failCount         = ref(0);
 const decryptedText     = ref('');
-const decryptedFileMeta = ref(null); // { name, type, size }
+const decryptedFileMeta = ref<FileMeta | null>(null);
 
 // File download state
-const fileState    = ref(null); // null | 'downloading'
+const fileState    = ref<FileProgressState | null>(null); // null | 'downloading'
 const fileProgress = ref(0);
 const downloadError = ref('');
 
 // Update state
 const newContent      = ref('');
-const replacementFile = ref(null);
+const replacementFile = ref<File | null>(null);
 const updateError     = ref('');
 const updateSuccess   = ref(false);
 const updating        = ref(false);
 const updateProgress  = ref(0);
-const updateState     = ref(null); // null | 'encrypting' | 'uploading'
+const updateState     = ref<FileProgressState | null>(null); // null | 'encrypting' | 'uploading'
 
-const onReplacementFileChange = (e) => { replacementFile.value = e.target.files[0] ?? null; };
+const onReplacementFileChange = (e: Event): void => {
+    const input = e.target as HTMLInputElement;
+    replacementFile.value = input.files?.[0] ?? null;
+};
 
 // Delete state
 const deleteError       = ref('');
@@ -69,17 +77,17 @@ const showDeleteConfirm = ref(false);
 const newPassphrase            = ref('');
 const passphraseChangeError    = ref('');
 const passphraseChangeSuccess  = ref(false);
-const passphraseChangeState    = ref(null); // null | 'encrypting' | 'uploading'
+const passphraseChangeState    = ref<FileProgressState | null>(null); // null | 'encrypting' | 'uploading'
 const passphraseChangeProgress = ref(0);
 
 // Credential rotation state (key_file and combined modes)
 const rotAuthMode           = ref('passphrase'); // chosen new auth mode during rotation
-const newKeyFiles           = ref([]); // [{ file: File }]
+const newKeyFiles           = ref<{ file: File }[]>([]);
 const newPassphraseRot      = ref('');
 const credRotateError       = ref('');
 const credRotateSuccess     = ref(false);
 const credRotating          = ref(false);
-const credRotateState       = ref(null); // null | 'encrypting' | 'uploading'
+const credRotateState       = ref<FileProgressState | null>(null); // null | 'encrypting' | 'uploading'
 const credRotateProgress    = ref(0);
 
 const newPassphraseStrength = computed(() => {
@@ -146,14 +154,15 @@ onMounted(async () => {
     }
 });
 
-const onKeyFileAdded = (e) => {
-    const file = e.target.files[0];
+const onKeyFileAdded = (e: Event): void => {
+    const input = e.target as HTMLInputElement;
+    const file = input.files?.[0];
     if (!file) return;
-    e.target.value = '';
+    input.value = '';
     keyFiles.value.push({ file });
 };
 
-const removeKeyFile = (index) => {
+const removeKeyFile = (index: number): void => {
     keyFiles.value.splice(index, 1);
 };
 
@@ -241,9 +250,9 @@ const expiryLabel = computed(() => {
     return `${daysRemaining.value} days remaining`;
 });
 
-const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+const sleep = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms));
 
-const triggerShake = (msg) => {
+const triggerShake = (msg: string): void => {
     decryptError.value = msg;
     lockState.value = 'shaking';
     setTimeout(() => { lockState.value = 'locked'; }, 450);
@@ -368,7 +377,7 @@ const downloadFile = async () => {
     try {
         const presignedUrl = await fetchDownloadUrl();
 
-        const encryptedBytes = await new Promise((resolve, reject) => {
+        const encryptedBytes = await new Promise<Uint8Array>((resolve, reject) => {
             const xhr = new XMLHttpRequest();
             xhr.open('GET', presignedUrl);
             xhr.responseType = 'arraybuffer';
@@ -390,13 +399,13 @@ const downloadFile = async () => {
 
         const name = decryptedFileMeta.value?.name ?? 'locker-file';
         const type = decryptedFileMeta.value?.type ?? 'application/octet-stream';
-        const blob = new Blob([decryptedBuffer], { type });
+        const blob = new Blob([decryptedBuffer as BlobPart], { type });
         const url  = URL.createObjectURL(blob);
         const a    = document.createElement('a');
         a.href = url; a.download = name; a.click();
         URL.revokeObjectURL(url);
     } catch (err) {
-        downloadError.value = err.message || 'Download failed. Please try again.';
+        downloadError.value = err instanceof Error ? err.message : 'Download failed. Please try again.';
     } finally {
         fileState.value = null;
     }
@@ -465,7 +474,7 @@ const submitUpdate = async () => {
         decryptedText.value = newContent.value;
         newContent.value    = '';
     } catch (err) {
-        updateError.value = err.message || 'Update failed. Please try again.';
+        updateError.value = err instanceof Error ? err.message : 'Update failed. Please try again.';
     } finally {
         updating.value = false;
     }
@@ -495,27 +504,27 @@ const submitFileUpdate = async () => {
             body: JSON.stringify({}),
         });
 
-        let storagePath = null;
+        let storagePath: string | null = null;
         if (prepRes.ok) {
             const { upload_url, upload_headers, storage_path } = await prepRes.json();
             storagePath   = storage_path;
             updateState.value = 'uploading';
 
-            await new Promise((resolve, reject) => {
+            await new Promise<void>((resolve, reject) => {
                 const xhr = new XMLHttpRequest();
                 xhr.open('PUT', upload_url);
-                for (const [k, v] of Object.entries(upload_headers ?? {})) xhr.setRequestHeader(k, v);
+                for (const [k, v] of Object.entries(upload_headers ?? {})) xhr.setRequestHeader(k, String(v));
                 xhr.upload.onprogress = (e) => {
                     if (e.lengthComputable) updateProgress.value = Math.round((e.loaded / e.total) * 100);
                 };
                 xhr.onload  = () => (xhr.status >= 200 && xhr.status < 300) ? resolve() : reject(new Error('Upload failed.'));
                 xhr.onerror = () => reject(new Error('Upload failed.'));
-                xhr.send(new Blob([bytes], { type: 'application/octet-stream' }));
+                xhr.send(new Blob([bytes as BlobPart], { type: 'application/octet-stream' }));
             });
         }
 
         const authHeaders = await fetchSigningHeaders();
-        const body = { payload };
+        const body: Record<string, unknown> = { payload };
         if (storagePath) {
             body.storage_path = storagePath;
             body.new_wrapped_file_key = newWrappedFileKey;
@@ -535,7 +544,7 @@ const submitFileUpdate = async () => {
         decryptedFileMeta.value = JSON.parse(meta);
         replacementFile.value  = null;
     } catch (err) {
-        updateError.value = err.message || 'Update failed. Please try again.';
+        updateError.value = err instanceof Error ? err.message : 'Update failed. Please try again.';
     } finally {
         updating.value    = false;
         updateState.value = null;
@@ -562,7 +571,7 @@ const changePassphrase = async () => {
         const authHeaders = await fetchSigningHeaders();
 
         let newPayload;
-        const putBody = {};
+        const putBody: Record<string, unknown> = {};
 
         if (!isLegacyLocker.value) {
             const { publicKeyJwkBase64: newPublicKey } = await enc.deriveLockerSigningKeypair(newPassphrase.value, accountId.value);
@@ -603,7 +612,7 @@ const changePassphrase = async () => {
             newPayload = await enc.encryptLockerContent(meta, newPassphrase.value);
 
             const reencryptDownloadUrl = await fetchDownloadUrl();
-            const encryptedBytes = await new Promise((resolve, reject) => {
+            const encryptedBytes = await new Promise<Uint8Array>((resolve, reject) => {
                 const xhr = new XMLHttpRequest();
                 xhr.open('GET', reencryptDownloadUrl);
                 xhr.responseType = 'arraybuffer';
@@ -627,16 +636,16 @@ const changePassphrase = async () => {
             const { upload_url, upload_headers, storage_path: newStoragePath } = await prepRes.json();
 
             passphraseChangeState.value = 'uploading';
-            await new Promise((resolve, reject) => {
+            await new Promise<void>((resolve, reject) => {
                 const xhr = new XMLHttpRequest();
                 xhr.open('PUT', upload_url);
-                for (const [k, v] of Object.entries(upload_headers ?? {})) xhr.setRequestHeader(k, v);
+                for (const [k, v] of Object.entries(upload_headers ?? {})) xhr.setRequestHeader(k, String(v));
                 xhr.upload.onprogress = (e) => {
                     if (e.lengthComputable) passphraseChangeProgress.value = 50 + Math.round((e.loaded / e.total) * 50);
                 };
                 xhr.onload  = () => (xhr.status >= 200 && xhr.status < 300) ? resolve() : reject(new Error('Upload failed.'));
                 xhr.onerror = () => reject(new Error('Upload failed.'));
-                xhr.send(new Blob([reEncryptedBytes], { type: 'application/octet-stream' }));
+                xhr.send(new Blob([reEncryptedBytes as BlobPart], { type: 'application/octet-stream' }));
             });
 
             putBody.payload = newPayload;
@@ -676,20 +685,21 @@ const changePassphrase = async () => {
         }
 
     } catch (err) {
-        passphraseChangeError.value = err.message || 'Failed to change passphrase. Please try again.';
+        passphraseChangeError.value = err instanceof Error ? err.message : 'Failed to change passphrase. Please try again.';
     } finally {
         passphraseChangeState.value = null;
     }
 };
 
-const onNewKeyFileAdded = (e) => {
-    const file = e.target.files[0];
+const onNewKeyFileAdded = (e: Event): void => {
+    const input = e.target as HTMLInputElement;
+    const file = input.files?.[0];
     if (!file) return;
-    e.target.value = '';
+    input.value = '';
     newKeyFiles.value.push({ file });
 };
 
-const removeNewKeyFile = (index) => {
+const removeNewKeyFile = (index: number): void => {
     newKeyFiles.value.splice(index, 1);
 };
 
@@ -734,7 +744,7 @@ const rotateCredentials = async () => {
 
         const { publicKeyJwkBase64: newPublicKey } = await enc.deriveLockerSigningKeypair(newEp, accountId.value);
         const newKeyFileCount = rotAuthMode.value !== 'passphrase' ? newKeyFiles.value.length : null;
-        const putBody = {
+        const putBody: Record<string, unknown> = {
             new_public_key:    newPublicKey,
             new_auth_mode:     rotAuthMode.value,
             new_key_file_count: newKeyFileCount,
@@ -766,7 +776,7 @@ const rotateCredentials = async () => {
             const newPayload = await enc.encryptLockerContent(meta, newEp);
 
             const rotateDownloadUrl = await fetchDownloadUrl();
-            const encryptedBytes = await new Promise((resolve, reject) => {
+            const encryptedBytes = await new Promise<Uint8Array>((resolve, reject) => {
                 const xhr = new XMLHttpRequest();
                 xhr.open('GET', rotateDownloadUrl);
                 xhr.responseType = 'arraybuffer';
@@ -790,16 +800,16 @@ const rotateCredentials = async () => {
             const { upload_url, upload_headers, storage_path: newStoragePath } = await prepRes.json();
 
             credRotateState.value = 'uploading';
-            await new Promise((resolve, reject) => {
+            await new Promise<void>((resolve, reject) => {
                 const xhr = new XMLHttpRequest();
                 xhr.open('PUT', upload_url);
-                for (const [k, v] of Object.entries(upload_headers ?? {})) xhr.setRequestHeader(k, v);
+                for (const [k, v] of Object.entries(upload_headers ?? {})) xhr.setRequestHeader(k, String(v));
                 xhr.upload.onprogress = (e) => {
                     if (e.lengthComputable) credRotateProgress.value = 50 + Math.round((e.loaded / e.total) * 50);
                 };
                 xhr.onload  = () => (xhr.status >= 200 && xhr.status < 300) ? resolve() : reject(new Error('Upload failed.'));
                 xhr.onerror = () => reject(new Error('Upload failed.'));
-                xhr.send(new Blob([reEncryptedBytes], { type: 'application/octet-stream' }));
+                xhr.send(new Blob([reEncryptedBytes as BlobPart], { type: 'application/octet-stream' }));
             });
 
             putBody.payload      = newPayload;
@@ -839,7 +849,7 @@ const rotateCredentials = async () => {
         keyFileCount.value  = newKeyFileCount;
 
     } catch (err) {
-        credRotateError.value = err.message || 'Rotation failed. Please try again.';
+        credRotateError.value = err instanceof Error ? err.message : 'Rotation failed. Please try again.';
     } finally {
         credRotating.value    = false;
         credRotateState.value = null;
@@ -955,7 +965,7 @@ const upgradeAuth = async () => {
                             maxlength="10"
                             placeholder="Enter your 10-digit account number"
                             @keydown.enter="openLocker"
-                            @input="accountId = $event.target.value.replace(/\D/g, '').slice(0, 10)"
+                            @input="accountId = ($event.target as HTMLInputElement).value.replace(/\D/g, '').slice(0, 10)"
                             class="w-full bg-gray-900 border border-gray-700 text-white font-mono rounded-lg px-3 py-2.5 text-sm focus:border-gamboge-300 focus:ring-gamboge-300 focus:outline-none"
                             data-testid="account-id-input"
                         />

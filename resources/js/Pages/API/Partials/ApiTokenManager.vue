@@ -1,6 +1,7 @@
-<script setup>
+<script setup lang="ts">
 import { ref } from 'vue';
 import { useForm, Link } from '@inertiajs/vue3';
+import type { ApiToken } from '@/types';
 import ActionMessage from '@/Components/ActionMessage.vue';
 import ActionSection from '@/Components/ActionSection.vue';
 import Checkbox from '@/Components/Checkbox.vue';
@@ -17,11 +18,13 @@ import TextInput from '@/Components/TextInput.vue';
 import Alert from '@/Components/Alert.vue';
 import ConfirmsPasswordOrPasskey from '@/Components/ConfirmsPasswordOrPasskey.vue';
 
-const props = defineProps({
-    tokens: Array,
-    availablePermissions: Array,
-    defaultPermissions: Array,
-});
+interface Props {
+    tokens: ApiToken[];
+    availablePermissions: string[];
+    defaultPermissions: string[];
+}
+
+const props = defineProps<Props>();
 
 const createApiTokenForm = useForm({
     name: '',
@@ -29,16 +32,16 @@ const createApiTokenForm = useForm({
 });
 
 const updateApiTokenForm = useForm({
-    permissions: [],
+    permissions: [] as string[],
 });
 
 const deleteApiTokenForm = useForm({});
 
 const displayingToken = ref(false);
-const managingPermissionsFor = ref(null);
-const apiTokenBeingDeleted = ref(null);
+const managingPermissionsFor = ref<ApiToken | null>(null);
+const apiTokenBeingDeleted = ref<ApiToken | null>(null);
 
-const createApiToken = () => {
+const createApiToken = (): void => {
     createApiTokenForm.post(route('api-tokens.store'), {
         preserveScroll: true,
         onSuccess: () => {
@@ -48,12 +51,12 @@ const createApiToken = () => {
     });
 };
 
-const manageApiTokenPermissions = (token) => {
+const manageApiTokenPermissions = (token: ApiToken): void => {
     updateApiTokenForm.permissions = token.abilities;
     managingPermissionsFor.value = token;
 };
 
-const updateApiToken = () => {
+const updateApiToken = (): void => {
     updateApiTokenForm.put(route('api-tokens.update', managingPermissionsFor.value), {
         preserveScroll: true,
         preserveState: true,
@@ -61,12 +64,12 @@ const updateApiToken = () => {
     });
 };
 
-const confirmApiTokenDeletion = (token) => {
+const confirmApiTokenDeletion = (token: ApiToken): void => {
     apiTokenBeingDeleted.value = token;
 };
 
-const deleteApiToken = () => {
-    const token = apiTokenBeingDeleted.value;
+const deleteApiToken = (): void => {
+    const token = apiTokenBeingDeleted.value!;
     const deleteRoute = token.type === 'cli'
         ? route('cli-installations.destroy', token)
         : route('api-tokens.destroy', token);

@@ -1,17 +1,18 @@
-<script setup>
+<script setup lang="ts">
     import { ref } from 'vue';
 
-    const props = defineProps({
-        value: String,
-        masked: {
-            type: Boolean,
-            default: false,
-        },
-    })
+    interface Props {
+        value?: string;
+        masked?: boolean;
+    }
+
+    const props = withDefaults(defineProps<Props>(), {
+        masked: false,
+    });
 
     const copied = ref(false)
 
-    const copyText = (data) => {
+    const copyText = (data: string): void => {
         navigator.clipboard.writeText(data);
         copied.value = true;
         setTimeout(() => copied.value = false, 2000)

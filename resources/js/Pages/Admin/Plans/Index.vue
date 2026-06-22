@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import Page from '@/Pages/Page.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
@@ -7,37 +7,40 @@ import ConfirmationModal from '@/Components/ConfirmationModal.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
 import { Link, router, useForm } from '@inertiajs/vue3';
 import { ref } from 'vue';
+import type { AdminPlan } from '@/types';
 
-const props = defineProps({
-    plans: Array,
-});
+interface Props {
+    plans: AdminPlan[]
+}
 
-const planBeingDeleted = ref(null);
+const props = defineProps<Props>();
+
+const planBeingDeleted = ref<AdminPlan | null>(null);
 const deleteForm = useForm({});
 
-const confirmDelete = (plan) => {
+const confirmDelete = (plan: AdminPlan): void => {
     planBeingDeleted.value = plan;
 };
 
-const deletePlan = () => {
-    deleteForm.delete(route('admin.plans.destroy', planBeingDeleted.value.id), {
+const deletePlan = (): void => {
+    deleteForm.delete(route('admin.plans.destroy', planBeingDeleted.value!.id), {
         preserveScroll: true,
         onSuccess: () => { planBeingDeleted.value = null; },
         onError: () => { planBeingDeleted.value = null; },
     });
 };
 
-const featureCount = (plan) => plan.features ? Object.keys(plan.features).length : 0;
+const featureCount = (plan: AdminPlan): number => plan.features ? Object.keys(plan.features).length : 0;
 
-const formatDate = (d) => d ? d.substring(0, 10) : null;
+const formatDate = (d: string | null): string | null => d ? d.substring(0, 10) : null;
 
-const availabilityLabel = (plan) => {
+const availabilityLabel = (plan: AdminPlan): string => {
     const start = formatDate(plan.start_date);
     const end = formatDate(plan.end_date);
     if (!start && !end) { return 'Always available'; }
     if (start && end) { return `${start} – ${end}`; }
     if (start) { return `From ${start}`; }
-    return `Until ${end}`;
+    return `Until ${end!}`;
 };
 </script>
 

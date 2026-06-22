@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import AuthenticationCard from '@/Components/AuthenticationCard.vue';
 import AuthenticationCardLogo from '@/Components/AuthenticationCardLogo.vue';
@@ -11,16 +11,18 @@ import { ref } from "vue";
 import ConfirmsPasskey from '@/Components/ConfirmsPasskey.vue';
 import SectionBorder from '@/Components/SectionBorder.vue';
 
-defineProps({
-    canResetPassword: Boolean,
-    status: String,
-});
+interface Props {
+    canResetPassword?: boolean;
+    status?: string;
+}
 
-const isPasswordLogin = ref(false);
-const isProcessing = ref(false);
+defineProps<Props>();
 
-const passkeyConfirmation = ref(null);
-const passwordInput = ref(null);
+const isPasswordLogin = ref<boolean>(false);
+const isProcessing = ref<boolean>(false);
+
+const passkeyConfirmation = ref<InstanceType<typeof ConfirmsPasskey> | null>(null);
+const passwordInput = ref<InstanceType<typeof TextInput> | null>(null);
 
 const form = useForm({
     email: '',
@@ -29,7 +31,7 @@ const form = useForm({
     remember: false,
 });
 
-const submit = () => {
+const submit = (): void => {
     if(isPasswordLogin.value)
     {
         passwordLogin();
@@ -37,16 +39,16 @@ const submit = () => {
     else
     {
         isProcessing.value = true;
-        passkeyConfirmation.value.start(form.email);
+        passkeyConfirmation.value?.start(form.email);
     }
 };
 
-const passkeyLogin = () => {
+const passkeyLogin = (): void => {
     isProcessing.value = true;
-    passkeyConfirmation.value.start(form.email);
+    passkeyConfirmation.value?.start(form.email);
 }
 
-const passwordLogin = () => {
+const passwordLogin = (): void => {
     form.transform(data => ({
         ...data,
         remember: form.remember ? 'on' : '',
@@ -55,7 +57,7 @@ const passwordLogin = () => {
     });
 };
 
-const cancelPasskeyLogin = (failed) => {
+const cancelPasskeyLogin = (failed: boolean): void => {
     if(!failed)
     {
         isPasswordLogin.value = true;

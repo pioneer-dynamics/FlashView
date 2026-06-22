@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import Page from '@/Pages/Page.vue';
 import DangerButton from '@/Components/DangerButton.vue';
@@ -6,37 +6,40 @@ import SecondaryButton from '@/Components/SecondaryButton.vue';
 import ConfirmationModal from '@/Components/ConfirmationModal.vue';
 import { useForm, usePage } from '@inertiajs/vue3';
 import { ref } from 'vue';
+import type { PageProps, AdminUser } from '@/types';
 
-const props = defineProps({
-    users: Array,
-});
+interface Props {
+    users: AdminUser[]
+}
 
-const page = usePage();
+const props = defineProps<Props>();
+
+const page = usePage<PageProps>();
 const currentUserId = page.props?.auth?.user?.id;
 
-const userBeingSuspended = ref(null);
+const userBeingSuspended = ref<AdminUser | null>(null);
 const suspendForm = useForm({});
 const unsuspendForm = useForm({});
 
-const confirmSuspend = (user) => {
+const confirmSuspend = (user: AdminUser): void => {
     userBeingSuspended.value = user;
 };
 
-const suspendUser = () => {
-    suspendForm.post(route('admin.users.suspend', userBeingSuspended.value.id), {
+const suspendUser = (): void => {
+    suspendForm.post(route('admin.users.suspend', userBeingSuspended.value!.id), {
         preserveScroll: true,
         onSuccess: () => { userBeingSuspended.value = null; },
         onError: () => { userBeingSuspended.value = null; },
     });
 };
 
-const unsuspendUser = (user) => {
+const unsuspendUser = (user: AdminUser): void => {
     unsuspendForm.delete(route('admin.users.unsuspend', user.id), {
         preserveScroll: true,
     });
 };
 
-const subscriptionStatusClass = (status) => {
+const subscriptionStatusClass = (status: string | null): string | null => {
     if (status === 'active') {
         return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
     }

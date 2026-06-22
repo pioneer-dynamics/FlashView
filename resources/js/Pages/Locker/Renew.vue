@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { Link, router } from '@inertiajs/vue3';
 import { ref, computed, onMounted } from 'vue';
@@ -8,11 +8,11 @@ const enc = new encryption();
 
 const accountId    = ref('');
 const authMode     = ref('passphrase');
-const keyFileCount = ref(null);
+const keyFileCount = ref<number | null>(null);
 const showClues    = ref(true);
-const keyFiles     = ref([]);
+const keyFiles     = ref<{ file: File }[]>([]);
 const tier         = ref('');
-const expiresAt    = ref(null);
+const expiresAt    = ref<string | null>(null);
 const initialising = ref(true);
 const initError    = ref('');
 
@@ -67,14 +67,15 @@ onMounted(async () => {
     }
 });
 
-const onKeyFileAdded = (e) => {
-    const file = e.target.files[0];
+const onKeyFileAdded = (e: Event): void => {
+    const input = e.target as HTMLInputElement;
+    const file = input.files?.[0];
     if (!file) return;
-    e.target.value = '';
+    input.value = '';
     keyFiles.value.push({ file });
 };
 
-const removeKeyFile = (index) => {
+const removeKeyFile = (index: number): void => {
     keyFiles.value.splice(index, 1);
 };
 

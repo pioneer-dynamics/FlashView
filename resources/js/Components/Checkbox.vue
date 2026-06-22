@@ -1,17 +1,18 @@
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue';
 
-const emit = defineEmits(['update:checked']);
+interface Props {
+    checked?: boolean | unknown[];
+    value?: string | null;
+}
 
-const props = defineProps({
-    checked: {
-        type: [Array, Boolean],
-        default: false,
-    },
-    value: {
-        type: String,
-        default: null,
-    },
+const emit = defineEmits<{
+    'update:checked': [value: boolean | unknown[]];
+}>();
+
+const props = withDefaults(defineProps<Props>(), {
+    checked: false,
+    value: null,
 });
 
 const proxyChecked = computed({
@@ -19,7 +20,7 @@ const proxyChecked = computed({
         return props.checked;
     },
 
-    set(val) {
+    set(val: boolean | unknown[]) {
         emit('update:checked', val);
     },
 });

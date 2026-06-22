@@ -1,8 +1,10 @@
-<script setup>
-    defineProps({
-        question: String,
-        message: String,
-    })
+<script setup lang="ts">
+    interface Props {
+        question?: string;
+        message?: string;
+    }
+
+    defineProps<Props>();
 </script>
 <template>
     <div class="my-4">

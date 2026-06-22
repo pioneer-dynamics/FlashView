@@ -1,39 +1,44 @@
-<script setup>
+<script setup lang="ts">
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { router } from '@inertiajs/vue3';
 import { ref, onMounted, computed } from 'vue';
 import { generatePassphrase, deriveCallKeyPair, generateCallKeySalt } from '@pioneer-dynamics/flashview-crypto';
+import type { SecureLineProduct } from '@/types';
 
-const props = defineProps({
-    credit_token: String,
-    product: Object,
-});
+interface Props {
+    credit_token?: string;
+    product?: SecureLineProduct;
+}
 
-const step = ref('creating'); // 'creating' | 'done' | 'error'
-const errorMessage = ref(null);
-const bridgeNumber = ref(null);
-const callPassword = ref(null);
-const endsAt = ref(null);
+const props = defineProps<Props>();
+
+const step = ref<'creating' | 'done' | 'error'>('creating');
+const errorMessage = ref<string | null>(null);
+const bridgeNumber = ref<string | null>(null);
+const callPassword = ref<string | null>(null);
+const endsAt = ref<string | null>(null);
 const savedConfirmed = ref(false);
 
-const xsrfToken = () => decodeURIComponent(document.cookie.match(/XSRF-TOKEN=([^;]+)/)?.[1] ?? '');
+const xsrfToken = (): string => decodeURIComponent(document.cookie.match(/XSRF-TOKEN=([^;]+)/)?.[1] ?? '');
 
-const formattedExpiry = computed(() => {
+const formattedExpiry = computed((): string => {
     if (!endsAt.value) return '';
     return new Date(endsAt.value).toLocaleString();
 });
 
-const minutesRemaining = computed(() => {
+const minutesRemaining = computed((): string => {
     if (!endsAt.value) return '';
-    const diff = Math.round((new Date(endsAt.value) - Date.now()) / 60000);
+    const diff = Math.round((new Date(endsAt.value).getTime() - Date.now()) / 60000);
     return diff > 0 ? `${diff} minutes from now` : 'soon';
 });
 
-const copyToClipboard = async (text) => {
-    await navigator.clipboard.writeText(text);
+const copyToClipboard = async (text: string | null): Promise<void> => {
+    if (text) {
+        await navigator.clipboard.writeText(text);
+    }
 };
 
-const downloadCredentials = () => {
+const downloadCredentials = (): void => {
     const callsUrl = route('calls.index');
     const lines = [
         'Secure Line Credentials',

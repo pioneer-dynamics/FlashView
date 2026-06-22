@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import AuthenticationCardWithFeatures from '@/Components/AuthenticationCardWithFeatures.vue';
 import InputError from '@/Components/InputError.vue';
@@ -10,7 +10,7 @@ const form = useForm({
     email: '',
 });
 
-const submit = () => {
+const submit = (): void => {
     form.post(route('register.store'));
 };
 </script>

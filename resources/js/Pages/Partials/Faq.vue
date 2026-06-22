@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
     import FlatActionSection from '@/Components/FlatActionSection.vue';
     import { Link } from '@inertiajs/vue3';
     import Faq from '@/Components/Faq.vue';

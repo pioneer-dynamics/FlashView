@@ -1,11 +1,11 @@
-<script setup>
+<script setup lang="ts">
 import { ref } from 'vue';
 import { router, Link } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 
 const bridgeNumber = ref('');
 
-function joinLine() {
+function joinLine(): void {
     const trimmed = bridgeNumber.value.trim();
     if (!trimmed) return;
     router.visit(route('calls.join', trimmed));

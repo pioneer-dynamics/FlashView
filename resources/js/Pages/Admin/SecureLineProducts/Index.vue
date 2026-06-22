@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import Page from '@/Pages/Page.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
@@ -7,27 +7,30 @@ import SecondaryButton from '@/Components/SecondaryButton.vue';
 import ConfirmationModal from '@/Components/ConfirmationModal.vue';
 import { Link, useForm } from '@inertiajs/vue3';
 import { ref } from 'vue';
+import type { SecureLineProduct } from '@/types';
 
-const props = defineProps({
-    products: Array,
-});
+interface Props {
+    products: SecureLineProduct[]
+}
 
-const productBeingDeleted = ref(null);
+const props = defineProps<Props>();
+
+const productBeingDeleted = ref<SecureLineProduct | null>(null);
 const deleteForm = useForm({});
 
-const confirmDelete = (product) => { productBeingDeleted.value = product; };
+const confirmDelete = (product: SecureLineProduct): void => { productBeingDeleted.value = product; };
 
-const deleteProduct = () => {
-    deleteForm.delete(route('admin.secure-line-products.destroy', productBeingDeleted.value.id), {
+const deleteProduct = (): void => {
+    deleteForm.delete(route('admin.secure-line-products.destroy', productBeingDeleted.value!.id), {
         preserveScroll: true,
         onSuccess: () => { productBeingDeleted.value = null; },
         onError:   () => { productBeingDeleted.value = null; },
     });
 };
 
-const formatPrice = (cents) => `$${(cents / 100).toFixed(2)}`;
+const formatPrice = (cents: number): string => `$${(cents / 100).toFixed(2)}`;
 
-const formatDuration = (minutes) => {
+const formatDuration = (minutes: number): string => {
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
     if (hours === 0) {

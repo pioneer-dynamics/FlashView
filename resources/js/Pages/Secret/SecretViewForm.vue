@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
     import { useForm, usePage } from '@inertiajs/vue3';
     import { encryption } from '../../encryption';
     import { computed, ref } from 'vue';
@@ -12,50 +12,62 @@
     import Alert from '@/Components/Alert.vue';
     import DestroyedSecretState from '@/Components/DestroyedSecretState.vue';
     import FileDecryptPanel from '@/Components/FileDecryptPanel.vue';
+    import type { PageProps } from '@/types';
 
-    const props = defineProps({
-        secret: { type: String, required: true },
-        decryptUrl: { type: String, required: true },
-        senderCompanyName: { type: String, default: null },
-        senderDomain: { type: String, default: null },
-        senderEmail: { type: String, default: null },
-        isFileSecret: { type: Boolean, default: false },
-        hasMessage: { type: Boolean, default: false },
-        fileSize: { type: Number, default: null },
-        fileMimeType: { type: String, default: null },
-        fileDownloadUrl: { type: String, default: null },
+    interface Props {
+        secret: string
+        decryptUrl: string
+        senderCompanyName?: string | null
+        senderDomain?: string | null
+        senderEmail?: string | null
+        isFileSecret?: boolean
+        hasMessage?: boolean
+        fileSize?: number | null
+        fileMimeType?: string | null
+        fileDownloadUrl?: string | null
+    }
+
+    const props = withDefaults(defineProps<Props>(), {
+        senderCompanyName: null,
+        senderDomain: null,
+        senderEmail: null,
+        isFileSecret: false,
+        hasMessage: false,
+        fileSize: null,
+        fileMimeType: null,
+        fileDownloadUrl: null,
     });
 
-    const fileDecryptPanelRef = ref(null);
+    const fileDecryptPanelRef = ref<InstanceType<typeof FileDecryptPanel> | null>(null);
 
-    const other = useForm({ password: null });
+    const other = useForm({ password: null as string | null });
     const decryptForm = useForm({});
 
-    const decryptedMessage = ref('');
-    const decryptionSuccess = ref(false);
-    const decryptionFailed = ref(false);
-    const decryptionFailureReason = ref('wrong-password');
+    const decryptedMessage = ref<string>('');
+    const decryptionSuccess = ref<boolean>(false);
+    const decryptionFailed = ref<boolean>(false);
+    const decryptionFailureReason = ref<'wrong-password' | 'unavailable'>('wrong-password');
 
-    const fileDecryptState = ref(null);
-    const isDecryptBusy = computed(() => decryptForm.processing || !!fileDecryptState.value);
+    const fileDecryptState = ref<'encrypting' | 'uploading' | 'decrypting' | 'downloading' | null>(null);
+    const isDecryptBusy = computed((): boolean => decryptForm.processing || !!fileDecryptState.value);
 
-    const messageClass = computed(() =>
+    const messageClass = computed((): string =>
         !decryptionSuccess.value ? 'mt-1 block w-full blur-sm' : 'mt-1 block w-full'
     );
 
-    const handleDecryptionFailure = (reason = 'wrong-password') => {
+    const handleDecryptionFailure = (reason: string = 'wrong-password'): void => {
         decryptionSuccess.value = false;
         decryptedMessage.value = '';
         fileDecryptState.value = null;
-        decryptionFailureReason.value = reason;
+        decryptionFailureReason.value = (reason === 'unavailable' ? 'unavailable' : 'wrong-password');
         decryptionFailed.value = true;
     };
 
-    const decryptData = () => {
+    const decryptData = (): void => {
         decryptionFailed.value = false;
 
         if (props.isFileSecret && !props.hasMessage) {
-            fileDecryptPanelRef.value.triggerDecrypt();
+            fileDecryptPanelRef.value!.triggerDecrypt();
             return;
         }
 
@@ -65,12 +77,12 @@
                 preserveScroll: true,
                 preserveState: true,
                 onSuccess: () => {
-                    const flash = usePage().props.jetstream.flash?.secret;
+                    const flash = usePage<PageProps>().props.jetstream.flash?.secret;
                     if (!flash) { handleDecryptionFailure('unavailable'); return; }
 
                     if (flash.message) {
                         e.decryptMessage(flash.message, other.password)
-                            .then((data) => {
+                            .then((data: string) => {
                                 if (decryptionFailed.value) { return; }
                                 decryptedMessage.value = data;
                                 decryptionSuccess.value = true;
@@ -80,7 +92,7 @@
                     }
 
                     if (flash.file_download_url) {
-                        fileDecryptPanelRef.value.startDownload(flash);
+                        fileDecryptPanelRef.value!.startDownload(flash as Record<string, string>);
                     }
                 },
                 onError: () => handleDecryptionFailure('unavailable'),
@@ -93,13 +105,13 @@
             preserveScroll: true,
             preserveState: true,
             onSuccess: () => {
-                const flash = usePage().props.jetstream.flash;
+                const flash = usePage<PageProps>().props.jetstream.flash;
                 if (flash?.error?.code === 404 || !flash?.secret?.message) {
                     handleDecryptionFailure('unavailable');
                     return;
                 }
-                e.decryptMessage(flash.secret.message, other.password)
-                    .then((data) => {
+                e.decryptMessage(flash.secret!.message!, other.password)
+                    .then((data: string) => {
                         decryptedMessage.value = data;
                         decryptionSuccess.value = true;
                         captureEvent('secret_decrypted', { is_file_secret: false });

@@ -1,48 +1,41 @@
-<script setup>
+<script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 
 defineOptions({ inheritAttrs: false });
 
-const props = defineProps({
-    modelValue: String,
-    maxLength: {
-        type: Number,
-        default: 0
-    },
-    rows: {
-        type: Number,
-        default: 3
-    },
-    placeholder: {
-        type: String,
-        default: ''
-    },
-    autofocus: {
-        type: Boolean,
-        default: false
-    },
-    disabled: {
-        type: Boolean,
-        default: false,
-    },
+interface Props {
+    modelValue?: string;
+    maxLength?: number;
+    rows?: number | string;
+    placeholder?: string;
+    autofocus?: boolean;
+    disabled?: boolean;
+}
+
+const props = withDefaults(defineProps<Props>(), {
+    maxLength: 0,
+    rows: 3,
+    placeholder: '',
+    autofocus: false,
+    disabled: false,
 });
 
-defineEmits(['update:modelValue']);
+defineEmits<{ 'update:modelValue': [value: string] }>();
 
-const input = ref(null);
-const base = ref(null);
+const input = ref<HTMLTextAreaElement | null>(null);
+const base = ref<HTMLElement | null>(null);
 
 onMounted(() => {
     if (props.autofocus) {
-        input.value.focus();
+        input.value?.focus();
     }
 });
 
-defineExpose({ focus: () => input.value.focus() });
+defineExpose({ focus: () => input.value?.focus() });
 
-const inputClass = computed(() => {
-    
-})
+const inputClass = computed((): string | undefined => {
+    return undefined;
+});
 
 </script>
 
@@ -57,7 +50,7 @@ const inputClass = computed(() => {
                 :rows="rows"
                 :placeholder="placeholder"
                 :disabled="disabled"
-                @input="$emit('update:modelValue', $event.target.value)"
+                @input="$emit('update:modelValue', ($event.target as HTMLTextAreaElement).value)"
             ></textarea>
             <div v-if="maxLength > 0" class="absolute bottom-2 right-6 text-sm" :class="{ 'text-red-500': input?.value?.length > maxLength }">
                 <div class="flex flex-wrap">

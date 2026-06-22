@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import Page from '@/Pages/Page.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
@@ -7,43 +7,45 @@ import TextInput from '@/Components/TextInput.vue';
 import InputError from '@/Components/InputError.vue';
 import { Link, useForm } from '@inertiajs/vue3';
 import { computed, watch } from 'vue';
+import type { LockerPlan } from '@/types';
 
-const props = defineProps({
-    plan:              Object,
-    defaultStripeMode: String,
-});
+interface Props {
+    plan: LockerPlan | null
+    defaultStripeMode: string
+}
+
+const props = defineProps<Props>();
 
 const isEditing = computed(() => props.plan !== null);
 
 const form = useForm({
     tier:                 props.plan?.tier             ?? 'text',
-    years:                props.plan?.years            ?? 1,
-    file_size_mb:         props.plan?.file_size_mb     ?? 50,
-    amount_cents:         props.plan?.amount_cents      ?? '',
+    years:                (props.plan?.years            ?? 1) as string | number,
+    file_size_mb:         (props.plan?.file_size_mb     ?? 50) as string | number | null,
+    amount_cents:         props.plan?.amount_cents != null ? props.plan.amount_cents : ('' as string | number),
     stripe_price_id:      props.plan?.stripe_price_id  ?? '',
     create_stripe_price:  props.defaultStripeMode === 'create',
     is_active:            props.plan?.is_active        ?? true,
 });
 
 // Clear stripe_price_id when switching to auto-create mode
-watch(() => form.create_stripe_price, (val) => {
-    if (val) form.stripe_price_id = '';
+watch(() => form.create_stripe_price, (val: boolean) => {
+    if (val) { form.stripe_price_id = ''; }
 });
 
 // Clear file_size_mb when switching to text
-watch(() => form.tier, (val) => {
-    if (val === 'text') form.file_size_mb = null;
-    else if (!form.file_size_mb) form.file_size_mb = 50;
+watch(() => form.tier, (val: string) => {
+    if (val === 'text') { form.file_size_mb = null; } else if (!form.file_size_mb) { form.file_size_mb = 50 as string | number; }
 });
 
 const amountDollars = computed({
-    get: () => form.amount_cents ? (form.amount_cents / 100) : '',
-    set: (val) => { form.amount_cents = Math.round(parseFloat(val || 0) * 100); },
+    get: (): string => form.amount_cents ? String(Number(form.amount_cents) / 100) : '',
+    set: (val: string): void => { form.amount_cents = Math.round(parseFloat(val || '0') * 100); },
 });
 
-const submit = () => {
+const submit = (): void => {
     if (isEditing.value) {
-        form.put(route('admin.locker-plans.update', props.plan.id));
+        form.put(route('admin.locker-plans.update', props.plan!.id));
     } else {
         form.post(route('admin.locker-plans.store'));
     }
@@ -52,19 +54,20 @@ const submit = () => {
 const FILE_SIZE_PRESETS = [10, 25, 50, 100, 250, 500];
 
 // Preview helpers
-const previewPrice = computed(() =>
-    form.amount_cents ? `$${(form.amount_cents / 100).toFixed(0)}` : '$—'
+const previewPrice = computed((): string =>
+    form.amount_cents ? `$${(Number(form.amount_cents) / 100).toFixed(0)}` : '$—'
 );
 
-const previewFileSizeLabel = computed(() => {
+const previewFileSizeLabel = computed((): string => {
     const mb = form.file_size_mb;
-    if (!mb) return '';
-    return mb >= 1024 ? `${(mb / 1024).toFixed(1)} GB` : `${mb} MB`;
+    if (!mb) { return ''; }
+    const mbNum = Number(mb);
+    return mbNum >= 1024 ? `${(mbNum / 1024).toFixed(1)} GB` : `${mbNum} MB`;
 });
 
-const previewTierIcon = computed(() => form.tier === 'file' ? '🗂' : '📄');
-const previewTierLabel = computed(() => form.tier === 'file' ? 'File Locker' : 'Text Locker');
-const previewButtonLabel = computed(() => {
+const previewTierIcon = computed((): string => form.tier === 'file' ? '🗂' : '📄');
+const previewTierLabel = computed((): string => form.tier === 'file' ? 'File Locker' : 'Text Locker');
+const previewButtonLabel = computed((): string => {
     const y = form.years || 1;
     return `Buy ${y}-Year Locker`;
 });

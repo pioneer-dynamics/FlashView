@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import AuthenticationCardLogo from '@/Components/AuthenticationCardLogo.vue';
 </script>
 

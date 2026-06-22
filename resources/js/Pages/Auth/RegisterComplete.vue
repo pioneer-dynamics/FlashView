@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import { Head, useForm } from '@inertiajs/vue3';
 import AuthenticationCardWithFeatures from '@/Components/AuthenticationCardWithFeatures.vue';
 import Checkbox from '@/Components/Checkbox.vue';
@@ -7,10 +7,12 @@ import InputLabel from '@/Components/InputLabel.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
 
-const props = defineProps({
-    email: String,
-    signedUrl: String,
-});
+interface Props {
+    email?: string;
+    signedUrl?: string;
+}
+
+const props = defineProps<Props>();
 
 const form = useForm({
     email: props.email,
@@ -20,14 +22,14 @@ const form = useForm({
     terms: false,
 });
 
-const submit = () => {
+const submit = (): void => {
     // Build the POST URL with the signed query parameters preserved.
     // Laravel's 'signed' middleware validates the signature from query params, not POST body.
-    const signed = new URL(props.signedUrl);
+    const signed = new URL(props.signedUrl!);
     const postUrl = route('register.complete.store')
-        + '?email=' + encodeURIComponent(signed.searchParams.get('email'))
-        + '&expires=' + signed.searchParams.get('expires')
-        + '&signature=' + signed.searchParams.get('signature');
+        + '?email=' + encodeURIComponent(signed.searchParams.get('email') ?? '')
+        + '&expires=' + (signed.searchParams.get('expires') ?? '')
+        + '&signature=' + (signed.searchParams.get('signature') ?? '');
 
     form.post(postUrl, {
         onFinish: () => form.reset('password', 'password_confirmation'),

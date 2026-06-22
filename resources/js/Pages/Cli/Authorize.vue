@@ -1,6 +1,7 @@
-<script setup>
+<script setup lang="ts">
 import { ref } from 'vue'
 import { Head, Link, router, usePage } from '@inertiajs/vue3'
+import type { PageProps } from '@/types'
 import AuthenticationCard from '@/Components/AuthenticationCard.vue'
 import AuthenticationCardLogo from '@/Components/AuthenticationCardLogo.vue'
 import Checkbox from '@/Components/Checkbox.vue'
@@ -9,25 +10,24 @@ import TextInput from '@/Components/TextInput.vue'
 import PrimaryButton from '@/Components/PrimaryButton.vue'
 import SecondaryButton from '@/Components/SecondaryButton.vue'
 
-const props = defineProps({
-    port: Number,
-    state: String,
-    name: String,
-    hasApiAccess: Boolean,
-    availablePermissions: Array,
-    defaultPermissions: Array,
-    existingDeviceName: {
-        type: String,
-        default: null,
-    },
-})
+interface Props {
+    port?: number;
+    state?: string;
+    name?: string;
+    hasApiAccess: boolean;
+    availablePermissions: string[];
+    defaultPermissions: string[];
+    existingDeviceName?: string | null;
+}
 
-const page = usePage()
+const props = defineProps<Props>()
+
+const page = usePage<PageProps>()
 const processing = ref(false)
-const selectedPermissions = ref([...props.defaultPermissions])
+const selectedPermissions = ref<string[]>([...props.defaultPermissions])
 const installationName = ref(props.existingDeviceName || props.name || '')
 
-function submit(action) {
+function submit(action: string): void {
     processing.value = true
     router.post(route('cli.authorize.store'), {
         port: props.port,

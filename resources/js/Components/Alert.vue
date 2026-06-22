@@ -1,18 +1,15 @@
-<script setup>
-    const props = defineProps({
-        type: {
-            type: String,
-            default: 'info'
-        },
-        message: {
-            type: String,
-            default: ''
-        },
-        hideTitle: {
-            type: Boolean,
-            default: false
-        }
-    })
+<script setup lang="ts">
+    interface Props {
+        type?: string;
+        message?: string;
+        hideTitle?: boolean;
+    }
+
+    const props = withDefaults(defineProps<Props>(), {
+        type: 'info',
+        message: '',
+        hideTitle: false,
+    });
 
     const classes = {
         'flex items-center text-sm text-green-800 rounded-lg bg-green-50 dark:bg-gray-800 dark:text-green-400': props.type == 'Success',

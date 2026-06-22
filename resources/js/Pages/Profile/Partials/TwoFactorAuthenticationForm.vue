@@ -1,6 +1,7 @@
-<script setup>
+<script setup lang="ts">
 import { ref, computed, watch } from 'vue';
 import { router, useForm, usePage } from '@inertiajs/vue3';
+import type { PageProps } from '@/types';
 import ActionSection from '@/Components/ActionSection.vue';
 import ConfirmsPasswordOrPasskey from '@/Components/ConfirmsPasswordOrPasskey.vue';
 import DangerButton from '@/Components/DangerButton.vue';
@@ -10,17 +11,19 @@ import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
 
-const props = defineProps({
-    requiresConfirmation: Boolean,
-});
+interface Props {
+    requiresConfirmation: boolean
+}
 
-const page = usePage();
+const props = defineProps<Props>();
+
+const page = usePage<PageProps>();
 const enabling = ref(false);
 const confirming = ref(false);
 const disabling = ref(false);
-const qrCode = ref(null);
-const setupKey = ref(null);
-const recoveryCodes = ref([]);
+const qrCode = ref<string | null>(null);
+const setupKey = ref<string | null>(null);
+const recoveryCodes = ref<string[]>([]);
 
 const confirmationForm = useForm({
     code: '',

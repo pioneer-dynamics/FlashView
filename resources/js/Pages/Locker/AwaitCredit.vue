@@ -1,14 +1,16 @@
-<script setup>
+<script setup lang="ts">
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { router } from '@inertiajs/vue3';
 import { ref, onMounted, onUnmounted } from 'vue';
 
-const props = defineProps({
-    session_id: String,
-});
+interface Props {
+    session_id?: string;
+}
+
+const props = defineProps<Props>();
 
 const timedOut = ref(false);
-let pollInterval = null;
+let pollInterval: ReturnType<typeof setInterval> | null = null;
 let elapsed = 0;
 
 const poll = async () => {
@@ -17,7 +19,7 @@ const poll = async () => {
         const res = await fetch(route('lockers.credit-status') + '?session=' + encodeURIComponent(props.session_id));
         const data = await res.json();
         if (data.token) {
-            clearInterval(pollInterval);
+            if (pollInterval !== null) clearInterval(pollInterval);
             localStorage.setItem('locker_pending_token', data.token);
             router.visit(route('lockers.create') + '?token=' + encodeURIComponent(data.token));
         }
@@ -32,7 +34,7 @@ const startPolling = () => {
     pollInterval = setInterval(() => {
         elapsed += 2;
         if (elapsed >= 60) {
-            clearInterval(pollInterval);
+            if (pollInterval !== null) clearInterval(pollInterval);
             timedOut.value = true;
             return;
         }
@@ -42,7 +44,7 @@ const startPolling = () => {
 };
 
 onMounted(startPolling);
-onUnmounted(() => clearInterval(pollInterval));
+onUnmounted(() => { if (pollInterval !== null) clearInterval(pollInterval); });
 </script>
 
 <template>

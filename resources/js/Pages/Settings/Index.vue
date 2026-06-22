@@ -1,21 +1,21 @@
-<script setup>
+<script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import SenderIdentityForm from '@/Pages/Settings/Partials/SenderIdentityForm.vue';
 import StoreMaskedEmailForm from '@/Pages/Settings/Partials/StoreMaskedEmailForm.vue';
 import Page from '../Page.vue';
 import SectionBorder from '@/Components/SectionBorder.vue';
+import type { SenderIdentityDetail } from '@/types';
 
-defineProps({
-    storeMaskedRecipientEmail: Boolean,
-    senderIdentity: {
-        type: Object,
-        default: null,
-    },
-    planSupportsSenderIdentity: {
-        type: Boolean,
-        default: false,
-    },
+interface Props {
+    storeMaskedRecipientEmail: boolean
+    senderIdentity?: SenderIdentityDetail | null
+    planSupportsSenderIdentity?: boolean
+}
+
+withDefaults(defineProps<Props>(), {
+    senderIdentity: null,
+    planSupportsSenderIdentity: false,
 });
 </script>
 

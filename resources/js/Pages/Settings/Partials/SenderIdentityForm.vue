@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import { router, useForm, usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import ActionMessage from '@/Components/ActionMessage.vue';
@@ -12,18 +12,19 @@ import PrimaryButton from '@/Components/PrimaryButton.vue';
 import Checkbox from '@/Components/Checkbox.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
+import type { PageProps, SenderIdentityDetail } from '@/types';
 
-const props = defineProps({
-    senderIdentity: {
-        type: Object,
-        default: null,
-    },
+interface Props {
+    senderIdentity?: SenderIdentityDetail | null
+}
+
+const props = withDefaults(defineProps<Props>(), {
+    senderIdentity: null,
 });
 
-const page = usePage();
+const page = usePage<PageProps>();
 
-const selectedType = ref(props.senderIdentity?.type ?? 'email');
-
+const selectedType = ref<'email' | 'domain'>(props.senderIdentity?.type ?? 'email');
 
 const form = useForm({
     type: props.senderIdentity?.type ?? 'email',
@@ -44,7 +45,7 @@ const verificationToken = computed(() => props.senderIdentity?.verification_toke
 
 const hasActiveRetry = computed(() => props.senderIdentity?.has_active_retry ?? false);
 
-const verificationStatus = computed(() => {
+const verificationStatus = computed((): 'verified' | 'pending' | null => {
     if (!props.senderIdentity) {
         return null;
     }
@@ -57,7 +58,7 @@ const verificationStatus = computed(() => {
     return 'pending';
 });
 
-const selectType = (type) => {
+const selectType = (type: 'email' | 'domain'): void => {
     selectedType.value = type;
     form.type = type;
     if (type === 'email') {
@@ -66,22 +67,26 @@ const selectType = (type) => {
     }
 };
 
-const save = () => {
+const save = (): void => {
     form.post(route('user.sender-identity.store'), {
         preserveScroll: true,
     });
 };
 
-const verifyDomain = () => {
+const verifyDomain = (): void => {
     verifyForm.post(route('user.sender-identity.verify'), {
         preserveScroll: true,
     });
 };
 
-const removeIdentity = () => {
+const removeIdentity = (): void => {
     router.delete(route('user.sender-identity.destroy'), {
         preserveScroll: true,
     });
+};
+
+const updateIncludeByDefault = (val: boolean | unknown[]): void => {
+    form.include_by_default = Array.isArray(val) ? val.length > 0 : val;
 };
 </script>
 
@@ -253,7 +258,7 @@ const removeIdentity = () => {
             <!-- Default inclusion preference -->
             <div class="col-span-6">
                 <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
-                    <Checkbox :checked="form.include_by_default" @update:checked="val => form.include_by_default = val" />
+                    <Checkbox :checked="form.include_by_default" @update:checked="updateIncludeByDefault" />
                     Include my verified sender identity by default in new secret links
                 </label>
                 <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">

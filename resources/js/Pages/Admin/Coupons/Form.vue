@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import Page from '@/Pages/Page.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
@@ -33,7 +33,7 @@ const showMinAmountCurrencyHint = computed(() =>
     form.discount_type === 'percent' && form.minimum_amount !== ''
 );
 
-const submit = () => {
+const submit = (): void => {
     form.post(route('admin.coupons.store'));
 };
 </script>

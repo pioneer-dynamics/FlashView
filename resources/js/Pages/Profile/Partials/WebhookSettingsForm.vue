@@ -1,6 +1,7 @@
-<script setup>
+<script setup lang="ts">
 import { computed, ref } from 'vue';
 import { Link, useForm, usePage, router } from '@inertiajs/vue3';
+import type { PageProps } from '@/types';
 import ActionMessage from '@/Components/ActionMessage.vue';
 import ActionSection from '@/Components/ActionSection.vue';
 import CodeBlock from '@/Components/CodeBlock.vue';
@@ -14,8 +15,8 @@ import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
 
-const page = usePage();
-const hasWebhookAccess = computed(() => page.props.auth?.hasWebhookAccess ?? false);
+const page = usePage<PageProps>();
+const hasWebhookAccess = computed((): boolean => page.props.auth?.hasWebhookAccess ?? false);
 const webhook = computed(() => page.props.auth?.webhook);
 
 const revealedSecret = ref(null);

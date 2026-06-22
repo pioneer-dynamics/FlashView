@@ -1,14 +1,16 @@
-<script setup>
+<script setup lang="ts">
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { router } from '@inertiajs/vue3';
 import { ref, onMounted, onUnmounted } from 'vue';
 
-const props = defineProps({
-    session_id: String,
-});
+interface Props {
+    session_id?: string;
+}
+
+const props = defineProps<Props>();
 
 const timedOut = ref(false);
-let pollInterval = null;
+let pollInterval: ReturnType<typeof setInterval> | null = null;
 let elapsed = 0;
 
 const poll = async () => {
@@ -26,7 +28,7 @@ const poll = async () => {
     }
 };
 
-const startPolling = () => {
+const startPolling = (): void => {
     elapsed = 0;
     timedOut.value = false;
     pollInterval = setInterval(() => {

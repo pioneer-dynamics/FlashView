@@ -1,18 +1,14 @@
-<script setup>
+<script setup lang="ts">
     import AppLayout from '@/Layouts/AppLayout.vue';
     import Page from './Page.vue';
     import Secret from '@/Pages/Secret/SecretForm.vue';
 
-    const props = defineProps({
-        secret: {
-            type: String,
-            default: null
-        },
-        decryptUrl: {
-            type: String,
-            default: null
-        }
-    })
+    interface Props {
+        secret?: string | null
+        decryptUrl?: string | null
+    }
+
+    const props = defineProps<Props>()
 </script>
 
 <template>

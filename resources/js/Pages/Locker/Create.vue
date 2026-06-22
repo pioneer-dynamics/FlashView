@@ -1,15 +1,18 @@
-<script setup>
+<script setup lang="ts">
 import AppLayout from '@/Layouts/AppLayout.vue';
 import FileProgressBar from '@/Components/FileProgressBar.vue';
 import { router } from '@inertiajs/vue3';
 import { ref, computed, onMounted } from 'vue';
 import { encryption } from '@/encryption.js';
+import type { LockerCredentials } from '@/types';
 
-const props = defineProps({
-    credit_token: String,
-    tier: String,
-    years: Number,
-});
+interface Props {
+    credit_token?: string;
+    tier?: string;
+    years?: number;
+}
+
+const props = defineProps<Props>();
 
 onMounted(() => {
     if (!props.credit_token) {
@@ -26,19 +29,19 @@ const enc = new encryption();
 const accountId    = ref('');
 const passphrase   = ref('');
 const content      = ref('');
-const selectedFile = ref(null);
+const selectedFile = ref<File | null>(null);
 
 // Auth mode
 const authMode                = ref('passphrase'); // 'passphrase' | 'key_file' | 'combined'
-const keyFiles                = ref([]); // [{ file: File }]
+const keyFiles                = ref<{ file: File }[]>([]);
 const keyFileRiskAcknowledged = ref(false);
 const showClues               = ref(true); // when false, unlock page reveals no credential-type hints
 
 // State
 const step          = ref('form'); // 'form' | 'encrypting' | 'uploading' | 'credentials'
 const uploadProgress = ref(0);
-const errors        = ref({});
-const credentials   = ref(null);
+const errors        = ref<Record<string, string>>({});
+const credentials   = ref<LockerCredentials | null>(null);
 const savedConfirmed = ref(false);
 
 const isFileTier = computed(() => props.tier === 'file');
@@ -59,22 +62,26 @@ const strengthColor = computed(() => ['', 'text-red-400', 'text-gamboge-500', 't
 const strengthWidth = computed(() => ['w-0', 'w-1/4', 'w-2/4', 'w-3/4', 'w-full'][passphraseStrength.value] ?? 'w-0');
 const strengthBg    = computed(() => ['', 'bg-red-400', 'bg-gamboge-500', 'bg-gamboge-400', 'bg-gamboge-300'][passphraseStrength.value] ?? '');
 
-const generatePassphrase = () => { passphrase.value = enc.generatePasssphrase(); };
-const onFileChange = (e) => { selectedFile.value = e.target.files[0] ?? null; };
-const copyToClipboard = async (text) => { await navigator.clipboard.writeText(text); };
+const generatePassphrase = (): void => { passphrase.value = enc.generatePasssphrase(); };
+const onFileChange = (e: Event): void => {
+    const input = e.target as HTMLInputElement;
+    selectedFile.value = input.files?.[0] ?? null;
+};
+const copyToClipboard = async (text: string): Promise<void> => { await navigator.clipboard.writeText(text); };
 
-const onKeyFileAdded = (e) => {
-    const file = e.target.files[0];
+const onKeyFileAdded = (e: Event): void => {
+    const input = e.target as HTMLInputElement;
+    const file = input.files?.[0];
     if (!file) return;
-    e.target.value = '';
+    input.value = '';
     keyFiles.value.push({ file });
 };
 
-const removeKeyFile = (index) => {
+const removeKeyFile = (index: number): void => {
     keyFiles.value.splice(index, 1);
 };
 
-const setAuthMode = (mode) => {
+const setAuthMode = (mode: string): void => {
     authMode.value = mode;
     keyFiles.value = [];
     keyFileRiskAcknowledged.value = false;
@@ -210,11 +217,11 @@ const submit = async () => {
             storagePath = storage_path;
 
             step.value = 'uploading';
-            await new Promise((resolve, reject) => {
+            await new Promise<void>((resolve, reject) => {
                 const xhr = new XMLHttpRequest();
                 xhr.open('PUT', upload_url);
                 for (const [key, val] of Object.entries(upload_headers ?? {})) {
-                    xhr.setRequestHeader(key, val);
+                    xhr.setRequestHeader(key, String(val));
                 }
                 xhr.upload.onprogress = (e) => {
                     if (e.lengthComputable) {
@@ -223,7 +230,7 @@ const submit = async () => {
                 };
                 xhr.onload  = () => (xhr.status >= 200 && xhr.status < 300) ? resolve() : reject(new Error('Upload failed.'));
                 xhr.onerror = () => reject(new Error('Upload failed.'));
-                xhr.send(new Blob([encryptedBytes], { type: 'application/octet-stream' }));
+                xhr.send(new Blob([encryptedBytes as BlobPart], { type: 'application/octet-stream' }));
             });
         } else {
             payload = await enc.encryptLockerContent(content.value, effectivePassphrase);
@@ -276,7 +283,7 @@ const submit = async () => {
 
     } catch (err) {
         step.value = 'form';
-        errors.value.general = err.message || 'Encryption failed. Please try again.';
+        errors.value.general = err instanceof Error ? err.message : 'Encryption failed. Please try again.';
     }
 };
 </script>

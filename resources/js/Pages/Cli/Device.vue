@@ -1,6 +1,7 @@
-<script setup>
+<script setup lang="ts">
 import { ref, computed } from 'vue'
 import { Head, Link, router, usePage } from '@inertiajs/vue3'
+import type { PageProps } from '@/types'
 import AuthenticationCard from '@/Components/AuthenticationCard.vue'
 import AuthenticationCardLogo from '@/Components/AuthenticationCardLogo.vue'
 import Checkbox from '@/Components/Checkbox.vue'
@@ -9,35 +10,31 @@ import InputLabel from '@/Components/InputLabel.vue'
 import InputError from '@/Components/InputError.vue'
 import PrimaryButton from '@/Components/PrimaryButton.vue'
 
-const props = defineProps({
-    hasApiAccess: Boolean,
-    availablePermissions: Array,
-    defaultPermissions: Array,
-    existingDeviceName: {
-        type: String,
-        default: null,
-    },
-    suggestedName: {
-        type: String,
-        default: null,
-    },
-})
+interface Props {
+    hasApiAccess: boolean;
+    availablePermissions: string[];
+    defaultPermissions: string[];
+    existingDeviceName?: string | null;
+    suggestedName?: string | null;
+}
 
-const page = usePage()
+const props = defineProps<Props>()
+
+const page = usePage<PageProps>()
 const processing = ref(false)
 const userCode = ref('')
 const installationName = ref(props.suggestedName ?? '')
-const selectedPermissions = ref([...(props.defaultPermissions ?? [])])
+const selectedPermissions = ref<string[]>([...(props.defaultPermissions ?? [])])
 const cancelled = ref(false)
 
 const success = computed(() => page.props.flash?.success)
 const errors = computed(() => page.props.errors)
 
-function handleInput(event) {
-    userCode.value = event.target.value.toUpperCase()
+function handleInput(event: Event): void {
+    userCode.value = (event.target as HTMLInputElement).value.toUpperCase()
 }
 
-function submit() {
+function submit(): void {
     processing.value = true
     cancelled.value = false
     router.post(route('cli.device.activate'), {
@@ -51,7 +48,7 @@ function submit() {
     })
 }
 
-function cancel() {
+function cancel(): void {
     userCode.value = ''
     cancelled.value = true
     processing.value = false

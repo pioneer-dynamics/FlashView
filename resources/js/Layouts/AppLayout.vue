@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import ApplicationMark from '@/Components/ApplicationMark.vue';
@@ -8,28 +8,32 @@ import DropdownLink from '@/Components/DropdownLink.vue';
 import NavLink from '@/Components/NavLink.vue';
 import ResponsiveNavLink from '@/Components/ResponsiveNavLink.vue';
 import { initPostHog, identifyUser, resetUser } from '../posthog';
+import type { PageProps } from '@/types';
+import type { Team } from '@/types';
 
 import { DateTime } from 'luxon';
 
-defineProps({
-    title: String,
-});
+interface Props {
+    title?: string;
+}
+
+defineProps<Props>();
 
 const showingNavigationDropdown = ref(false);
 const lockerMenuOpen = ref(false);
-const closeLockerMenu = (e) => { if (!e.target.closest('[data-locker-menu]')) lockerMenuOpen.value = false; };
+const closeLockerMenu = (e: MouseEvent): void => { if (!(e.target as Element).closest('[data-locker-menu]')) lockerMenuOpen.value = false; };
 onMounted(() => document.addEventListener('click', closeLockerMenu));
 onUnmounted(() => document.removeEventListener('click', closeLockerMenu));
 
 onMounted(() => {
     initPostHog();
-    const user = usePage().props?.auth?.user;
+    const user = usePage<PageProps>().props?.auth?.user;
     if (user?.id) {
         identifyUser(user.id, { email: user.email, name: user.name });
     }
 });
 
-const switchToTeam = (team) => {
+const switchToTeam = (team: Team): void => {
     router.put(route('current-team.update'), {
         team_id: team.id,
     }, {
@@ -37,7 +41,7 @@ const switchToTeam = (team) => {
     });
 };
 
-const logout = () => {
+const logout = (): void => {
     resetUser();
     router.post(route('logout'));
 };

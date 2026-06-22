@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import { ref } from 'vue';
 import { useForm } from '@inertiajs/vue3';
 import ActionMessage from '@/Components/ActionMessage.vue';
@@ -9,12 +9,25 @@ import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
 
-defineProps({
-    sessions: Array,
-});
+interface Session {
+    agent: {
+        is_desktop: boolean
+        platform: string | null
+        browser: string | null
+    }
+    ip_address: string
+    is_current_device: boolean
+    last_active: string
+}
+
+interface Props {
+    sessions: Session[]
+}
+
+defineProps<Props>();
 
 const confirmingLogout = ref(false);
-const passwordInput = ref(null);
+const passwordInput = ref<HTMLInputElement | null>(null);
 
 const form = useForm({
     password: '',

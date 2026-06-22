@@ -1,8 +1,9 @@
-<script setup>
+<script setup lang="ts">
 import { ref, watchEffect } from 'vue';
 import { usePage } from '@inertiajs/vue3';
+import type { PageProps } from '@/types';
 
-const page = usePage();
+const page = usePage<PageProps>();
 const show = ref(true);
 const style = ref('success');
 const message = ref('');

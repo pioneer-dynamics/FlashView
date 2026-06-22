@@ -1,27 +1,27 @@
-<script setup>
+<script setup lang="ts">
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { Link } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue';
 import { router } from '@inertiajs/vue3';
 
 const accountId = ref('');
-const destination = ref('open'); // 'open' | 'renew'
-const pendingToken = ref(null);
+const destination = ref<'open' | 'renew'>('open');
+const pendingToken = ref<string | null>(null);
 
 onMounted(() => {
     pendingToken.value = localStorage.getItem('locker_pending_token') || null;
 });
 
-const resumeCreation = () => {
-    router.visit(route('lockers.create') + '?token=' + encodeURIComponent(pendingToken.value));
+const resumeCreation = (): void => {
+    router.visit(route('lockers.create') + '?token=' + encodeURIComponent(pendingToken.value ?? ''));
 };
 
-const dismissPending = () => {
+const dismissPending = (): void => {
     localStorage.removeItem('locker_pending_token');
     pendingToken.value = null;
 };
 
-const go = () => {
+const go = (): void => {
     if (!/^\d{10}$/.test(accountId.value)) return;
     if (destination.value === 'renew') {
         sessionStorage.setItem('locker_prefill_account_renew', accountId.value);

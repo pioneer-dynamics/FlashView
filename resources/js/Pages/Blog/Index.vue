@@ -1,14 +1,14 @@
-<script setup>
+<script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Page from '@/Pages/Page.vue';
+import type { BlogPost } from '@/types';
 
-defineProps({
-    posts: {
-        type: Array,
-        default: () => [],
-    },
-});
+interface Props {
+    posts?: BlogPost[]
+}
+
+defineProps<Props>();
 </script>
 
 <template>

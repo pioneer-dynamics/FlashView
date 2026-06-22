@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import { ref } from 'vue';
 import { useForm } from '@inertiajs/vue3';
 import ActionMessage from '@/Components/ActionMessage.vue';
@@ -8,8 +8,8 @@ import InputLabel from '@/Components/InputLabel.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
 
-const passwordInput = ref(null);
-const currentPasswordInput = ref(null);
+const passwordInput = ref<HTMLInputElement | null>(null);
+const currentPasswordInput = ref<HTMLInputElement | null>(null);
 
 const form = useForm({
     current_password: '',

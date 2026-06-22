@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Page from '../Page.vue';
 import Faq from '../Partials/Faq.vue';
@@ -13,59 +13,67 @@ import { DateTime } from 'luxon';
 import ToggleButton from '@/Components/ToggleButton.vue';
 import Feature from './Partials/Feature.vue';
 import Alert from '@/Components/Alert.vue';
+import type { PageProps, PricingPlan, PricingPlanCollection } from '@/types';
 
-const props = defineProps({
-    plans: Array,
-})
+interface Props {
+    plans: PricingPlanCollection;
+}
 
-const page = usePage();
-const planFrequency = ref(page.props.auth?.user?.frequency || 'monthly');
+const props = defineProps<Props>();
 
-const userIsSubscribedTo = (plan) => {
-    let user = page.props.auth?.user;
+const page = usePage<PageProps>();
 
-    if(user?.plan?.id == plan.id) // plan matches
-    {
-        if(planFrequency.value == 'monthly')
-            return user?.subscription?.stripe_price == plan.stripe_monthly_price_id;
-        else
-            return user?.subscription?.stripe_price == plan.stripe_yearly_price_id;
+type UserWithFrequency = { frequency?: string } & Record<string, unknown>;
+type SubscriptionWithStripePrice = { stripe_price?: string } & Record<string, unknown>;
+
+const planFrequency = ref<string>((page.props.auth?.user as unknown as UserWithFrequency | null)?.frequency || 'monthly');
+
+const userIsSubscribedTo = (plan: PricingPlan): boolean => {
+    const user = page.props.auth?.user;
+
+    if (user?.plan?.id == plan.id) {
+        const stripePrice = (user?.subscription as unknown as SubscriptionWithStripePrice | null)?.stripe_price;
+        if (planFrequency.value == 'monthly') {
+            return stripePrice == plan.stripe_monthly_price_id;
+        } else {
+            return stripePrice == plan.stripe_yearly_price_id;
+        }
     }
 
     return false;
-}
+};
 
-const isFreePlan = (plan) => plan.price_per_month == 0
+const isFreePlan = (plan: PricingPlan): boolean => plan.price_per_month == 0;
 
 const userHasActiveSubscription = computed(() => page.props.auth?.user?.subscription != null);
 
 const showCancellationModal = ref(false);
 const cancelForm = useForm({});
 
-const confirmCancellation = () => {
+const confirmCancellation = (): void => {
     showCancellationModal.value = true;
 };
 
-const submitCancellation = () => {
+const submitCancellation = (): void => {
     cancelForm.post(route('plans.unsubscribe'), {
         onSuccess: () => { showCancellationModal.value = false; },
     });
 };
 
-const planBeingSwitchedTo = ref(null);
+const planBeingSwitchedTo = ref<PricingPlan | null>(null);
 
-const confirmPlanSwitch = (plan) => {
+const confirmPlanSwitch = (plan: PricingPlan): void => {
     planBeingSwitchedTo.value = plan;
 };
 
-const proceedWithSwitch = () => {
+const proceedWithSwitch = (): void => {
     router.visit(route('plans.subscribe', {
-        plan: planBeingSwitchedTo.value.id,
+        plan: planBeingSwitchedTo.value!.id,
         period: planFrequency.value,
     }));
 };
 
-const formatDate = (d) => d ? DateTime.fromISO(d).toLocaleString(DateTime.DATE_MED) : null;
+const formatDate = (d: string | null): string | null => d ? DateTime.fromISO(d).toLocaleString(DateTime.DATE_MED) : null;
 
 </script>
 <template>
@@ -93,7 +101,7 @@ const formatDate = (d) => d ? DateTime.fromISO(d).toLocaleString(DateTime.DATE_M
                             class="mb-4 text-xl font-medium text-xs text-red-500 dark:text-red-400"
                             v-if="userIsSubscribedTo(plan) && $page.props?.auth?.user?.subscription?.ends_at"
                         >
-                            Expires on: {{ DateTime.fromISO($page.props?.auth?.user?.subscription?.ends_at).toLocaleString(DateTime.DATEMED) }}
+                            Expires on: {{ DateTime.fromISO($page.props?.auth?.user?.subscription?.ends_at).toLocaleString(DateTime.DATE_MED) }}
                         </div>
                     </div>
                     <!-- Availability labels -->
@@ -127,7 +135,7 @@ const formatDate = (d) => d ? DateTime.fromISO(d).toLocaleString(DateTime.DATE_M
                         </div>
                     </div>
                     <ul role="list" class="space-y-5 my-7">
-                        <Feature v-for="feature in plan.features" :key="feature" :feature="feature" />
+                        <Feature v-for="feature in plan.features" :key="feature.label" :feature="feature" />
                     </ul>
                     <span v-if="isFreePlan(plan)" class="mt-auto">
                         <PrimaryButton

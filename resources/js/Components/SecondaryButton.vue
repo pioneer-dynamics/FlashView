@@ -1,9 +1,10 @@
-<script setup>
-defineProps({
-    type: {
-        type: String,
-        default: 'button',
-    },
+<script setup lang="ts">
+interface Props {
+    type?: 'button' | 'submit' | 'reset';
+}
+
+withDefaults(defineProps<Props>(), {
+    type: 'button',
 });
 </script>
 

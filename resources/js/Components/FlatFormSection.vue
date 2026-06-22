@@ -1,11 +1,11 @@
-<script setup>
+<script setup lang="ts">
 import { computed, useSlots } from 'vue';
 
-defineEmits(['submitted']);
+defineEmits<{ submitted: [] }>();
 
 const slots = useSlots();
-const hasActions = computed(() => !! slots.actions);
-const hasTitle = computed(() => !! slots.title);
+const hasActions = computed((): boolean => !! slots.actions);
+const hasTitle = computed((): boolean => !! slots.title);
 </script>
 
 <template>
