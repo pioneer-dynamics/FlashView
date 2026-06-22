@@ -16,7 +16,7 @@ import { index as callsIndexAction } from '@/actions/App/Http/Controllers/CallPa
 import { index as plansIndex } from '@/actions/App/Http/Controllers/PlanController';
 import { index as lockersIndex, buy as lockersBuy } from '@/actions/App/Http/Controllers/LockerController';
 import { index as blogIndex } from '@/actions/App/Http/Controllers/BlogController';
-import { faq, useCases, cli, webhooks, privacy, terms, security, license } from '@/actions/App/Http/Controllers/MarkdownDocumentController';
+import { faq, useCases, cli, webhooks, privacy, terms, security, license, about } from '@/actions/App/Http/Controllers/MarkdownDocumentController';
 import { index as notificationSettingsIndex } from '@/actions/App/Http/Controllers/NotificationSettingsController';
 import { index as configurationIndex } from '@/actions/App/Http/Controllers/ConfigurationController';
 import { index as adminPlansIndex } from '@/actions/App/Http/Controllers/Admin/AdminPlanController';
@@ -152,7 +152,7 @@ const logout = (): void => {
                                         <NavLink :href="faq.url()" :active="route().current('faq.index')">
                                             F.A.Q.
                                         </NavLink>
-                                        <NavLink :href="route('about.index')" :active="route().current('about.index')">
+                                        <NavLink :href="about.url()" :active="route().current('about.index')">
                                             About Us
                                         </NavLink>
                                     </template>
@@ -413,7 +413,7 @@ const logout = (): void => {
                                 <ResponsiveNavLink :href="faq.url()" :active="route().current('faq.index')">
                                     F.A.Q.
                                 </ResponsiveNavLink>
-                                <ResponsiveNavLink :href="route('about.index')" :active="route().current('about.index')">
+                                <ResponsiveNavLink :href="about.url()" :active="route().current('about.index')">
                                     About Us
                                 </ResponsiveNavLink>
                             </template>
