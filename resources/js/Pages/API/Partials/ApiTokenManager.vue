@@ -1,6 +1,8 @@
-<script setup>
+<script setup lang="ts">
 import { ref } from 'vue';
 import { useForm, Link } from '@inertiajs/vue3';
+import type { ApiToken } from '@/types';
+import CliInstallationController from '@/actions/App/Http/Controllers/CliInstallationController';
 import ActionMessage from '@/Components/ActionMessage.vue';
 import ActionSection from '@/Components/ActionSection.vue';
 import Checkbox from '@/Components/Checkbox.vue';
@@ -17,11 +19,13 @@ import TextInput from '@/Components/TextInput.vue';
 import Alert from '@/Components/Alert.vue';
 import ConfirmsPasswordOrPasskey from '@/Components/ConfirmsPasswordOrPasskey.vue';
 
-const props = defineProps({
-    tokens: Array,
-    availablePermissions: Array,
-    defaultPermissions: Array,
-});
+interface Props {
+    tokens: ApiToken[];
+    availablePermissions: string[];
+    defaultPermissions: string[];
+}
+
+const props = defineProps<Props>();
 
 const createApiTokenForm = useForm({
     name: '',
@@ -29,16 +33,16 @@ const createApiTokenForm = useForm({
 });
 
 const updateApiTokenForm = useForm({
-    permissions: [],
+    permissions: [] as string[],
 });
 
 const deleteApiTokenForm = useForm({});
 
 const displayingToken = ref(false);
-const managingPermissionsFor = ref(null);
-const apiTokenBeingDeleted = ref(null);
+const managingPermissionsFor = ref<ApiToken | null>(null);
+const apiTokenBeingDeleted = ref<ApiToken | null>(null);
 
-const createApiToken = () => {
+const createApiToken = (): void => {
     createApiTokenForm.post(route('api-tokens.store'), {
         preserveScroll: true,
         onSuccess: () => {
@@ -48,12 +52,12 @@ const createApiToken = () => {
     });
 };
 
-const manageApiTokenPermissions = (token) => {
+const manageApiTokenPermissions = (token: ApiToken): void => {
     updateApiTokenForm.permissions = token.abilities;
     managingPermissionsFor.value = token;
 };
 
-const updateApiToken = () => {
+const updateApiToken = (): void => {
     updateApiTokenForm.put(route('api-tokens.update', managingPermissionsFor.value), {
         preserveScroll: true,
         preserveState: true,
@@ -61,14 +65,14 @@ const updateApiToken = () => {
     });
 };
 
-const confirmApiTokenDeletion = (token) => {
+const confirmApiTokenDeletion = (token: ApiToken): void => {
     apiTokenBeingDeleted.value = token;
 };
 
-const deleteApiToken = () => {
-    const token = apiTokenBeingDeleted.value;
+const deleteApiToken = (): void => {
+    const token = apiTokenBeingDeleted.value!;
     const deleteRoute = token.type === 'cli'
-        ? route('cli-installations.destroy', token)
+        ? CliInstallationController.destroy.url(token.id)
         : route('api-tokens.destroy', token);
 
     deleteApiTokenForm.delete(deleteRoute, {
@@ -157,7 +161,7 @@ const deleteApiToken = () => {
                                         {{ token.name }}
                                         <span
                                             v-if="token.type === 'cli'"
-                                            class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300"
+                                            class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gamboge-900/30 text-gamboge-300 border border-gamboge-800/40"
                                         >
                                             CLI
                                         </span>

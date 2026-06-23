@@ -1,12 +1,12 @@
-<script setup>
+<script setup lang="ts">
 import { Link } from "@inertiajs/vue3";
+import type { PaginationLink } from "@/types";
 
-defineProps({
-  links: {
-    type: Array,
-    required: true,
-  },
-});
+interface Props {
+    links: PaginationLink[];
+}
+
+defineProps<Props>();
 
 const classes = "mr-1 px-4 py-3 text-sm leading-4 border rounded";
 </script>
@@ -15,7 +15,7 @@ const classes = "mr-1 px-4 py-3 text-sm leading-4 border rounded";
   <!-- If more than (prev, 1, next) -->
   <div v-if="links.length > 3" class="flex mb-4 justify-center">
     <div class="flex flex-wrap mt-4">
-      <template v-for="link in links" :key="key">
+      <template v-for="link in links" :key="link.url ?? link.label">
         <div
           v-if="link.url === null"
           class="text-gray-400 cursor-not-allowed"

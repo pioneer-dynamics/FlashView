@@ -1,25 +1,28 @@
-<script setup>
+<script setup lang="ts">
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { router } from '@inertiajs/vue3';
 import { ref, onMounted, onUnmounted } from 'vue';
+import LockerController from '@/actions/App/Http/Controllers/LockerController';
 
-const props = defineProps({
-    session_id: String,
-});
+interface Props {
+    session_id?: string;
+}
+
+const props = defineProps<Props>();
 
 const timedOut = ref(false);
-let pollInterval = null;
+let pollInterval: ReturnType<typeof setInterval> | null = null;
 let elapsed = 0;
 
 const poll = async () => {
     if (!props.session_id) return;
     try {
-        const res = await fetch(route('lockers.credit-status') + '?session=' + encodeURIComponent(props.session_id));
+        const res = await fetch(LockerController.creditStatus.url({ query: { session: props.session_id } }));
         const data = await res.json();
         if (data.token) {
-            clearInterval(pollInterval);
+            if (pollInterval !== null) clearInterval(pollInterval);
             localStorage.setItem('locker_pending_token', data.token);
-            router.visit(route('lockers.create') + '?token=' + encodeURIComponent(data.token));
+            router.visit(LockerController.create.url({ query: { token: data.token } }));
         }
     } catch {
         // network error — keep polling
@@ -32,7 +35,7 @@ const startPolling = () => {
     pollInterval = setInterval(() => {
         elapsed += 2;
         if (elapsed >= 60) {
-            clearInterval(pollInterval);
+            if (pollInterval !== null) clearInterval(pollInterval);
             timedOut.value = true;
             return;
         }
@@ -42,7 +45,7 @@ const startPolling = () => {
 };
 
 onMounted(startPolling);
-onUnmounted(() => clearInterval(pollInterval));
+onUnmounted(() => { if (pollInterval !== null) clearInterval(pollInterval); });
 </script>
 
 <template>

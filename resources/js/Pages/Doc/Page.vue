@@ -1,16 +1,15 @@
-<script setup>
+<script setup lang="ts">
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Page from '../Page.vue';
 
-defineProps({
-    markdown: String,
-    updated: String,
-    title: String,
-    showUpdatedAt: {
-        type: Boolean,
-        default: true,
-    }
-});
+interface Props {
+    markdown?: string
+    updated?: string
+    title?: string
+    showUpdatedAt?: boolean
+}
+
+defineProps<Props>();
 </script>
 
 <template>

@@ -1,14 +1,15 @@
-<script setup>
+<script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Page from '@/Pages/Page.vue';
+import type { BlogPost } from '@/types';
+import BlogController from '@/actions/App/Http/Controllers/BlogController';
 
-defineProps({
-    posts: {
-        type: Array,
-        default: () => [],
-    },
-});
+interface Props {
+    posts?: BlogPost[]
+}
+
+defineProps<Props>();
 </script>
 
 <template>
@@ -44,7 +45,7 @@ defineProps({
                         </div>
 
                         <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-2 group-hover:text-gamboge-300 transition-colors duration-150">
-                            <Link :href="route('blog.show', post.slug)" prefetch>
+                            <Link :href="BlogController.show.url(post.slug)" prefetch>
                                 {{ post.title }}
                             </Link>
                         </h2>
@@ -54,7 +55,7 @@ defineProps({
                         </p>
 
                         <Link
-                            :href="route('blog.show', post.slug)"
+                            :href="BlogController.show.url(post.slug)"
                             prefetch
                             class="text-sm font-mono text-gamboge-300 hover:text-gamboge-200 transition-colors duration-150"
                         >

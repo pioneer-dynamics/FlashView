@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
     import { Link, useForm, usePage, router } from '@inertiajs/vue3';
     import { encryption } from '../../encryption';
     import { computed, ref, watch } from 'vue';
@@ -14,10 +14,14 @@
     import Alert from '@/Components/Alert.vue';
     import FileUploadZone from '@/Components/FileUploadZone.vue';
     import InputLabel from '@/Components/InputLabel.vue';
+    import type { PageProps } from '@/types';
+    import SecretController from '@/actions/App/Http/Controllers/SecretController';
+    import FileUploadController from '@/actions/App/Http/Controllers/FileUploadController';
+    import PlanController from '@/actions/App/Http/Controllers/PlanController';
 
-    const stage = ref('generating');
+    const stage = ref<string>('generating');
 
-    const other = useForm({ password: null });
+    const other = useForm({ password: null as string | null, expires_in: '' });
 
     // Clears stale password validation error when the field is cleared —
     // an empty password triggers auto-generation which bypasses the min-length check.
@@ -27,66 +31,66 @@
         }
     });
 
-    const userType = computed(() => usePage().props?.auth?.user?.id ? 'user' : 'guest');
+    const userType = computed((): 'user' | 'guest' => usePage<PageProps>().props?.auth?.user?.id ? 'user' : 'guest');
 
     const expiryOptions = computed(() => {
         let max_expiry = 0;
         if (userType.value === 'user') {
-            max_expiry = usePage().props.auth.user.plan.settings.expiry?.expiry_minutes
-                ?? usePage().props.config.secrets.expiry_limits.user;
+            max_expiry = usePage<PageProps>().props.auth.user!.plan!.settings.expiry?.expiry_minutes
+                ?? usePage<PageProps>().props.config.secrets.expiry_limits.user;
         } else {
-            max_expiry = usePage().props.config.secrets.expiry_limits.guest;
+            max_expiry = usePage<PageProps>().props.config.secrets.expiry_limits.guest;
         }
-        return usePage().props.config.secrets.expiry_options.filter((option) => option.value <= max_expiry);
+        return usePage<PageProps>().props.config.secrets.expiry_options.filter((option) => option.value <= max_expiry);
     });
 
     const form = useForm({
         message: '',
         email: '',
         expires_in: expiryOptions.value[expiryOptions.value.length - 1].value,
-        include_sender_identity: usePage().props.auth.senderIdentity?.include_by_default ?? false,
+        include_sender_identity: usePage<PageProps>().props.auth.senderIdentity?.include_by_default ?? false,
     });
 
-    const maxLength = computed(() => {
+    const maxLength = computed((): number => {
         if (userType.value === 'user') {
-            return usePage().props.auth.user.plan.settings.messages?.message_length
-                ?? usePage().props.config.secrets.message_length.user;
+            return usePage<PageProps>().props.auth.user!.plan!.settings.messages?.message_length
+                ?? usePage<PageProps>().props.config.secrets.message_length.user;
         }
-        return usePage().props.config.secrets.message_length.guest;
+        return usePage<PageProps>().props.config.secrets.message_length.guest;
     });
 
-    const maxFileUploadSizeMb = computed(() => {
+    const maxFileUploadSizeMb = computed((): number => {
         if (userType.value === 'user') {
-            const fileUploadSettings = usePage().props.auth.user.plan.settings.file_upload;
+            const fileUploadSettings = usePage<PageProps>().props.auth.user!.plan!.settings.file_upload;
             return fileUploadSettings ? (fileUploadSettings.max_file_size_mb ?? 10) : 0;
         }
         return 0;
     });
 
-    const canUploadFile = computed(() => maxFileUploadSizeMb.value > 0);
+    const canUploadFile = computed((): boolean => maxFileUploadSizeMb.value > 0);
 
-    const allowedMimeTypes = computed(() => {
-        return usePage().props.config.secrets.file_upload?.allowed_mime_types ?? [];
+    const allowedMimeTypes = computed((): string[] => {
+        return usePage<PageProps>().props.config.secrets.file_upload?.allowed_mime_types ?? [];
     });
 
-    const selectedFile = ref(null);
-    const fileError = ref(null);
-    const uploadState = ref(null);
-    const uploadProgress = ref(0);
+    const selectedFile = ref<File | null>(null);
+    const fileError = ref<string | null>(null);
+    const uploadState = ref<'encrypting' | 'uploading' | 'decrypting' | 'downloading' | null>(null);
+    const uploadProgress = ref<number>(0);
 
-    const isEncryptBusy = computed(() => !!uploadState.value || form.processing);
+    const isEncryptBusy = computed((): boolean => !!uploadState.value || form.processing);
 
     // Kept as a named computed (not inlined) so PIO75Test can assert its presence.
-    const passwordInputDisabled = computed(() => isEncryptBusy.value);
+    const passwordInputDisabled = computed((): boolean => isEncryptBusy.value);
 
-    const getErrorMessage = (error) => {
+    const getErrorMessage = (error: { code?: number; message?: string }): string => {
         switch (error.code) {
             case 429: return "That's too many messages in a short time. Please wait try again in a minute.";
-            default: return error.message;
+            default: return error.message ?? 'An error occurred.';
         }
     };
 
-    const encryptFileData = async () => {
+    const encryptFileData = async (): Promise<void> => {
         if (!selectedFile.value) { return; }
 
         const e = new encryption();
@@ -95,7 +99,7 @@
         try {
             e.validatePassphrase(passphrase);
         } catch (err) {
-            other.setError('password', err.message);
+            other.setError('password', (err as Error).message);
             return;
         }
 
@@ -110,21 +114,26 @@
             }
 
             // Step 1: Ask server for a presigned S3 PUT URL (or server fallback URL).
-            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content ?? '';
-            const prepareRes = await fetch(route('secret.file.prepare'), {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '';
+            const prepareRes = await fetch(FileUploadController.prepare.url(), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken },
             });
 
             if (!prepareRes.ok) { throw new Error('Could not prepare upload.'); }
 
-            const { upload_type, upload_url, upload_headers, token } = await prepareRes.json();
+            const { upload_type, upload_url, upload_headers, token } = await prepareRes.json() as {
+                upload_type: string;
+                upload_url: string;
+                upload_headers: Record<string, string> | null;
+                token: string;
+            };
 
             uploadState.value = 'uploading';
             uploadProgress.value = 0;
 
             // Step 2: Upload encrypted bytes directly to S3 (or server fallback) via XHR for progress.
-            await new Promise((resolve, reject) => {
+            await new Promise<void>((resolve, reject) => {
                 const xhr = new XMLHttpRequest();
                 xhr.open(upload_type === 's3_direct' ? 'PUT' : 'POST', upload_url);
 
@@ -135,14 +144,14 @@
                     xhr.setRequestHeader(key, value);
                 }
 
-                xhr.upload.onprogress = (event) => {
+                xhr.upload.onprogress = (event: ProgressEvent) => {
                     if (event.lengthComputable) {
                         uploadProgress.value = Math.round((event.loaded / event.total) * 100);
                     }
                 };
                 xhr.onload = () => (xhr.status >= 200 && xhr.status < 300) ? resolve() : reject(new Error('Upload failed.'));
                 xhr.onerror = () => reject(new Error('Upload failed.'));
-                xhr.send(new Blob([encryptedBuffer], { type: 'application/octet-stream' }));
+                xhr.send(new Blob([encryptedBuffer as BlobPart], { type: 'application/octet-stream' }));
             });
 
             // Step 3: Create the secret record with the token referencing the uploaded file.
@@ -159,13 +168,13 @@
             if (form.email) { formData.append('email', form.email); }
             if (form.include_sender_identity) { formData.append('include_sender_identity', '1'); }
 
-            router.post(route('secret.store'), formData, {
+            router.post(SecretController.store.url(), formData, {
                 preserveScroll: true,
                 onSuccess: () => {
                     uploadState.value = null;
                     uploadProgress.value = 0;
-                    if (usePage().props.jetstream.flash?.error) {
-                        fileError.value = getErrorMessage(usePage().props.jetstream.flash.error);
+                    if (usePage<PageProps>().props.jetstream.flash?.error) {
+                        fileError.value = getErrorMessage(usePage<PageProps>().props.jetstream.flash.error!);
                         return;
                     }
                     captureEvent('secret_link_generated', {
@@ -181,11 +190,11 @@
             });
         } catch (err) {
             uploadState.value = null;
-            fileError.value = err.message || 'Encryption failed.';
+            fileError.value = (err as Error).message || 'Encryption failed.';
         }
     };
 
-    const encryptData = () => {
+    const encryptData = (): void => {
         if (selectedFile.value) {
             encryptFileData();
             return;
@@ -196,11 +205,11 @@
         e.encryptMessage(form.message, other.password)
             .then((data) => {
                 form.transform((formdata) => ({ ...formdata, message: data.secret }))
-                    .post(route('secret.store'), {
+                    .post(SecretController.store.url(), {
                         preserveScroll: true,
                         onSuccess: () => {
-                            if (usePage().props.jetstream.flash?.error) {
-                                form.setError('message', getErrorMessage(usePage().props.jetstream.flash.error));
+                            if (usePage<PageProps>().props.jetstream.flash?.error) {
+                                form.setError('message', getErrorMessage(usePage<PageProps>().props.jetstream.flash.error!));
                                 return;
                             }
                             if (data.passphrase != other.password) {
@@ -214,12 +223,12 @@
                         },
                     });
             })
-            .catch((e) => {
+            .catch((e: Error) => {
                 other.setError('password', e.message);
             });
     };
 
-    const letsDoAnotherOne = () => {
+    const letsDoAnotherOne = (): void => {
         form.email = '';
         form.message = '';
         form.expires_in = expiryOptions.value[expiryOptions.value.length - 1].value;
@@ -281,7 +290,7 @@
                                 Is {{ maxLength }} characters too short, or need a longer expiry? - <Link class="underline text-gamboge-300" prefetch :href="route('login')">login</Link> or <Link class="underline text-gamboge-300" prefetch :href="route('register')">create a free account!</Link> to increase the limit.
                             </div>
                             <div v-else-if="!$page.props.auth.user.subscription" class="flex flex-wrap gap-1">
-                                Is {{ maxLength }} characters still too short, or need a longer expiry? - <a as="a" class="underline text-gamboge-300" :href="route('plans.index')">subscribe to a paid plan</a> to increase the limits.
+                                Is {{ maxLength }} characters still too short, or need a longer expiry? - <a as="a" class="underline text-gamboge-300" :href="PlanController.index.url()">subscribe to a paid plan</a> to increase the limits.
                             </div>
                         </span>
                     </div>
@@ -310,17 +319,17 @@
                         <template v-if="!$page.props.auth.user">
                             <Link class="underline text-gamboge-300" prefetch :href="route('login')">Log in</Link>
                             or
-                            <Link class="underline text-gamboge-300" prefetch :href="route('plans.index')">signup to an eligible plan</Link>
+                            <Link class="underline text-gamboge-300" prefetch :href="PlanController.index.url()">signup to an eligible plan</Link>
                             to share encrypted files.
                         </template>
                         <template v-else-if="$page.props.auth.user.subscription">
                             File uploads are not included in your current plan.
-                            <a class="underline text-gamboge-300" :href="route('plans.index')">View available plans</a>
+                            <a class="underline text-gamboge-300" :href="PlanController.index.url()">View available plans</a>
                             to upgrade.
                         </template>
                         <template v-else>
                             File uploads are not available on your current plan.
-                            <a class="underline text-gamboge-300" :href="route('plans.index')">View available plans</a>
+                            <a class="underline text-gamboge-300" :href="PlanController.index.url()">View available plans</a>
                             to unlock this feature.
                         </template>
                     </p>

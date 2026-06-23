@@ -1,24 +1,26 @@
-<script setup>
+<script setup lang="ts">
 import { useForm } from '@inertiajs/vue3';
 import ActionMessage from '@/Components/ActionMessage.vue';
 import Checkbox from '@/Components/Checkbox.vue';
 import ConfirmsPasswordOrPasskey from '@/Components/ConfirmsPasswordOrPasskey.vue';
 import FormSection from '@/Components/FormSection.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
+import ConfigurationController from '@/actions/App/Http/Controllers/ConfigurationController';
 
-const props = defineProps({
-    storeMaskedRecipientEmail: {
-        type: Boolean,
-        default: false,
-    },
+interface Props {
+    storeMaskedRecipientEmail?: boolean;
+}
+
+const props = withDefaults(defineProps<Props>(), {
+    storeMaskedRecipientEmail: false,
 });
 
 const form = useForm({
     store_masked_recipient_email: props.storeMaskedRecipientEmail,
 });
 
-const saveConfiguration = () => {
-    form.put(route('user.settings.update'), {
+const saveConfiguration = (): void => {
+    form.submit(ConfigurationController.update(), {
         preserveScroll: true,
     });
 };

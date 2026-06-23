@@ -1,26 +1,27 @@
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
 import { router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Alert from '@/Components/Alert.vue';
 import axios from 'axios';
 import { encryption } from '@/encryption.js';
+import type { CallSession } from '@/types';
+import CallSessionController from '@/actions/App/Http/Controllers/CallSessionController';
+import CallPageController from '@/actions/App/Http/Controllers/CallPageController';
 
-const props = defineProps({
-    session: {
-        type: Object,
-        required: true,
-        // { bridge_number, starts_at, ends_at, is_active }
-    },
-});
+interface Props {
+    session: CallSession;
+}
 
-const stage = ref('form'); // 'form' | 'joining' | 'turn_warning' | 'error'
+const props = defineProps<Props>();
+
+const stage = ref<'form' | 'joining' | 'turn_warning' | 'error'>('form');
 const password = ref('');
 const errorMessage = ref('');
 const isActive = ref(props.session.is_active);
 const turnWarning = ref(false);
 
-function formatDateTime(isoString) {
+function formatDateTime(isoString: string): string {
     return new Date(isoString).toLocaleString(undefined, {
         dateStyle: 'medium',
         timeStyle: 'short',
@@ -40,11 +41,11 @@ onMounted(() => {
     }
 });
 
-async function handleJoin() {
+async function handleJoin(): Promise<void> {
     stage.value = 'joining';
     try {
         const { data: challengeData } = await axios.get(
-            route('call-sessions.challenge', props.session.bridge_number)
+            CallSessionController.challenge.url(props.session.bridge_number as unknown as number)
         );
 
         const enc = new encryption();
@@ -55,7 +56,7 @@ async function handleJoin() {
         const signature = enc.signCallChallenge(keypair.privateKey, challengeData.challenge);
 
         const { data: responseData } = await axios.post(
-            route('call-sessions.join', props.session.bridge_number),
+            CallSessionController.join['/call-sessions/{callSession}/join'].url(props.session.bridge_number as unknown as number),
             { signature, public_key: ecdhKeypair.publicKeyBase64 }
         );
 
@@ -75,11 +76,12 @@ async function handleJoin() {
             return;
         }
 
-        router.visit(route('calls.room', props.session.bridge_number));
-    } catch (e) {
+        router.visit(CallPageController.room.url(props.session.bridge_number as unknown as number));
+    } catch (e: unknown) {
         stage.value = 'error';
-        const status = e.response?.status;
-        const msg = e.response?.data?.message ?? '';
+        const err = e as { response?: { status?: number; data?: { message?: string } } };
+        const status = err.response?.status;
+        const msg = err.response?.data?.message ?? '';
         if (status === 401) {
             errorMessage.value = 'Incorrect password. Please check and try again.';
         } else if (status === 404) {
@@ -94,11 +96,11 @@ async function handleJoin() {
     }
 }
 
-function continueToRoom() {
-    router.visit(route('calls.room', props.session.bridge_number));
+function continueToRoom(): void {
+    router.visit(CallPageController.room.url(props.session.bridge_number as unknown as number));
 }
 
-function retryJoin() {
+function retryJoin(): void {
     stage.value = 'form';
     errorMessage.value = '';
 }

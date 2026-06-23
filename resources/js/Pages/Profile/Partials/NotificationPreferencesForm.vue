@@ -1,25 +1,32 @@
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue';
 import { Link, useForm, usePage } from '@inertiajs/vue3';
+import type { PageProps } from '@/types';
 import ActionMessage from '@/Components/ActionMessage.vue';
 import ActionSection from '@/Components/ActionSection.vue';
 import FormSection from '@/Components/FormSection.vue';
 import Checkbox from '@/Components/Checkbox.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
+import NotificationPreferencesController from '@/actions/App/Http/Controllers/NotificationPreferencesController';
+import PlanController from '@/actions/App/Http/Controllers/PlanController';
 
-const page = usePage();
+const page = usePage<PageProps>();
 const user = computed(() => page.props.auth.user);
 
 const planSupportsNotifications = computed(() =>
     page.props.auth.planSupportsEmailNotifications ?? false
 );
 
+interface UserWithNotifications {
+    notify_secret_retrieved?: boolean
+}
+
 const form = useForm({
-    notify_secret_retrieved: user.value.notify_secret_retrieved ?? false,
+    notify_secret_retrieved: ((user.value as unknown as UserWithNotifications)?.notify_secret_retrieved) ?? false,
 });
 
 const updateNotificationPreferences = () => {
-    form.put(route('user.notification-preferences.update'), {
+    form.submit(NotificationPreferencesController.update(), {
         preserveScroll: true,
     });
 };
@@ -74,7 +81,7 @@ const updateNotificationPreferences = () => {
         <template #content>
             <p class="text-sm text-gray-600 dark:text-gray-400">
                 Secret retrieval notifications are available on paid plans.
-                <Link :href="route('plans.index')" prefetch class="underline text-sm text-gamboge-300 dark:text-gamboge-200 hover:text-gamboge-200 dark:hover:text-gamboge-100 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gamboge-500 dark:focus:ring-offset-gray-900">
+                <Link :href="PlanController.index.url()" prefetch class="underline text-sm text-gamboge-300 dark:text-gamboge-200 hover:text-gamboge-200 dark:hover:text-gamboge-100 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gamboge-500 dark:focus:ring-offset-gray-900">
                     View plans
                 </Link>
             </p>

@@ -1,32 +1,35 @@
-<script setup>
+<script setup lang="ts">
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { router } from '@inertiajs/vue3';
 import { ref, onMounted, onUnmounted } from 'vue';
+import SecureLineCheckoutController from '@/actions/App/Http/Controllers/SecureLineCheckoutController';
 
-const props = defineProps({
-    session_id: String,
-});
+interface Props {
+    session_id?: string;
+}
+
+const props = defineProps<Props>();
 
 const timedOut = ref(false);
-let pollInterval = null;
+let pollInterval: ReturnType<typeof setInterval> | null = null;
 let elapsed = 0;
 
 const poll = async () => {
     if (!props.session_id) return;
     try {
-        const res = await fetch(route('calls.credit-status') + '?session=' + encodeURIComponent(props.session_id));
+        const res = await fetch(SecureLineCheckoutController.creditStatus.url({ query: { session: props.session_id } }));
         const data = await res.json();
         if (data.token) {
             clearInterval(pollInterval);
             localStorage.setItem('secure_line_pending_token', data.token);
-            router.visit(route('calls.create') + '?token=' + encodeURIComponent(data.token));
+            router.visit(SecureLineCheckoutController.create.url({ query: { token: data.token } }));
         }
     } catch {
         // network error — keep polling
     }
 };
 
-const startPolling = () => {
+const startPolling = (): void => {
     elapsed = 0;
     timedOut.value = false;
     pollInterval = setInterval(() => {

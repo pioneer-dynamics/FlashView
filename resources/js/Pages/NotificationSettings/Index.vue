@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import AppLayout from '@/Layouts/AppLayout.vue';
 import NotificationPreferencesForm from '@/Pages/Profile/Partials/NotificationPreferencesForm.vue';
 import WebhookSettingsForm from '@/Pages/Profile/Partials/WebhookSettingsForm.vue';

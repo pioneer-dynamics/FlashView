@@ -159,6 +159,7 @@
         "laravel/octane": "^2.17",
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^3.0",
+        "laravel/wayfinder": "^0.1.20",
         "league/commonmark": "^2.8.1",
         "league/flysystem-aws-s3-v3": "^3.29",
         "mathewparet/inertia-config-share": "^1.0",
@@ -213,7 +214,12 @@
         ],
         "dev": [
             "Composer\\Config::disableProcessTimeout",
+            "@php artisan wayfinder:generate",
             "npx concurrently -c \"#93c5fd,#c4b5fd,#fb7185,#fdba74\" \"php artisan octane:start --watch\" \"php artisan queue:listen --tries=1\" \"php artisan pail --timeout=0\" \"npm run dev\" --names=server,queue,logs,vite"
+        ],
+        "build": [
+            "@php artisan wayfinder:generate",
+            "npm run build"
         ]
     },
     "extra": {

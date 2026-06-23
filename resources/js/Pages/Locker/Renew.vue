@@ -1,18 +1,19 @@
-<script setup>
+<script setup lang="ts">
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { Link, router } from '@inertiajs/vue3';
 import { ref, computed, onMounted } from 'vue';
 import { encryption } from '@/encryption.js';
+import LockerController from '@/actions/App/Http/Controllers/LockerController';
 
 const enc = new encryption();
 
 const accountId    = ref('');
 const authMode     = ref('passphrase');
-const keyFileCount = ref(null);
+const keyFileCount = ref<number | null>(null);
 const showClues    = ref(true);
-const keyFiles     = ref([]);
+const keyFiles     = ref<{ file: File }[]>([]);
 const tier         = ref('');
-const expiresAt    = ref(null);
+const expiresAt    = ref<string | null>(null);
 const initialising = ref(true);
 const initError    = ref('');
 
@@ -40,14 +41,14 @@ const daysLabel = computed(() => {
 onMounted(async () => {
     const prefill = sessionStorage.getItem('locker_prefill_account_renew');
     if (!prefill || !/^\d{10}$/.test(prefill)) {
-        router.visit(route('lockers.index'));
+        router.visit(LockerController.index.url());
         return;
     }
     sessionStorage.removeItem('locker_prefill_account_renew');
     accountId.value = prefill;
 
     try {
-        const infoRes = await fetch(route('lockers.auth-info', accountId.value), {
+        const infoRes = await fetch(LockerController.authInfo.url(accountId.value), {
             headers: { 'Accept': 'application/json' },
         });
         if (!infoRes.ok) {
@@ -67,14 +68,15 @@ onMounted(async () => {
     }
 });
 
-const onKeyFileAdded = (e) => {
-    const file = e.target.files[0];
+const onKeyFileAdded = (e: Event): void => {
+    const input = e.target as HTMLInputElement;
+    const file = input.files?.[0];
     if (!file) return;
-    e.target.value = '';
+    input.value = '';
     keyFiles.value.push({ file });
 };
 
-const removeKeyFile = (index) => {
+const removeKeyFile = (index: number): void => {
     keyFiles.value.splice(index, 1);
 };
 
@@ -123,7 +125,7 @@ const submit = async () => {
     error.value = '';
     loading.value = true;
     try {
-        const challengeRes = await fetch(route('lockers.renew.challenge', accountId.value), {
+        const challengeRes = await fetch(LockerController.renewChallenge.url(accountId.value), {
             headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
         });
 
@@ -150,7 +152,7 @@ const submit = async () => {
             renewBody = { verifier, years: years.value, tier: tier.value || 'text' };
         }
 
-        const renewRes = await fetch(route('lockers.renew.purchase', accountId.value), {
+        const renewRes = await fetch(LockerController.renewPurchase.url(accountId.value), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -202,7 +204,7 @@ const submit = async () => {
                     <div class="text-gamboge-300 font-mono text-xs uppercase tracking-widest">Renew eLocker</div>
                     <p class="text-red-400 text-sm">{{ initError }}</p>
                     <Link
-                        :href="route('lockers.index')"
+                        :href="LockerController.index.url()"
                         class="block text-center text-gamboge-300 hover:text-gamboge-200 text-sm font-mono underline"
                     >Back to eLocker home</Link>
                 </div>
@@ -216,7 +218,7 @@ const submit = async () => {
                             <h1 class="ph-no-capture text-xl font-bold text-white font-mono">{{ accountId }}</h1>
                         </div>
                         <Link
-                            :href="route('lockers.index')"
+                            :href="LockerController.index.url()"
                             class="text-gray-500 hover:text-gamboge-300 text-xs font-mono transition-colors"
                         >Wrong locker? Start over</Link>
                     </div>

@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Page from '../Page.vue';
 import { DateTime } from 'luxon';
@@ -8,17 +8,21 @@ import { ref, computed } from 'vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
 import DangerButton from '@/Components/DangerButton.vue';
 import Paginator from '@/Components/Paginator.vue';
+import type { Secret, Pagination } from '@/types';
+import SecretController from '@/actions/App/Http/Controllers/SecretController';
 
-const humanFileSize = (bytes) => {
+interface Props {
+    secrets: Pagination<Secret>
+}
+
+const humanFileSize = (bytes: number | null): string | null => {
     if (!bytes) { return null; }
     if (bytes < 1024) { return bytes + ' B'; }
     if (bytes < 1024 * 1024) { return (bytes / 1024).toFixed(1) + ' KB'; }
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
 };
 
-const props = defineProps({
-    secrets: Array
-})
+const props = defineProps<Props>()
 
 const hasAnyRecipient = computed(() =>
     props.secrets.data?.some(s => s.masked_recipient_email)
@@ -26,12 +30,12 @@ const hasAnyRecipient = computed(() =>
 
 const form = useForm({})
 
-const messageIdBeingDeleted = ref(null)
+const messageIdBeingDeleted = ref<Secret | null>(null)
 
-const burn = () => {
-    form.delete(route('secrets.destroy', messageIdBeingDeleted.value.hash_id), {
+const burn = (): void => {
+    form.submit(SecretController.destroy(messageIdBeingDeleted.value!.hash_id), {
         preserveScroll: true,
-        onFinish: () => messageIdBeingDeleted.value = null
+        onFinish: () => { messageIdBeingDeleted.value = null; }
     });
 }
 

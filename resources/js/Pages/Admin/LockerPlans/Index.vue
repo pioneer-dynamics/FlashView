@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import Page from '@/Pages/Page.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
@@ -7,26 +7,30 @@ import SecondaryButton from '@/Components/SecondaryButton.vue';
 import ConfirmationModal from '@/Components/ConfirmationModal.vue';
 import { Link, useForm } from '@inertiajs/vue3';
 import { ref } from 'vue';
+import type { LockerPlan } from '@/types';
+import AdminLockerPlanController from '@/actions/App/Http/Controllers/Admin/AdminLockerPlanController';
 
-const props = defineProps({
-    plans: Array,
-});
+interface Props {
+    plans: LockerPlan[]
+}
 
-const planBeingDeleted = ref(null);
+const props = defineProps<Props>();
+
+const planBeingDeleted = ref<LockerPlan | null>(null);
 const deleteForm = useForm({});
 
-const confirmDelete = (plan) => { planBeingDeleted.value = plan; };
+const confirmDelete = (plan: LockerPlan): void => { planBeingDeleted.value = plan; };
 
-const deletePlan = () => {
-    deleteForm.delete(route('admin.locker-plans.destroy', planBeingDeleted.value.id), {
+const deletePlan = (): void => {
+    deleteForm.submit(AdminLockerPlanController.destroy(planBeingDeleted.value!.id), {
         preserveScroll: true,
         onSuccess: () => { planBeingDeleted.value = null; },
         onError:   () => { planBeingDeleted.value = null; },
     });
 };
 
-const tierLabel = (tier) => tier === 'text' ? 'Text' : 'File';
-const formatPrice = (cents) => `$${(cents / 100).toFixed(2)}`;
+const tierLabel = (tier: string): string => tier === 'text' ? 'Text' : 'File';
+const formatPrice = (cents: number): string => `$${(cents / 100).toFixed(2)}`;
 </script>
 
 <template>
@@ -36,7 +40,7 @@ const formatPrice = (cents) => `$${(cents / 100).toFixed(2)}`;
         <Page>
             <div class="mb-6 flex items-center justify-between">
                 <h1 class="text-xs uppercase tracking-widest text-gamboge-300 font-mono">eLocker Plan Management</h1>
-                <Link :href="route('admin.locker-plans.create')" prefetch>
+                <Link :href="AdminLockerPlanController.create.url()" prefetch>
                     <PrimaryButton>New Plan</PrimaryButton>
                 </Link>
             </div>
@@ -57,7 +61,7 @@ const formatPrice = (cents) => `$${(cents / 100).toFixed(2)}`;
                         <tr v-if="plans.length === 0">
                             <td colspan="6" class="px-6 py-8 text-center text-gray-400 dark:text-gray-500">
                                 No plans yet.
-                                <Link :href="route('admin.locker-plans.create')" prefetch class="text-gamboge-300 hover:underline ml-1">Create one.</Link>
+                                <Link :href="AdminLockerPlanController.create.url()" prefetch class="text-gamboge-300 hover:underline ml-1">Create one.</Link>
                             </td>
                         </tr>
                         <tr v-for="plan in plans" :key="plan.id"
@@ -80,7 +84,7 @@ const formatPrice = (cents) => `$${(cents / 100).toFixed(2)}`;
                             </td>
                             <td class="px-6 py-4 text-right">
                                 <div class="flex justify-end gap-2">
-                                    <Link :href="route('admin.locker-plans.edit', plan.id)" prefetch>
+                                    <Link :href="AdminLockerPlanController.edit.url(plan.id)" prefetch>
                                         <SecondaryButton class="text-xs">Edit</SecondaryButton>
                                     </Link>
                                     <DangerButton class="text-xs" @click="confirmDelete(plan)">

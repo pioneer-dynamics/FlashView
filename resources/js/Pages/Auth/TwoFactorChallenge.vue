@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import { nextTick, ref } from 'vue';
 import { Head, useForm } from '@inertiajs/vue3';
 import AuthenticationCard from '@/Components/AuthenticationCard.vue';
@@ -8,31 +8,31 @@ import InputLabel from '@/Components/InputLabel.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
 
-const recovery = ref(false);
+const recovery = ref<boolean>(false);
 
 const form = useForm({
     code: '',
     recovery_code: '',
 });
 
-const recoveryCodeInput = ref(null);
-const codeInput = ref(null);
+const recoveryCodeInput = ref<InstanceType<typeof TextInput> | null>(null);
+const codeInput = ref<InstanceType<typeof TextInput> | null>(null);
 
-const toggleRecovery = async () => {
-    recovery.value ^= true;
+const toggleRecovery = async (): Promise<void> => {
+    recovery.value = !recovery.value;
 
     await nextTick();
 
     if (recovery.value) {
-        recoveryCodeInput.value.focus();
+        recoveryCodeInput.value?.focus();
         form.code = '';
     } else {
-        codeInput.value.focus();
+        codeInput.value?.focus();
         form.recovery_code = '';
     }
 };
 
-const submit = () => {
+const submit = (): void => {
     form.post(route('two-factor.login'));
 };
 </script>

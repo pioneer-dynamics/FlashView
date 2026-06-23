@@ -1,9 +1,10 @@
-<script setup>
-    import {startRegistration} from "@simplewebauthn/browser";
+<script setup lang="ts">
+    import { startRegistration } from "@simplewebauthn/browser";
+    import type { RegistrationResponseJSON } from "@simplewebauthn/types";
     import ActionSection from "@/Components/ActionSection.vue";
-    import { useForm } from '@inertiajs/vue3';
+    import { useForm, usePage } from '@inertiajs/vue3';
+    import type { PageProps, Passkey } from '@/types';
     import { DateTime } from 'luxon';
-    import { usePage } from '@inertiajs/vue3';
     import DialogModal from "@/Components/DialogModal.vue";
     import { ref } from "vue";
     import TextInput from "@/Components/TextInput.vue";
@@ -16,49 +17,48 @@
 
     const registrationInProgress = ref(false)
 
-    const nameInput = ref(null)
+    const nameInput = ref<HTMLInputElement | null>(null)
 
     const form = useForm({
-        passkey: '',
+        passkey: null as RegistrationResponseJSON | null,
         name: '',
     });
 
-    const closeModal = () => {
+    const closeModal = (): void => {
         registeringNewPasskey.value = false;
         registrationInProgress.value = false
         form.reset();
-        form.passkey = '';
+        form.passkey = null;
         form.name = '';
         form.clearErrors();
     }
 
-    const showModal = () => {
+    const showModal = (): void => {
         registeringNewPasskey.value = true;
         setTimeout(() => nameInput.value?.focus(), 250);
     }
 
-    const register = () => {
+    const register = (): void => {
         registrationInProgress.value = true
         form.post(route('passkeys.registration-options'), {
             preserveScroll: true,
             preserveState: true,
             onSuccess: () => {
-                console.log('from server', usePage().props.jetstream.flash.options);
-                startRegistration(JSON.parse(JSON.stringify(usePage().props.jetstream.flash.options)))
+                const page = usePage<PageProps>();
+                startRegistration(JSON.parse(JSON.stringify(page.props.jetstream.flash.options)))
                     .then((res) =>{
                         form.passkey = res;
-                        console.log(res); 
                         form.post(route('passkeys.store'), {
                             preserveScroll: true
                         })
                     })
-                    .catch((err) => console.log(err))
+                    .catch((_err: unknown) => { /* registration cancelled or failed */ })
                     .finally(() => closeModal());
             }
         })
     }
 
-    const unregister = (passkey) => {
+    const unregister = (passkey: Passkey): void => {
         form.delete(route('passkeys.destroy', {passkey: passkey.id}), {
             preserveScroll: true
         })

@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import Page from '@/Pages/Page.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
@@ -7,25 +7,29 @@ import SecondaryButton from '@/Components/SecondaryButton.vue';
 import ConfirmationModal from '@/Components/ConfirmationModal.vue';
 import { Link, useForm } from '@inertiajs/vue3';
 import { ref } from 'vue';
+import type { StripeCoupon } from '@/types';
+import AdminCouponController from '@/actions/App/Http/Controllers/Admin/AdminCouponController';
 
-const props = defineProps({
-    coupons: Array,
-});
+interface Props {
+    coupons: StripeCoupon[]
+}
 
-const couponBeingDeleted = ref(null);
+const props = defineProps<Props>();
+
+const couponBeingDeleted = ref<StripeCoupon | null>(null);
 const deleteForm = useForm({});
 
-const confirmDelete = (coupon) => { couponBeingDeleted.value = coupon; };
+const confirmDelete = (coupon: StripeCoupon): void => { couponBeingDeleted.value = coupon; };
 
-const deleteCoupon = () => {
-    deleteForm.delete(route('admin.coupons.destroy', couponBeingDeleted.value.id), {
+const deleteCoupon = (): void => {
+    deleteForm.delete(AdminCouponController.destroy(couponBeingDeleted.value!.id).url, {
         preserveScroll: true,
         onSuccess: () => { couponBeingDeleted.value = null; },
         onError:   () => { couponBeingDeleted.value = null; },
     });
 };
 
-const formatDiscount = (coupon) => {
+const formatDiscount = (coupon: StripeCoupon): string => {
     if (coupon.percent_off) {
         return `${coupon.percent_off}% off`;
     }
@@ -37,12 +41,12 @@ const formatDiscount = (coupon) => {
     return '—';
 };
 
-const formatExpiry = (redeemBy) => {
+const formatExpiry = (redeemBy: number | null): string => {
     if (!redeemBy) { return 'No expiry'; }
     return new Date(redeemBy * 1000).toLocaleDateString('en-AU');
 };
 
-const formatRedemptions = (coupon) => {
+const formatRedemptions = (coupon: StripeCoupon): string => {
     const used = coupon.times_redeemed ?? 0;
     const limit = coupon.max_redemptions;
     return limit ? `${used} / ${limit}` : `${used} / Unlimited`;
@@ -56,7 +60,7 @@ const formatRedemptions = (coupon) => {
         <Page>
             <div class="mb-6 flex items-center justify-between">
                 <h1 class="text-xs uppercase tracking-widest text-gamboge-300 font-mono">Coupon &amp; Promotion Code Management</h1>
-                <Link :href="route('admin.coupons.create')" prefetch>
+                <Link :href="AdminCouponController.create.url()" prefetch>
                     <PrimaryButton>New Coupon</PrimaryButton>
                 </Link>
             </div>
@@ -78,7 +82,7 @@ const formatRedemptions = (coupon) => {
                         <tr v-if="coupons.length === 0">
                             <td colspan="7" class="px-6 py-8 text-center text-gray-400 dark:text-gray-500">
                                 No coupons yet.
-                                <Link :href="route('admin.coupons.create')" prefetch class="text-gamboge-300 hover:underline ml-1">Create one.</Link>
+                                <Link :href="AdminCouponController.create.url()" prefetch class="text-gamboge-300 hover:underline ml-1">Create one.</Link>
                             </td>
                         </tr>
                         <tr
@@ -111,7 +115,7 @@ const formatRedemptions = (coupon) => {
                             </td>
                             <td class="px-6 py-4 text-right">
                                 <div class="flex justify-end gap-2">
-                                    <Link :href="route('admin.coupons.show', coupon.id)" prefetch>
+                                    <Link :href="AdminCouponController.show.url(coupon.id)" prefetch>
                                         <SecondaryButton class="text-xs">View</SecondaryButton>
                                     </Link>
                                     <DangerButton class="text-xs" @click="confirmDelete(coupon)">

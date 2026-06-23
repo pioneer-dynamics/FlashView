@@ -1,11 +1,14 @@
-<script setup>
-    defineProps({
-        feature: Object,
-        type: {
-            type: String,
-            default: 'feature'
-        }
-    })
+<script setup lang="ts">
+import type { PlanFeature } from '@/types';
+
+interface Props {
+    feature: PlanFeature
+    type?: string
+}
+
+withDefaults(defineProps<Props>(), {
+    type: 'feature',
+});
 </script>
 <template>
     <!-- Included feature — bright text, cyan checkmark -->

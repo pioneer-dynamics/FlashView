@@ -1,40 +1,47 @@
-<script setup>
+<script setup lang="ts">
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { router } from '@inertiajs/vue3';
 import { ref, onMounted, computed } from 'vue';
 import { generatePassphrase, deriveCallKeyPair, generateCallKeySalt } from '@pioneer-dynamics/flashview-crypto';
+import type { SecureLineProduct } from '@/types';
+import CallPageController from '@/actions/App/Http/Controllers/CallPageController';
+import SecureLineCheckoutController from '@/actions/App/Http/Controllers/SecureLineCheckoutController';
 
-const props = defineProps({
-    credit_token: String,
-    product: Object,
-});
+interface Props {
+    credit_token?: string;
+    product?: SecureLineProduct;
+}
 
-const step = ref('creating'); // 'creating' | 'done' | 'error'
-const errorMessage = ref(null);
-const bridgeNumber = ref(null);
-const callPassword = ref(null);
-const endsAt = ref(null);
+const props = defineProps<Props>();
+
+const step = ref<'creating' | 'done' | 'error'>('creating');
+const errorMessage = ref<string | null>(null);
+const bridgeNumber = ref<string | null>(null);
+const callPassword = ref<string | null>(null);
+const endsAt = ref<string | null>(null);
 const savedConfirmed = ref(false);
 
-const xsrfToken = () => decodeURIComponent(document.cookie.match(/XSRF-TOKEN=([^;]+)/)?.[1] ?? '');
+const xsrfToken = (): string => decodeURIComponent(document.cookie.match(/XSRF-TOKEN=([^;]+)/)?.[1] ?? '');
 
-const formattedExpiry = computed(() => {
+const formattedExpiry = computed((): string => {
     if (!endsAt.value) return '';
     return new Date(endsAt.value).toLocaleString();
 });
 
-const minutesRemaining = computed(() => {
+const minutesRemaining = computed((): string => {
     if (!endsAt.value) return '';
-    const diff = Math.round((new Date(endsAt.value) - Date.now()) / 60000);
+    const diff = Math.round((new Date(endsAt.value).getTime() - Date.now()) / 60000);
     return diff > 0 ? `${diff} minutes from now` : 'soon';
 });
 
-const copyToClipboard = async (text) => {
-    await navigator.clipboard.writeText(text);
+const copyToClipboard = async (text: string | null): Promise<void> => {
+    if (text) {
+        await navigator.clipboard.writeText(text);
+    }
 };
 
-const downloadCredentials = () => {
-    const callsUrl = route('calls.index');
+const downloadCredentials = (): void => {
+    const callsUrl = CallPageController.index.url();
     const lines = [
         'Secure Line Credentials',
         '=======================',
@@ -60,7 +67,7 @@ onMounted(async () => {
         const keySalt = generateCallKeySalt();
         const { publicKeyBase64 } = await deriveCallKeyPair(password, keySalt);
 
-        const res = await fetch(route('calls.store'), {
+        const res = await fetch(SecureLineCheckoutController.store.url(), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -121,7 +128,7 @@ onMounted(async () => {
                     <h1 class="text-2xl font-bold text-white mb-3">Setup failed</h1>
                     <p class="text-red-300 text-sm mb-6">{{ errorMessage }}</p>
                     <button
-                        @click="router.visit(route('calls.buy'))"
+                        @click="router.visit(SecureLineCheckoutController.buy.url())"
                         class="w-full border border-gamboge-300 text-gamboge-300 hover:bg-gamboge-300/10 font-mono text-sm py-2.5 rounded-lg transition-colors"
                     >
                         ← Back to Buy
@@ -178,7 +185,7 @@ onMounted(async () => {
                         <div class="text-gamboge-300 font-mono text-xs uppercase tracking-widest mb-2">Participant Instructions</div>
                         <p class="text-gray-300 text-sm">
                             Your participant visits
-                            <a :href="route('calls.index')" class="font-mono text-gamboge-300 hover:underline">{{ route('calls.index') }}</a>,
+                            <a :href="CallPageController.index.url()" class="font-mono text-gamboge-300 hover:underline">{{ CallPageController.index.url() }}</a>,
                             enters the bridge number under <span class="font-mono text-white">Join a Line</span>,
                             and enters the call password when prompted.
                         </p>
@@ -207,7 +214,7 @@ onMounted(async () => {
                     <!-- Done button -->
                     <button
                         :disabled="!savedConfirmed"
-                        @click="router.visit(route('calls.index'))"
+                        @click="router.visit(CallPageController.index.url())"
                         class="w-full bg-gamboge-300 hover:bg-gamboge-400 disabled:opacity-40 disabled:cursor-not-allowed text-gray-900 font-semibold py-2.5 px-4 rounded-lg font-mono text-sm transition-colors shadow-neon-cyan-sm"
                         data-testid="done-button"
                     >

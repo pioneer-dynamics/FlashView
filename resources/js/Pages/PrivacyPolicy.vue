@@ -1,10 +1,12 @@
-<script setup>
+<script setup lang="ts">
 import { Head } from '@inertiajs/vue3';
 import AuthenticationCardLogo from '@/Components/AuthenticationCardLogo.vue';
 
-defineProps({
-    policy: String,
-});
+interface Props {
+    policy?: string
+}
+
+defineProps<Props>();
 </script>
 
 <template>

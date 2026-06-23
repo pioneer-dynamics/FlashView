@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import Page from '@/Pages/Page.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
@@ -7,36 +7,40 @@ import TextInput from '@/Components/TextInput.vue';
 import InputError from '@/Components/InputError.vue';
 import { Link, useForm } from '@inertiajs/vue3';
 import { computed, watch } from 'vue';
+import type { SecureLineProduct } from '@/types';
+import AdminSecureLineProductController from '@/actions/App/Http/Controllers/Admin/AdminSecureLineProductController';
 
-const props = defineProps({
-    product:           Object,
-    defaultStripeMode: String,
-});
+interface Props {
+    product: SecureLineProduct | null
+    defaultStripeMode: string
+}
+
+const props = defineProps<Props>();
 
 const isEditing = computed(() => props.product !== null);
 
 const form = useForm({
-    name:                props.product?.name             ?? '',
-    duration_minutes:    props.product?.duration_minutes ?? '',
-    max_participants:    props.product?.max_participants  ?? 2,
-    amount_cents:        props.product?.amount_cents      ?? '',
-    stripe_price_id:     props.product?.stripe_price_id  ?? '',
+    name:                props.product?.name                                             ?? '',
+    duration_minutes:    props.product?.duration_minutes != null ? String(props.product.duration_minutes) : '',
+    max_participants:    props.product?.max_participants != null  ? String(props.product.max_participants)  : '2',
+    amount_cents:        props.product?.amount_cents != null ? props.product.amount_cents : ('' as string | number),
+    stripe_price_id:     props.product?.stripe_price_id                                 ?? '',
     create_stripe_price: props.defaultStripeMode === 'create',
-    is_active:           props.product?.is_active        ?? true,
+    is_active:           props.product?.is_active                                       ?? true,
 });
 
 // Clear stripe_price_id when switching to auto-create mode
-watch(() => form.create_stripe_price, (val) => {
+watch(() => form.create_stripe_price, (val: boolean) => {
     if (val) { form.stripe_price_id = ''; }
 });
 
 const amountDollars = computed({
-    get: () => form.amount_cents ? (form.amount_cents / 100) : '',
-    set: (val) => { form.amount_cents = Math.round(parseFloat(val || 0) * 100); },
+    get: (): string => form.amount_cents ? String(Number(form.amount_cents) / 100) : '',
+    set: (val: string): void => { form.amount_cents = Math.round(parseFloat(val || '0') * 100); },
 });
 
-const durationLabel = computed(() => {
-    const m = parseInt(form.duration_minutes) || 0;
+const durationLabel = computed((): string => {
+    const m = parseInt(form.duration_minutes as string) || 0;
     if (m === 0) { return ''; }
     const hours = Math.floor(m / 60);
     const mins = m % 60;
@@ -45,24 +49,24 @@ const durationLabel = computed(() => {
     return `${hours} hr ${mins} min`;
 });
 
-const showActiveWarning = computed(() =>
+const showActiveWarning = computed((): boolean =>
     form.is_active && !form.create_stripe_price && !form.stripe_price_id
 );
 
-const submit = () => {
+const submit = (): void => {
     if (isEditing.value) {
-        form.put(route('admin.secure-line-products.update', props.product.id));
+        form.submit(AdminSecureLineProductController.update(props.product!.id));
     } else {
-        form.post(route('admin.secure-line-products.store'));
+        form.submit(AdminSecureLineProductController.store());
     }
 };
 
 // Preview helpers
-const previewPrice = computed(() =>
-    form.amount_cents ? `$${(form.amount_cents / 100).toFixed(2)}` : '$—'
+const previewPrice = computed((): string =>
+    form.amount_cents ? `$${(Number(form.amount_cents) / 100).toFixed(2)}` : '$—'
 );
 
-const previewStripeStatus = computed(() => {
+const previewStripeStatus = computed((): string => {
     if (form.create_stripe_price) { return 'auto'; }
     if (form.stripe_price_id) { return 'mapped'; }
     return 'missing';
@@ -75,7 +79,7 @@ const previewStripeStatus = computed(() => {
 
         <Page>
             <div class="mb-6">
-                <Link :href="route('admin.secure-line-products.index')" prefetch class="text-sm text-gamboge-300 hover:text-gamboge-200">
+                <Link :href="AdminSecureLineProductController.index.url()" prefetch class="text-sm text-gamboge-300 hover:text-gamboge-200">
                     ← Back to Secure Line Products
                 </Link>
             </div>
@@ -222,7 +226,7 @@ const previewStripeStatus = computed(() => {
                         <PrimaryButton :disabled="form.processing">
                             {{ isEditing ? 'Update Product' : 'Create Product' }}
                         </PrimaryButton>
-                        <Link :href="route('admin.secure-line-products.index')" prefetch>
+                        <Link :href="AdminSecureLineProductController.index.url()" prefetch>
                             <SecondaryButton type="button">Cancel</SecondaryButton>
                         </Link>
                     </div>

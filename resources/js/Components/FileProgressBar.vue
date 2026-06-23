@@ -1,19 +1,16 @@
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue';
 
-const props = defineProps({
-    state: {
-        type: String,
-        required: true,
-        validator: (v) => ['encrypting', 'uploading', 'decrypting', 'downloading'].includes(v),
-    },
-    progress: {
-        type: Number,
-        default: 0,
-    },
+interface Props {
+    state: 'encrypting' | 'uploading' | 'decrypting' | 'downloading';
+    progress?: number;
+}
+
+const props = withDefaults(defineProps<Props>(), {
+    progress: 0,
 });
 
-const label = computed(() => {
+const label = computed((): string | undefined => {
     switch (props.state) {
         case 'encrypting': return 'Encrypting file...';
         case 'uploading': return `Uploading...${props.progress > 0 ? ' ' + props.progress + '%' : ''}`;
@@ -22,7 +19,7 @@ const label = computed(() => {
     }
 });
 
-const isDeterminate = computed(() => props.progress > 0);
+const isDeterminate = computed((): boolean => props.progress > 0);
 </script>
 
 <template>

@@ -1,18 +1,31 @@
-<script setup>
+<script setup lang="ts">
     import SecretCreateForm from './SecretCreateForm.vue';
     import SecretViewForm from './SecretViewForm.vue';
 
-    const props = defineProps({
-        secret: { type: String, default: null },
-        decryptUrl: { type: String, default: null },
-        senderCompanyName: { type: String, default: null },
-        senderDomain: { type: String, default: null },
-        senderEmail: { type: String, default: null },
-        isFileSecret: { type: Boolean, default: false },
-        hasMessage: { type: Boolean, default: false },
-        fileSize: { type: Number, default: null },
-        fileMimeType: { type: String, default: null },
-        fileDownloadUrl: { type: String, default: null },
+    interface Props {
+        secret?: string | null
+        decryptUrl?: string | null
+        senderCompanyName?: string | null
+        senderDomain?: string | null
+        senderEmail?: string | null
+        isFileSecret?: boolean
+        hasMessage?: boolean
+        fileSize?: number | null
+        fileMimeType?: string | null
+        fileDownloadUrl?: string | null
+    }
+
+    const props = withDefaults(defineProps<Props>(), {
+        secret: null,
+        decryptUrl: null,
+        senderCompanyName: null,
+        senderDomain: null,
+        senderEmail: null,
+        isFileSecret: false,
+        hasMessage: false,
+        fileSize: null,
+        fileMimeType: null,
+        fileDownloadUrl: null,
     });
 </script>
 

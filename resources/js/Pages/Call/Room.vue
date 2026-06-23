@@ -1,61 +1,61 @@
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
 import { router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import axios from 'axios';
 import { encryption } from '@/encryption.js';
+import type { RoomSession, PeerEntry } from '@/types';
+import CallPageController from '@/actions/App/Http/Controllers/CallPageController';
 
-const props = defineProps({
-    session: {
-        type: Object,
-        required: true,
-        // { bridge_number, ends_at }
-    },
-});
+interface Props {
+    session: RoomSession;
+}
+
+const props = defineProps<Props>();
 
 const storageKey = `call_session:${props.session.bridge_number}`;
 const raw = sessionStorage.getItem(storageKey);
 const sessionData = raw ? JSON.parse(raw) : null;
 
 // Reactive state
-const localStream = ref(null);
-const peers = ref({});         // { [participantId]: { pc, connectionFailed } }
+const localStream = ref<MediaStream | null>(null);
+const peers = ref<Record<string, PeerEntry>>({});
 const isMuted = ref(false);
-const mediaError = ref(null);  // null | 'denied' | 'unavailable'
-const timeRemaining = ref(null);
+const mediaError = ref<'denied' | 'unavailable' | null>(null);
+const timeRemaining = ref<number | null>(null);
 const callEnded = ref(false);
 const redirectCountdown = ref(5);
-const signalCursor = ref(null);
+const signalCursor = ref<string | null>(null);
 const confirmingLeave = ref(false);
 const participantCount = ref(1);
 const showTurnWarning = ref(sessionData?.turn_warning === true);
 
 // Hidden <audio> elements for remote participants — not reactive, managed directly
-const remoteAudioElements = {};
+const remoteAudioElements: Record<string, HTMLAudioElement> = {};
 
 // Timer handles
-const participantPollTimer = ref(null);
-const signalPollTimer = ref(null);
-const expiryTimer = ref(null);
-const redirectTimer = ref(null);
+const participantPollTimer = ref<ReturnType<typeof setTimeout> | null>(null);
+const signalPollTimer = ref<ReturnType<typeof setTimeout> | null>(null);
+const expiryTimer = ref<ReturnType<typeof setInterval> | null>(null);
+const redirectTimer = ref<ReturnType<typeof setInterval> | null>(null);
 
 // ICE candidate queue — plain object, not reactive
-const pendingCandidates = {};
+const pendingCandidates: Record<string, RTCIceCandidateInit[]> = {};
 
 // Guard against duplicate leave calls (cleanup() fires from both confirmLeave and onUnmounted)
 let hasCalledLeave = false;
 
 // Participant ECDH public key cache — populated during participant polling
-const participantPublicKeys = {};
+const participantPublicKeys: Record<string, string> = {};
 
 // Group AES key — in memory only, never persisted
-let groupAesKey = null;
+let groupAesKey: CryptoKey | null = null;
 
 // API URLs — template literals; API routes are not in Ziggy's manifest
 const PARTICIPANTS_URL = `/api/v1/calls/${props.session.bridge_number}/participants`;
 const SIGNAL_STORE_URL = `/api/v1/calls/${props.session.bridge_number}/signal`;
 
-function signalPollUrl(cursor) {
+function signalPollUrl(cursor: string | null): string {
     let url = `/api/v1/calls/${props.session.bridge_number}/signal?participant_id=${sessionData.participant_id}`;
     if (cursor) {
         url += `&after=${cursor}`;
@@ -63,14 +63,14 @@ function signalPollUrl(cursor) {
     return url;
 }
 
-function formatTimeRemaining(seconds) {
+function formatTimeRemaining(seconds: number | null): string {
     if (seconds === null) return '';
     const m = Math.floor(seconds / 60);
     const s = seconds % 60;
     return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
-async function sendSignal(toParticipantId, type, payload) {
+async function sendSignal(toParticipantId: string, type: string, payload: unknown): Promise<void> {
     await axios.post(SIGNAL_STORE_URL, {
         from_participant_id: sessionData.participant_id,
         to_participant_id:   toParticipantId,
@@ -79,7 +79,7 @@ async function sendSignal(toParticipantId, type, payload) {
     });
 }
 
-async function handleIceCandidate(fromId, payload) {
+async function handleIceCandidate(fromId: string, payload: { candidate: RTCIceCandidateInit }): Promise<void> {
     const pc = peers.value[fromId]?.pc;
     if (!pc) return;
     if (!pc.remoteDescription) {
@@ -90,14 +90,14 @@ async function handleIceCandidate(fromId, payload) {
     }
 }
 
-async function drainPendingCandidates(fromId, pc) {
+async function drainPendingCandidates(fromId: string, pc: RTCPeerConnection): Promise<void> {
     for (const c of pendingCandidates[fromId] ?? []) {
         await pc.addIceCandidate(new RTCIceCandidate(c));
     }
     delete pendingCandidates[fromId];
 }
 
-function sanitizeSdp(sdpString) {
+function sanitizeSdp(sdpString: string): string {
     // Chrome's Unified Plan parser rejects all a=ssrc: source attributes (cname, msid,
     // mslabel, label) — they are Plan B artefacts. Remove all of them; Unified Plan
     // conveys CNAME via RTCP SDES and MSID via the media-level a=msid: attribute.
@@ -111,7 +111,7 @@ function sanitizeSdp(sdpString) {
     return result;
 }
 
-function createPeerConnection(peerId) {
+function createPeerConnection(peerId: string): RTCPeerConnection {
     const pc = new RTCPeerConnection({ iceServers: sessionData.ice_servers });
     localStream.value.getTracks().forEach(track => {
         pc.addTrack(track, localStream.value);
@@ -147,29 +147,30 @@ function createPeerConnection(peerId) {
     return pc;
 }
 
-async function processSignal(signal) {
+async function processSignal(signal: { from_participant_id: string; type: string; payload: Record<string, unknown> }): Promise<void> {
     const { from_participant_id: fromId, type, payload } = signal;
 
     if (type === 'key-exchange') {
         // sender_public_key is included in the payload by the organiser;
         // fall back to participant cache for backwards compatibility
-        const senderPublicKey = payload.sender_public_key ?? participantPublicKeys[fromId];
+        const senderPublicKey = (payload.sender_public_key as string | undefined) ?? participantPublicKeys[fromId];
         if (!senderPublicKey) return;
         const enc = new encryption();
-        groupAesKey = await enc.unwrapCallSessionKey(
-            payload.wrapped_key,
+        groupAesKey = (await enc.unwrapCallSessionKey(
+            payload.wrapped_key as string,
             sessionData.ecdh_private_key,
             senderPublicKey
-        );
+        )) as unknown as CryptoKey;
         return;
     }
 
     if (type === 'offer') {
         const pc = peers.value[fromId]?.pc ?? createPeerConnection(fromId);
-        const offerSdp = payload.sdp?.sdp
-            ? { ...payload.sdp, sdp: sanitizeSdp(payload.sdp.sdp) }
-            : payload.sdp;
-        await pc.setRemoteDescription(new RTCSessionDescription(offerSdp));
+        const sdpPayload = payload.sdp as { sdp?: string } | undefined;
+        const offerSdp = sdpPayload?.sdp
+            ? { ...sdpPayload, sdp: sanitizeSdp(sdpPayload.sdp) }
+            : sdpPayload;
+        await pc.setRemoteDescription(new RTCSessionDescription(offerSdp as RTCSessionDescriptionInit));
         await drainPendingCandidates(fromId, pc);
         const answer = await pc.createAnswer();
         await pc.setLocalDescription(answer);
@@ -180,21 +181,22 @@ async function processSignal(signal) {
     if (type === 'answer') {
         const pc = peers.value[fromId]?.pc;
         if (pc) {
-            const answerSdp = payload.sdp?.sdp
-                ? { ...payload.sdp, sdp: sanitizeSdp(payload.sdp.sdp) }
-                : payload.sdp;
-            await pc.setRemoteDescription(new RTCSessionDescription(answerSdp));
+            const sdpPayload = payload.sdp as { sdp?: string } | undefined;
+            const answerSdp = sdpPayload?.sdp
+                ? { ...sdpPayload, sdp: sanitizeSdp(sdpPayload.sdp) }
+                : sdpPayload;
+            await pc.setRemoteDescription(new RTCSessionDescription(answerSdp as RTCSessionDescriptionInit));
             await drainPendingCandidates(fromId, pc);
         }
         return;
     }
 
     if (type === 'ice-candidate') {
-        await handleIceCandidate(fromId, payload);
+        await handleIceCandidate(fromId, payload as { candidate: RTCIceCandidateInit });
     }
 }
 
-async function pollParticipants() {
+async function pollParticipants(): Promise<void> {
     try {
         const { data } = await axios.get(PARTICIPANTS_URL);
         participantCount.value = data.participants.length;
@@ -211,7 +213,7 @@ async function pollParticipants() {
                 // We are the offerer (lower UUID) — also the key organiser
                 if (!groupAesKey) {
                     const enc = new encryption();
-                    groupAesKey = enc.generateCallSessionAesKey(); // synchronous
+                    groupAesKey = enc.generateCallSessionAesKey() as unknown as CryptoKey; // synchronous
                 }
                 const pc = createPeerConnection(p.id);
                 const offer = await pc.createOffer();
@@ -241,7 +243,7 @@ async function pollParticipants() {
     participantPollTimer.value = setTimeout(pollParticipants, 3000);
 }
 
-async function pollSignals() {
+async function pollSignals(): Promise<void> {
     try {
         const { data } = await axios.get(signalPollUrl(signalCursor.value));
         // Advance cursor before processing so a failing signal never stalls the queue
@@ -257,12 +259,12 @@ async function pollSignals() {
     signalPollTimer.value = setTimeout(pollSignals, 1500);
 }
 
-function startPolling() {
+function startPolling(): void {
     pollParticipants();
     pollSignals();
 }
 
-function startExpiryCountdown() {
+function startExpiryCountdown(): void {
     const endsAtMs = new Date(props.session.ends_at).getTime();
     expiryTimer.value = setInterval(() => {
         const remaining = Math.max(0, Math.floor((endsAtMs - Date.now()) / 1000));
@@ -276,14 +278,14 @@ function startExpiryCountdown() {
                 if (redirectCountdown.value <= 0) {
                     clearInterval(redirectTimer.value);
                     cleanup();
-                    router.visit(route('calls.index'));
+                    router.visit(CallPageController.index.url());
                 }
             }, 1000);
         }
     }, 1000);
 }
 
-function leaveCall() {
+function leaveCall(): void {
     if (!sessionData?.participant_id || hasCalledLeave) return;
     hasCalledLeave = true;
     fetch(`/api/v1/calls/${props.session.bridge_number}/leave`, {
@@ -294,7 +296,7 @@ function leaveCall() {
     }).catch(() => {});
 }
 
-function cleanup() {
+function cleanup(): void {
     leaveCall();
     clearTimeout(participantPollTimer.value);
     clearTimeout(signalPollTimer.value);
@@ -309,25 +311,26 @@ function cleanup() {
     sessionStorage.removeItem(storageKey);
 }
 
-function toggleMute() {
+function toggleMute(): void {
     isMuted.value = !isMuted.value;
     localStream.value?.getAudioTracks().forEach(t => { t.enabled = !isMuted.value; });
 }
 
-function requestLeave()  { confirmingLeave.value = true; }
-function cancelLeave()   { confirmingLeave.value = false; }
-function confirmLeave()  { cleanup(); router.visit(route('calls.index')); }
+function requestLeave(): void  { confirmingLeave.value = true; }
+function cancelLeave(): void   { confirmingLeave.value = false; }
+function confirmLeave(): void  { cleanup(); router.visit(CallPageController.index.url()); }
 
 onMounted(async () => {
     if (!sessionData) {
-        router.visit(route('calls.join', props.session.bridge_number));
+        router.visit(CallPageController.show.url(props.session.bridge_number as unknown as number));
         return;
     }
 
     try {
         localStream.value = await navigator.mediaDevices.getUserMedia({ audio: true });
-    } catch (e) {
-        mediaError.value = e.name === 'NotFoundError' ? 'unavailable' : 'denied';
+    } catch (e: unknown) {
+        const err = e as { name?: string };
+        mediaError.value = err.name === 'NotFoundError' ? 'unavailable' : 'denied';
         return;
     }
 
@@ -358,7 +361,7 @@ onUnmounted(cleanup);
                         In Firefox: click the microphone icon in the address bar → Remove block.
                     </p>
                     <button
-                        @click="router.visit(route('calls.join', session.bridge_number))"
+                        @click="router.visit(CallPageController.show.url(session.bridge_number as unknown as number))"
                         class="w-full border border-gray-700 text-gray-300 hover:text-white py-2.5 rounded-lg font-mono text-sm transition-colors shadow-neon-cyan-sm"
                     >
                         ← Back to join page

@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import Page from '@/Pages/Page.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
@@ -7,6 +7,7 @@ import TextInput from '@/Components/TextInput.vue';
 import InputError from '@/Components/InputError.vue';
 import { Link, useForm } from '@inertiajs/vue3';
 import { computed } from 'vue';
+import AdminCouponController from '@/actions/App/Http/Controllers/Admin/AdminCouponController';
 
 const form = useForm({
     name:                     '',
@@ -33,8 +34,8 @@ const showMinAmountCurrencyHint = computed(() =>
     form.discount_type === 'percent' && form.minimum_amount !== ''
 );
 
-const submit = () => {
-    form.post(route('admin.coupons.store'));
+const submit = (): void => {
+    form.submit(AdminCouponController.store());
 };
 </script>
 
@@ -44,7 +45,7 @@ const submit = () => {
 
         <Page>
             <div class="mb-6">
-                <Link :href="route('admin.coupons.index')" prefetch class="text-sm text-gamboge-300 hover:text-gamboge-200">
+                <Link :href="AdminCouponController.index.url()" prefetch class="text-sm text-gamboge-300 hover:text-gamboge-200">
                     ← Back to Coupons
                 </Link>
             </div>
@@ -273,7 +274,7 @@ const submit = () => {
                         <PrimaryButton :disabled="form.processing" data-testid="submit-coupon">
                             Create Coupon
                         </PrimaryButton>
-                        <Link :href="route('admin.coupons.index')" prefetch>
+                        <Link :href="AdminCouponController.index.url()" prefetch>
                             <SecondaryButton type="button">Cancel</SecondaryButton>
                         </Link>
                     </div>

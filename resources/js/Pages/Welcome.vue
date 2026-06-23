@@ -1,65 +1,30 @@
-<script setup>
+<script setup lang="ts">
     import { Link } from '@inertiajs/vue3';
     import Logo from '../../images/logo.svg';
     import Typewriter from '@/Components/Typewriter.vue';
     import SecretForm from '@/Pages/Secret/SecretForm.vue';
     import AppLayout from '@/Layouts/AppLayout.vue';
     import Page from './Page.vue';
+    import type { BlogPost } from '@/types';
+    import BlogController from '@/actions/App/Http/Controllers/BlogController';
 
-    const props = defineProps({
-        canLogin: {
-            type: Boolean,
-            default: false,
-        },
-        canRegister: {
-            type: Boolean,
-            default: false,
-        },
-        secret: {
-            type: String,
-            default: null
-        },
-        decryptUrl: {
-            type: String,
-            default: null
-        },
-        senderCompanyName: {
-            type: String,
-            default: null,
-        },
-        senderDomain: {
-            type: String,
-            default: null,
-        },
-        senderEmail: {
-            type: String,
-            default: null,
-        },
-        isFileSecret: {
-            type: Boolean,
-            default: false,
-        },
-        hasMessage: {
-            type: Boolean,
-            default: false,
-        },
-        fileSize: {
-            type: Number,
-            default: null,
-        },
-        fileMimeType: {
-            type: String,
-            default: null,
-        },
-        fileDownloadUrl: {
-            type: String,
-            default: null,
-        },
-        latestPost: {
-            type: Object,
-            default: null,
-        },
-    });
+    interface Props {
+        canLogin?: boolean
+        canRegister?: boolean
+        secret?: string | null
+        decryptUrl?: string | null
+        senderCompanyName?: string | null
+        senderDomain?: string | null
+        senderEmail?: string | null
+        isFileSecret?: boolean
+        hasMessage?: boolean
+        fileSize?: number | null
+        fileMimeType?: string | null
+        fileDownloadUrl?: string | null
+        latestPost?: BlogPost | null
+    }
+
+    const props = defineProps<Props>();
 
 
 </script>
@@ -93,7 +58,7 @@
                         <div v-if="latestPost" class="mt-12">
                             <p class="text-xs uppercase tracking-widest font-mono text-gamboge-300 mb-4">From the Blog</p>
                             <Link
-                                :href="route('blog.show', latestPost.slug)"
+                                :href="BlogController.show.url(latestPost.slug)"
                                 prefetch
                                 class="group block border border-gray-200 dark:border-gray-700 dark:hover:border-gamboge-700 rounded-lg p-6 transition-colors duration-150 dark:hover:shadow-neon-cyan-sm"
                             >

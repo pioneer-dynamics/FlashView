@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import AuthenticationCardLogo from '@/Components/AuthenticationCardLogo.vue';
 </script>
 
@@ -6,7 +6,7 @@ import AuthenticationCardLogo from '@/Components/AuthenticationCardLogo.vue';
     <div class="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900 px-4 py-8">
         <div class="w-full max-w-5xl grid grid-cols-1 md:grid-cols-2 gap-0 overflow-hidden sm:rounded-lg shadow-md">
             <!-- Branding Panel -->
-            <div class="bg-gray-800 dark:bg-gray-950 px-8 py-10 md:py-16 flex flex-col justify-center">
+            <div class="bg-gray-800 dark:bg-gray-900 px-8 py-10 md:py-16 flex flex-col justify-center">
                 <div class="mb-8">
                     <AuthenticationCardLogo />
                 </div>

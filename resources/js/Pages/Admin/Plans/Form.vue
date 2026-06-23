@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import Page from '@/Pages/Page.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
@@ -11,29 +11,31 @@ import Checkbox from '@/Components/Checkbox.vue';
 import SelectInput from '@/Components/SelectInput.vue';
 import Feature from '../../Plan/Partials/Feature.vue';
 import { Link, router } from '@inertiajs/vue3';
+import AdminPlanController from '@/actions/App/Http/Controllers/Admin/AdminPlanController';
+import type { FormDataConvertible } from '@inertiajs/core';
 import { reactive, ref, computed, watch } from 'vue';
+import type { ConfigSchemaField, AvailableFeature, IncludedFeature, PlanFeatureEntry, AdminPlan } from '@/types';
 
-const props = defineProps({
-    plan: Object,
-    defaultStripeMode: String,
-    availableFeatures: {
-        type: Array,
-        default: () => [],
-    },
-    existingFreePlanName: {
-        type: String,
-        default: null,
-    },
+interface Props {
+    plan: AdminPlan | null
+    defaultStripeMode: string
+    availableFeatures?: AvailableFeature[]
+    existingFreePlanName?: string | null
+}
+
+const props = withDefaults(defineProps<Props>(), {
+    availableFeatures: () => [],
+    existingFreePlanName: null,
 });
 
 const isEditing = computed(() => props.plan !== null);
-const pageTitle = computed(() => isEditing.value ? `Edit ${props.plan.name}` : 'New Plan');
+const pageTitle = computed(() => isEditing.value ? `Edit ${props.plan!.name}` : 'New Plan');
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-const minutesToHuman = (minutes) => {
+const minutesToHuman = (minutes: unknown): string => {
     const m = Number(minutes) || 0;
-    if (m <= 0) return '0 minutes';
+    if (m <= 0) { return '0 minutes'; }
     if (m % 10080 === 0) { const n = m / 10080; return `${n} ${n === 1 ? 'week' : 'weeks'}`; }
     if (m % 1440 === 0) { const n = m / 1440; return `${n} ${n === 1 ? 'day' : 'days'}`; }
     if (m % 60 === 0) { const n = m / 60; return `${n} ${n === 1 ? 'hour' : 'hours'}`; }
@@ -42,21 +44,21 @@ const minutesToHuman = (minutes) => {
 
 // ── Feature helpers ──────────────────────────────────────────────────────────
 
-const featMeta = (key) => props.availableFeatures.find((f) => f.key === key);
+const featMeta = (key: string): AvailableFeature | undefined => props.availableFeatures.find((f) => f.key === key);
 
-const buildDefaultConfig = (key, stored = {}) => {
+const buildDefaultConfig = (key: string, stored: Record<string, string> = {}): Record<string, string> => {
     const meta = featMeta(key);
     if (!meta) { return { ...stored }; }
-    const defaults = {};
+    const defaults: Record<string, string> = {};
     for (const field of meta.configSchema) {
-        defaults[field.key] = stored[field.key] ?? field.default;
+        defaults[field.key] = String(stored[field.key] ?? field.default ?? '');
     }
     return defaults;
 };
 
-const deriveType = (key) => featMeta(key)?.canBeLimit ? 'limit' : 'feature';
+const deriveType = (key: string): 'feature' | 'limit' => featMeta(key)?.canBeLimit ? 'limit' : 'feature';
 
-const initFromPlan = () => {
+const initFromPlan = (): IncludedFeature[] => {
     if (!props.plan?.features) { return []; }
     return Object.entries(props.plan.features)
         .filter(([, f]) => f.type !== 'missing')
@@ -68,7 +70,7 @@ const initFromPlan = () => {
         }));
 };
 
-const includedFeatures = ref(initFromPlan());
+const includedFeatures = ref<IncludedFeature[]>(initFromPlan());
 
 const poolFeatures = computed(() =>
     props.availableFeatures.filter(
@@ -79,17 +81,17 @@ const poolFeatures = computed(() =>
 const previewFeatures = computed(() =>
     includedFeatures.value.map((feat) => {
         const meta = featMeta(feat.key);
-        let label;
+        let label: string;
         if (meta?.canBeLimit) {
             label = meta.label;
             for (const [k, v] of Object.entries(feat.config ?? {})) {
-                let formatted;
+                let formatted: string;
                 if (k === 'expiry_minutes') {
                     formatted = minutesToHuman(v);
                 } else if (v !== '' && !isNaN(Number(v))) {
                     formatted = Number(v).toLocaleString();
                 } else {
-                    formatted = v;
+                    formatted = String(v);
                 }
                 label = label.replace(`:${k}`, formatted);
             }
@@ -102,24 +104,24 @@ const previewFeatures = computed(() =>
 
 // ── Drag-and-drop state ──────────────────────────────────────────────────────
 
-const dragKey = ref(null);
-const dragFrom = ref(null);
-const dropIndex = ref(null);
+const dragKey = ref<string | null>(null);
+const dragFrom = ref<string | null>(null);
+const dropIndex = ref<number | null>(null);
 const isDraggingPool = computed(() => dragFrom.value === 'pool');
 const isDraggingPlan = computed(() => dragFrom.value === 'plan');
 
-const onDragStart = (key, from) => {
+const onDragStart = (key: string, from: string): void => {
     dragKey.value = key;
     dragFrom.value = from;
 };
 
-const onDragEnd = () => {
+const onDragEnd = (): void => {
     dragKey.value = null;
     dragFrom.value = null;
     dropIndex.value = null;
 };
 
-const addToPlan = (key) => {
+const addToPlan = (key: string): void => {
     includedFeatures.value.push({
         key,
         type: deriveType(key),
@@ -127,13 +129,13 @@ const addToPlan = (key) => {
     });
 };
 
-const removeFromPlan = (key) => {
+const removeFromPlan = (key: string): void => {
     includedFeatures.value = includedFeatures.value.filter((f) => f.key !== key);
 };
 
-const onDropToPlan = (targetIndex = null) => {
+const onDropToPlan = (targetIndex: number | null = null): void => {
     if (dragFrom.value === 'pool') {
-        addToPlan(dragKey.value);
+        addToPlan(dragKey.value!);
     } else if (dragFrom.value === 'plan' && targetIndex !== null && dragKey.value !== null) {
         const fromIndex = includedFeatures.value.findIndex((f) => f.key === dragKey.value);
         if (fromIndex !== -1 && fromIndex !== targetIndex) {
@@ -144,9 +146,9 @@ const onDropToPlan = (targetIndex = null) => {
     onDragEnd();
 };
 
-const onDropToPool = () => {
+const onDropToPool = (): void => {
     if (dragFrom.value === 'plan') {
-        removeFromPlan(dragKey.value);
+        removeFromPlan(dragKey.value!);
     }
     onDragEnd();
 };
@@ -155,8 +157,8 @@ const onDropToPool = () => {
 
 const form = reactive({
     name: props.plan?.name ?? '',
-    price_per_month: props.plan?.price_per_month ?? 0,
-    price_per_year: props.plan?.price_per_year ?? 0,
+    price_per_month: props.plan?.price_per_month != null ? String(props.plan.price_per_month) : '0',
+    price_per_year: props.plan?.price_per_year != null ? String(props.plan.price_per_year) : '0',
     is_free_plan: props.plan?.is_free_plan ?? false,
     create_stripe_product: props.defaultStripeMode === 'create',
     stripe_product_id: props.plan?.stripe_product_id ?? '',
@@ -167,18 +169,18 @@ const form = reactive({
 });
 
 // Auto-suggest yearly = monthly × 10 in create mode
-watch(() => form.price_per_month, (val) => {
+watch(() => form.price_per_month, (val: string) => {
     if (!isEditing.value && !form.is_free_plan) {
         const monthly = parseFloat(val) || 0;
-        form.price_per_year = Math.round(monthly * 10 * 100) / 100;
+        form.price_per_year = String(Math.round(monthly * 10 * 100) / 100);
     }
 });
 
 // Zero out prices when the free plan toggle is switched on
-watch(() => form.is_free_plan, (isFree) => {
+watch(() => form.is_free_plan, (isFree: boolean) => {
     if (isFree) {
-        form.price_per_month = 0;
-        form.price_per_year = 0;
+        form.price_per_month = '0';
+        form.price_per_year = '0';
         form.create_stripe_product = false;
         form.stripe_product_id = '';
         form.stripe_monthly_price_id = '';
@@ -186,13 +188,13 @@ watch(() => form.is_free_plan, (isFree) => {
     }
 });
 
-const errors = ref({});
+const errors = ref<Record<string, string>>({});
 const processing = ref(false);
 
 const canSubmit = computed(() => includedFeatures.value.length > 0);
 
-const buildPayload = () => {
-    const features = {};
+const buildPayload = (): Record<string, unknown> => {
+    const features: Record<string, PlanFeatureEntry> = {};
     includedFeatures.value.forEach((f, index) => {
         const meta = featMeta(f.key);
         const type = deriveType(f.key);
@@ -239,7 +241,7 @@ const buildPayload = () => {
     };
 };
 
-const submit = () => {
+const submit = (): void => {
     if (!canSubmit.value) {
         errors.value = { ...errors.value, features: 'At least one feature is required.' };
         return;
@@ -249,13 +251,13 @@ const submit = () => {
     processing.value = true;
 
     const payload = buildPayload();
-    const onError = (errs) => { errors.value = errs; processing.value = false; };
-    const onFinish = () => { processing.value = false; };
+    const onError = (errs: Record<string, string>): void => { errors.value = errs; processing.value = false; };
+    const onFinish = (): void => { processing.value = false; };
 
     if (isEditing.value) {
-        router.put(route('admin.plans.update', props.plan.id), payload, { onError, onFinish });
+        router.put(AdminPlanController.update.url(props.plan!.id), payload as Record<string, FormDataConvertible>, { onError, onFinish });
     } else {
-        router.post(route('admin.plans.store'), payload, { onError, onFinish });
+        router.post(AdminPlanController.store.url(), payload as Record<string, FormDataConvertible>, { onError, onFinish });
     }
 };
 </script>
@@ -266,7 +268,7 @@ const submit = () => {
 
         <Page>
             <div class="mb-4">
-                <Link :href="route('admin.plans.index')" prefetch class="text-xs text-gamboge-300 hover:underline font-mono">
+                <Link :href="AdminPlanController.index.url()" prefetch class="text-xs text-gamboge-300 hover:underline font-mono">
                     ← Back to Plans
                 </Link>
             </div>
@@ -553,7 +555,7 @@ const submit = () => {
                     >
                         {{ isEditing ? 'Update Plan' : 'Create Plan' }}
                     </PrimaryButton>
-                    <Link :href="route('admin.plans.index')" prefetch>
+                    <Link :href="AdminPlanController.index.url()" prefetch>
                         <SecondaryButton type="button">Cancel</SecondaryButton>
                     </Link>
                 </div>

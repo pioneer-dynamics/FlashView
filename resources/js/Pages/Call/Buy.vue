@@ -1,29 +1,33 @@
-<script setup>
+<script setup lang="ts">
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { Link, router } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue';
+import SecureLineCheckoutController from '@/actions/App/Http/Controllers/SecureLineCheckoutController';
+import type { SecureLineProduct } from '@/types';
 
-const props = defineProps({
-    products: Array,
-});
+interface Props {
+    products: SecureLineProduct[];
+}
 
-const pendingToken = ref(null);
+const props = defineProps<Props>();
+
+const pendingToken = ref<string | null>(null);
 
 onMounted(() => {
     pendingToken.value = localStorage.getItem('secure_line_pending_token') || null;
 });
 
-const resumeSetup = () => {
-    router.visit(route('calls.create') + '?token=' + encodeURIComponent(pendingToken.value));
+const resumeSetup = (): void => {
+    router.visit(SecureLineCheckoutController.create.url({ query: { token: pendingToken.value! } }));
 };
 
-const dismissPending = () => {
+const dismissPending = (): void => {
     localStorage.removeItem('secure_line_pending_token');
     pendingToken.value = null;
 };
 
-const formatPrice = (cents) => `$${(cents / 100).toFixed(0)}`;
-const formatDuration = (minutes) => minutes >= 60 ? `${minutes / 60} hour${minutes / 60 !== 1 ? 's' : ''}` : `${minutes} minutes`;
+const formatPrice = (cents: number): string => `$${(cents / 100).toFixed(0)}`;
+const formatDuration = (minutes: number): string => minutes >= 60 ? `${minutes / 60} hour${minutes / 60 !== 1 ? 's' : ''}` : `${minutes} minutes`;
 </script>
 
 <template>
@@ -105,7 +109,7 @@ const formatDuration = (minutes) => minutes >= 60 ? `${minutes / 60} hour${minut
                             </li>
                         </ul>
                         <Link
-                            :href="route('calls.checkout')"
+                            :href="SecureLineCheckoutController.checkout.url()"
                             method="post"
                             :data="{ product_id: product.id }"
                             as="button"

@@ -1,27 +1,39 @@
-<script setup>
+<script setup lang="ts">
 import FileProgressBar from '@/Components/FileProgressBar.vue';
 import InputError from '@/Components/InputError.vue';
 import { ref, watch, onUnmounted } from 'vue';
 
-const props = defineProps({
-    modelValue: { type: Object, default: null },
-    fileError: { type: String, default: null },
-    maxFileUploadSizeMb: { type: Number, required: true },
-    allowedMimeTypes: { type: Array, default: () => [] },
-    uploadState: { type: String, default: null },
-    uploadProgress: { type: Number, default: 0 },
+interface Props {
+    modelValue?: File | null;
+    fileError?: string | null;
+    maxFileUploadSizeMb: number;
+    allowedMimeTypes?: string[];
+    uploadState?: 'encrypting' | 'uploading' | 'decrypting' | 'downloading' | null;
+    uploadProgress?: number;
+}
+
+const props = withDefaults(defineProps<Props>(), {
+    modelValue: null,
+    fileError: null,
+    allowedMimeTypes: () => [],
+    uploadState: null,
+    uploadProgress: 0,
 });
 
-const emit = defineEmits(['update:modelValue', 'update:fileError']);
+const emit = defineEmits<{
+    'update:modelValue': [value: File | null];
+    'update:fileError': [value: string | null];
+}>();
 
-const humanFileSize = (bytes) => {
+const humanFileSize = (bytes: number): string => {
     if (bytes < 1024) return bytes + ' B';
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
 };
 
-const onFileSelected = (event) => {
-    const file = event.target.files[0];
+const onFileSelected = (event: Event): void => {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
     if (!file) { return; }
 
     emit('update:fileError', null);
@@ -29,29 +41,29 @@ const onFileSelected = (event) => {
     const maxBytes = props.maxFileUploadSizeMb * 1024 * 1024;
     if (file.size > maxBytes) {
         emit('update:fileError', `File exceeds the maximum allowed size of ${props.maxFileUploadSizeMb} MB.`);
-        event.target.value = '';
+        input.value = '';
         return;
     }
 
     if (props.allowedMimeTypes.length > 0 && !props.allowedMimeTypes.includes(file.type)) {
         emit('update:fileError', 'This file type is not supported.');
-        event.target.value = '';
+        input.value = '';
         return;
     }
 
     emit('update:modelValue', file);
 };
 
-const clearFile = () => {
+const clearFile = (): void => {
     emit('update:modelValue', null);
     emit('update:fileError', null);
 };
 
 const scrambleChars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
 const scrambledName = ref('');
-let scrambleTimer = null;
+let scrambleTimer: ReturnType<typeof setInterval> | null = null;
 
-const stopScramble = (clear = false) => {
+const stopScramble = (clear = false): void => {
     if (scrambleTimer) {
         clearInterval(scrambleTimer);
         scrambleTimer = null;

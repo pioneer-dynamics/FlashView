@@ -126,7 +126,7 @@ class PIO75Test extends TestCase
         $fileDecryptPanelContents = file_get_contents(resource_path('js/Components/FileDecryptPanel.vue'));
 
         $this->assertMatchesRegularExpression(
-            "/defineEmits\\(\\s*\\[[^\\]]*['\"]state-change['\"][^\\]]*\\]\\s*\\)/",
+            '/defineEmits\s*[(<][\s\S]*?state-change/s',
             $fileDecryptPanelContents,
             'FileDecryptPanel.vue must declare a "state-change" emit so SecretViewForm can track its busy state.'
         );

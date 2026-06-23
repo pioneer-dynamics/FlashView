@@ -1,13 +1,15 @@
-<script setup>
+<script setup lang="ts">
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Page from '../Page.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import { usePoll } from '@inertiajs/vue3';
 import { ref, onBeforeUnmount } from 'vue';
 
-defineProps({
-    sessionId: { type: String, default: null },
-});
+interface Props {
+    sessionId?: string | null;
+}
+
+defineProps<Props>();
 
 const TIMEOUT_MS = 30_000;
 const timedOut = ref(false);

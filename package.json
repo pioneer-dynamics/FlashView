@@ -2,26 +2,31 @@
     "private": true,
     "type": "module",
     "scripts": {
-        "build": "vite build",
+        "build": "vue-tsc --noEmit && vite build",
         "dev": "vite",
+        "type-check": "vue-tsc --noEmit",
         "test:e2e": "playwright test",
         "test:e2e:ui": "playwright test --ui",
         "test:e2e:debug": "playwright test --debug"
     },
     "devDependencies": {
         "@inertiajs/vue3": "^2.0",
+        "@laravel/vite-plugin-wayfinder": "^0.1.7",
         "@playwright/test": "^1.60.0",
         "@tailwindcss/forms": "^0.5.7",
         "@tailwindcss/typography": "^0.5.10",
         "@vitejs/plugin-vue": "^5.0.0",
+        "@vue/tsconfig": "^0.9.1",
         "autoprefixer": "^10.4.16",
         "axios": "^1.13.5",
         "concurrently": "^9.0.1",
         "laravel-vite-plugin": "^1.0",
         "postcss": "^8.4.32",
         "tailwindcss": "^3.4.0",
+        "typescript": "^6.0.3",
         "vite": "^6.4.1",
-        "vue": "^3.3.13"
+        "vue": "^3.3.13",
+        "vue-tsc": "^3.3.5"
     },
     "dependencies": {
         "@pioneer-dynamics/flashview-crypto": "file:tools/flashview-crypto",

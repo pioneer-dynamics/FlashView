@@ -1,34 +1,35 @@
-<script setup>
+<script setup lang="ts">
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { Link } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue';
 import { router } from '@inertiajs/vue3';
+import LockerController from '@/actions/App/Http/Controllers/LockerController';
 
 const accountId = ref('');
-const destination = ref('open'); // 'open' | 'renew'
-const pendingToken = ref(null);
+const destination = ref<'open' | 'renew'>('open');
+const pendingToken = ref<string | null>(null);
 
 onMounted(() => {
     pendingToken.value = localStorage.getItem('locker_pending_token') || null;
 });
 
-const resumeCreation = () => {
-    router.visit(route('lockers.create') + '?token=' + encodeURIComponent(pendingToken.value));
+const resumeCreation = (): void => {
+    router.visit(LockerController.create.url({ query: { token: pendingToken.value ?? '' } }));
 };
 
-const dismissPending = () => {
+const dismissPending = (): void => {
     localStorage.removeItem('locker_pending_token');
     pendingToken.value = null;
 };
 
-const go = () => {
+const go = (): void => {
     if (!/^\d{10}$/.test(accountId.value)) return;
     if (destination.value === 'renew') {
         sessionStorage.setItem('locker_prefill_account_renew', accountId.value);
-        router.visit(route('lockers.renew'));
+        router.visit(LockerController.renewPage.url());
     } else {
         sessionStorage.setItem('locker_prefill_account', accountId.value);
-        router.visit(route('lockers.open'));
+        router.visit(LockerController.open.url());
     }
 };
 </script>
@@ -103,7 +104,7 @@ const go = () => {
                     <div class="text-white font-semibold">Don't have a locker yet?</div>
                     <p class="text-gray-400 text-sm">Anonymous, zero-knowledge storage. No account required. Text from $20/yr.</p>
                     <Link
-                        :href="route('lockers.buy')"
+                        :href="LockerController.buy.url()"
                         prefetch
                         class="inline-block bg-gamboge-300 hover:bg-gamboge-400 text-gray-900 font-semibold py-2.5 px-8 rounded-lg font-mono text-sm transition-colors shadow-neon-cyan-sm hover:shadow-neon-cyan"
                     >

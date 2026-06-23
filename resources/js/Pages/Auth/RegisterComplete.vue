@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import { Head, useForm } from '@inertiajs/vue3';
 import AuthenticationCardWithFeatures from '@/Components/AuthenticationCardWithFeatures.vue';
 import Checkbox from '@/Components/Checkbox.vue';
@@ -6,11 +6,15 @@ import InputError from '@/Components/InputError.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
+import RegisterController from '@/actions/App/Http/Controllers/Auth/RegisterController';
+import MarkdownDocumentController from '@/actions/App/Http/Controllers/MarkdownDocumentController';
 
-const props = defineProps({
-    email: String,
-    signedUrl: String,
-});
+interface Props {
+    email?: string;
+    signedUrl?: string;
+}
+
+const props = defineProps<Props>();
 
 const form = useForm({
     email: props.email,
@@ -20,14 +24,14 @@ const form = useForm({
     terms: false,
 });
 
-const submit = () => {
+const submit = (): void => {
     // Build the POST URL with the signed query parameters preserved.
     // Laravel's 'signed' middleware validates the signature from query params, not POST body.
-    const signed = new URL(props.signedUrl);
-    const postUrl = route('register.complete.store')
-        + '?email=' + encodeURIComponent(signed.searchParams.get('email'))
-        + '&expires=' + signed.searchParams.get('expires')
-        + '&signature=' + signed.searchParams.get('signature');
+    const signed = new URL(props.signedUrl!);
+    const postUrl = RegisterController.storeComplete.url()
+        + '?email=' + encodeURIComponent(signed.searchParams.get('email') ?? '')
+        + '&expires=' + (signed.searchParams.get('expires') ?? '')
+        + '&signature=' + (signed.searchParams.get('signature') ?? '');
 
     form.post(postUrl, {
         onFinish: () => form.reset('password', 'password_confirmation'),
@@ -135,7 +139,7 @@ const submit = () => {
                         <Checkbox id="terms" v-model:checked="form.terms" name="terms" required />
 
                         <div class="ms-2">
-                            I agree to the <a target="_blank" :href="route('terms.show')" class="underline text-sm text-gamboge-300 dark:text-gamboge-200 hover:text-gamboge-200 dark:hover:text-gamboge-100 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gamboge-500 dark:focus:ring-offset-gray-900">Terms of Service</a> and <a target="_blank" :href="route('policy.show')" class="underline text-sm text-gamboge-300 dark:text-gamboge-200 hover:text-gamboge-200 dark:hover:text-gamboge-100 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gamboge-500 dark:focus:ring-offset-gray-900">Privacy Policy</a>
+                            I agree to the <a target="_blank" :href="MarkdownDocumentController.terms.url()" class="underline text-sm text-gamboge-300 dark:text-gamboge-200 hover:text-gamboge-200 dark:hover:text-gamboge-100 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gamboge-500 dark:focus:ring-offset-gray-900">Terms of Service</a> and <a target="_blank" :href="MarkdownDocumentController.privacy.url()" class="underline text-sm text-gamboge-300 dark:text-gamboge-200 hover:text-gamboge-200 dark:hover:text-gamboge-100 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gamboge-500 dark:focus:ring-offset-gray-900">Privacy Policy</a>
                         </div>
                     </div>
                     <InputError class="mt-2" :message="form.errors.terms" />

@@ -1,31 +1,42 @@
-<script setup>
+<script setup lang="ts">
 import { ref, watch } from 'vue';
 import { useForm, usePage, router } from '@inertiajs/vue3';
+import type { PageProps } from '@/types';
 import { encryption } from '../encryption';
 import FileProgressBar from '@/Components/FileProgressBar.vue';
 
-const props = defineProps({
-    decryptUrl: { type: String, required: true },
-    password: { type: String, default: null },
-    fileMimeType: { type: String, default: null },
-    fileSize: { type: Number, default: null },
+interface Props {
+    decryptUrl: string;
+    password?: string | null;
+    fileMimeType?: string | null;
+    fileSize?: number | null;
+}
+
+const props = withDefaults(defineProps<Props>(), {
+    password: null,
+    fileMimeType: null,
+    fileSize: null,
 });
 
-const emit = defineEmits(['success', 'failure', 'state-change']);
+const emit = defineEmits<{
+    success: [];
+    failure: [reason: string];
+    'state-change': [state: 'encrypting' | 'uploading' | 'decrypting' | 'downloading' | null];
+}>();
 
 const decryptForm = useForm({});
-const fileDecryptState = ref(null);
+const fileDecryptState = ref<'encrypting' | 'uploading' | 'decrypting' | 'downloading' | null>(null);
 const fileDecryptProgress = ref(0);
 
 watch(fileDecryptState, (next) => emit('state-change', next));
 
-const humanFileSize = (bytes) => {
+const humanFileSize = (bytes: number): string => {
     if (bytes < 1024) return bytes + ' B';
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
 };
 
-const executeDownload = async (flash) => {
+const executeDownload = async (flash: Record<string, string> | null | undefined): Promise<void> => {
     if (!flash?.file_download_url) {
         fileDecryptState.value = null;
         emit('failure', 'unavailable');
@@ -42,8 +53,8 @@ const executeDownload = async (flash) => {
         const contentLength = response.headers.get('Content-Length');
         const totalBytes = contentLength ? parseInt(contentLength) : 0;
         let receivedBytes = 0;
-        const chunks = [];
-        const reader = response.body.getReader();
+        const chunks: Uint8Array[] = [];
+        const reader = response.body!.getReader();
 
         while (true) {
             const { done, value } = await reader.read();
@@ -73,7 +84,7 @@ const executeDownload = async (flash) => {
         const decryptedBytes = await e.decryptFile(encryptedBytes, props.password);
         const originalFilename = await e.decryptMessage(flash.file_original_name, props.password);
 
-        const blob = new Blob([decryptedBytes]);
+        const blob = new Blob([decryptedBytes as BlobPart]);
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -91,11 +102,11 @@ const executeDownload = async (flash) => {
     }
 };
 
-const triggerDecrypt = async () => {
+const triggerDecrypt = async (): Promise<void> => {
     fileDecryptState.value = 'downloading';
 
     let retrieveFailed = false;
-    await new Promise((resolve, reject) => {
+    await new Promise<void>((resolve, reject) => {
         decryptForm.get(props.decryptUrl, {
             preserveScroll: true,
             preserveState: true,
@@ -110,11 +121,11 @@ const triggerDecrypt = async () => {
 
     if (retrieveFailed) { return; }
 
-    const flash = usePage().props.jetstream.flash?.secret;
-    await executeDownload(flash);
+    const flash = usePage<PageProps>().props.jetstream.flash?.secret;
+    await executeDownload(flash as Record<string, string> | null | undefined);
 };
 
-const startDownload = async (flash) => {
+const startDownload = async (flash: Record<string, string> | null | undefined): Promise<void> => {
     fileDecryptState.value = 'downloading';
     await executeDownload(flash);
 };

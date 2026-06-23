@@ -1,17 +1,18 @@
-<script setup>
+<script setup lang="ts">
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import AuthenticationCardWithFeatures from '@/Components/AuthenticationCardWithFeatures.vue';
 import InputError from '@/Components/InputError.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
+import RegisterController from '@/actions/App/Http/Controllers/Auth/RegisterController';
 
 const form = useForm({
     email: '',
 });
 
-const submit = () => {
-    form.post(route('register.store'));
+const submit = (): void => {
+    form.post(RegisterController.store.url());
 };
 </script>
 

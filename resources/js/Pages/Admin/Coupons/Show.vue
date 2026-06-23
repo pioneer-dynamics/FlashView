@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import Page from '@/Pages/Page.vue';
 import DangerButton from '@/Components/DangerButton.vue';
@@ -6,31 +6,35 @@ import SecondaryButton from '@/Components/SecondaryButton.vue';
 import ConfirmationModal from '@/Components/ConfirmationModal.vue';
 import { Link, useForm, router } from '@inertiajs/vue3';
 import { ref } from 'vue';
+import type { StripeCoupon, PromoCodeRestrictions, StripePromoCode } from '@/types';
+import AdminCouponController from '@/actions/App/Http/Controllers/Admin/AdminCouponController';
 
-const props = defineProps({
-    coupon:     Object,
-    promoCodes: Array,
-});
+interface Props {
+    coupon: StripeCoupon
+    promoCodes: StripePromoCode[]
+}
+
+const props = defineProps<Props>();
 
 const showDeleteModal = ref(false);
 const deleteForm = useForm({});
 
-const deleteCoupon = () => {
-    deleteForm.delete(route('admin.coupons.destroy', props.coupon.id), {
+const deleteCoupon = (): void => {
+    deleteForm.delete(AdminCouponController.destroy.url(props.coupon.id), {
         onSuccess: () => { showDeleteModal.value = false; },
         onError:   () => { showDeleteModal.value = false; },
     });
 };
 
-const togglePromoCode = (code) => {
+const togglePromoCode = (code: StripePromoCode): void => {
     router.patch(
-        route('admin.coupons.promo-codes.toggle', [props.coupon.id, code.id]),
+        AdminCouponController.togglePromoCode.url({ coupon: props.coupon.id, promoCode: code.id }),
         { active: !code.active },
         { preserveScroll: true }
     );
 };
 
-const formatDiscount = (coupon) => {
+const formatDiscount = (coupon: StripeCoupon): string => {
     if (coupon.percent_off) {
         return `${coupon.percent_off}% off`;
     }
@@ -42,36 +46,36 @@ const formatDiscount = (coupon) => {
     return '—';
 };
 
-const formatExpiry = (redeemBy) => {
+const formatExpiry = (redeemBy: number | null): string => {
     if (!redeemBy) { return 'No expiry'; }
     return new Date(redeemBy * 1000).toLocaleDateString('en-AU');
 };
 
-const formatCreated = (timestamp) => {
+const formatCreated = (timestamp: number | null): string => {
     if (!timestamp) { return '—'; }
     return new Date(timestamp * 1000).toLocaleDateString('en-AU');
 };
 
-const formatMinAmount = (code) => {
+const formatMinAmount = (code: StripePromoCode): string => {
     const amount = code.restrictions?.minimum_amount;
     if (!amount) { return '—'; }
     const currency = (code.restrictions?.minimum_amount_currency ?? 'aud').toUpperCase();
     return `$${(amount / 100).toFixed(2)} ${currency}`;
 };
 
-const formatRedemptions = (code) => {
+const formatRedemptions = (code: StripePromoCode): string => {
     const used = code.times_redeemed ?? 0;
     const limit = code.max_redemptions;
     return limit ? `${used} / ${limit}` : `${used} / Unlimited`;
 };
 
-const couponRedemptions = () => {
+const couponRedemptions = (): string => {
     const used = props.coupon.times_redeemed ?? 0;
     const limit = props.coupon.max_redemptions;
     return limit ? `${used} / ${limit}` : `${used} / Unlimited`;
 };
 
-const durationLabel = (coupon) => {
+const durationLabel = (coupon: StripeCoupon): string => {
     if (coupon.duration === 'repeating') {
         return `Repeating — ${coupon.duration_in_months} month(s)`;
     }
@@ -85,7 +89,7 @@ const durationLabel = (coupon) => {
 
         <Page>
             <div class="mb-6 flex items-center justify-between">
-                <Link :href="route('admin.coupons.index')" prefetch class="text-sm text-gamboge-300 hover:text-gamboge-200">
+                <Link :href="AdminCouponController.index.url()" prefetch class="text-sm text-gamboge-300 hover:text-gamboge-200">
                     ← Back to Coupons
                 </Link>
                 <DangerButton @click="showDeleteModal = true" data-testid="delete-coupon-btn">

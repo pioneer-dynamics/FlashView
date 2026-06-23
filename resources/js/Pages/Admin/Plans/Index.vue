@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import Page from '@/Pages/Page.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
@@ -7,37 +7,41 @@ import ConfirmationModal from '@/Components/ConfirmationModal.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
 import { Link, router, useForm } from '@inertiajs/vue3';
 import { ref } from 'vue';
+import type { AdminPlan } from '@/types';
+import AdminPlanController from '@/actions/App/Http/Controllers/Admin/AdminPlanController';
 
-const props = defineProps({
-    plans: Array,
-});
+interface Props {
+    plans: AdminPlan[]
+}
 
-const planBeingDeleted = ref(null);
+const props = defineProps<Props>();
+
+const planBeingDeleted = ref<AdminPlan | null>(null);
 const deleteForm = useForm({});
 
-const confirmDelete = (plan) => {
+const confirmDelete = (plan: AdminPlan): void => {
     planBeingDeleted.value = plan;
 };
 
-const deletePlan = () => {
-    deleteForm.delete(route('admin.plans.destroy', planBeingDeleted.value.id), {
+const deletePlan = (): void => {
+    deleteForm.delete(AdminPlanController.destroy.url(planBeingDeleted.value!.id), {
         preserveScroll: true,
         onSuccess: () => { planBeingDeleted.value = null; },
         onError: () => { planBeingDeleted.value = null; },
     });
 };
 
-const featureCount = (plan) => plan.features ? Object.keys(plan.features).length : 0;
+const featureCount = (plan: AdminPlan): number => plan.features ? Object.keys(plan.features).length : 0;
 
-const formatDate = (d) => d ? d.substring(0, 10) : null;
+const formatDate = (d: string | null): string | null => d ? d.substring(0, 10) : null;
 
-const availabilityLabel = (plan) => {
+const availabilityLabel = (plan: AdminPlan): string => {
     const start = formatDate(plan.start_date);
     const end = formatDate(plan.end_date);
     if (!start && !end) { return 'Always available'; }
     if (start && end) { return `${start} – ${end}`; }
     if (start) { return `From ${start}`; }
-    return `Until ${end}`;
+    return `Until ${end!}`;
 };
 </script>
 
@@ -48,7 +52,7 @@ const availabilityLabel = (plan) => {
         <Page>
             <div class="mb-6 flex items-center justify-between">
                 <h1 class="text-xs uppercase tracking-widest text-gamboge-300 font-mono">Plan Management</h1>
-                <Link :href="route('admin.plans.create')" prefetch>
+                <Link :href="AdminPlanController.create.url()" prefetch>
                     <PrimaryButton>New Plan</PrimaryButton>
                 </Link>
             </div>
@@ -70,7 +74,7 @@ const availabilityLabel = (plan) => {
                         <tr v-if="plans.length === 0">
                             <td colspan="7" class="px-6 py-8 text-center text-gray-400 dark:text-gray-500">
                                 No plans yet.
-                                <Link :href="route('admin.plans.create')" prefetch class="text-gamboge-300 hover:underline ml-1">Create one.</Link>
+                                <Link :href="AdminPlanController.create.url()" prefetch class="text-gamboge-300 hover:underline ml-1">Create one.</Link>
                             </td>
                         </tr>
                         <tr v-for="plan in plans" :key="plan.id"
@@ -102,7 +106,7 @@ const availabilityLabel = (plan) => {
                             </td>
                             <td class="px-6 py-4 text-right">
                                 <div class="flex justify-end gap-2">
-                                    <Link :href="route('admin.plans.edit', plan.id)" prefetch>
+                                    <Link :href="AdminPlanController.edit.url(plan.id)" prefetch>
                                         <SecondaryButton class="text-xs">Edit</SecondaryButton>
                                     </Link>
                                     <DangerButton class="text-xs" @click="confirmDelete(plan)">

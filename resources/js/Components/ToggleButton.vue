@@ -1,10 +1,17 @@
-<script setup>
-    const props = defineProps({
-        modelValue: String,
-        options: Array,
-    })
+<script setup lang="ts">
+interface ToggleOption {
+    value: string;
+    label: string;
+}
 
-    defineEmits(['update:modelValue']);
+interface Props {
+    modelValue?: string;
+    options?: ToggleOption[];
+}
+
+const props = defineProps<Props>();
+
+defineEmits<{ 'update:modelValue': [value: string] }>();
 </script>
 <template>
     <div class="flex flex-row mb-4">

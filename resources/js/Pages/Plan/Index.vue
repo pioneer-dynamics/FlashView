@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Page from '../Page.vue';
 import Faq from '../Partials/Faq.vue';
@@ -13,59 +13,68 @@ import { DateTime } from 'luxon';
 import ToggleButton from '@/Components/ToggleButton.vue';
 import Feature from './Partials/Feature.vue';
 import Alert from '@/Components/Alert.vue';
+import type { PageProps, PricingPlan, PricingPlanCollection } from '@/types';
+import PlanController from '@/actions/App/Http/Controllers/PlanController';
 
-const props = defineProps({
-    plans: Array,
-})
+interface Props {
+    plans: PricingPlanCollection;
+}
 
-const page = usePage();
-const planFrequency = ref(page.props.auth?.user?.frequency || 'monthly');
+const props = defineProps<Props>();
 
-const userIsSubscribedTo = (plan) => {
-    let user = page.props.auth?.user;
+const page = usePage<PageProps>();
 
-    if(user?.plan?.id == plan.id) // plan matches
-    {
-        if(planFrequency.value == 'monthly')
-            return user?.subscription?.stripe_price == plan.stripe_monthly_price_id;
-        else
-            return user?.subscription?.stripe_price == plan.stripe_yearly_price_id;
+type UserWithFrequency = { frequency?: string } & Record<string, unknown>;
+type SubscriptionWithStripePrice = { stripe_price?: string } & Record<string, unknown>;
+
+const planFrequency = ref<string>((page.props.auth?.user as unknown as UserWithFrequency | null)?.frequency || 'monthly');
+
+const userIsSubscribedTo = (plan: PricingPlan): boolean => {
+    const user = page.props.auth?.user;
+
+    if (user?.plan?.id == plan.id) {
+        const stripePrice = (user?.subscription as unknown as SubscriptionWithStripePrice | null)?.stripe_price;
+        if (planFrequency.value == 'monthly') {
+            return stripePrice == plan.stripe_monthly_price_id;
+        } else {
+            return stripePrice == plan.stripe_yearly_price_id;
+        }
     }
 
     return false;
-}
+};
 
-const isFreePlan = (plan) => plan.price_per_month == 0
+const isFreePlan = (plan: PricingPlan): boolean => plan.price_per_month == 0;
 
 const userHasActiveSubscription = computed(() => page.props.auth?.user?.subscription != null);
 
 const showCancellationModal = ref(false);
 const cancelForm = useForm({});
 
-const confirmCancellation = () => {
+const confirmCancellation = (): void => {
     showCancellationModal.value = true;
 };
 
-const submitCancellation = () => {
-    cancelForm.post(route('plans.unsubscribe'), {
+const submitCancellation = (): void => {
+    cancelForm.post(PlanController.unsubscribe.url(), {
         onSuccess: () => { showCancellationModal.value = false; },
     });
 };
 
-const planBeingSwitchedTo = ref(null);
+const planBeingSwitchedTo = ref<PricingPlan | null>(null);
 
-const confirmPlanSwitch = (plan) => {
+const confirmPlanSwitch = (plan: PricingPlan): void => {
     planBeingSwitchedTo.value = plan;
 };
 
-const proceedWithSwitch = () => {
-    router.visit(route('plans.subscribe', {
-        plan: planBeingSwitchedTo.value.id,
+const proceedWithSwitch = (): void => {
+    router.visit(PlanController.subscribe.url({
+        plan: planBeingSwitchedTo.value!.id,
         period: planFrequency.value,
     }));
 };
 
-const formatDate = (d) => d ? DateTime.fromISO(d).toLocaleString(DateTime.DATE_MED) : null;
+const formatDate = (d: string | null): string | null => d ? DateTime.fromISO(d).toLocaleString(DateTime.DATE_MED) : null;
 
 </script>
 <template>
@@ -93,7 +102,7 @@ const formatDate = (d) => d ? DateTime.fromISO(d).toLocaleString(DateTime.DATE_M
                             class="mb-4 text-xl font-medium text-xs text-red-500 dark:text-red-400"
                             v-if="userIsSubscribedTo(plan) && $page.props?.auth?.user?.subscription?.ends_at"
                         >
-                            Expires on: {{ DateTime.fromISO($page.props?.auth?.user?.subscription?.ends_at).toLocaleString(DateTime.DATEMED) }}
+                            Expires on: {{ DateTime.fromISO($page.props?.auth?.user?.subscription?.ends_at).toLocaleString(DateTime.DATE_MED) }}
                         </div>
                     </div>
                     <!-- Availability labels -->
@@ -127,7 +136,7 @@ const formatDate = (d) => d ? DateTime.fromISO(d).toLocaleString(DateTime.DATE_M
                         </div>
                     </div>
                     <ul role="list" class="space-y-5 my-7">
-                        <Feature v-for="feature in plan.features" :key="feature" :feature="feature" />
+                        <Feature v-for="feature in plan.features" :key="feature.label" :feature="feature" />
                     </ul>
                     <span v-if="isFreePlan(plan)" class="mt-auto">
                         <PrimaryButton
@@ -145,7 +154,7 @@ const formatDate = (d) => d ? DateTime.fromISO(d).toLocaleString(DateTime.DATE_M
                                     <Link
                                         v-if="$page.props.auth.user.subscription.ends_at"
                                         method="post"
-                                        :href="route('plans.resume')"
+                                        :href="PlanController.resume.url()"
                                         class="inline-flex w-full items-center justify-center px-4 py-2 bg-green-800 dark:bg-transparent border border-transparent dark:border-green-400/60 rounded-md font-semibold text-xs text-white dark:text-green-400 uppercase tracking-widest hover:bg-green-700 dark:hover:bg-green-400/10 dark:hover:border-green-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 disabled:opacity-50 transition ease-in-out duration-150"
                                     >
                                         Resume Plan
@@ -180,7 +189,7 @@ const formatDate = (d) => d ? DateTime.fromISO(d).toLocaleString(DateTime.DATE_M
                                     </PrimaryButton>
                                     <a
                                         v-else
-                                        :href="route('plans.subscribe', { plan: plan.id, period: planFrequency })"
+                                        :href="PlanController.subscribe.url({ plan: plan.id, period: planFrequency })"
                                         class="w-full justify-center inline-flex items-center px-4 py-2 bg-gamboge-800 dark:bg-transparent border border-transparent dark:border-gamboge-300 rounded-md font-semibold text-xs text-white dark:text-gamboge-300 uppercase tracking-widest hover:bg-gamboge-700 dark:hover:bg-gamboge-300 dark:hover:text-gray-900 dark:hover:shadow-neon-cyan-sm focus:bg-gamboge-700 dark:focus:bg-gamboge-300 dark:focus:text-gray-900 active:bg-gamboge-900 dark:active:bg-gamboge-300 dark:active:text-gray-900 focus:outline-none focus:ring-2 focus:ring-gamboge-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 disabled:opacity-50 transition ease-in-out duration-150"
                                     >
                                         Choose This Plan

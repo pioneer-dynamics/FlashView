@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import ApplicationMark from '@/Components/ApplicationMark.vue';
@@ -8,28 +8,46 @@ import DropdownLink from '@/Components/DropdownLink.vue';
 import NavLink from '@/Components/NavLink.vue';
 import ResponsiveNavLink from '@/Components/ResponsiveNavLink.vue';
 import { initPostHog, identifyUser, resetUser } from '../posthog';
+import type { PageProps } from '@/types';
+import type { Team } from '@/types';
+
+import SecretController from '@/actions/App/Http/Controllers/SecretController';
+import CallPageController from '@/actions/App/Http/Controllers/CallPageController';
+import PlanController from '@/actions/App/Http/Controllers/PlanController';
+import LockerController from '@/actions/App/Http/Controllers/LockerController';
+import BlogController from '@/actions/App/Http/Controllers/BlogController';
+import MarkdownDocumentController from '@/actions/App/Http/Controllers/MarkdownDocumentController';
+import NotificationSettingsController from '@/actions/App/Http/Controllers/NotificationSettingsController';
+import ConfigurationController from '@/actions/App/Http/Controllers/ConfigurationController';
+import AdminPlanController from '@/actions/App/Http/Controllers/Admin/AdminPlanController';
+import AdminLockerPlanController from '@/actions/App/Http/Controllers/Admin/AdminLockerPlanController';
+import AdminSecureLineProductController from '@/actions/App/Http/Controllers/Admin/AdminSecureLineProductController';
+import AdminCouponController from '@/actions/App/Http/Controllers/Admin/AdminCouponController';
+import AdminUserController from '@/actions/App/Http/Controllers/Admin/AdminUserController';
 
 import { DateTime } from 'luxon';
 
-defineProps({
-    title: String,
-});
+interface Props {
+    title?: string;
+}
+
+defineProps<Props>();
 
 const showingNavigationDropdown = ref(false);
 const lockerMenuOpen = ref(false);
-const closeLockerMenu = (e) => { if (!e.target.closest('[data-locker-menu]')) lockerMenuOpen.value = false; };
+const closeLockerMenu = (e: MouseEvent): void => { if (!(e.target as Element).closest('[data-locker-menu]')) lockerMenuOpen.value = false; };
 onMounted(() => document.addEventListener('click', closeLockerMenu));
 onUnmounted(() => document.removeEventListener('click', closeLockerMenu));
 
 onMounted(() => {
     initPostHog();
-    const user = usePage().props?.auth?.user;
+    const user = usePage<PageProps>().props?.auth?.user;
     if (user?.id) {
         identifyUser(user.id, { email: user.email, name: user.name });
     }
 });
 
-const switchToTeam = (team) => {
+const switchToTeam = (team: Team): void => {
     router.put(route('current-team.update'), {
         team_id: team.id,
     }, {
@@ -37,7 +55,7 @@ const switchToTeam = (team) => {
     });
 };
 
-const logout = () => {
+const logout = (): void => {
     resetUser();
     router.post(route('logout'));
 };
@@ -77,7 +95,7 @@ const logout = () => {
                                         <NavLink :href="route('dashboard')" :active="route().current('dashboard')">
                                             New Secret
                                         </NavLink>
-                                        <NavLink :href="route('secrets.index')"
+                                        <NavLink :href="SecretController.index.url()"
                                             :active="route().current('secrets.index')">
                                             My Secrets
                                         </NavLink>
@@ -88,7 +106,7 @@ const logout = () => {
                                         </NavLink>
                                     </template>
                                     <template v-if="true">
-                                        <NavLink :href="route('plans.index')" :active="route().current('plans.index')">
+                                        <NavLink :href="PlanController.index.url()" :active="route().current('plans.index')">
                                             Pricing
                                         </NavLink>
                                         <div class="relative" data-locker-menu>
@@ -111,13 +129,13 @@ const logout = () => {
                                             >
                                                 <div class="rounded-md ring-1 ring-black ring-opacity-5 py-1 bg-white dark:bg-gray-700">
                                                     <Link
-                                                        :href="route('lockers.index')"
+                                                        :href="LockerController.index.url()"
                                                         class="block w-full px-4 py-2 text-start text-sm leading-5 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 focus:outline-none focus:bg-gray-100 dark:focus:bg-gray-800 transition duration-150 ease-in-out"
                                                         @click="lockerMenuOpen = false"
                                                         prefetch
                                                     >Access My Locker</Link>
                                                     <Link
-                                                        :href="route('lockers.buy')"
+                                                        :href="LockerController.buy.url()"
                                                         class="block w-full px-4 py-2 text-start text-sm leading-5 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 focus:outline-none focus:bg-gray-100 dark:focus:bg-gray-800 transition duration-150 ease-in-out"
                                                         @click="lockerMenuOpen = false"
                                                         prefetch
@@ -125,16 +143,16 @@ const logout = () => {
                                                 </div>
                                             </div>
                                         </div>
-                                        <NavLink :href="route('calls.index')" :active="route().current('calls.*')">
+                                        <NavLink :href="CallPageController.index.url()" :active="route().current('calls.*')">
                                             Secure Line
                                         </NavLink>
-                                        <NavLink :href="route('blog.index')" :active="route().current('blog.*')">
+                                        <NavLink :href="BlogController.index.url()" :active="route().current('blog.*')">
                                             Blog
                                         </NavLink>
-                                        <NavLink :href="route('faq.index')" :active="route().current('faq.index')">
+                                        <NavLink :href="MarkdownDocumentController.faq.url()" :active="route().current('faq.index')">
                                             F.A.Q.
                                         </NavLink>
-                                        <NavLink :href="route('about.index')" :active="route().current('about.index')">
+                                        <NavLink :href="MarkdownDocumentController.about.url()" :active="route().current('about.index')">
                                             About Us
                                         </NavLink>
                                     </template>
@@ -153,19 +171,19 @@ const logout = () => {
                                                     </button>
                                                 </template>
                                                 <template #content>
-                                                    <DropdownLink :href="route('admin.plans.index')">
+                                                    <DropdownLink :href="AdminPlanController.index.url()">
                                                         Subscription Plans
                                                     </DropdownLink>
-                                                    <DropdownLink :href="route('admin.locker-plans.index')">
+                                                    <DropdownLink :href="AdminLockerPlanController.index.url()">
                                                         eLocker Plans
                                                     </DropdownLink>
-                                                    <DropdownLink :href="route('admin.secure-line-products.index')">
+                                                    <DropdownLink :href="AdminSecureLineProductController.index.url()">
                                                         Secure Line Products
                                                     </DropdownLink>
-                                                    <DropdownLink :href="route('admin.coupons.index')">
+                                                    <DropdownLink :href="AdminCouponController.index.url()">
                                                         Coupons
                                                     </DropdownLink>
-                                                    <DropdownLink :href="route('admin.users.index')">
+                                                    <DropdownLink :href="AdminUserController.index.url()">
                                                         Manage Users
                                                     </DropdownLink>
                                                 </template>
@@ -306,11 +324,11 @@ const logout = () => {
                                                 Settings
                                             </div>
 
-                                            <DropdownLink :href="route('user.notification-settings.index')">
+                                            <DropdownLink :href="NotificationSettingsController.index.url()">
                                                 Notification Settings
                                             </DropdownLink>
 
-                                            <DropdownLink :href="route('user.settings.index')">
+                                            <DropdownLink :href="ConfigurationController.index.url()">
                                                 Misc Settings
                                             </DropdownLink>
 
@@ -326,12 +344,12 @@ const logout = () => {
                                     </Dropdown>
                                     <template v-else>
                                         <Link :href="route('login')" prefetch
-                                            class="rounded-md px-3 py-2 text-gamboge-700 ring-1 ring-transparent transition hover:text-gamboge-200 focus:outline-none focus-visible:ring-[#FF2D20] dark:text-white dark:hover:text-white/80 dark:focus-visible:ring-white">
+                                            class="rounded-md px-3 py-2 text-gamboge-700 ring-1 ring-transparent transition hover:text-gamboge-200 focus:outline-none focus-visible:ring-gamboge-500 dark:text-white dark:hover:text-white/80 dark:focus-visible:ring-white">
                                         Log in
                                         </Link>
 
                                         <Link :href="route('register')" prefetch
-                                            class="rounded-md px-3 py-2 text-gamboge-700 ring-1 ring-transparent transition hover:text-gamboge-200 focus:outline-none focus-visible:ring-[#FF2D20] dark:text-white dark:hover:text-white/80 dark:focus-visible:ring-white">
+                                            class="rounded-md px-3 py-2 text-gamboge-700 ring-1 ring-transparent transition hover:text-gamboge-200 focus:outline-none focus-visible:ring-gamboge-500 dark:text-white dark:hover:text-white/80 dark:focus-visible:ring-white">
                                         Register
                                         </Link>
                                     </template>
@@ -366,7 +384,7 @@ const logout = () => {
                                 <ResponsiveNavLink :href="route('dashboard')" :active="route().current('dashboard')">
                                     New Secret
                                 </ResponsiveNavLink>
-                                <ResponsiveNavLink :href="route('secrets.index')"
+                                <ResponsiveNavLink :href="SecretController.index.url()"
                                     :active="route().current('secrets.index')">
                                     My Secrets
                                 </ResponsiveNavLink>
@@ -377,25 +395,25 @@ const logout = () => {
                                 </ResponsiveNavLink>
                             </template>
                             <template v-if="true">
-                                <ResponsiveNavLink :href="route('plans.index')" :active="route().current('plans.index')">
+                                <ResponsiveNavLink :href="PlanController.index.url()" :active="route().current('plans.index')">
                                     Pricing
                                 </ResponsiveNavLink>
-                                <ResponsiveNavLink :href="route('lockers.index')" :active="route().current('lockers.index')">
+                                <ResponsiveNavLink :href="LockerController.index.url()" :active="route().current('lockers.index')">
                                     eLocker — Access
                                 </ResponsiveNavLink>
-                                <ResponsiveNavLink :href="route('lockers.buy')" :active="route().current('lockers.buy')">
+                                <ResponsiveNavLink :href="LockerController.buy.url()" :active="route().current('lockers.buy')">
                                     eLocker — Buy
                                 </ResponsiveNavLink>
-                                <ResponsiveNavLink :href="route('calls.index')" :active="route().current('calls.*')">
+                                <ResponsiveNavLink :href="CallPageController.index.url()" :active="route().current('calls.*')">
                                     Secure Line
                                 </ResponsiveNavLink>
-                                <ResponsiveNavLink :href="route('blog.index')" :active="route().current('blog.*')">
+                                <ResponsiveNavLink :href="BlogController.index.url()" :active="route().current('blog.*')">
                                     Blog
                                 </ResponsiveNavLink>
-                                <ResponsiveNavLink :href="route('faq.index')" :active="route().current('faq.index')">
+                                <ResponsiveNavLink :href="MarkdownDocumentController.faq.url()" :active="route().current('faq.index')">
                                     F.A.Q.
                                 </ResponsiveNavLink>
-                                <ResponsiveNavLink :href="route('about.index')" :active="route().current('about.index')">
+                                <ResponsiveNavLink :href="MarkdownDocumentController.about.url()" :active="route().current('about.index')">
                                     About Us
                                 </ResponsiveNavLink>
                             </template>
@@ -403,23 +421,23 @@ const logout = () => {
                                 <div class="block px-4 py-2 text-xs uppercase tracking-widest text-gamboge-300 font-mono">
                                     Admin
                                 </div>
-                                <ResponsiveNavLink :href="route('admin.plans.index')"
+                                <ResponsiveNavLink :href="AdminPlanController.index.url()"
                                     :active="route().current('admin.plans.*')">
                                     Plans
                                 </ResponsiveNavLink>
-                                <ResponsiveNavLink :href="route('admin.locker-plans.index')"
+                                <ResponsiveNavLink :href="AdminLockerPlanController.index.url()"
                                     :active="route().current('admin.locker-plans.*')">
                                     eLocker Plans
                                 </ResponsiveNavLink>
-                                <ResponsiveNavLink :href="route('admin.secure-line-products.index')"
+                                <ResponsiveNavLink :href="AdminSecureLineProductController.index.url()"
                                     :active="route().current('admin.secure-line-products.*')">
                                     Secure Line Products
                                 </ResponsiveNavLink>
-                                <ResponsiveNavLink :href="route('admin.coupons.index')"
+                                <ResponsiveNavLink :href="AdminCouponController.index.url()"
                                     :active="route().current('admin.coupons.*')">
                                     Coupons
                                 </ResponsiveNavLink>
-                                <ResponsiveNavLink :href="route('admin.users.index')"
+                                <ResponsiveNavLink :href="AdminUserController.index.url()"
                                     :active="route().current('admin.users.*')">
                                     Manage Users
                                 </ResponsiveNavLink>
@@ -451,12 +469,12 @@ const logout = () => {
                                     Profile
                                 </ResponsiveNavLink>
 
-                                <ResponsiveNavLink :href="route('user.notification-settings.index')"
+                                <ResponsiveNavLink :href="NotificationSettingsController.index.url()"
                                     :active="route().current('user.notification-settings.index')">
                                     Notification Settings
                                 </ResponsiveNavLink>
 
-                                <ResponsiveNavLink :href="route('user.settings.index')"
+                                <ResponsiveNavLink :href="ConfigurationController.index.url()"
                                     :active="route().current('user.settings.index')">
                                     Settings
                                 </ResponsiveNavLink>
@@ -562,22 +580,22 @@ const logout = () => {
                                 <h2 class="mb-6 text-sm font-semibold text-gray-900 uppercase dark:text-white">Resources</h2>
                                 <ul class="text-gray-700 dark:text-gray-400 font-medium space-y-4">
                                     <li>
-                                        <Link :href="route('blog.index')" class="hover:underline" prefetch>Blog</Link>
+                                        <Link :href="BlogController.index.url()" class="hover:underline" prefetch>Blog</Link>
                                     </li>
                                     <li>
-                                        <Link :href="route('faq.index')" class="hover:underline" prefetch>F.A.Q</Link>
+                                        <Link :href="MarkdownDocumentController.faq.url()" class="hover:underline" prefetch>F.A.Q</Link>
                                     </li>
                                     <li>
-                                        <Link :href="route('useCases.index')" class="hover:underline" prefetch>Use Cases</Link>
+                                        <Link :href="MarkdownDocumentController.useCases.url()" class="hover:underline" prefetch>Use Cases</Link>
                                     </li>
                                     <li>
-                                        <Link :href="route('plans.index')" class="hover:underline" prefetch>Pricing</Link>
+                                        <Link :href="PlanController.index.url()" class="hover:underline" prefetch>Pricing</Link>
                                     </li>
                                     <li>
-                                        <Link :href="route('cli.index')" class="hover:underline" prefetch>CLI Tool</Link>
+                                        <Link :href="MarkdownDocumentController.cli.url()" class="hover:underline" prefetch>CLI Tool</Link>
                                     </li>
                                     <li>
-                                        <Link :href="route('webhooks.index')" class="hover:underline" prefetch>Webhooks</Link>
+                                        <Link :href="MarkdownDocumentController.webhooks.url()" class="hover:underline" prefetch>Webhooks</Link>
                                     </li>
                                 </ul>
                             </div>
@@ -596,16 +614,16 @@ const logout = () => {
                                 <h2 class="mb-6 text-sm font-semibold text-gray-900 uppercase dark:text-white">Legal</h2>
                                 <ul class="text-gray-700 dark:text-gray-400 font-medium space-y-4">
                                     <li>
-                                        <Link :href="route('policy.show')" class="hover:underline" prefetch>Privacy Policy</Link>
+                                        <Link :href="MarkdownDocumentController.privacy.url()" class="hover:underline" prefetch>Privacy Policy</Link>
                                     </li>
                                     <li>
-                                        <Link :href="route('terms.show')" class="hover:underline" prefetch>Terms &amp; Conditions</Link>
+                                        <Link :href="MarkdownDocumentController.terms.url()" class="hover:underline" prefetch>Terms &amp; Conditions</Link>
                                     </li>
                                     <li>
-                                        <Link :href="route('security.show')" class="hover:underline" prefetch>Security</Link>
+                                        <Link :href="MarkdownDocumentController.security.url()" class="hover:underline" prefetch>Security</Link>
                                     </li>
                                     <li>
-                                        <Link :href="route('license.show')" class="hover:underline" prefetch>MIT License</Link>
+                                        <Link :href="MarkdownDocumentController.license.url()" class="hover:underline" prefetch>MIT License</Link>
                                     </li>
                                 </ul>
                             </div>
@@ -642,7 +660,7 @@ const logout = () => {
                             <a href="https://github.com/pioneer-dynamics/FlashView" target="_blank" class="text-gray-500 hover:text-gray-900 dark:hover:text-white ms-5">
                                 <svg class="w-4 h-4" aria-hidden="true" xmlns="https://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
                                         <path fill-rule="evenodd" d="M10 .333A9.911 9.911 0 0 0 6.866 19.65c.5.092.678-.215.678-.477 0-.237-.01-1.017-.014-1.845-2.757.6-3.338-1.169-3.338-1.169a2.627 2.627 0 0 0-1.1-1.451c-.9-.615.07-.6.07-.6a2.084 2.084 0 0 1 1.518 1.021 2.11 2.11 0 0 0 2.884.823c.044-.503.268-.973.63-1.325-2.2-.25-4.516-1.1-4.516-4.9A3.832 3.832 0 0 1 4.7 7.068a3.56 3.56 0 0 1 .095-2.623s.832-.266 2.726 1.016a9.409 9.409 0 0 1 4.962 0c1.89-1.282 2.717-1.016 2.717-1.016.366.83.402 1.768.1 2.623a3.827 3.827 0 0 1 1.02 2.659c0 3.807-2.319 4.644-4.525 4.889a2.366 2.366 0 0 1 .673 1.834c0 1.326-.012 2.394-.012 2.72 0 .263.18.572.681.475A9.911 9.911 0 0 0 10 .333Z" clip-rule="evenodd"/>
-                                </svg>
+                                    </svg>
                                 <span class="sr-only">GitHub account</span>
                             </a>
                         </div>

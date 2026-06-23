@@ -1,21 +1,22 @@
-<script setup>
+<script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import SenderIdentityForm from '@/Pages/Settings/Partials/SenderIdentityForm.vue';
 import StoreMaskedEmailForm from '@/Pages/Settings/Partials/StoreMaskedEmailForm.vue';
 import Page from '../Page.vue';
 import SectionBorder from '@/Components/SectionBorder.vue';
+import type { SenderIdentityDetail } from '@/types';
+import PlanController from '@/actions/App/Http/Controllers/PlanController';
 
-defineProps({
-    storeMaskedRecipientEmail: Boolean,
-    senderIdentity: {
-        type: Object,
-        default: null,
-    },
-    planSupportsSenderIdentity: {
-        type: Boolean,
-        default: false,
-    },
+interface Props {
+    storeMaskedRecipientEmail: boolean
+    senderIdentity?: SenderIdentityDetail | null
+    planSupportsSenderIdentity?: boolean
+}
+
+withDefaults(defineProps<Props>(), {
+    senderIdentity: null,
+    planSupportsSenderIdentity: false,
 });
 </script>
 
@@ -40,7 +41,7 @@ defineProps({
 
                 <div v-else class="text-sm text-gray-500 dark:text-gray-400 py-2">
                     Prime subscribers can add a Verified Sender badge to their secret links.
-                    <Link :href="route('plans.index')" prefetch class="underline text-sm text-gamboge-300 dark:text-gamboge-200 hover:text-gamboge-200 dark:hover:text-gamboge-100 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gamboge-500 dark:focus:ring-offset-gray-900">Upgrade to Prime →</Link>
+                    <Link :href="PlanController.index.url()" prefetch class="underline text-sm text-gamboge-300 dark:text-gamboge-200 hover:text-gamboge-200 dark:hover:text-gamboge-100 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gamboge-500 dark:focus:ring-offset-gray-900">Upgrade to Prime →</Link>
                 </div>
             </div>
         </Page>

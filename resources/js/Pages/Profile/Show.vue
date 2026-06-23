@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import AppLayout from '@/Layouts/AppLayout.vue';
 import DeleteUserForm from '@/Pages/Profile/Partials/DeleteUserForm.vue';
 import LogoutOtherBrowserSessionsForm from '@/Pages/Profile/Partials/LogoutOtherBrowserSessionsForm.vue';
@@ -8,11 +8,14 @@ import UpdatePasswordForm from '@/Pages/Profile/Partials/UpdatePasswordForm.vue'
 import UpdateProfileInformationForm from '@/Pages/Profile/Partials/UpdateProfileInformationForm.vue';
 import PassKeyForm from './Partials/PassKeyForm.vue';
 import Page from '../Page.vue';
+import type { BrowserSession } from '@/types';
 
-defineProps({
-    confirmsTwoFactorAuthentication: Boolean,
-    sessions: Array,
-});
+interface Props {
+    confirmsTwoFactorAuthentication: boolean
+    sessions: BrowserSession[]
+}
+
+defineProps<Props>();
 </script>
 
 <template>

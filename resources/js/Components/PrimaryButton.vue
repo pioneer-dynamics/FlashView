@@ -1,15 +1,14 @@
-<script setup>
+<script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
 
-defineProps({
-    type: {
-        type: String,
-        default: 'submit',
-    },
-    href: {
-        type: String,
-        default: null,
-    },
+interface Props {
+    type?: 'button' | 'submit' | 'reset';
+    href?: string | null;
+}
+
+withDefaults(defineProps<Props>(), {
+    type: 'submit',
+    href: null,
 });
 </script>
 

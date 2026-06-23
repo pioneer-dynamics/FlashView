@@ -61,9 +61,9 @@ class PIO76Test extends TestCase
         );
 
         $this->assertMatchesRegularExpression(
-            '/defineProps\(\s*\{[^}]*reason\s*:\s*\{[^}]*validator/s',
+            "/'wrong-password'\\s*\\|\\s*'unavailable'/",
             $contents,
-            'DestroyedSecretState.vue must declare a "reason" prop with a validator accepting "wrong-password" and "unavailable".'
+            'DestroyedSecretState.vue must declare a "reason" prop typed as \'wrong-password\' | \'unavailable\'.'
         );
     }
 
@@ -159,7 +159,7 @@ class PIO76Test extends TestCase
         $contents = file_get_contents(resource_path('js/Components/FileDecryptPanel.vue'));
 
         $this->assertMatchesRegularExpression(
-            "/defineEmits\\(\\s*\\[[^\\]]*['\"]failure['\"][^\\]]*\\]\\s*\\)/",
+            '/defineEmits\s*[(<][\s\S]*?failure/s',
             $contents,
             'FileDecryptPanel.vue must declare a "failure" emit.'
         );
@@ -260,7 +260,7 @@ class PIO76Test extends TestCase
         $formContents = file_get_contents(resource_path('js/Pages/Secret/SecretCreateForm.vue'));
 
         $this->assertMatchesRegularExpression(
-            '/encryptFileData\s*=\s*async[\s\S]*?e\.validatePassphrase\(\s*passphrase\s*\)[\s\S]*?other\.setError\(\s*[\'"]password[\'"]\s*,\s*err\.message\s*\)/s',
+            '/encryptFileData\s*=\s*async[\s\S]*?\.validatePassphrase\(\s*passphrase\s*\)[\s\S]*?other\.setError\(\s*[\'"]password[\'"]\s*,[\s\S]*?\.message\s*\)/s',
             $formContents,
             'SecretCreateForm.vue encryptFileData() must validate the passphrase upfront and route the error to other.errors.password so the "Passphrase must be at least 8 characters" message renders under the password input when a file is attached.'
         );

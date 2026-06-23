@@ -1,23 +1,27 @@
-<script setup>
+<script setup lang="ts">
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { Link, router } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue';
+import type { LockerPlan } from '@/types';
+import LockerController from '@/actions/App/Http/Controllers/LockerController';
 
-const props = defineProps({
-    pricing: Object,
-});
+interface Props {
+    pricing?: Record<string, Record<number, LockerPlan>>
+}
 
-const pendingToken = ref(null);
+const props = defineProps<Props>();
+
+const pendingToken = ref<string | null>(null);
 
 onMounted(() => {
     pendingToken.value = localStorage.getItem('locker_pending_token') || null;
 });
 
-const resumeCreation = () => {
-    router.visit(route('lockers.create') + '?token=' + encodeURIComponent(pendingToken.value));
+const resumeCreation = (): void => {
+    router.visit(LockerController.create.url({ query: { token: pendingToken.value ?? '' } }));
 };
 
-const dismissPending = () => {
+const dismissPending = (): void => {
     localStorage.removeItem('locker_pending_token');
     pendingToken.value = null;
 };
@@ -27,7 +31,7 @@ const tiers = [
     { key: 'file', name: 'File Locker', description: 'Stores files — documents, images, small archives. Can also hold text.', icon: '🗂' },
 ];
 
-const fileSizeLabel = (plan) => {
+const fileSizeLabel = (plan: LockerPlan | null): string => {
     if (!plan || !plan.file_size_mb) return '';
     const mb = plan.file_size_mb;
     return mb >= 1024 ? `${(mb / 1024).toFixed(1)} GB` : `${mb} MB`;
@@ -35,11 +39,11 @@ const fileSizeLabel = (plan) => {
 
 const durations = [1, 3, 5];
 
-const formatPrice = (cents) => `$${(cents / 100).toFixed(0)}`;
+const formatPrice = (cents: number): string => `$${(cents / 100).toFixed(0)}`;
 
-const planFor = (tier, years) => props.pricing?.[tier]?.[years] ?? null;
+const planFor = (tier: string, years: number): LockerPlan | null => props.pricing?.[tier]?.[years] ?? null;
 
-const savingsPercent = (tier, years) => {
+const savingsPercent = (tier: string, years: number): number | null => {
     if (years === 1) return null;
     const base1 = planFor(tier, 1);
     const plan  = planFor(tier, years);
@@ -135,7 +139,7 @@ const savingsPercent = (tier, years) => {
                                 </div>
 
                                 <Link
-                                    :href="route('lockers.checkout')"
+                                    :href="LockerController.checkout.url()"
                                     method="post"
                                     :data="{ tier: tier.key, years }"
                                     as="button"
