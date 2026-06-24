@@ -14,7 +14,7 @@ interface Props {
 const props = defineProps<Props>();
 
 const storageKey = `call_session:${props.session.bridge_number}`;
-const raw = sessionStorage.getItem(storageKey);
+const raw = typeof window !== 'undefined' ? sessionStorage.getItem(storageKey) : null;
 const sessionData = raw ? JSON.parse(raw) : null;
 
 // Reactive state
