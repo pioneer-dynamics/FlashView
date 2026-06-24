@@ -3,6 +3,7 @@
     "type": "module",
     "scripts": {
         "build": "vue-tsc --noEmit && vite build",
+        "build:ssr": "vue-tsc --noEmit && vite build && vite build --ssr",
         "dev": "vite",
         "type-check": "vue-tsc --noEmit",
         "test:e2e": "playwright test",
@@ -16,6 +17,7 @@
         "@tailwindcss/forms": "^0.5.7",
         "@tailwindcss/typography": "^0.5.10",
         "@vitejs/plugin-vue": "^5.0.0",
+        "@vue/server-renderer": "^3.5.13",
         "@vue/tsconfig": "^0.9.1",
         "autoprefixer": "^10.4.16",
         "axios": "^1.13.5",
