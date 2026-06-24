@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Middleware;
+use Tightenco\Ziggy\Ziggy;
 
 class HandleInertiaRequests extends Middleware
 {
@@ -67,6 +68,8 @@ class HandleInertiaRequests extends Middleware
                 'webhook_url' => $user->webhook_url,
             ];
         });
+
+        Inertia::share('ziggy', fn () => [...(new Ziggy)->toArray(), 'location' => $request->url()]);
 
         return parent::share($request);
     }

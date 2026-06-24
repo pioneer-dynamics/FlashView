@@ -21,7 +21,8 @@ createServer((page) =>
         setup({ App, props, plugin }) {
             return createSSRApp({ render: () => h(App, props) })
                 .use(plugin)
-                .use(ZiggyVue);
+                // Pass Ziggy config from page props — window.Ziggy is not available in Node.js
+                .use(ZiggyVue, page.props.ziggy);
         },
     }),
 );
