@@ -215,11 +215,11 @@
         "dev": [
             "Composer\\Config::disableProcessTimeout",
             "@php artisan wayfinder:generate",
-            "npx concurrently -c \"#93c5fd,#c4b5fd,#fb7185,#fdba74\" \"php artisan octane:start --watch\" \"php artisan queue:listen --tries=1\" \"php artisan pail --timeout=0\" \"npm run dev\" --names=server,queue,logs,vite"
+            "npx concurrently -c \"#93c5fd,#c4b5fd,#fb7185,#fdba74,#86efac\" \"php artisan octane:start --watch\" \"php artisan queue:listen --tries=1\" \"php artisan pail --timeout=0\" \"npm run dev\" \"php artisan inertia:start-ssr\" --names=server,queue,logs,vite,ssr"
         ],
         "build": [
             "@php artisan wayfinder:generate",
-            "npm run build"
+            "npm run build:ssr"
         ]
     },
     "extra": {
