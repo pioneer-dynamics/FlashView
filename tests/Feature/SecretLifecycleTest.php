@@ -1,7 +1,5 @@
 <?php
 
-namespace Tests\Feature;
-
 use App\Jobs\ClearExpiredSecrets;
 use App\Jobs\PurgeMetadataForExpiredMessages;
 use App\Models\Scopes\ActiveScope;
@@ -10,85 +8,77 @@ use Database\Factories\SecretFactory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\URL;
-use Tests\TestCase;
 
-class SecretLifecycleTest extends TestCase
-{
-    use RefreshDatabase;
+uses(RefreshDatabase::class);
 
-    public function test_full_lifecycle_create_and_retrieve(): void
-    {
-        $message = (new SecretFactory)->generateEncryptedMessage(50);
+test('full lifecycle create and retrieve', function () {
+    $message = (new SecretFactory)->generateEncryptedMessage(50);
 
-        $response = $this->post(route('secret.store'), [
-            'message' => $message,
-            'expires_in' => 5,
-        ]);
+    $response = $this->post(route('secret.store'), [
+        'message' => $message,
+        'expires_in' => 5,
+    ]);
 
-        $response->assertSessionHas('flash.secret.url');
+    $response->assertSessionHas('flash.secret.url');
 
-        $secret = Secret::first();
-        $this->assertNotNull($secret);
-        $this->assertNotNull($secret->message);
+    $secret = Secret::first();
+    expect($secret)->not->toBeNull();
+    expect($secret->message)->not->toBeNull();
 
-        // Retrieve via decrypt route — returns the message as flash data
-        $decryptUrl = URL::temporarySignedRoute('secret.decrypt', now()->addMinutes(5), ['secret' => $secret->hash_id]);
-        $response = $this->get($decryptUrl);
-        $response->assertRedirect();
+    // Retrieve via decrypt route — returns the message as flash data
+    $decryptUrl = URL::temporarySignedRoute('secret.decrypt', now()->addMinutes(5), ['secret' => $secret->hash_id]);
+    $response = $this->get($decryptUrl);
+    $response->assertRedirect();
 
-        // Note: The Secret::retrieved event skips in console (App::runningInConsole()),
-        // so message is NOT auto-cleared during tests. Test the clearing via explicit job instead.
-    }
+    // Note: The Secret::retrieved event skips in console (App::runningInConsole()),
+    // so message is NOT auto-cleared during tests. Test the clearing via explicit job instead.
+});
 
-    public function test_manual_retrieval_clears_message(): void
-    {
-        $secret = Secret::factory()->create();
-        $this->assertNotNull($secret->message);
+test('manual retrieval clears message', function () {
+    $secret = Secret::factory()->create();
+    expect($secret->message)->not->toBeNull();
 
-        $secret->markAsRetrieved();
+    $secret->markAsRetrieved();
 
-        $secret = Secret::withoutGlobalScope(ActiveScope::class)->find($secret->id);
-        $this->assertNull($secret->message);
-        $this->assertNotNull($secret->retrieved_at);
-    }
+    $secret = Secret::withoutGlobalScope(ActiveScope::class)->find($secret->id);
+    expect($secret->message)->toBeNull();
+    expect($secret->retrieved_at)->not->toBeNull();
+});
 
-    public function test_expiry_lifecycle_create_expire_clear_prune(): void
-    {
-        $secret = Secret::factory()->create([
-            'expires_at' => now()->addMinutes(5),
-        ]);
+test('expiry lifecycle create expire clear prune', function () {
+    $secret = Secret::factory()->create([
+        'expires_at' => now()->addMinutes(5),
+    ]);
 
-        $this->assertNotNull($secret->message);
+    expect($secret->message)->not->toBeNull();
 
-        $this->travel(10)->minutes();
+    $this->travel(10)->minutes();
 
-        (new ClearExpiredSecrets)->handle();
+    (new ClearExpiredSecrets)->handle();
 
-        $secret = Secret::withoutGlobalScope(ActiveScope::class)->find($secret->id);
-        $this->assertNull($secret->message);
-        $this->assertNotNull($secret);
+    $secret = Secret::withoutGlobalScope(ActiveScope::class)->find($secret->id);
+    expect($secret->message)->toBeNull();
+    expect($secret)->not->toBeNull();
 
-        $this->travel(config('secrets.prune_after') + 1)->days();
+    $this->travel(config('secrets.prune_after') + 1)->days();
 
-        (new PurgeMetadataForExpiredMessages)->handle();
+    (new PurgeMetadataForExpiredMessages)->handle();
 
-        $this->assertNull(Secret::withoutGlobalScope(ActiveScope::class)->find($secret->id));
-    }
+    expect(Secret::withoutGlobalScope(ActiveScope::class)->find($secret->id))->toBeNull();
+});
 
-    public function test_guest_secret_lifecycle_no_notifications(): void
-    {
-        Notification::fake();
+test('guest secret lifecycle no notifications', function () {
+    Notification::fake();
 
-        $message = (new SecretFactory)->generateEncryptedMessage(50);
-        $this->post(route('secret.store'), [
-            'message' => $message,
-            'expires_in' => 5,
-        ]);
+    $message = (new SecretFactory)->generateEncryptedMessage(50);
+    $this->post(route('secret.store'), [
+        'message' => $message,
+        'expires_in' => 5,
+    ]);
 
-        $secret = Secret::first();
-        $decryptUrl = URL::temporarySignedRoute('secret.decrypt', now()->addMinutes(5), ['secret' => $secret->hash_id]);
-        $this->get($decryptUrl);
+    $secret = Secret::first();
+    $decryptUrl = URL::temporarySignedRoute('secret.decrypt', now()->addMinutes(5), ['secret' => $secret->hash_id]);
+    $this->get($decryptUrl);
 
-        Notification::assertNothingSent();
-    }
-}
+    Notification::assertNothingSent();
+});

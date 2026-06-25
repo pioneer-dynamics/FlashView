@@ -1,72 +1,59 @@
 <?php
 
-namespace Tests\Unit\Traits;
-
 use App\Exceptions\InvalidHashIdException;
 use App\Models\Secret;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
-use Tests\TestCase;
 
-class HasHashIdTest extends TestCase
-{
-    use RefreshDatabase;
+uses(RefreshDatabase::class);
 
-    public function test_hash_id_is_appended_on_initialization(): void
-    {
-        $secret = Secret::factory()->create();
+test('hash id is appended on initialization', function () {
+    $secret = Secret::factory()->create();
 
-        $this->assertArrayHasKey('hash_id', $secret->toArray());
-        $this->assertNotEmpty($secret->hash_id);
-    }
+    expect($secret->toArray())->toHaveKey('hash_id');
+    expect($secret->hash_id)->not->toBeEmpty();
+});
 
-    public function test_hash_id_encodes_and_decodes_correctly(): void
-    {
-        $secret = Secret::factory()->create();
+test('hash id encodes and decodes correctly', function () {
+    $secret = Secret::factory()->create();
 
-        $decoded = Secret::decodeHashId($secret->hash_id);
+    $decoded = Secret::decodeHashId($secret->hash_id);
 
-        $this->assertEquals($secret->id, $decoded);
-    }
+    expect($decoded)->toEqual($secret->id);
+});
 
-    public function test_decode_hash_id_returns_null_for_invalid_hash(): void
-    {
-        $result = Secret::decodeHashId('');
+test('decode hash id returns null for invalid hash', function () {
+    $result = Secret::decodeHashId('');
 
-        $this->assertNull($result);
-    }
+    expect($result)->toBeNull();
+});
 
-    public function test_find_by_hash_id_returns_model(): void
-    {
-        $secret = Secret::factory()->create();
+test('find by hash id returns model', function () {
+    $secret = Secret::factory()->create();
 
-        $found = Secret::findByHashID($secret->hash_id);
+    $found = Secret::findByHashID($secret->hash_id);
 
-        $this->assertTrue($found->is($secret));
-    }
+    expect($found->is($secret))->toBeTrue();
+});
 
-    public function test_find_by_hash_id_throws_on_invalid_hash(): void
-    {
-        $this->expectException(InvalidHashIdException::class);
+test('find by hash id throws on invalid hash', function () {
+    $this->expectException(InvalidHashIdException::class);
 
-        Secret::findByHashID('');
-    }
+    Secret::findByHashID('');
+});
 
-    public function test_resolve_route_binding_returns_model(): void
-    {
-        $secret = Secret::factory()->create();
+test('resolve route binding returns model', function () {
+    $secret = Secret::factory()->create();
 
-        $resolved = $secret->resolveRouteBinding($secret->hash_id);
+    $resolved = $secret->resolveRouteBinding($secret->hash_id);
 
-        $this->assertTrue($resolved->is($secret));
-    }
+    expect($resolved->is($secret))->toBeTrue();
+});
 
-    public function test_resolve_route_binding_aborts_for_invalid_hash(): void
-    {
-        $secret = Secret::factory()->create();
+test('resolve route binding aborts for invalid hash', function () {
+    $secret = Secret::factory()->create();
 
-        $this->expectException(NotFoundHttpException::class);
+    $this->expectException(NotFoundHttpException::class);
 
-        $secret->resolveRouteBinding('');
-    }
-}
+    $secret->resolveRouteBinding('');
+});

@@ -1,105 +1,90 @@
 <?php
 
-namespace Tests\Unit\Features;
-
 use App\Features\ApiFeature;
 use App\Features\ExpiryFeature;
 use App\Features\MessagesFeature;
 use App\Services\FeatureRegistry;
-use RuntimeException;
-use Tests\TestCase;
 
-class FeatureRegistryTest extends TestCase
+function makeRegistry(): FeatureRegistry
 {
-    private function makeRegistry(): FeatureRegistry
-    {
-        return new FeatureRegistry([
-            new MessagesFeature,
-            new ExpiryFeature,
-            new ApiFeature,
-        ]);
-    }
-
-    public function test_all_returns_all_registered_features(): void
-    {
-        $registry = $this->makeRegistry();
-
-        $this->assertCount(3, $registry->all());
-    }
-
-    public function test_has_returns_true_for_known_key(): void
-    {
-        $registry = $this->makeRegistry();
-
-        $this->assertTrue($registry->has('messages'));
-        $this->assertTrue($registry->has('expiry'));
-        $this->assertTrue($registry->has('api'));
-    }
-
-    public function test_has_returns_false_for_unknown_key(): void
-    {
-        $registry = $this->makeRegistry();
-
-        $this->assertFalse($registry->has('nonexistent_feature'));
-    }
-
-    public function test_get_returns_correct_feature_class(): void
-    {
-        $registry = $this->makeRegistry();
-
-        $feature = $registry->get('messages');
-
-        $this->assertInstanceOf(MessagesFeature::class, $feature);
-        $this->assertEquals('messages', $feature->key());
-    }
-
-    public function test_get_throws_for_unknown_key(): void
-    {
-        $registry = $this->makeRegistry();
-
-        $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('Unknown plan feature key: [nonexistent]');
-
-        $registry->get('nonexistent');
-    }
-
-    public function test_for_frontend_returns_correct_shape(): void
-    {
-        $registry = $this->makeRegistry();
-
-        $result = $registry->forFrontend();
-
-        $this->assertCount(3, $result);
-
-        $messagesEntry = collect($result)->firstWhere('key', 'messages');
-        $this->assertNotNull($messagesEntry);
-        $this->assertArrayHasKey('key', $messagesEntry);
-        $this->assertArrayHasKey('label', $messagesEntry);
-        $this->assertArrayHasKey('description', $messagesEntry);
-        $this->assertArrayHasKey('defaultOrder', $messagesEntry);
-        $this->assertArrayHasKey('canBeLimit', $messagesEntry);
-        $this->assertArrayHasKey('configSchema', $messagesEntry);
-        $this->assertTrue($messagesEntry['canBeLimit']);
-        $this->assertNotEmpty($messagesEntry['configSchema']);
-    }
-
-    public function test_for_frontend_marks_boolean_features_as_not_can_be_limit(): void
-    {
-        $registry = $this->makeRegistry();
-
-        $result = $registry->forFrontend();
-        $apiEntry = collect($result)->firstWhere('key', 'api');
-
-        $this->assertNotNull($apiEntry);
-        $this->assertFalse($apiEntry['canBeLimit']);
-        $this->assertEmpty($apiEntry['configSchema']);
-    }
-
-    public function test_singleton_is_registered_in_container(): void
-    {
-        $registry = app(FeatureRegistry::class);
-
-        $this->assertInstanceOf(FeatureRegistry::class, $registry);
-        $this->assertSame($registry, app(FeatureRegistry::class));
-    }
+    return new FeatureRegistry([
+        new MessagesFeature,
+        new ExpiryFeature,
+        new ApiFeature,
+    ]);
 }
+
+test('all returns all registered features', function () {
+    $registry = makeRegistry();
+
+    expect($registry->all())->toHaveCount(3);
+});
+
+test('has returns true for known key', function () {
+    $registry = makeRegistry();
+
+    expect($registry->has('messages'))->toBeTrue();
+    expect($registry->has('expiry'))->toBeTrue();
+    expect($registry->has('api'))->toBeTrue();
+});
+
+test('has returns false for unknown key', function () {
+    $registry = makeRegistry();
+
+    expect($registry->has('nonexistent_feature'))->toBeFalse();
+});
+
+test('get returns correct feature class', function () {
+    $registry = makeRegistry();
+
+    $feature = $registry->get('messages');
+
+    expect($feature)->toBeInstanceOf(MessagesFeature::class);
+    expect($feature->key())->toEqual('messages');
+});
+
+test('get throws for unknown key', function () {
+    $registry = makeRegistry();
+
+    $this->expectException(RuntimeException::class);
+    $this->expectExceptionMessage('Unknown plan feature key: [nonexistent]');
+
+    $registry->get('nonexistent');
+});
+
+test('for frontend returns correct shape', function () {
+    $registry = makeRegistry();
+
+    $result = $registry->forFrontend();
+
+    expect($result)->toHaveCount(3);
+
+    $messagesEntry = collect($result)->firstWhere('key', 'messages');
+    expect($messagesEntry)->not->toBeNull();
+    expect($messagesEntry)->toHaveKey('key');
+    expect($messagesEntry)->toHaveKey('label');
+    expect($messagesEntry)->toHaveKey('description');
+    expect($messagesEntry)->toHaveKey('defaultOrder');
+    expect($messagesEntry)->toHaveKey('canBeLimit');
+    expect($messagesEntry)->toHaveKey('configSchema');
+    expect($messagesEntry['canBeLimit'])->toBeTrue();
+    expect($messagesEntry['configSchema'])->not->toBeEmpty();
+});
+
+test('for frontend marks boolean features as not can be limit', function () {
+    $registry = makeRegistry();
+
+    $result = $registry->forFrontend();
+    $apiEntry = collect($result)->firstWhere('key', 'api');
+
+    expect($apiEntry)->not->toBeNull();
+    expect($apiEntry['canBeLimit'])->toBeFalse();
+    expect($apiEntry['configSchema'])->toBeEmpty();
+});
+
+test('singleton is registered in container', function () {
+    $registry = app(FeatureRegistry::class);
+
+    expect($registry)->toBeInstanceOf(FeatureRegistry::class);
+    expect(app(FeatureRegistry::class))->toBe($registry);
+});

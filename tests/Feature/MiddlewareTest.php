@@ -1,83 +1,71 @@
 <?php
 
-namespace Tests\Feature;
-
 use App\Http\Middleware\Subscribed;
 use App\Models\Plan;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Route;
-use Tests\TestCase;
 
-class MiddlewareTest extends TestCase
-{
-    use RefreshDatabase;
+uses(RefreshDatabase::class);
 
-    public function test_x_frame_options_header_is_set(): void
-    {
-        $response = $this->get('/');
+test('x frame options header is set', function () {
+    $response = $this->get('/');
 
-        $response->assertHeader('X-Frame-Options', 'DENY');
-    }
+    $response->assertHeader('X-Frame-Options', 'DENY');
+});
 
-    public function test_content_security_policy_frame_ancestors_header_is_set(): void
-    {
-        $response = $this->get('/');
+test('content security policy frame ancestors header is set', function () {
+    $response = $this->get('/');
 
-        $response->assertHeader('Content-Security-Policy', "frame-ancestors 'none'");
-    }
+    $response->assertHeader('Content-Security-Policy', "frame-ancestors 'none'");
+});
 
-    public function test_security_headers_are_set_on_api_routes(): void
-    {
-        $response = $this->getJson('/api/user');
+test('security headers are set on api routes', function () {
+    $response = $this->getJson('/api/user');
 
-        $response->assertHeader('X-Frame-Options', 'DENY');
-        $response->assertHeader('Content-Security-Policy', "frame-ancestors 'none'");
-    }
+    $response->assertHeader('X-Frame-Options', 'DENY');
+    $response->assertHeader('Content-Security-Policy', "frame-ancestors 'none'");
+});
 
-    public function test_subscribed_middleware_redirects_unsubscribed_user(): void
-    {
-        Route::middleware(['web', 'auth', Subscribed::class])
-            ->get('/test-subscribed', fn () => 'ok');
+test('subscribed middleware redirects unsubscribed user', function () {
+    Route::middleware(['web', 'auth', Subscribed::class])
+        ->get('/test-subscribed', fn () => 'ok');
 
-        $user = User::factory()->create();
+    $user = User::factory()->create();
 
-        $response = $this->actingAs($user)->get('/test-subscribed');
+    $response = $this->actingAs($user)->get('/test-subscribed');
 
-        $response->assertRedirect('/billing');
-    }
+    $response->assertRedirect('/billing');
+});
 
-    public function test_subscribed_middleware_allows_subscribed_user(): void
-    {
-        Route::middleware(['web', 'auth', Subscribed::class])
-            ->get('/test-subscribed', fn () => 'ok');
+test('subscribed middleware allows subscribed user', function () {
+    Route::middleware(['web', 'auth', Subscribed::class])
+        ->get('/test-subscribed', fn () => 'ok');
 
-        $plan = Plan::factory()->withApiAccess()->create();
-        $user = User::factory()->create();
-        $user->subscriptions()->create([
-            'type' => 'default',
-            'stripe_id' => 'sub_test_middleware',
-            'stripe_status' => 'active',
-            'stripe_price' => $plan->stripe_monthly_price_id,
-            'quantity' => 1,
-        ]);
+    $plan = Plan::factory()->withApiAccess()->create();
+    $user = User::factory()->create();
+    $user->subscriptions()->create([
+        'type' => 'default',
+        'stripe_id' => 'sub_test_middleware',
+        'stripe_status' => 'active',
+        'stripe_price' => $plan->stripe_monthly_price_id,
+        'quantity' => 1,
+    ]);
 
-        $response = $this->actingAs($user)->get('/test-subscribed');
+    $response = $this->actingAs($user)->get('/test-subscribed');
 
-        $response->assertOk();
-        $response->assertSee('ok');
-    }
+    $response->assertOk();
+    $response->assertSee('ok');
+});
 
-    public function test_trust_proxies_normalizes_forwarded_proto_header(): void
-    {
-        Route::middleware('web')
-            ->get('/test-proto', fn () => request()->isSecure() ? 'secure' : 'insecure');
+test('trust proxies normalizes forwarded proto header', function () {
+    Route::middleware('web')
+        ->get('/test-proto', fn () => request()->isSecure() ? 'secure' : 'insecure');
 
-        $response = $this->withHeaders([
-            'X-Forwarded-Proto' => 'https,http',
-        ])->get('/test-proto');
+    $response = $this->withHeaders([
+        'X-Forwarded-Proto' => 'https,http',
+    ])->get('/test-proto');
 
-        $response->assertOk();
-        $response->assertSee('secure');
-    }
-}
+    $response->assertOk();
+    $response->assertSee('secure');
+});

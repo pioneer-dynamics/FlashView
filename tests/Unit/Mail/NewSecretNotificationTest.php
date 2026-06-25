@@ -1,54 +1,44 @@
 <?php
 
-namespace Tests\Unit\Mail;
-
 use App\Mail\NewSecretNotification;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Tests\TestCase;
 
-class NewSecretNotificationTest extends TestCase
-{
-    use RefreshDatabase;
+uses(RefreshDatabase::class);
 
-    public function test_envelope_has_correct_subject(): void
-    {
-        $user = User::factory()->create(['email' => 'sender@example.com']);
-        $mailable = new NewSecretNotification($user, 'https://example.com/secret', 'abc123');
+test('envelope has correct subject', function () {
+    $user = User::factory()->create(['email' => 'sender@example.com']);
+    $mailable = new NewSecretNotification($user, 'https://example.com/secret', 'abc123');
 
-        $envelope = $mailable->envelope();
+    $envelope = $mailable->envelope();
 
-        $this->assertStringContainsString('sender@example.com', $envelope->subject);
-    }
+    $this->assertStringContainsString('sender@example.com', $envelope->subject);
+});
 
-    public function test_content_uses_correct_markdown_template(): void
-    {
-        $user = User::factory()->create();
-        $mailable = new NewSecretNotification($user, 'https://example.com/secret', 'abc123');
+test('content uses correct markdown template', function () {
+    $user = User::factory()->create();
+    $mailable = new NewSecretNotification($user, 'https://example.com/secret', 'abc123');
 
-        $content = $mailable->content();
+    $content = $mailable->content();
 
-        $this->assertEquals('emails.NewSecretNotification', $content->markdown);
-    }
+    expect($content->markdown)->toEqual('emails.NewSecretNotification');
+});
 
-    public function test_mailable_has_correct_properties(): void
-    {
-        $user = User::factory()->create();
-        $url = 'https://example.com/secret/xyz';
-        $secretId = 'hash123';
+test('mailable has correct properties', function () {
+    $user = User::factory()->create();
+    $url = 'https://example.com/secret/xyz';
+    $secretId = 'hash123';
 
-        $mailable = new NewSecretNotification($user, $url, $secretId);
+    $mailable = new NewSecretNotification($user, $url, $secretId);
 
-        $this->assertEquals($url, $mailable->url);
-        $this->assertEquals($secretId, $mailable->secret_id);
-        $this->assertTrue($mailable->user->is($user));
-    }
+    expect($mailable->url)->toEqual($url);
+    expect($mailable->secret_id)->toEqual($secretId);
+    expect($mailable->user->is($user))->toBeTrue();
+});
 
-    public function test_attachments_returns_empty_array(): void
-    {
-        $user = User::factory()->create();
-        $mailable = new NewSecretNotification($user, 'https://example.com/secret', 'abc123');
+test('attachments returns empty array', function () {
+    $user = User::factory()->create();
+    $mailable = new NewSecretNotification($user, 'https://example.com/secret', 'abc123');
 
-        $this->assertEmpty($mailable->attachments());
-    }
-}
+    expect($mailable->attachments())->toBeEmpty();
+});

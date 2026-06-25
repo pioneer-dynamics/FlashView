@@ -1,473 +1,381 @@
 <?php
 
-namespace Tests\Feature;
-
 use App\Jobs\RetryDomainVerification;
-use App\Models\Plan;
 use App\Models\SenderIdentity;
 use App\Models\User;
 use App\Notifications\DomainVerifiedNotification;
 use App\Services\DomainVerificationService;
 use Database\Factories\SecretFactory;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
-use Tests\TestCase;
 
-class SenderIdentityTest extends TestCase
+function senderIdentitySecretPayload(int $expiresIn = 5): array
 {
-    use RefreshDatabase;
-
-    private function createPrimeUser(): User
-    {
-        $plan = Plan::factory()->withSenderIdentity()->create();
-        $user = User::factory()->withPersonalTeam()->create();
-        $user->subscriptions()->create([
-            'type' => 'default',
-            'stripe_id' => 'sub_test_sender_identity',
-            'stripe_status' => 'active',
-            'stripe_price' => $plan->stripe_monthly_price_id,
-            'quantity' => 1,
-        ]);
-
-        return $user;
-    }
-
-    private function createBasicUser(): User
-    {
-        $plan = Plan::factory()->create();
-        $user = User::factory()->withPersonalTeam()->create();
-        $user->subscriptions()->create([
-            'type' => 'default',
-            'stripe_id' => 'sub_test_basic',
-            'stripe_status' => 'active',
-            'stripe_price' => $plan->stripe_monthly_price_id,
-            'quantity' => 1,
-        ]);
-
-        return $user;
-    }
-
-    private function validSecretPayload(int $expiresIn = 5): array
-    {
-        return [
-            'message' => (new SecretFactory)->generateEncryptedMessage(50),
-            'expires_in' => $expiresIn,
-        ];
-    }
-
-    // -----------------------------------------------------------------------
-    // Access control
-    // -----------------------------------------------------------------------
-
-    public function test_guest_cannot_store_sender_identity(): void
-    {
-        $this->post(route('user.sender-identity.store'), ['type' => 'email'])
-            ->assertRedirect(route('login'));
-    }
-
-    public function test_unsubscribed_user_gets_403_on_sender_identity_store(): void
-    {
-        $user = User::factory()->withPersonalTeam()->create();
-
-        $this->actingAs($user)
-            ->post(route('user.sender-identity.store'), ['type' => 'email'])
-            ->assertForbidden();
-    }
-
-    public function test_basic_plan_user_gets_403_on_sender_identity_store(): void
-    {
-        $user = $this->createBasicUser();
-
-        $this->actingAs($user)
-            ->post(route('user.sender-identity.store'), ['type' => 'email'])
-            ->assertForbidden();
-    }
-
-    public function test_unsubscribed_user_gets_403_on_verify(): void
-    {
-        $user = User::factory()->withPersonalTeam()->create();
-
-        $this->actingAs($user)
-            ->post(route('user.sender-identity.verify'))
-            ->assertForbidden();
-    }
-
-    public function test_unsubscribed_user_gets_403_on_destroy(): void
-    {
-        $user = User::factory()->withPersonalTeam()->create();
-
-        $this->actingAs($user)
-            ->delete(route('user.sender-identity.destroy'))
-            ->assertForbidden();
-    }
-
-    // -----------------------------------------------------------------------
-    // Store — email identity
-    // -----------------------------------------------------------------------
-
-    public function test_prime_user_can_create_email_identity(): void
-    {
-        $user = $this->createPrimeUser();
-
-        $this->actingAs($user)
-            ->post(route('user.sender-identity.store'), ['type' => 'email'])
-            ->assertRedirect();
-
-        $identity = $user->fresh()->senderIdentity;
-        $this->assertNotNull($identity);
-        $this->assertEquals('email', $identity->type);
-        $this->assertEquals($user->email, $identity->email);
-        $this->assertNotNull($identity->verified_at);
-        $this->assertNull($identity->domain);
-        $this->assertNull($identity->company_name);
-        $this->assertNull($identity->verification_token);
-    }
-
-    public function test_email_identity_is_immediately_verified(): void
-    {
-        $user = $this->createPrimeUser();
-
-        $this->actingAs($user)
-            ->post(route('user.sender-identity.store'), ['type' => 'email']);
-
-        $this->assertTrue($user->fresh()->hasVerifiedSenderIdentity());
-    }
-
-    // -----------------------------------------------------------------------
-    // Store — domain identity
-    // -----------------------------------------------------------------------
-
-    public function test_prime_user_can_create_domain_identity(): void
-    {
-        $user = $this->createPrimeUser();
-
-        $this->actingAs($user)
-            ->post(route('user.sender-identity.store'), [
-                'type' => 'domain',
-                'company_name' => 'Acme Corp',
-                'domain' => 'acme.com',
-            ])
-            ->assertRedirect();
-
-        $identity = $user->fresh()->senderIdentity;
-        $this->assertNotNull($identity);
-        $this->assertEquals('domain', $identity->type);
-        $this->assertEquals('Acme Corp', $identity->company_name);
-        $this->assertEquals('acme.com', $identity->domain);
-        $this->assertNotNull($identity->verification_token);
-        $this->assertNull($identity->verified_at);
-        $this->assertNull($identity->email);
-    }
-
-    public function test_domain_identity_is_not_immediately_verified(): void
-    {
-        $user = $this->createPrimeUser();
-
-        $this->actingAs($user)
-            ->post(route('user.sender-identity.store'), [
-                'type' => 'domain',
-                'company_name' => 'Acme Corp',
-                'domain' => 'acme.com',
-            ]);
-
-        $this->assertFalse($user->fresh()->hasVerifiedSenderIdentity());
-    }
-
-    public function test_domain_identity_requires_company_name(): void
-    {
-        $user = $this->createPrimeUser();
-
-        $this->actingAs($user)
-            ->post(route('user.sender-identity.store'), [
-                'type' => 'domain',
-                'domain' => 'acme.com',
-            ])
-            ->assertSessionHasErrors('company_name');
-    }
-
-    public function test_domain_identity_requires_valid_domain_format(): void
-    {
-        $user = $this->createPrimeUser();
-
-        $this->actingAs($user)
-            ->post(route('user.sender-identity.store'), [
-                'type' => 'domain',
-                'company_name' => 'Acme Corp',
-                'domain' => 'not a domain',
-            ])
-            ->assertSessionHasErrors('domain');
-    }
-
-    public function test_email_field_is_prohibited_in_store_request(): void
-    {
-        $user = $this->createPrimeUser();
-
-        $this->actingAs($user)
-            ->post(route('user.sender-identity.store'), [
-                'type' => 'email',
-                'email' => 'attacker@evil.com',
-            ])
-            ->assertSessionHasErrors('email');
-    }
-
-    // -----------------------------------------------------------------------
-    // Store — update existing identity
-    // -----------------------------------------------------------------------
-
-    public function test_updating_domain_with_new_domain_resets_verification(): void
-    {
-        $user = $this->createPrimeUser();
-        $identity = SenderIdentity::factory()->for($user)->create([
-            'type' => 'domain',
-            'company_name' => 'Acme Corp',
-            'domain' => 'acme.com',
-            'verification_token' => 'old-token',
-            'verified_at' => now(),
-            'verification_retry_dispatched_at' => now(),
-        ]);
-
-        $this->actingAs($user)
-            ->post(route('user.sender-identity.store'), [
-                'type' => 'domain',
-                'company_name' => 'Acme Corp',
-                'domain' => 'new-acme.com',
-            ]);
-
-        $identity->refresh();
-        $this->assertEquals('new-acme.com', $identity->domain);
-        $this->assertNull($identity->verified_at);
-        $this->assertNotEquals('old-token', $identity->verification_token);
-        $this->assertNull($identity->verification_retry_dispatched_at);
-    }
-
-    public function test_updating_domain_without_change_keeps_verification(): void
-    {
-        $user = $this->createPrimeUser();
-        $verifiedAt = now()->subDay();
-        SenderIdentity::factory()->for($user)->create([
-            'type' => 'domain',
-            'company_name' => 'Acme Corp',
-            'domain' => 'acme.com',
-            'verification_token' => 'existing-token',
-            'verified_at' => $verifiedAt,
-        ]);
-
-        $this->actingAs($user)
-            ->post(route('user.sender-identity.store'), [
-                'type' => 'domain',
-                'company_name' => 'Acme Corp',
-                'domain' => 'acme.com',
-            ]);
-
-        $identity = $user->fresh()->senderIdentity;
-        $this->assertNotNull($identity->verified_at);
-        $this->assertEquals('existing-token', $identity->verification_token);
-    }
-
-    public function test_switching_from_email_to_domain_resets_verification(): void
-    {
-        $user = $this->createPrimeUser();
-        SenderIdentity::factory()->for($user)->create([
-            'type' => 'email',
-            'email' => $user->email,
-            'verified_at' => now(),
-        ]);
-
-        $this->actingAs($user)
-            ->post(route('user.sender-identity.store'), [
-                'type' => 'domain',
-                'company_name' => 'Acme Corp',
-                'domain' => 'acme.com',
-            ]);
-
-        $identity = $user->fresh()->senderIdentity;
-        $this->assertEquals('domain', $identity->type);
-        $this->assertNull($identity->verified_at);
-        $this->assertNotNull($identity->verification_token);
-    }
-
-    public function test_switching_from_domain_to_email_verifies_immediately(): void
-    {
-        $user = $this->createPrimeUser();
-        SenderIdentity::factory()->for($user)->create([
-            'type' => 'domain',
-            'company_name' => 'Acme Corp',
-            'domain' => 'acme.com',
-            'verification_token' => 'some-token',
-            'verified_at' => null,
-        ]);
-
-        $this->actingAs($user)
-            ->post(route('user.sender-identity.store'), ['type' => 'email']);
-
-        $identity = $user->fresh()->senderIdentity;
-        $this->assertEquals('email', $identity->type);
-        $this->assertNotNull($identity->verified_at);
-        $this->assertNull($identity->domain);
-        $this->assertNull($identity->verification_token);
-    }
-
-    // -----------------------------------------------------------------------
-    // Verify
-    // -----------------------------------------------------------------------
-
-    public function test_domain_verification_succeeds_when_dns_record_found(): void
-    {
-        Notification::fake();
-        Queue::fake();
-
-        $user = $this->createPrimeUser();
-        $identity = SenderIdentity::factory()->for($user)->create([
-            'type' => 'domain',
-            'company_name' => 'Acme Corp',
-            'domain' => 'acme.com',
-            'verification_token' => 'flashview-verification-test-token',
-            'verified_at' => null,
-        ]);
-
-        $this->mock(DomainVerificationService::class, function ($mock) {
-            $mock->shouldReceive('verify')->once()->andReturn(true);
-        });
-
-        $this->actingAs($user)
-            ->post(route('user.sender-identity.verify'))
-            ->assertRedirect();
-
-        $this->assertNotNull($identity->fresh()->verified_at);
-        $this->assertTrue($user->fresh()->hasVerifiedSenderIdentity());
-        Notification::assertSentTo($user, DomainVerifiedNotification::class);
-        Queue::assertNotPushed(RetryDomainVerification::class);
-    }
-
-    public function test_domain_verification_fails_when_dns_record_not_found(): void
-    {
-        Queue::fake();
-
-        $user = $this->createPrimeUser();
-        $identity = SenderIdentity::factory()->for($user)->create([
-            'type' => 'domain',
-            'company_name' => 'Acme Corp',
-            'domain' => 'acme.com',
-            'verification_token' => 'flashview-verification-test-token',
-            'verified_at' => null,
-        ]);
-
-        $this->mock(DomainVerificationService::class, function ($mock) {
-            $mock->shouldReceive('verify')->once()->andReturn(false);
-        });
-
-        $this->actingAs($user)
-            ->post(route('user.sender-identity.verify'))
-            ->assertSessionHasErrors('domain');
-
-        $this->assertNull($identity->fresh()->verified_at);
-        Queue::assertPushed(RetryDomainVerification::class);
-        $this->assertNotNull($identity->fresh()->verification_retry_dispatched_at);
-    }
-
-    public function test_verify_fails_when_no_domain_identity_configured(): void
-    {
-        $user = $this->createPrimeUser();
-
-        $this->actingAs($user)
-            ->post(route('user.sender-identity.verify'))
-            ->assertSessionHasErrors('domain');
-    }
-
-    public function test_verify_fails_when_identity_is_email_type(): void
-    {
-        $user = $this->createPrimeUser();
-        SenderIdentity::factory()->for($user)->create([
-            'type' => 'email',
-            'email' => $user->email,
-            'verified_at' => now(),
-        ]);
-
-        $this->actingAs($user)
-            ->post(route('user.sender-identity.verify'))
-            ->assertSessionHasErrors('domain');
-    }
-
-    // -----------------------------------------------------------------------
-    // Destroy
-    // -----------------------------------------------------------------------
-
-    public function test_prime_user_can_delete_sender_identity(): void
-    {
-        $user = $this->createPrimeUser();
-        SenderIdentity::factory()->for($user)->create([
-            'type' => 'email',
-            'email' => $user->email,
-            'verified_at' => now(),
-        ]);
-
-        $this->actingAs($user)
-            ->withSession(['auth.password_confirmed_at' => time()])
-            ->delete(route('user.sender-identity.destroy'))
-            ->assertRedirect();
-
-        $this->assertNull($user->fresh()->senderIdentity);
-    }
-
-    public function test_destroy_is_no_op_when_no_identity_exists(): void
-    {
-        $user = $this->createPrimeUser();
-
-        $this->actingAs($user)
-            ->withSession(['auth.password_confirmed_at' => time()])
-            ->delete(route('user.sender-identity.destroy'))
-            ->assertRedirect();
-    }
-
-    // -----------------------------------------------------------------------
-    // Company name change — security tests
-    // -----------------------------------------------------------------------
-
-    public function test_changing_company_name_on_verified_identity_resets_verification(): void
-    {
-        $user = $this->createPrimeUser();
-        SenderIdentity::factory()->for($user)->create([
-            'type' => 'domain',
-            'company_name' => 'Acme Corp',
-            'domain' => 'acme.com',
-            'verification_token' => 'old-token',
-            'verified_at' => now(),
-            'verification_retry_dispatched_at' => null,
-        ]);
-
-        $this->actingAs($user)
-            ->post(route('user.sender-identity.store'), [
-                'type' => 'domain',
-                'company_name' => 'Microsoft Corporation',
-                'domain' => 'acme.com',
-            ]);
-
-        $identity = $user->fresh()->senderIdentity;
-        $this->assertNull($identity->verified_at);
-        $this->assertNotEquals('old-token', $identity->verification_token);
-    }
-
-    public function test_changing_company_name_on_unverified_identity_does_not_change_token(): void
-    {
-        $user = $this->createPrimeUser();
-        SenderIdentity::factory()->for($user)->create([
-            'type' => 'domain',
-            'company_name' => 'Acme Corp',
-            'domain' => 'acme.com',
-            'verification_token' => 'existing-token',
-            'verified_at' => null,
-        ]);
-
-        $this->actingAs($user)
-            ->post(route('user.sender-identity.store'), [
-                'type' => 'domain',
-                'company_name' => 'Acme Corp Updated',
-                'domain' => 'acme.com',
-            ]);
-
-        $identity = $user->fresh()->senderIdentity;
-        $this->assertNull($identity->verified_at);
-        $this->assertEquals('existing-token', $identity->verification_token);
-    }
+    return [
+        'message' => (new SecretFactory)->generateEncryptedMessage(50),
+        'expires_in' => $expiresIn,
+    ];
 }
+
+test('guest cannot store sender identity', function () {
+    $this->post(route('user.sender-identity.store'), ['type' => 'email'])
+        ->assertRedirect(route('login'));
+});
+
+test('unsubscribed user gets 403 on sender identity store', function () {
+    $user = User::factory()->withPersonalTeam()->create();
+
+    $this->actingAs($user)
+        ->post(route('user.sender-identity.store'), ['type' => 'email'])
+        ->assertForbidden();
+});
+
+test('basic plan user gets 403 on sender identity store', function () {
+    $user = createBasicUser();
+
+    $this->actingAs($user)
+        ->post(route('user.sender-identity.store'), ['type' => 'email'])
+        ->assertForbidden();
+});
+
+test('unsubscribed user gets 403 on verify', function () {
+    $user = User::factory()->withPersonalTeam()->create();
+
+    $this->actingAs($user)
+        ->post(route('user.sender-identity.verify'))
+        ->assertForbidden();
+});
+
+test('unsubscribed user gets 403 on destroy', function () {
+    $user = User::factory()->withPersonalTeam()->create();
+
+    $this->actingAs($user)
+        ->delete(route('user.sender-identity.destroy'))
+        ->assertForbidden();
+});
+
+test('prime user can create email identity', function () {
+    $user = createPrimeUser();
+
+    $this->actingAs($user)
+        ->post(route('user.sender-identity.store'), ['type' => 'email'])
+        ->assertRedirect();
+
+    $identity = $user->fresh()->senderIdentity;
+    expect($identity)->not->toBeNull();
+    expect($identity->type)->toEqual('email');
+    expect($identity->email)->toEqual($user->email);
+    expect($identity->verified_at)->not->toBeNull();
+    expect($identity->domain)->toBeNull();
+    expect($identity->company_name)->toBeNull();
+    expect($identity->verification_token)->toBeNull();
+});
+
+test('email identity is immediately verified', function () {
+    $user = createPrimeUser();
+
+    $this->actingAs($user)
+        ->post(route('user.sender-identity.store'), ['type' => 'email']);
+
+    expect($user->fresh()->hasVerifiedSenderIdentity())->toBeTrue();
+});
+
+test('prime user can create domain identity', function () {
+    $user = createPrimeUser();
+
+    $this->actingAs($user)
+        ->post(route('user.sender-identity.store'), [
+            'type' => 'domain',
+            'company_name' => 'Acme Corp',
+            'domain' => 'acme.com',
+        ])
+        ->assertRedirect();
+
+    $identity = $user->fresh()->senderIdentity;
+    expect($identity)->not->toBeNull();
+    expect($identity->type)->toEqual('domain');
+    expect($identity->company_name)->toEqual('Acme Corp');
+    expect($identity->domain)->toEqual('acme.com');
+    expect($identity->verification_token)->not->toBeNull();
+    expect($identity->verified_at)->toBeNull();
+    expect($identity->email)->toBeNull();
+});
+
+test('domain identity is not immediately verified', function () {
+    $user = createPrimeUser();
+
+    $this->actingAs($user)
+        ->post(route('user.sender-identity.store'), [
+            'type' => 'domain',
+            'company_name' => 'Acme Corp',
+            'domain' => 'acme.com',
+        ]);
+
+    expect($user->fresh()->hasVerifiedSenderIdentity())->toBeFalse();
+});
+
+test('domain identity requires company name', function () {
+    $user = createPrimeUser();
+
+    $this->actingAs($user)
+        ->post(route('user.sender-identity.store'), [
+            'type' => 'domain',
+            'domain' => 'acme.com',
+        ])
+        ->assertSessionHasErrors('company_name');
+});
+
+test('domain identity requires valid domain format', function () {
+    $user = createPrimeUser();
+
+    $this->actingAs($user)
+        ->post(route('user.sender-identity.store'), [
+            'type' => 'domain',
+            'company_name' => 'Acme Corp',
+            'domain' => 'not a domain',
+        ])
+        ->assertSessionHasErrors('domain');
+});
+
+test('email field is prohibited in store request', function () {
+    $user = createPrimeUser();
+
+    $this->actingAs($user)
+        ->post(route('user.sender-identity.store'), [
+            'type' => 'email',
+            'email' => 'attacker@evil.com',
+        ])
+        ->assertSessionHasErrors('email');
+});
+
+test('updating domain with new domain resets verification', function () {
+    $user = createPrimeUser();
+    $identity = SenderIdentity::factory()->for($user)->create([
+        'type' => 'domain',
+        'company_name' => 'Acme Corp',
+        'domain' => 'acme.com',
+        'verification_token' => 'old-token',
+        'verified_at' => now(),
+        'verification_retry_dispatched_at' => now(),
+    ]);
+
+    $this->actingAs($user)
+        ->post(route('user.sender-identity.store'), [
+            'type' => 'domain',
+            'company_name' => 'Acme Corp',
+            'domain' => 'new-acme.com',
+        ]);
+
+    $identity->refresh();
+    expect($identity->domain)->toEqual('new-acme.com');
+    expect($identity->verified_at)->toBeNull();
+    $this->assertNotEquals('old-token', $identity->verification_token);
+    expect($identity->verification_retry_dispatched_at)->toBeNull();
+});
+
+test('updating domain without change keeps verification', function () {
+    $user = createPrimeUser();
+    $verifiedAt = now()->subDay();
+    SenderIdentity::factory()->for($user)->create([
+        'type' => 'domain',
+        'company_name' => 'Acme Corp',
+        'domain' => 'acme.com',
+        'verification_token' => 'existing-token',
+        'verified_at' => $verifiedAt,
+    ]);
+
+    $this->actingAs($user)
+        ->post(route('user.sender-identity.store'), [
+            'type' => 'domain',
+            'company_name' => 'Acme Corp',
+            'domain' => 'acme.com',
+        ]);
+
+    $identity = $user->fresh()->senderIdentity;
+    expect($identity->verified_at)->not->toBeNull();
+    expect($identity->verification_token)->toEqual('existing-token');
+});
+
+test('switching from email to domain resets verification', function () {
+    $user = createPrimeUser();
+    SenderIdentity::factory()->for($user)->create([
+        'type' => 'email',
+        'email' => $user->email,
+        'verified_at' => now(),
+    ]);
+
+    $this->actingAs($user)
+        ->post(route('user.sender-identity.store'), [
+            'type' => 'domain',
+            'company_name' => 'Acme Corp',
+            'domain' => 'acme.com',
+        ]);
+
+    $identity = $user->fresh()->senderIdentity;
+    expect($identity->type)->toEqual('domain');
+    expect($identity->verified_at)->toBeNull();
+    expect($identity->verification_token)->not->toBeNull();
+});
+
+test('switching from domain to email verifies immediately', function () {
+    $user = createPrimeUser();
+    SenderIdentity::factory()->for($user)->create([
+        'type' => 'domain',
+        'company_name' => 'Acme Corp',
+        'domain' => 'acme.com',
+        'verification_token' => 'some-token',
+        'verified_at' => null,
+    ]);
+
+    $this->actingAs($user)
+        ->post(route('user.sender-identity.store'), ['type' => 'email']);
+
+    $identity = $user->fresh()->senderIdentity;
+    expect($identity->type)->toEqual('email');
+    expect($identity->verified_at)->not->toBeNull();
+    expect($identity->domain)->toBeNull();
+    expect($identity->verification_token)->toBeNull();
+});
+
+test('domain verification succeeds when dns record found', function () {
+    Notification::fake();
+    Queue::fake();
+
+    $user = createPrimeUser();
+    $identity = SenderIdentity::factory()->for($user)->create([
+        'type' => 'domain',
+        'company_name' => 'Acme Corp',
+        'domain' => 'acme.com',
+        'verification_token' => 'flashview-verification-test-token',
+        'verified_at' => null,
+    ]);
+
+    $this->mock(DomainVerificationService::class, function ($mock) {
+        $mock->shouldReceive('verify')->once()->andReturn(true);
+    });
+
+    $this->actingAs($user)
+        ->post(route('user.sender-identity.verify'))
+        ->assertRedirect();
+
+    expect($identity->fresh()->verified_at)->not->toBeNull();
+    expect($user->fresh()->hasVerifiedSenderIdentity())->toBeTrue();
+    Notification::assertSentTo($user, DomainVerifiedNotification::class);
+    Queue::assertNotPushed(RetryDomainVerification::class);
+});
+
+test('domain verification fails when dns record not found', function () {
+    Queue::fake();
+
+    $user = createPrimeUser();
+    $identity = SenderIdentity::factory()->for($user)->create([
+        'type' => 'domain',
+        'company_name' => 'Acme Corp',
+        'domain' => 'acme.com',
+        'verification_token' => 'flashview-verification-test-token',
+        'verified_at' => null,
+    ]);
+
+    $this->mock(DomainVerificationService::class, function ($mock) {
+        $mock->shouldReceive('verify')->once()->andReturn(false);
+    });
+
+    $this->actingAs($user)
+        ->post(route('user.sender-identity.verify'))
+        ->assertSessionHasErrors('domain');
+
+    expect($identity->fresh()->verified_at)->toBeNull();
+    Queue::assertPushed(RetryDomainVerification::class);
+    expect($identity->fresh()->verification_retry_dispatched_at)->not->toBeNull();
+});
+
+test('verify fails when no domain identity configured', function () {
+    $user = createPrimeUser();
+
+    $this->actingAs($user)
+        ->post(route('user.sender-identity.verify'))
+        ->assertSessionHasErrors('domain');
+});
+
+test('verify fails when identity is email type', function () {
+    $user = createPrimeUser();
+    SenderIdentity::factory()->for($user)->create([
+        'type' => 'email',
+        'email' => $user->email,
+        'verified_at' => now(),
+    ]);
+
+    $this->actingAs($user)
+        ->post(route('user.sender-identity.verify'))
+        ->assertSessionHasErrors('domain');
+});
+
+test('prime user can delete sender identity', function () {
+    $user = createPrimeUser();
+    SenderIdentity::factory()->for($user)->create([
+        'type' => 'email',
+        'email' => $user->email,
+        'verified_at' => now(),
+    ]);
+
+    $this->actingAs($user)
+        ->withSession(['auth.password_confirmed_at' => time()])
+        ->delete(route('user.sender-identity.destroy'))
+        ->assertRedirect();
+
+    expect($user->fresh()->senderIdentity)->toBeNull();
+});
+
+test('destroy is no op when no identity exists', function () {
+    $user = createPrimeUser();
+
+    $this->actingAs($user)
+        ->withSession(['auth.password_confirmed_at' => time()])
+        ->delete(route('user.sender-identity.destroy'))
+        ->assertRedirect();
+});
+
+test('changing company name on verified identity resets verification', function () {
+    $user = createPrimeUser();
+    SenderIdentity::factory()->for($user)->create([
+        'type' => 'domain',
+        'company_name' => 'Acme Corp',
+        'domain' => 'acme.com',
+        'verification_token' => 'old-token',
+        'verified_at' => now(),
+        'verification_retry_dispatched_at' => null,
+    ]);
+
+    $this->actingAs($user)
+        ->post(route('user.sender-identity.store'), [
+            'type' => 'domain',
+            'company_name' => 'Microsoft Corporation',
+            'domain' => 'acme.com',
+        ]);
+
+    $identity = $user->fresh()->senderIdentity;
+    expect($identity->verified_at)->toBeNull();
+    $this->assertNotEquals('old-token', $identity->verification_token);
+});
+
+test('changing company name on unverified identity does not change token', function () {
+    $user = createPrimeUser();
+    SenderIdentity::factory()->for($user)->create([
+        'type' => 'domain',
+        'company_name' => 'Acme Corp',
+        'domain' => 'acme.com',
+        'verification_token' => 'existing-token',
+        'verified_at' => null,
+    ]);
+
+    $this->actingAs($user)
+        ->post(route('user.sender-identity.store'), [
+            'type' => 'domain',
+            'company_name' => 'Acme Corp Updated',
+            'domain' => 'acme.com',
+        ]);
+
+    $identity = $user->fresh()->senderIdentity;
+    expect($identity->verified_at)->toBeNull();
+    expect($identity->verification_token)->toEqual('existing-token');
+});

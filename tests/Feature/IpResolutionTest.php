@@ -1,54 +1,47 @@
 <?php
 
-namespace Tests\Feature;
-
 use App\Http\Middleware\TrustProxies;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
-use Tests\TestCase;
 
-class IpResolutionTest extends TestCase
-{
-    public function test_cf_connecting_ip_is_used_when_replace_ip_enabled(): void
-    {
-        config(['laravelcloudflare.replace_ip' => true]);
+test('cf connecting ip is used when replace ip enabled', function () {
+    config(['laravelcloudflare.replace_ip' => true]);
 
-        $response = $this->call('GET', '/up', [], [], [], [
-            'HTTP_CF_CONNECTING_IP' => '203.0.113.42',
-            'REMOTE_ADDR' => '10.0.0.1',
-        ]);
+    $response = $this->call('GET', '/up', [], [], [], [
+        'HTTP_CF_CONNECTING_IP' => '203.0.113.42',
+        'REMOTE_ADDR' => '10.0.0.1',
+    ]);
 
-        $response->assertSuccessful();
-    }
+    $response->assertSuccessful();
+});
 
-    public function test_request_ip_returns_real_ip_with_cloudflare_header(): void
-    {
-        config(['laravelcloudflare.replace_ip' => true]);
+test('request ip returns real ip with cloudflare header', function () {
+    config(['laravelcloudflare.replace_ip' => true]);
 
-        $request = Request::create('/test', 'GET', [], [], [], [
-            'HTTP_CF_CONNECTING_IP' => '203.0.113.42',
-            'REMOTE_ADDR' => '10.0.0.1',
-        ]);
+    $request = Request::create('/test', 'GET', [], [], [], [
+        'HTTP_CF_CONNECTING_IP' => '203.0.113.42',
+        'REMOTE_ADDR' => '10.0.0.1',
+    ]);
 
-        $middleware = app(TrustProxies::class);
-        $middleware->handle($request, function ($req) {
-            $this->assertEquals('203.0.113.42', $req->ip());
-            return new Response();
-        });
-    }
+    $middleware = app(TrustProxies::class);
+    $middleware->handle($request, function ($req) {
+        expect($req->ip())->toEqual('203.0.113.42');
 
-    public function test_fallback_to_remote_addr_without_cloudflare_header(): void
-    {
-        config(['laravelcloudflare.replace_ip' => true]);
+        return new Response;
+    });
+});
 
-        $request = Request::create('/test', 'GET', [], [], [], [
-            'REMOTE_ADDR' => '10.0.0.1',
-        ]);
+test('fallback to remote addr without cloudflare header', function () {
+    config(['laravelcloudflare.replace_ip' => true]);
 
-        $middleware = app(TrustProxies::class);
-        $middleware->handle($request, function ($req) {
-            $this->assertEquals('10.0.0.1', $req->ip());
-            return new Response();
-        });
-    }
-}
+    $request = Request::create('/test', 'GET', [], [], [], [
+        'REMOTE_ADDR' => '10.0.0.1',
+    ]);
+
+    $middleware = app(TrustProxies::class);
+    $middleware->handle($request, function ($req) {
+        expect($req->ip())->toEqual('10.0.0.1');
+
+        return new Response;
+    });
+});

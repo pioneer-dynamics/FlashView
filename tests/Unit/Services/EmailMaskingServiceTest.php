@@ -1,81 +1,64 @@
 <?php
 
-namespace Tests\Unit\Services;
-
 use App\Services\EmailMaskingService;
-use PHPUnit\Framework\TestCase;
 
-class EmailMaskingServiceTest extends TestCase
-{
-    private EmailMaskingService $service;
+beforeEach(function () {
+    $this->service = new EmailMaskingService;
+});
 
-    protected function setUp(): void
-    {
-        parent::setUp();
-        $this->service = new EmailMaskingService;
-    }
+test('masks standard email', function () {
+    $result = $this->service->mask('john.doe@example.com');
 
-    public function test_masks_standard_email(): void
-    {
-        $result = $this->service->mask('john.doe@example.com');
+    expect($result)->toStartWith('j');
+    $this->assertStringContainsString('@', $result);
+    expect($result)->toEndWith('.com');
+    $this->assertStringNotContainsString('ohn', $result);
+    $this->assertStringNotContainsString('xample', $result);
+});
 
-        $this->assertStringStartsWith('j', $result);
-        $this->assertStringContainsString('@', $result);
-        $this->assertStringEndsWith('.com', $result);
-        $this->assertStringNotContainsString('ohn', $result);
-        $this->assertStringNotContainsString('xample', $result);
-    }
+test('masks single char local part', function () {
+    $result = $this->service->mask('a@example.com');
 
-    public function test_masks_single_char_local_part(): void
-    {
-        $result = $this->service->mask('a@example.com');
+    expect($result)->toStartWith('a');
+    expect($result)->toEndWith('.com');
+    $this->assertStringContainsString('@', $result);
+});
 
-        $this->assertStringStartsWith('a', $result);
-        $this->assertStringEndsWith('.com', $result);
-        $this->assertStringContainsString('@', $result);
-    }
+test('masks subdomain email', function () {
+    $result = $this->service->mask('user@mail.example.com');
 
-    public function test_masks_subdomain_email(): void
-    {
-        $result = $this->service->mask('user@mail.example.com');
+    expect($result)->toStartWith('u');
+    $this->assertStringContainsString('@', $result);
+    $this->assertStringContainsString('.example.com', $result);
+    $this->assertStringNotContainsString('ser', $result);
+    $this->assertStringNotContainsString('ail', $result);
+});
 
-        $this->assertStringStartsWith('u', $result);
-        $this->assertStringContainsString('@', $result);
-        $this->assertStringContainsString('.example.com', $result);
-        $this->assertStringNotContainsString('ser', $result);
-        $this->assertStringNotContainsString('ail', $result);
-    }
+test('masks short domain label', function () {
+    $result = $this->service->mask('user@ab.io');
 
-    public function test_masks_short_domain_label(): void
-    {
-        $result = $this->service->mask('user@ab.io');
+    expect($result)->toStartWith('u');
+    expect($result)->toEndWith('.io');
+    $this->assertStringContainsString('@', $result);
+});
 
-        $this->assertStringStartsWith('u', $result);
-        $this->assertStringEndsWith('.io', $result);
-        $this->assertStringContainsString('@', $result);
-    }
+test('masks bare hostname defensively', function () {
+    // Bare hostname (no dot in domain) — guarded defensively
+    $result = $this->service->mask('user@localhost');
 
-    public function test_masks_bare_hostname_defensively(): void
-    {
-        // Bare hostname (no dot in domain) — guarded defensively
-        $result = $this->service->mask('user@localhost');
+    expect($result)->toStartWith('u');
+    $this->assertStringContainsString('@', $result);
+});
 
-        $this->assertStringStartsWith('u', $result);
-        $this->assertStringContainsString('@', $result);
-    }
+test('masked email contains asterisks', function () {
+    $result = $this->service->mask('john@example.com');
 
-    public function test_masked_email_contains_asterisks(): void
-    {
-        $result = $this->service->mask('john@example.com');
+    $this->assertStringContainsString('*', $result);
+});
 
-        $this->assertStringContainsString('*', $result);
-    }
+test('original email not in masked output', function () {
+    $email = 'john.doe@example.com';
+    $result = $this->service->mask($email);
 
-    public function test_original_email_not_in_masked_output(): void
-    {
-        $email = 'john.doe@example.com';
-        $result = $this->service->mask($email);
-
-        $this->assertNotEquals($email, $result);
-    }
-}
+    $this->assertNotEquals($email, $result);
+});

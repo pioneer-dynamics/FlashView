@@ -1,192 +1,178 @@
 <?php
 
-namespace Tests\Feature;
-
 use App\Models\Plan;
 use App\Models\User;
 use Database\Factories\SecretFactory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
-use Tests\TestCase;
 
-class SecretMaskedEmailTest extends TestCase
+uses(RefreshDatabase::class);
+
+function maskedEmailSecretPayload(int $plaintextLength = 50, int $expiresIn = 5): array
 {
-    use RefreshDatabase;
+    return [
+        'message' => (new SecretFactory)->generateEncryptedMessage($plaintextLength),
+        'expires_in' => $expiresIn,
+    ];
+}
 
-    private function validSecretPayload(int $plaintextLength = 50, int $expiresIn = 5): array
-    {
-        return [
-            'message' => (new SecretFactory)->generateEncryptedMessage($plaintextLength),
-            'expires_in' => $expiresIn,
-        ];
-    }
+test('masked email stored when setting enabled', function () {
+    $user = User::factory()->withPersonalTeam()->create([
+        'store_masked_recipient_email' => true,
+    ]);
 
-    public function test_masked_email_stored_when_setting_enabled(): void
-    {
-        $user = User::factory()->withPersonalTeam()->create([
-            'store_masked_recipient_email' => true,
-        ]);
-
-        $response = $this->actingAs($user)
-            ->post(route('secret.store'), array_merge($this->validSecretPayload(), [
-                'email' => 'recipient@example.com',
-            ]));
-
-        $response->assertSessionHasNoErrors();
-
-        $secret = $user->secrets()->first();
-        $this->assertNotNull($secret->masked_recipient_email);
-        $this->assertStringStartsWith('r', $secret->masked_recipient_email);
-        $this->assertStringNotContainsString('ecipient', $secret->masked_recipient_email);
-        $this->assertStringNotContainsString('recipient@example.com', $secret->masked_recipient_email);
-    }
-
-    public function test_masked_email_not_stored_when_setting_disabled(): void
-    {
-        $user = User::factory()->withPersonalTeam()->create([
-            'store_masked_recipient_email' => false,
-        ]);
-
-        $response = $this->actingAs($user)
-            ->post(route('secret.store'), array_merge($this->validSecretPayload(), [
-                'email' => 'recipient@example.com',
-            ]));
-
-        $response->assertSessionHasNoErrors();
-
-        $secret = $user->secrets()->first();
-        $this->assertNull($secret->masked_recipient_email);
-    }
-
-    public function test_no_masked_email_stored_when_no_email_provided(): void
-    {
-        $user = User::factory()->withPersonalTeam()->create([
-            'store_masked_recipient_email' => true,
-        ]);
-
-        $response = $this->actingAs($user)
-            ->post(route('secret.store'), $this->validSecretPayload());
-
-        $response->assertSessionHasNoErrors();
-
-        $secret = $user->secrets()->first();
-        $this->assertNull($secret->masked_recipient_email);
-    }
-
-    public function test_masked_email_appears_in_secrets_list(): void
-    {
-        $user = User::factory()->withPersonalTeam()->create([
-            'store_masked_recipient_email' => true,
-        ]);
-
-        $this->actingAs($user)
-            ->post(route('secret.store'), array_merge($this->validSecretPayload(), [
-                'email' => 'recipient@example.com',
-            ]));
-
-        $response = $this->actingAs($user)->get(route('secrets.index'));
-
-        $response->assertInertia(fn ($page) => $page
-            ->component('Secret/Index')
-            ->has('secrets.data.0.masked_recipient_email')
-        );
-    }
-
-    public function test_masked_email_null_in_secrets_list_when_no_email_provided(): void
-    {
-        $user = User::factory()->withPersonalTeam()->create([
-            'store_masked_recipient_email' => true,
-        ]);
-
-        $this->actingAs($user)->post(route('secret.store'), $this->validSecretPayload());
-
-        $response = $this->actingAs($user)->get(route('secrets.index'));
-
-        $response->assertInertia(fn ($page) => $page
-            ->component('Secret/Index')
-            ->where('secrets.data.0.masked_recipient_email', null)
-        );
-    }
-
-    public function test_api_stores_masked_email_when_setting_enabled(): void
-    {
-        $plan = Plan::factory()->withApiAccess()->create();
-
-        $user = User::factory()->withPersonalTeam()->create([
-            'store_masked_recipient_email' => true,
-        ]);
-
-        $user->subscriptions()->create([
-            'type' => 'default',
-            'stripe_id' => 'sub_mask_enabled',
-            'stripe_status' => 'active',
-            'stripe_price' => $plan->stripe_monthly_price_id,
-            'quantity' => 1,
-        ]);
-
-        Sanctum::actingAs($user, ['secrets:create']);
-
-        $response = $this->postJson('/api/v1/secrets', [
-            'message' => (new SecretFactory)->generateEncryptedMessage(50),
-            'expires_in' => 1440,
-            'email' => 'recipient@example.com',
-        ]);
-
-        $response->assertStatus(201);
-
-        $secret = $user->secrets()->first();
-        $this->assertNotNull($secret->masked_recipient_email);
-        $this->assertStringNotContainsString('recipient@example.com', $secret->masked_recipient_email);
-    }
-
-    public function test_api_does_not_store_masked_email_when_setting_disabled(): void
-    {
-        $plan = Plan::factory()->withApiAccess()->create();
-
-        $user = User::factory()->withPersonalTeam()->create([
-            'store_masked_recipient_email' => false,
-        ]);
-
-        $user->subscriptions()->create([
-            'type' => 'default',
-            'stripe_id' => 'sub_mask_disabled',
-            'stripe_status' => 'active',
-            'stripe_price' => $plan->stripe_monthly_price_id,
-            'quantity' => 1,
-        ]);
-
-        Sanctum::actingAs($user, ['secrets:create']);
-
-        $response = $this->postJson('/api/v1/secrets', [
-            'message' => (new SecretFactory)->generateEncryptedMessage(50),
-            'expires_in' => 1440,
-            'email' => 'recipient@example.com',
-        ]);
-
-        $response->assertStatus(201);
-
-        $secret = $user->secrets()->first();
-        $this->assertNull($secret->masked_recipient_email);
-    }
-
-    public function test_setting_enabled_after_creation_does_not_mask_old_secrets(): void
-    {
-        $user = User::factory()->withPersonalTeam()->create([
-            'store_masked_recipient_email' => false,
-        ]);
-
-        // Create without masking
-        $this->actingAs($user)->post(route('secret.store'), array_merge($this->validSecretPayload(), [
+    $response = $this->actingAs($user)
+        ->post(route('secret.store'), array_merge(maskedEmailSecretPayload(), [
             'email' => 'recipient@example.com',
         ]));
 
-        $secretBefore = $user->secrets()->first();
-        $this->assertNull($secretBefore->masked_recipient_email);
+    $response->assertSessionHasNoErrors();
 
-        // Enable the setting — existing secret should remain unaffected
-        $user->update(['store_masked_recipient_email' => true]);
+    $secret = $user->secrets()->first();
+    expect($secret->masked_recipient_email)->not->toBeNull();
+    expect($secret->masked_recipient_email)->toStartWith('r');
+    $this->assertStringNotContainsString('ecipient', $secret->masked_recipient_email);
+    $this->assertStringNotContainsString('recipient@example.com', $secret->masked_recipient_email);
+});
 
-        $secretAfter = $user->secrets()->first();
-        $this->assertNull($secretAfter->masked_recipient_email);
-    }
-}
+test('masked email not stored when setting disabled', function () {
+    $user = User::factory()->withPersonalTeam()->create([
+        'store_masked_recipient_email' => false,
+    ]);
+
+    $response = $this->actingAs($user)
+        ->post(route('secret.store'), array_merge(maskedEmailSecretPayload(), [
+            'email' => 'recipient@example.com',
+        ]));
+
+    $response->assertSessionHasNoErrors();
+
+    $secret = $user->secrets()->first();
+    expect($secret->masked_recipient_email)->toBeNull();
+});
+
+test('no masked email stored when no email provided', function () {
+    $user = User::factory()->withPersonalTeam()->create([
+        'store_masked_recipient_email' => true,
+    ]);
+
+    $response = $this->actingAs($user)
+        ->post(route('secret.store'), maskedEmailSecretPayload());
+
+    $response->assertSessionHasNoErrors();
+
+    $secret = $user->secrets()->first();
+    expect($secret->masked_recipient_email)->toBeNull();
+});
+
+test('masked email appears in secrets list', function () {
+    $user = User::factory()->withPersonalTeam()->create([
+        'store_masked_recipient_email' => true,
+    ]);
+
+    $this->actingAs($user)
+        ->post(route('secret.store'), array_merge(maskedEmailSecretPayload(), [
+            'email' => 'recipient@example.com',
+        ]));
+
+    $response = $this->actingAs($user)->get(route('secrets.index'));
+
+    $response->assertInertia(fn ($page) => $page
+        ->component('Secret/Index')
+        ->has('secrets.data.0.masked_recipient_email')
+    );
+});
+
+test('masked email null in secrets list when no email provided', function () {
+    $user = User::factory()->withPersonalTeam()->create([
+        'store_masked_recipient_email' => true,
+    ]);
+
+    $this->actingAs($user)->post(route('secret.store'), maskedEmailSecretPayload());
+
+    $response = $this->actingAs($user)->get(route('secrets.index'));
+
+    $response->assertInertia(fn ($page) => $page
+        ->component('Secret/Index')
+        ->where('secrets.data.0.masked_recipient_email', null)
+    );
+});
+
+test('api stores masked email when setting enabled', function () {
+    $plan = Plan::factory()->withApiAccess()->create();
+
+    $user = User::factory()->withPersonalTeam()->create([
+        'store_masked_recipient_email' => true,
+    ]);
+
+    $user->subscriptions()->create([
+        'type' => 'default',
+        'stripe_id' => 'sub_mask_enabled',
+        'stripe_status' => 'active',
+        'stripe_price' => $plan->stripe_monthly_price_id,
+        'quantity' => 1,
+    ]);
+
+    Sanctum::actingAs($user, ['secrets:create']);
+
+    $response = $this->postJson('/api/v1/secrets', [
+        'message' => (new SecretFactory)->generateEncryptedMessage(50),
+        'expires_in' => 1440,
+        'email' => 'recipient@example.com',
+    ]);
+
+    $response->assertStatus(201);
+
+    $secret = $user->secrets()->first();
+    expect($secret->masked_recipient_email)->not->toBeNull();
+    $this->assertStringNotContainsString('recipient@example.com', $secret->masked_recipient_email);
+});
+
+test('api does not store masked email when setting disabled', function () {
+    $plan = Plan::factory()->withApiAccess()->create();
+
+    $user = User::factory()->withPersonalTeam()->create([
+        'store_masked_recipient_email' => false,
+    ]);
+
+    $user->subscriptions()->create([
+        'type' => 'default',
+        'stripe_id' => 'sub_mask_disabled',
+        'stripe_status' => 'active',
+        'stripe_price' => $plan->stripe_monthly_price_id,
+        'quantity' => 1,
+    ]);
+
+    Sanctum::actingAs($user, ['secrets:create']);
+
+    $response = $this->postJson('/api/v1/secrets', [
+        'message' => (new SecretFactory)->generateEncryptedMessage(50),
+        'expires_in' => 1440,
+        'email' => 'recipient@example.com',
+    ]);
+
+    $response->assertStatus(201);
+
+    $secret = $user->secrets()->first();
+    expect($secret->masked_recipient_email)->toBeNull();
+});
+
+test('setting enabled after creation does not mask old secrets', function () {
+    $user = User::factory()->withPersonalTeam()->create([
+        'store_masked_recipient_email' => false,
+    ]);
+
+    // Create without masking
+    $this->actingAs($user)->post(route('secret.store'), array_merge(maskedEmailSecretPayload(), [
+        'email' => 'recipient@example.com',
+    ]));
+
+    $secretBefore = $user->secrets()->first();
+    expect($secretBefore->masked_recipient_email)->toBeNull();
+
+    // Enable the setting — existing secret should remain unaffected
+    $user->update(['store_masked_recipient_email' => true]);
+
+    $secretAfter = $user->secrets()->first();
+    expect($secretAfter->masked_recipient_email)->toBeNull();
+});

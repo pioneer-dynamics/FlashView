@@ -1,239 +1,200 @@
 <?php
 
-namespace Tests\Feature\Admin;
-
 use App\Models\SecureLineProduct;
-use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Config;
 use Inertia\Testing\AssertableInertia;
-use Tests\TestCase;
 
-class AdminSecureLineProductCrudTest extends TestCase
+function productPayload(array $overrides = []): array
 {
-    use RefreshDatabase;
+    return array_merge([
+        'name' => 'Test Secure Line',
+        'duration_minutes' => 30,
+        'max_participants' => 5,
+        'amount_cents' => 2000,
+        'stripe_price_id' => '',
+        'create_stripe_price' => false,
+        'is_active' => true,
+    ], $overrides);
+}
 
-    private function adminUser(): User
-    {
-        $user = User::factory()->withPersonalTeam()->create();
-        Config::set('admin.emails', [$user->email]);
+test('unauthenticated user is redirected from admin secure line products', function () {
+    $response = $this->get(route('admin.secure-line-products.index'));
 
-        return $user;
-    }
+    $response->assertRedirect('/login');
+});
 
-    private function nonAdminUser(): User
-    {
-        return User::factory()->withPersonalTeam()->create();
-    }
+test('non admin receives 403 on admin secure line products', function () {
+    $user = nonAdminUser();
 
-    private function productPayload(array $overrides = []): array
-    {
-        return array_merge([
-            'name' => 'Test Secure Line',
-            'duration_minutes' => 30,
-            'max_participants' => 5,
-            'amount_cents' => 2000,
-            'stripe_price_id' => '',
-            'create_stripe_price' => false,
-            'is_active' => true,
-        ], $overrides);
-    }
+    $response = $this->actingAs($user)->get(route('admin.secure-line-products.index'));
 
-    public function test_unauthenticated_user_is_redirected_from_admin_secure_line_products(): void
-    {
-        $response = $this->get(route('admin.secure-line-products.index'));
+    $response->assertStatus(403);
+});
 
-        $response->assertRedirect('/login');
-    }
+test('admin can view secure line products index', function () {
+    $admin = adminUser();
+    SecureLineProduct::factory()->create(['name' => 'Quick Call']);
 
-    public function test_non_admin_receives_403_on_admin_secure_line_products(): void
-    {
-        $user = $this->nonAdminUser();
+    $response = $this->actingAs($admin)->get(route('admin.secure-line-products.index'));
 
-        $response = $this->actingAs($user)->get(route('admin.secure-line-products.index'));
+    $response->assertStatus(200);
+    $response->assertInertia(fn (AssertableInertia $page) => $page
+        ->component('Admin/SecureLineProducts/Index')
+        ->has('products', 1)
+    );
+});
 
-        $response->assertStatus(403);
-    }
+test('admin can create product with mapped stripe price id', function () {
+    $admin = adminUser();
 
-    public function test_admin_can_view_secure_line_products_index(): void
-    {
-        $admin = $this->adminUser();
-        SecureLineProduct::factory()->create(['name' => 'Quick Call']);
-
-        $response = $this->actingAs($admin)->get(route('admin.secure-line-products.index'));
-
-        $response->assertStatus(200);
-        $response->assertInertia(fn (AssertableInertia $page) => $page
-            ->component('Admin/SecureLineProducts/Index')
-            ->has('products', 1)
-        );
-    }
-
-    public function test_admin_can_create_product_with_mapped_stripe_price_id(): void
-    {
-        $admin = $this->adminUser();
-
-        $response = $this->actingAs($admin)->postJson(
-            route('admin.secure-line-products.store'),
-            $this->productPayload([
-                'name' => 'Premium Call',
-                'stripe_price_id' => 'price_mapped123',
-            ])
-        );
-
-        $response->assertRedirect(route('admin.secure-line-products.index'));
-        $this->assertDatabaseHas('secure_line_products', [
+    $response = $this->actingAs($admin)->postJson(
+        route('admin.secure-line-products.store'),
+        productPayload([
             'name' => 'Premium Call',
             'stripe_price_id' => 'price_mapped123',
-        ]);
-    }
+        ])
+    );
 
-    public function test_admin_can_create_product_without_stripe_price_id(): void
-    {
-        $admin = $this->adminUser();
+    $response->assertRedirect(route('admin.secure-line-products.index'));
+    $this->assertDatabaseHas('secure_line_products', [
+        'name' => 'Premium Call',
+        'stripe_price_id' => 'price_mapped123',
+    ]);
+});
 
-        $response = $this->actingAs($admin)->postJson(
-            route('admin.secure-line-products.store'),
-            $this->productPayload(['stripe_price_id' => null])
-        );
+test('admin can create product without stripe price id', function () {
+    $admin = adminUser();
 
-        $response->assertRedirect(route('admin.secure-line-products.index'));
-        $this->assertDatabaseHas('secure_line_products', [
-            'name' => 'Test Secure Line',
-            'stripe_price_id' => null,
-        ]);
-    }
+    $response = $this->actingAs($admin)->postJson(
+        route('admin.secure-line-products.store'),
+        productPayload(['stripe_price_id' => null])
+    );
 
-    public function test_admin_can_view_edit_form_for_product(): void
-    {
-        $admin = $this->adminUser();
-        $product = SecureLineProduct::factory()->withStripePrice()->create();
+    $response->assertRedirect(route('admin.secure-line-products.index'));
+    $this->assertDatabaseHas('secure_line_products', [
+        'name' => 'Test Secure Line',
+        'stripe_price_id' => null,
+    ]);
+});
 
-        $response = $this->actingAs($admin)->get(route('admin.secure-line-products.edit', $product));
+test('admin can view edit form for product', function () {
+    $admin = adminUser();
+    $product = SecureLineProduct::factory()->withStripePrice()->create();
 
-        $response->assertStatus(200);
-        $response->assertInertia(fn (AssertableInertia $page) => $page
-            ->component('Admin/SecureLineProducts/Form')
-            ->where('product.id', $product->id)
-        );
-    }
+    $response = $this->actingAs($admin)->get(route('admin.secure-line-products.edit', $product));
 
-    public function test_admin_can_update_a_product(): void
-    {
-        $admin = $this->adminUser();
-        $product = SecureLineProduct::factory()->withStripePrice()->create();
+    $response->assertStatus(200);
+    $response->assertInertia(fn (AssertableInertia $page) => $page
+        ->component('Admin/SecureLineProducts/Form')
+        ->where('product.id', $product->id)
+    );
+});
 
-        $response = $this->actingAs($admin)->putJson(
-            route('admin.secure-line-products.update', $product),
-            $this->productPayload([
-                'name' => 'Updated Name',
-                'duration_minutes' => 60,
-                'stripe_price_id' => $product->stripe_price_id,
-            ])
-        );
+test('admin can update a product', function () {
+    $admin = adminUser();
+    $product = SecureLineProduct::factory()->withStripePrice()->create();
 
-        $response->assertRedirect(route('admin.secure-line-products.index'));
-        $product->refresh();
-        $this->assertEquals('Updated Name', $product->name);
-        $this->assertEquals(60, $product->duration_minutes);
-    }
+    $response = $this->actingAs($admin)->putJson(
+        route('admin.secure-line-products.update', $product),
+        productPayload([
+            'name' => 'Updated Name',
+            'duration_minutes' => 60,
+            'stripe_price_id' => $product->stripe_price_id,
+        ])
+    );
 
-    public function test_admin_can_deactivate_a_product(): void
-    {
-        $admin = $this->adminUser();
-        $product = SecureLineProduct::factory()->create(['is_active' => true]);
+    $response->assertRedirect(route('admin.secure-line-products.index'));
+    $product->refresh();
+    expect($product->name)->toEqual('Updated Name');
+    expect($product->duration_minutes)->toEqual(60);
+});
 
-        $this->actingAs($admin)->putJson(
-            route('admin.secure-line-products.update', $product),
-            $this->productPayload(['is_active' => false])
-        );
+test('admin can deactivate a product', function () {
+    $admin = adminUser();
+    $product = SecureLineProduct::factory()->create(['is_active' => true]);
 
-        $product->refresh();
-        $this->assertFalse($product->is_active);
-    }
+    $this->actingAs($admin)->putJson(
+        route('admin.secure-line-products.update', $product),
+        productPayload(['is_active' => false])
+    );
 
-    public function test_admin_can_delete_a_product(): void
-    {
-        $admin = $this->adminUser();
-        $product = SecureLineProduct::factory()->create();
+    $product->refresh();
+    expect($product->is_active)->toBeFalse();
+});
 
-        $response = $this->actingAs($admin)->delete(route('admin.secure-line-products.destroy', $product));
+test('admin can delete a product', function () {
+    $admin = adminUser();
+    $product = SecureLineProduct::factory()->create();
 
-        $response->assertRedirect(route('admin.secure-line-products.index'));
-        $this->assertSoftDeleted('secure_line_products', ['id' => $product->id]);
-    }
+    $response = $this->actingAs($admin)->delete(route('admin.secure-line-products.destroy', $product));
 
-    public function test_store_validates_required_fields(): void
-    {
-        $admin = $this->adminUser();
+    $response->assertRedirect(route('admin.secure-line-products.index'));
+    $this->assertSoftDeleted('secure_line_products', ['id' => $product->id]);
+});
 
-        $response = $this->actingAs($admin)->postJson(
-            route('admin.secure-line-products.store'),
-            []
-        );
+test('store validates required fields', function () {
+    $admin = adminUser();
 
-        $response->assertStatus(422);
-        $response->assertJsonValidationErrors(['name', 'duration_minutes', 'max_participants', 'amount_cents']);
-    }
+    $response = $this->actingAs($admin)->postJson(
+        route('admin.secure-line-products.store'),
+        []
+    );
 
-    public function test_duration_minutes_must_be_at_least_1(): void
-    {
-        $admin = $this->adminUser();
+    $response->assertStatus(422);
+    $response->assertJsonValidationErrors(['name', 'duration_minutes', 'max_participants', 'amount_cents']);
+});
 
-        $response = $this->actingAs($admin)->postJson(
-            route('admin.secure-line-products.store'),
-            $this->productPayload(['duration_minutes' => 0])
-        );
+test('duration minutes must be at least 1', function () {
+    $admin = adminUser();
 
-        $response->assertStatus(422);
-        $response->assertJsonValidationErrors(['duration_minutes']);
-    }
+    $response = $this->actingAs($admin)->postJson(
+        route('admin.secure-line-products.store'),
+        productPayload(['duration_minutes' => 0])
+    );
 
-    public function test_max_participants_must_be_at_least_2(): void
-    {
-        $admin = $this->adminUser();
+    $response->assertStatus(422);
+    $response->assertJsonValidationErrors(['duration_minutes']);
+});
 
-        $response = $this->actingAs($admin)->postJson(
-            route('admin.secure-line-products.store'),
-            $this->productPayload(['max_participants' => 1])
-        );
+test('max participants must be at least 2', function () {
+    $admin = adminUser();
 
-        $response->assertStatus(422);
-        $response->assertJsonValidationErrors(['max_participants']);
-    }
+    $response = $this->actingAs($admin)->postJson(
+        route('admin.secure-line-products.store'),
+        productPayload(['max_participants' => 1])
+    );
 
-    public function test_non_admin_cannot_create_product(): void
-    {
-        $user = $this->nonAdminUser();
+    $response->assertStatus(422);
+    $response->assertJsonValidationErrors(['max_participants']);
+});
 
-        $response = $this->actingAs($user)->postJson(
-            route('admin.secure-line-products.store'),
-            $this->productPayload()
-        );
+test('non admin cannot create product', function () {
+    $user = nonAdminUser();
 
-        $response->assertStatus(403);
-    }
+    $response = $this->actingAs($user)->postJson(
+        route('admin.secure-line-products.store'),
+        productPayload()
+    );
 
-    public function test_non_admin_cannot_update_product(): void
-    {
-        $user = $this->nonAdminUser();
-        $product = SecureLineProduct::factory()->create();
+    $response->assertStatus(403);
+});
 
-        $response = $this->actingAs($user)->putJson(
-            route('admin.secure-line-products.update', $product),
-            $this->productPayload()
-        );
+test('non admin cannot update product', function () {
+    $user = nonAdminUser();
+    $product = SecureLineProduct::factory()->create();
 
-        $response->assertStatus(403);
-    }
+    $response = $this->actingAs($user)->putJson(
+        route('admin.secure-line-products.update', $product),
+        productPayload()
+    );
 
-    public function test_non_admin_cannot_delete_product(): void
-    {
-        $user = $this->nonAdminUser();
-        $product = SecureLineProduct::factory()->create();
+    $response->assertStatus(403);
+});
 
-        $response = $this->actingAs($user)->delete(route('admin.secure-line-products.destroy', $product));
+test('non admin cannot delete product', function () {
+    $user = nonAdminUser();
+    $product = SecureLineProduct::factory()->create();
 
-        $response->assertStatus(403);
-    }
-}
+    $response = $this->actingAs($user)->delete(route('admin.secure-line-products.destroy', $product));
+
+    $response->assertStatus(403);
+});

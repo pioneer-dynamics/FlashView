@@ -1,106 +1,87 @@
 <?php
 
-namespace Tests\Feature;
-
 use App\Models\PipeSession;
 use App\Models\PipeSignal;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
-use Tests\TestCase;
 
-class PipeSignalTest extends TestCase
-{
-    use RefreshDatabase;
+uses(RefreshDatabase::class);
 
-    private string $sessionId = 'abcdef1234567890abcdef1234567891';
+beforeEach(function () {
+    $this->sessionId = 'abcdef1234567890abcdef1234567891';
+    $this->user = User::factory()->create();
+    Sanctum::actingAs($this->user);
+    $this->session = PipeSession::factory()->create([
+        'session_id' => $this->sessionId,
+        'user_id' => $this->user->id,
+        'expires_at' => now()->addMinutes(10),
+    ]);
+});
 
-    private PipeSession $session;
+test('can store signal', function () {
+    $response = $this->postJson("/api/v1/pipe/{$this->sessionId}/signal", [
+        'role' => 'sender',
+        'type' => 'offer',
+        'payload' => ['sdp' => 'v=0...'],
+    ]);
 
-    private User $user;
+    $response->assertStatus(201)->assertJsonStructure(['signal_id']);
+    $this->assertDatabaseCount('pipe_signals', 1);
+});
 
-    protected function setUp(): void
-    {
-        parent::setUp();
-        $this->user = User::factory()->create();
-        Sanctum::actingAs($this->user);
-        $this->session = PipeSession::factory()->create([
-            'session_id' => $this->sessionId,
-            'user_id' => $this->user->id,
-            'expires_at' => now()->addMinutes(10),
-        ]);
-    }
+test('invalid role returns 422', function () {
+    $this->postJson("/api/v1/pipe/{$this->sessionId}/signal", [
+        'role' => 'unknown',
+        'type' => 'offer',
+        'payload' => [],
+    ])->assertStatus(422);
+});
 
-    public function test_can_store_signal(): void
-    {
-        $response = $this->postJson("/api/v1/pipe/{$this->sessionId}/signal", [
-            'role' => 'sender',
-            'type' => 'offer',
-            'payload' => ['sdp' => 'v=0...'],
-        ]);
+test('invalid type returns 422', function () {
+    $this->postJson("/api/v1/pipe/{$this->sessionId}/signal", [
+        'role' => 'sender',
+        'type' => 'invalid-type',
+        'payload' => [],
+    ])->assertStatus(422);
+});
 
-        $response->assertStatus(201)->assertJsonStructure(['signal_id']);
-        $this->assertDatabaseCount('pipe_signals', 1);
-    }
+test('can poll signals after id', function () {
+    PipeSignal::create([
+        'pipe_session_id' => $this->session->id,
+        'role' => 'sender',
+        'type' => 'offer',
+        'payload' => ['sdp' => 'old'],
+    ]);
 
-    public function test_invalid_role_returns_422(): void
-    {
-        $this->postJson("/api/v1/pipe/{$this->sessionId}/signal", [
-            'role' => 'unknown',
-            'type' => 'offer',
-            'payload' => [],
-        ])->assertStatus(422);
-    }
+    $second = PipeSignal::create([
+        'pipe_session_id' => $this->session->id,
+        'role' => 'sender',
+        'type' => 'ice-candidate',
+        'payload' => ['candidate' => 'ice'],
+    ]);
 
-    public function test_invalid_type_returns_422(): void
-    {
-        $this->postJson("/api/v1/pipe/{$this->sessionId}/signal", [
-            'role' => 'sender',
-            'type' => 'invalid-type',
-            'payload' => [],
-        ])->assertStatus(422);
-    }
+    $response = $this->getJson("/api/v1/pipe/{$this->sessionId}/signal?role=sender&after=".($second->id - 1));
 
-    public function test_can_poll_signals_after_id(): void
-    {
-        PipeSignal::create([
-            'pipe_session_id' => $this->session->id,
-            'role' => 'sender',
-            'type' => 'offer',
-            'payload' => ['sdp' => 'old'],
-        ]);
+    $response->assertStatus(200)
+        ->assertJsonCount(1, 'signals')
+        ->assertJsonPath('signals.0.type', 'ice-candidate');
+});
 
-        $second = PipeSignal::create([
-            'pipe_session_id' => $this->session->id,
-            'role' => 'sender',
-            'type' => 'ice-candidate',
-            'payload' => ['candidate' => 'ice'],
-        ]);
+test('polling signals requires valid role', function () {
+    $this->getJson("/api/v1/pipe/{$this->sessionId}/signal?role=invalid")
+        ->assertStatus(422);
+});
 
-        $response = $this->getJson("/api/v1/pipe/{$this->sessionId}/signal?role=sender&after=".($second->id - 1));
+test('signal to expired session returns 404', function () {
+    $expiredSession = PipeSession::factory()->create([
+        'session_id' => 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa0',
+        'expires_at' => now()->subMinute(),
+    ]);
 
-        $response->assertStatus(200)
-            ->assertJsonCount(1, 'signals')
-            ->assertJsonPath('signals.0.type', 'ice-candidate');
-    }
-
-    public function test_polling_signals_requires_valid_role(): void
-    {
-        $this->getJson("/api/v1/pipe/{$this->sessionId}/signal?role=invalid")
-            ->assertStatus(422);
-    }
-
-    public function test_signal_to_expired_session_returns_404(): void
-    {
-        $expiredSession = PipeSession::factory()->create([
-            'session_id' => 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa0',
-            'expires_at' => now()->subMinute(),
-        ]);
-
-        $this->postJson('/api/v1/pipe/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa0/signal', [
-            'role' => 'sender',
-            'type' => 'offer',
-            'payload' => ['sdp' => 'v=0'],
-        ])->assertStatus(404);
-    }
-}
+    $this->postJson('/api/v1/pipe/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa0/signal', [
+        'role' => 'sender',
+        'type' => 'offer',
+        'payload' => ['sdp' => 'v=0'],
+    ])->assertStatus(404);
+});
