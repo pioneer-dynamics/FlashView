@@ -1,37 +1,28 @@
 <?php
 
-namespace Tests\Unit\Locker;
-
 use App\Models\LockerCredit;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Tests\TestCase;
 
-class LockerCreditModelTest extends TestCase
-{
-    use RefreshDatabase;
+uses(RefreshDatabase::class);
 
-    public function test_is_used_returns_false_when_unused(): void
-    {
-        $credit = LockerCredit::factory()->create();
+test('is used returns false when unused', function () {
+    $credit = LockerCredit::factory()->create();
 
-        $this->assertFalse($credit->isUsed());
-    }
+    expect($credit->isUsed())->toBeFalse();
+});
 
-    public function test_is_used_returns_true_when_used_at_set(): void
-    {
-        $credit = LockerCredit::factory()->used()->create();
+test('is used returns true when used at set', function () {
+    $credit = LockerCredit::factory()->used()->create();
 
-        $this->assertTrue($credit->isUsed());
-    }
+    expect($credit->isUsed())->toBeTrue();
+});
 
-    public function test_unused_scope_returns_only_unused(): void
-    {
-        LockerCredit::factory()->create(['token' => 'unused1']);
-        LockerCredit::factory()->used()->create(['token' => 'used1']);
+test('unused scope returns only unused', function () {
+    LockerCredit::factory()->create(['token' => 'unused1']);
+    LockerCredit::factory()->used()->create(['token' => 'used1']);
 
-        $unused = LockerCredit::unused()->get();
+    $unused = LockerCredit::unused()->get();
 
-        $this->assertCount(1, $unused);
-        $this->assertEquals('unused1', $unused->first()->token);
-    }
-}
+    expect($unused)->toHaveCount(1);
+    expect($unused->first()->token)->toEqual('unused1');
+});

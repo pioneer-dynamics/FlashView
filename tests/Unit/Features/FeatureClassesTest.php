@@ -1,165 +1,128 @@
 <?php
 
-namespace Tests\Unit\Features;
-
 use App\Features\ExpiryFeature;
 use App\Features\FileUploadFeature;
 use App\Features\MessagesFeature;
 use App\Features\ThrottlingFeature;
-use Tests\TestCase;
 
-class FeatureClassesTest extends TestCase
-{
-    // ── MessagesFeature ───────────────────────────────────────────────────────
+test('messages feature within limit returns true when under limit', function () {
+    $feature = new MessagesFeature;
 
-    public function test_messages_feature_within_limit_returns_true_when_under_limit(): void
-    {
-        $feature = new MessagesFeature;
+    expect($feature->withinLimit(500, ['message_length' => 1000]))->toBeTrue();
+});
 
-        $this->assertTrue($feature->withinLimit(500, ['message_length' => 1000]));
-    }
+test('messages feature within limit returns true when equal to limit', function () {
+    $feature = new MessagesFeature;
 
-    public function test_messages_feature_within_limit_returns_true_when_equal_to_limit(): void
-    {
-        $feature = new MessagesFeature;
+    expect($feature->withinLimit(1000, ['message_length' => 1000]))->toBeTrue();
+});
 
-        $this->assertTrue($feature->withinLimit(1000, ['message_length' => 1000]));
-    }
+test('messages feature within limit returns false when over limit', function () {
+    $feature = new MessagesFeature;
 
-    public function test_messages_feature_within_limit_returns_false_when_over_limit(): void
-    {
-        $feature = new MessagesFeature;
+    expect($feature->withinLimit(1001, ['message_length' => 1000]))->toBeFalse();
+});
 
-        $this->assertFalse($feature->withinLimit(1001, ['message_length' => 1000]));
-    }
+test('messages feature within limit returns true when config missing', function () {
+    $feature = new MessagesFeature;
 
-    public function test_messages_feature_within_limit_returns_true_when_config_missing(): void
-    {
-        $feature = new MessagesFeature;
+    expect($feature->withinLimit(PHP_INT_MAX - 1, []))->toBeTrue();
+});
 
-        $this->assertTrue($feature->withinLimit(PHP_INT_MAX - 1, []));
-    }
+test('messages feature can be limit', function () {
+    expect((new MessagesFeature)->canBeLimit())->toBeTrue();
+});
 
-    public function test_messages_feature_can_be_limit(): void
-    {
-        $this->assertTrue((new MessagesFeature)->canBeLimit());
-    }
+test('expiry feature within limit returns true when under limit', function () {
+    $feature = new ExpiryFeature;
 
-    // ── ExpiryFeature ─────────────────────────────────────────────────────────
+    expect($feature->withinLimit(1440, ['expiry_minutes' => 43200]))->toBeTrue();
+});
 
-    public function test_expiry_feature_within_limit_returns_true_when_under_limit(): void
-    {
-        $feature = new ExpiryFeature;
+test('expiry feature within limit returns false when over limit', function () {
+    $feature = new ExpiryFeature;
 
-        $this->assertTrue($feature->withinLimit(1440, ['expiry_minutes' => 43200]));
-    }
+    expect($feature->withinLimit(43201, ['expiry_minutes' => 43200]))->toBeFalse();
+});
 
-    public function test_expiry_feature_within_limit_returns_false_when_over_limit(): void
-    {
-        $feature = new ExpiryFeature;
+test('expiry feature within limit returns true when config missing', function () {
+    $feature = new ExpiryFeature;
 
-        $this->assertFalse($feature->withinLimit(43201, ['expiry_minutes' => 43200]));
-    }
+    expect($feature->withinLimit(PHP_INT_MAX - 1, []))->toBeTrue();
+});
 
-    public function test_expiry_feature_within_limit_returns_true_when_config_missing(): void
-    {
-        $feature = new ExpiryFeature;
+test('expiry feature can be limit', function () {
+    expect((new ExpiryFeature)->canBeLimit())->toBeTrue();
+});
 
-        $this->assertTrue($feature->withinLimit(PHP_INT_MAX - 1, []));
-    }
+test('expiry feature resolves label in weeks', function () {
+    expect((new ExpiryFeature)->resolveLabel(['expiry_minutes' => 20160]))->toBe('Up to 2 weeks expiry');
+});
 
-    public function test_expiry_feature_can_be_limit(): void
-    {
-        $this->assertTrue((new ExpiryFeature)->canBeLimit());
-    }
+test('expiry feature resolves label in days', function () {
+    expect((new ExpiryFeature)->resolveLabel(['expiry_minutes' => 43200]))->toBe('Up to 30 days expiry');
+});
 
-    public function test_expiry_feature_resolves_label_in_weeks(): void
-    {
-        $this->assertSame('Up to 2 weeks expiry', (new ExpiryFeature)->resolveLabel(['expiry_minutes' => 20160]));
-    }
+test('expiry feature resolves label singular day', function () {
+    expect((new ExpiryFeature)->resolveLabel(['expiry_minutes' => 1440]))->toBe('Up to 1 day expiry');
+});
 
-    public function test_expiry_feature_resolves_label_in_days(): void
-    {
-        $this->assertSame('Up to 30 days expiry', (new ExpiryFeature)->resolveLabel(['expiry_minutes' => 43200]));
-    }
+test('expiry feature resolves label in hours', function () {
+    expect((new ExpiryFeature)->resolveLabel(['expiry_minutes' => 360]))->toBe('Up to 6 hours expiry');
+});
 
-    public function test_expiry_feature_resolves_label_singular_day(): void
-    {
-        $this->assertSame('Up to 1 day expiry', (new ExpiryFeature)->resolveLabel(['expiry_minutes' => 1440]));
-    }
+test('expiry feature resolves label in minutes', function () {
+    expect((new ExpiryFeature)->resolveLabel(['expiry_minutes' => 90]))->toBe('Up to 90 minutes expiry');
+});
 
-    public function test_expiry_feature_resolves_label_in_hours(): void
-    {
-        $this->assertSame('Up to 6 hours expiry', (new ExpiryFeature)->resolveLabel(['expiry_minutes' => 360]));
-    }
+test('expiry feature resolves label with missing config', function () {
+    expect((new ExpiryFeature)->resolveLabel([]))->toBe('Up to 0 minutes expiry');
+});
 
-    public function test_expiry_feature_resolves_label_in_minutes(): void
-    {
-        $this->assertSame('Up to 90 minutes expiry', (new ExpiryFeature)->resolveLabel(['expiry_minutes' => 90]));
-    }
+test('throttling feature within limit returns true when under limit', function () {
+    $feature = new ThrottlingFeature;
 
-    public function test_expiry_feature_resolves_label_with_missing_config(): void
-    {
-        $this->assertSame('Up to 0 minutes expiry', (new ExpiryFeature)->resolveLabel([]));
-    }
+    expect($feature->withinLimit(30, ['per_minute' => 60]))->toBeTrue();
+});
 
-    // ── ThrottlingFeature ─────────────────────────────────────────────────────
+test('throttling feature within limit returns false when over limit', function () {
+    $feature = new ThrottlingFeature;
 
-    public function test_throttling_feature_within_limit_returns_true_when_under_limit(): void
-    {
-        $feature = new ThrottlingFeature;
+    expect($feature->withinLimit(61, ['per_minute' => 60]))->toBeFalse();
+});
 
-        $this->assertTrue($feature->withinLimit(30, ['per_minute' => 60]));
-    }
+test('throttling feature can be limit', function () {
+    expect((new ThrottlingFeature)->canBeLimit())->toBeTrue();
+});
 
-    public function test_throttling_feature_within_limit_returns_false_when_over_limit(): void
-    {
-        $feature = new ThrottlingFeature;
+test('file upload feature within limit returns true when under limit', function () {
+    $feature = new FileUploadFeature;
+    $tenMbInBytes = 10 * 1024 * 1024;
 
-        $this->assertFalse($feature->withinLimit(61, ['per_minute' => 60]));
-    }
+    expect($feature->withinLimit($tenMbInBytes - 1, ['max_file_size_mb' => 10]))->toBeTrue();
+});
 
-    public function test_throttling_feature_can_be_limit(): void
-    {
-        $this->assertTrue((new ThrottlingFeature)->canBeLimit());
-    }
+test('file upload feature within limit returns true when equal to limit', function () {
+    $feature = new FileUploadFeature;
+    $tenMbInBytes = 10 * 1024 * 1024;
 
-    // ── FileUploadFeature ─────────────────────────────────────────────────────
+    expect($feature->withinLimit($tenMbInBytes, ['max_file_size_mb' => 10]))->toBeTrue();
+});
 
-    public function test_file_upload_feature_within_limit_returns_true_when_under_limit(): void
-    {
-        $feature = new FileUploadFeature;
-        $tenMbInBytes = 10 * 1024 * 1024;
+test('file upload feature within limit returns false when over limit', function () {
+    $feature = new FileUploadFeature;
+    $tenMbInBytes = 10 * 1024 * 1024;
 
-        $this->assertTrue($feature->withinLimit($tenMbInBytes - 1, ['max_file_size_mb' => 10]));
-    }
+    expect($feature->withinLimit($tenMbInBytes + 1, ['max_file_size_mb' => 10]))->toBeFalse();
+});
 
-    public function test_file_upload_feature_within_limit_returns_true_when_equal_to_limit(): void
-    {
-        $feature = new FileUploadFeature;
-        $tenMbInBytes = 10 * 1024 * 1024;
+test('file upload feature within limit returns false when config missing', function () {
+    $feature = new FileUploadFeature;
 
-        $this->assertTrue($feature->withinLimit($tenMbInBytes, ['max_file_size_mb' => 10]));
-    }
+    // max_file_size_mb defaults to 0, so any size > 0 fails
+    expect($feature->withinLimit(1, []))->toBeFalse();
+});
 
-    public function test_file_upload_feature_within_limit_returns_false_when_over_limit(): void
-    {
-        $feature = new FileUploadFeature;
-        $tenMbInBytes = 10 * 1024 * 1024;
-
-        $this->assertFalse($feature->withinLimit($tenMbInBytes + 1, ['max_file_size_mb' => 10]));
-    }
-
-    public function test_file_upload_feature_within_limit_returns_false_when_config_missing(): void
-    {
-        $feature = new FileUploadFeature;
-
-        // max_file_size_mb defaults to 0, so any size > 0 fails
-        $this->assertFalse($feature->withinLimit(1, []));
-    }
-
-    public function test_file_upload_feature_can_be_limit(): void
-    {
-        $this->assertTrue((new FileUploadFeature)->canBeLimit());
-    }
-}
+test('file upload feature can be limit', function () {
+    expect((new FileUploadFeature)->canBeLimit())->toBeTrue();
+});

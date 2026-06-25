@@ -1,307 +1,238 @@
 <?php
 
-namespace Tests\Feature;
-
 use App\Exceptions\DnsVerificationPendingException;
 use App\Jobs\RetryDomainVerification;
-use App\Models\Plan;
-use App\Models\SenderIdentity;
 use App\Models\User;
 use App\Notifications\DomainVerificationTimeoutNotification;
 use App\Notifications\DomainVerifiedNotification;
 use App\Services\DomainVerificationService;
 use Carbon\Carbon;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
-use Tests\TestCase;
-
-class DomainVerificationRetryTest extends TestCase
-{
-    use RefreshDatabase;
-
-    private function createPrimeUser(): User
-    {
-        $plan = Plan::factory()->withSenderIdentity()->create();
-        $user = User::factory()->withPersonalTeam()->create();
-        $user->subscriptions()->create([
-            'type' => 'default',
-            'stripe_id' => 'sub_test_retry',
-            'stripe_status' => 'active',
-            'stripe_price' => $plan->stripe_monthly_price_id,
-            'quantity' => 1,
-        ]);
-
-        return $user;
-    }
-
-    private function makeDomainIdentity(User $user, array $attrs = []): SenderIdentity
-    {
-        return SenderIdentity::factory()->for($user)->create(array_merge([
-            'type' => 'domain',
-            'company_name' => 'Acme Corp',
-            'domain' => 'acme.com',
-            'verification_token' => 'flashview-verification-test-abc',
-            'verified_at' => null,
-            'verification_retry_dispatched_at' => null,
-        ], $attrs));
-    }
-
-    // -----------------------------------------------------------------------
-    // Controller dispatch
-    // -----------------------------------------------------------------------
-
-    public function test_retry_job_dispatched_on_first_failed_verify(): void
-    {
-        Queue::fake();
-
-        $user = $this->createPrimeUser();
-        $this->makeDomainIdentity($user);
-
-        $this->mock(DomainVerificationService::class, function ($mock) {
-            $mock->shouldReceive('verify')->once()->andReturn(false);
-        });
-
-        $this->actingAs($user)->post(route('user.sender-identity.verify'));
-
-        Queue::assertPushed(RetryDomainVerification::class);
-        $this->assertNotNull($user->fresh()->senderIdentity->verification_retry_dispatched_at);
-    }
-
-    public function test_retry_job_not_dispatched_when_retry_already_active(): void
-    {
-        Queue::fake();
-
-        $user = $this->createPrimeUser();
-        $this->makeDomainIdentity($user, ['verification_retry_dispatched_at' => now()]);
-
-        $this->mock(DomainVerificationService::class, function ($mock) {
-            $mock->shouldReceive('verify')->once()->andReturn(false);
-        });
-
-        $this->actingAs($user)
-            ->post(route('user.sender-identity.verify'))
-            ->assertSessionHasErrors(['domain' => "We're already working on verifying your domain in the background. You'll receive an email once it's done."]);
-
-        Queue::assertNotPushed(RetryDomainVerification::class);
-    }
-
-    public function test_retry_flag_cleared_on_manual_verify_success(): void
-    {
-        Queue::fake();
-        Notification::fake();
-
-        $user = $this->createPrimeUser();
-        $this->makeDomainIdentity($user, ['verification_retry_dispatched_at' => now()]);
-
-        $this->mock(DomainVerificationService::class, function ($mock) {
-            $mock->shouldReceive('verify')->once()->andReturn(true);
-        });
-
-        $this->actingAs($user)->post(route('user.sender-identity.verify'));
-
-        $this->assertNull($user->fresh()->senderIdentity->verification_retry_dispatched_at);
-    }
-
-    public function test_domain_change_clears_retry_flag(): void
-    {
-        $user = $this->createPrimeUser();
-        $this->makeDomainIdentity($user, ['verification_retry_dispatched_at' => now()]);
-
-        $this->actingAs($user)->post(route('user.sender-identity.store'), [
-            'type' => 'domain',
-            'company_name' => 'Acme Corp',
-            'domain' => 'new-acme.com',
-        ]);
-
-        $this->assertNull($user->fresh()->senderIdentity->verification_retry_dispatched_at);
-    }
-
-    public function test_switching_to_email_type_clears_retry_flag(): void
-    {
-        $user = $this->createPrimeUser();
-        $this->makeDomainIdentity($user, ['verification_retry_dispatched_at' => now()]);
 
-        $this->actingAs($user)->post(route('user.sender-identity.store'), ['type' => 'email']);
-
-        $this->assertNull($user->fresh()->senderIdentity->verification_retry_dispatched_at);
-    }
+test('retry job dispatched on first failed verify', function () {
+    Queue::fake();
 
-    // -----------------------------------------------------------------------
-    // Job handle()
-    // -----------------------------------------------------------------------
+    $user = createPrimeUser();
+    makeDomainIdentity($user);
 
-    public function test_job_verifies_and_clears_flag_on_success(): void
-    {
-        Notification::fake();
+    $this->mock(DomainVerificationService::class, function ($mock) {
+        $mock->shouldReceive('verify')->once()->andReturn(false);
+    });
 
-        $user = User::factory()->withPersonalTeam()->create();
-        $identity = $this->makeDomainIdentity($user, [
-            'verification_retry_dispatched_at' => now(),
-        ]);
+    $this->actingAs($user)->post(route('user.sender-identity.verify'));
 
-        $service = $this->mock(DomainVerificationService::class, function ($mock) {
-            $mock->shouldReceive('verify')->once()->andReturn(true);
-        });
+    Queue::assertPushed(RetryDomainVerification::class);
+    expect($user->fresh()->senderIdentity->verification_retry_dispatched_at)->not->toBeNull();
+});
 
-        $job = new RetryDomainVerification($identity, $identity->verification_token, now()->addHours(24));
-        $job->handle($service);
+test('retry job not dispatched when retry already active', function () {
+    Queue::fake();
 
-        $identity->refresh();
-        $this->assertNotNull($identity->verified_at);
-        $this->assertNull($identity->verification_retry_dispatched_at);
-        Notification::assertSentTo($user, DomainVerifiedNotification::class);
-    }
+    $user = createPrimeUser();
+    makeDomainIdentity($user, ['verification_retry_dispatched_at' => now()]);
 
-    public function test_job_throws_on_dns_not_found_to_trigger_retry(): void
-    {
-        $user = User::factory()->withPersonalTeam()->create();
-        $identity = $this->makeDomainIdentity($user);
+    $this->mock(DomainVerificationService::class, function ($mock) {
+        $mock->shouldReceive('verify')->once()->andReturn(false);
+    });
 
-        $service = $this->mock(DomainVerificationService::class, function ($mock) {
-            $mock->shouldReceive('verify')->once()->andReturn(false);
-        });
+    $this->actingAs($user)
+        ->post(route('user.sender-identity.verify'))
+        ->assertSessionHasErrors(['domain' => "We're already working on verifying your domain in the background. You'll receive an email once it's done."]);
 
-        $this->expectException(DnsVerificationPendingException::class);
+    Queue::assertNotPushed(RetryDomainVerification::class);
+});
 
-        $job = new RetryDomainVerification($identity, $identity->verification_token, now()->addHours(24));
-        $job->handle($service);
-    }
+test('retry flag cleared on manual verify success', function () {
+    Queue::fake();
+    Notification::fake();
 
-    public function test_job_stops_silently_on_token_mismatch(): void
-    {
-        Notification::fake();
+    $user = createPrimeUser();
+    makeDomainIdentity($user, ['verification_retry_dispatched_at' => now()]);
 
-        $user = User::factory()->withPersonalTeam()->create();
-        $identity = $this->makeDomainIdentity($user, [
-            'verification_token' => 'new-token-after-domain-change',
-            'verification_retry_dispatched_at' => now(),
-        ]);
+    $this->mock(DomainVerificationService::class, function ($mock) {
+        $mock->shouldReceive('verify')->once()->andReturn(true);
+    });
 
-        $service = $this->mock(DomainVerificationService::class, function ($mock) {
-            $mock->shouldReceive('verify')->never();
-        });
+    $this->actingAs($user)->post(route('user.sender-identity.verify'));
 
-        $job = new RetryDomainVerification($identity, 'old-token-at-dispatch', now()->addHours(24));
-        $job->handle($service);
+    expect($user->fresh()->senderIdentity->verification_retry_dispatched_at)->toBeNull();
+});
 
-        Notification::assertNothingSent();
-    }
+test('domain change clears retry flag', function () {
+    $user = createPrimeUser();
+    makeDomainIdentity($user, ['verification_retry_dispatched_at' => now()]);
 
-    public function test_job_stops_silently_when_identity_deleted(): void
-    {
-        Notification::fake();
+    $this->actingAs($user)->post(route('user.sender-identity.store'), [
+        'type' => 'domain',
+        'company_name' => 'Acme Corp',
+        'domain' => 'new-acme.com',
+    ]);
 
-        $user = User::factory()->withPersonalTeam()->create();
-        $identity = $this->makeDomainIdentity($user);
-        $token = $identity->verification_token;
-        $identity->delete();
+    expect($user->fresh()->senderIdentity->verification_retry_dispatched_at)->toBeNull();
+});
 
-        $service = $this->mock(DomainVerificationService::class, function ($mock) {
-            $mock->shouldReceive('verify')->never();
-        });
+test('switching to email type clears retry flag', function () {
+    $user = createPrimeUser();
+    makeDomainIdentity($user, ['verification_retry_dispatched_at' => now()]);
 
-        $job = new RetryDomainVerification($identity, $token, now()->addHours(24));
-        $job->handle($service);
+    $this->actingAs($user)->post(route('user.sender-identity.store'), ['type' => 'email']);
 
-        Notification::assertNothingSent();
-    }
+    expect($user->fresh()->senderIdentity->verification_retry_dispatched_at)->toBeNull();
+});
 
-    public function test_job_stops_silently_when_already_verified(): void
-    {
-        Notification::fake();
+test('job verifies and clears flag on success', function () {
+    Notification::fake();
 
-        $user = User::factory()->withPersonalTeam()->create();
-        $identity = $this->makeDomainIdentity($user, [
-            'verified_at' => now(),
-            'verification_retry_dispatched_at' => now(),
-        ]);
+    $user = User::factory()->withPersonalTeam()->create();
+    $identity = makeDomainIdentity($user, [
+        'verification_retry_dispatched_at' => now(),
+    ]);
 
-        $service = $this->mock(DomainVerificationService::class, function ($mock) {
-            $mock->shouldReceive('verify')->never();
-        });
+    $service = $this->mock(DomainVerificationService::class, function ($mock) {
+        $mock->shouldReceive('verify')->once()->andReturn(true);
+    });
 
-        $job = new RetryDomainVerification($identity, $identity->verification_token, now()->addHours(24));
-        $job->handle($service);
+    $job = new RetryDomainVerification($identity, $identity->verification_token, now()->addHours(24));
+    $job->handle($service);
 
-        $this->assertNull($identity->fresh()->verification_retry_dispatched_at);
-        Notification::assertNothingSent();
-    }
+    $identity->refresh();
+    expect($identity->verified_at)->not->toBeNull();
+    expect($identity->verification_retry_dispatched_at)->toBeNull();
+    Notification::assertSentTo($user, DomainVerifiedNotification::class);
+});
 
-    // -----------------------------------------------------------------------
-    // Job failed()
-    // -----------------------------------------------------------------------
+test('job throws on dns not found to trigger retry', function () {
+    $user = User::factory()->withPersonalTeam()->create();
+    $identity = makeDomainIdentity($user);
 
-    public function test_failed_callback_clears_flag_and_sends_timeout_notification(): void
-    {
-        Notification::fake();
+    $service = $this->mock(DomainVerificationService::class, function ($mock) {
+        $mock->shouldReceive('verify')->once()->andReturn(false);
+    });
 
-        $user = User::factory()->withPersonalTeam()->create();
-        $identity = $this->makeDomainIdentity($user, ['verification_retry_dispatched_at' => now()]);
+    $this->expectException(DnsVerificationPendingException::class);
 
-        $job = new RetryDomainVerification($identity, $identity->verification_token, now()->addHours(24));
-        $job->failed(new \RuntimeException('timeout'));
+    $job = new RetryDomainVerification($identity, $identity->verification_token, now()->addHours(24));
+    $job->handle($service);
+});
 
-        $this->assertNull($identity->fresh()->verification_retry_dispatched_at);
-        Notification::assertSentTo($user, DomainVerificationTimeoutNotification::class);
-    }
+test('job stops silently on token mismatch', function () {
+    Notification::fake();
 
-    public function test_failed_callback_does_nothing_if_token_changed(): void
-    {
-        Notification::fake();
+    $user = User::factory()->withPersonalTeam()->create();
+    $identity = makeDomainIdentity($user, [
+        'verification_token' => 'new-token-after-domain-change',
+        'verification_retry_dispatched_at' => now(),
+    ]);
 
-        $user = User::factory()->withPersonalTeam()->create();
-        $identity = $this->makeDomainIdentity($user, [
-            'verification_token' => 'new-token',
-        ]);
+    $service = $this->mock(DomainVerificationService::class, function ($mock) {
+        $mock->shouldReceive('verify')->never();
+    });
 
-        $job = new RetryDomainVerification($identity, 'old-token-at-dispatch', now()->addHours(24));
-        $job->failed(new \RuntimeException('timeout'));
+    $job = new RetryDomainVerification($identity, 'old-token-at-dispatch', now()->addHours(24));
+    $job->handle($service);
 
-        Notification::assertNothingSent();
-    }
+    Notification::assertNothingSent();
+});
 
-    public function test_failed_callback_does_nothing_if_identity_deleted(): void
-    {
-        Notification::fake();
+test('job stops silently when identity deleted', function () {
+    Notification::fake();
 
-        $user = User::factory()->withPersonalTeam()->create();
-        $identity = $this->makeDomainIdentity($user);
-        $token = $identity->verification_token;
-        $identity->delete();
+    $user = User::factory()->withPersonalTeam()->create();
+    $identity = makeDomainIdentity($user);
+    $token = $identity->verification_token;
+    $identity->delete();
 
-        $job = new RetryDomainVerification($identity, $token, now()->addHours(24));
-        $job->failed(new \RuntimeException('timeout'));
+    $service = $this->mock(DomainVerificationService::class, function ($mock) {
+        $mock->shouldReceive('verify')->never();
+    });
 
-        Notification::assertNothingSent();
-    }
+    $job = new RetryDomainVerification($identity, $token, now()->addHours(24));
+    $job->handle($service);
 
-    // -----------------------------------------------------------------------
-    // Job configuration
-    // -----------------------------------------------------------------------
+    Notification::assertNothingSent();
+});
 
-    public function test_job_has_correct_backoff_schedule(): void
-    {
-        $user = User::factory()->withPersonalTeam()->create();
-        $identity = $this->makeDomainIdentity($user);
+test('job stops silently when already verified', function () {
+    Notification::fake();
 
-        $job = new RetryDomainVerification($identity, $identity->verification_token, now()->addHours(24));
+    $user = User::factory()->withPersonalTeam()->create();
+    $identity = makeDomainIdentity($user, [
+        'verified_at' => now(),
+        'verification_retry_dispatched_at' => now(),
+    ]);
 
-        $this->assertEquals([120, 240, 480, 960, 1920, 3840, 7680, 15360, 30720], $job->backoff());
-    }
+    $service = $this->mock(DomainVerificationService::class, function ($mock) {
+        $mock->shouldReceive('verify')->never();
+    });
 
-    public function test_job_retry_until_returns_provided_deadline(): void
-    {
-        Carbon::setTestNow(now());
+    $job = new RetryDomainVerification($identity, $identity->verification_token, now()->addHours(24));
+    $job->handle($service);
 
-        $user = User::factory()->withPersonalTeam()->create();
-        $identity = $this->makeDomainIdentity($user);
-        $deadline = now()->addHours(24);
+    expect($identity->fresh()->verification_retry_dispatched_at)->toBeNull();
+    Notification::assertNothingSent();
+});
 
-        $job = new RetryDomainVerification($identity, $identity->verification_token, $deadline);
+test('failed callback clears flag and sends timeout notification', function () {
+    Notification::fake();
 
-        $this->assertEquals($deadline, $job->retryUntil());
+    $user = User::factory()->withPersonalTeam()->create();
+    $identity = makeDomainIdentity($user, ['verification_retry_dispatched_at' => now()]);
 
-        Carbon::setTestNow();
-    }
-}
+    $job = new RetryDomainVerification($identity, $identity->verification_token, now()->addHours(24));
+    $job->failed(new RuntimeException('timeout'));
+
+    expect($identity->fresh()->verification_retry_dispatched_at)->toBeNull();
+    Notification::assertSentTo($user, DomainVerificationTimeoutNotification::class);
+});
+
+test('failed callback does nothing if token changed', function () {
+    Notification::fake();
+
+    $user = User::factory()->withPersonalTeam()->create();
+    $identity = makeDomainIdentity($user, [
+        'verification_token' => 'new-token',
+    ]);
+
+    $job = new RetryDomainVerification($identity, 'old-token-at-dispatch', now()->addHours(24));
+    $job->failed(new RuntimeException('timeout'));
+
+    Notification::assertNothingSent();
+});
+
+test('failed callback does nothing if identity deleted', function () {
+    Notification::fake();
+
+    $user = User::factory()->withPersonalTeam()->create();
+    $identity = makeDomainIdentity($user);
+    $token = $identity->verification_token;
+    $identity->delete();
+
+    $job = new RetryDomainVerification($identity, $token, now()->addHours(24));
+    $job->failed(new RuntimeException('timeout'));
+
+    Notification::assertNothingSent();
+});
+
+test('job has correct backoff schedule', function () {
+    $user = User::factory()->withPersonalTeam()->create();
+    $identity = makeDomainIdentity($user);
+
+    $job = new RetryDomainVerification($identity, $identity->verification_token, now()->addHours(24));
+
+    expect($job->backoff())->toEqual([120, 240, 480, 960, 1920, 3840, 7680, 15360, 30720]);
+});
+
+test('job retry until returns provided deadline', function () {
+    Carbon::setTestNow(now());
+
+    $user = User::factory()->withPersonalTeam()->create();
+    $identity = makeDomainIdentity($user);
+    $deadline = now()->addHours(24);
+
+    $job = new RetryDomainVerification($identity, $identity->verification_token, $deadline);
+
+    expect($job->retryUntil())->toEqual($deadline);
+
+    Carbon::setTestNow();
+});

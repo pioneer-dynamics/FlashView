@@ -1,46 +1,37 @@
 <?php
 
-namespace Tests\Feature\Call;
-
 use App\Models\CallSession;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
-use Tests\TestCase;
 
-class ChallengeCallSessionTest extends TestCase
-{
-    use RefreshDatabase;
+uses(RefreshDatabase::class);
 
-    public function test_challenge_returns_challenge_and_salt_for_valid_hash_id(): void
-    {
-        $session = CallSession::factory()->create();
+test('challenge returns challenge and salt for valid hash id', function () {
+    $session = CallSession::factory()->create();
 
-        $response = $this->getJson("/call-sessions/{$session->hash_id}/challenge");
+    $response = $this->getJson("/call-sessions/{$session->hash_id}/challenge");
 
-        $response->assertOk()
-            ->assertJsonStructure(['challenge', 'salt'])
-            ->assertJsonPath('salt', $session->key_salt);
+    $response->assertOk()
+        ->assertJsonStructure(['challenge', 'salt'])
+        ->assertJsonPath('salt', $session->key_salt);
 
-        $this->assertEquals(64, strlen($response->json('challenge')));
-    }
+    expect(strlen($response->json('challenge')))->toEqual(64);
+});
 
-    public function test_challenge_returns_404_for_unknown_hash_id(): void
-    {
-        $response = $this->getJson('/call-sessions/unknownhash/challenge');
+test('challenge returns 404 for unknown hash id', function () {
+    $response = $this->getJson('/call-sessions/unknownhash/challenge');
 
-        $response->assertNotFound();
-    }
+    $response->assertNotFound();
+});
 
-    public function test_challenge_is_stored_in_cache_with_60_second_ttl(): void
-    {
-        $session = CallSession::factory()->create();
+test('challenge is stored in cache with 60 second ttl', function () {
+    $session = CallSession::factory()->create();
 
-        $response = $this->getJson("/call-sessions/{$session->hash_id}/challenge");
+    $response = $this->getJson("/call-sessions/{$session->hash_id}/challenge");
 
-        $response->assertOk();
+    $response->assertOk();
 
-        $cached = Cache::get("call-challenge:{$session->id}");
-        $this->assertNotNull($cached);
-        $this->assertEquals($response->json('challenge'), $cached);
-    }
-}
+    $cached = Cache::get("call-challenge:{$session->id}");
+    expect($cached)->not->toBeNull();
+    expect($cached)->toEqual($response->json('challenge'));
+});

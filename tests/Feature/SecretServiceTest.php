@@ -1,7 +1,5 @@
 <?php
 
-namespace Tests\Feature;
-
 use App\Mail\NewSecretNotification;
 use App\Models\Scopes\ActiveScope;
 use App\Models\Secret;
@@ -9,99 +7,81 @@ use App\Models\User;
 use App\Services\SecretService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
-use Tests\TestCase;
 
-class SecretServiceTest extends TestCase
-{
-    use RefreshDatabase;
+uses(RefreshDatabase::class);
 
-    private SecretService $service;
+beforeEach(function () {
+    $this->service = app(SecretService::class);
+});
 
-    protected function setUp(): void
-    {
-        parent::setUp();
-        $this->service = app(SecretService::class);
-    }
+test('create secret returns secret and signed url', function () {
+    $result = $this->service->createSecret('encrypted-message', 60);
 
-    public function test_create_secret_returns_secret_and_signed_url(): void
-    {
-        $result = $this->service->createSecret('encrypted-message', 60);
+    expect($result)->toHaveKey('secret');
+    expect($result)->toHaveKey('url');
+    expect($result['secret'])->toBeInstanceOf(Secret::class);
+    $this->assertStringContainsString('signature=', $result['url']);
+});
 
-        $this->assertArrayHasKey('secret', $result);
-        $this->assertArrayHasKey('url', $result);
-        $this->assertInstanceOf(Secret::class, $result['secret']);
-        $this->assertStringContainsString('signature=', $result['url']);
-    }
+test('create secret with null user id', function () {
+    $result = $this->service->createSecret('encrypted-message', 60, null);
 
-    public function test_create_secret_with_null_user_id(): void
-    {
-        $result = $this->service->createSecret('encrypted-message', 60, null);
+    expect($result['secret']->user_id)->toBeNull();
+});
 
-        $this->assertNull($result['secret']->user_id);
-    }
+test('create secret sets correct expiry', function () {
+    $result = $this->service->createSecret('encrypted-message', 120);
 
-    public function test_create_secret_sets_correct_expiry(): void
-    {
-        $result = $this->service->createSecret('encrypted-message', 120);
+    expect($result['secret']->expires_at->between(
+        now()->addMinutes(119),
+        now()->addMinutes(121)
+    ))->toBeTrue();
+});
 
-        $this->assertTrue(
-            $result['secret']->expires_at->between(
-                now()->addMinutes(119),
-                now()->addMinutes(121)
-            )
-        );
-    }
+test('create secret for user', function () {
+    $user = User::factory()->create();
+    $result = $this->service->createSecret('encrypted-message', 60, $user->id);
 
-    public function test_create_secret_for_user(): void
-    {
-        $user = User::factory()->create();
-        $result = $this->service->createSecret('encrypted-message', 60, $user->id);
+    expect($result['secret']->user_id)->toEqual($user->id);
+});
 
-        $this->assertEquals($user->id, $result['secret']->user_id);
-    }
+test('list secrets returns paginated results', function () {
+    $user = User::factory()->create();
+    Secret::factory()->forUser($user)->count(3)->create();
 
-    public function test_list_secrets_returns_paginated_results(): void
-    {
-        $user = User::factory()->create();
-        Secret::factory()->forUser($user)->count(3)->create();
+    $result = $this->service->listSecrets($user);
 
-        $result = $this->service->listSecrets($user);
+    expect($result->items())->toHaveCount(3);
+});
 
-        $this->assertCount(3, $result->items());
-    }
+test('list secrets includes expired secrets', function () {
+    $user = User::factory()->create();
+    Secret::factory()->forUser($user)->create();
+    Secret::factory()->forUser($user)->expired()->create();
 
-    public function test_list_secrets_includes_expired_secrets(): void
-    {
-        $user = User::factory()->create();
-        Secret::factory()->forUser($user)->create();
-        Secret::factory()->forUser($user)->expired()->create();
+    $result = $this->service->listSecrets($user);
 
-        $result = $this->service->listSecrets($user);
+    expect($result->items())->toHaveCount(2);
+});
 
-        $this->assertCount(2, $result->items());
-    }
+test('burn secret marks as retrieved', function () {
+    $secret = Secret::factory()->create();
 
-    public function test_burn_secret_marks_as_retrieved(): void
-    {
-        $secret = Secret::factory()->create();
+    $this->service->burnSecret($secret);
 
-        $this->service->burnSecret($secret);
+    $secret = Secret::withoutGlobalScope(ActiveScope::class)->find($secret->id);
+    expect($secret->message)->toBeNull();
+    expect($secret->retrieved_at)->not->toBeNull();
+});
 
-        $secret = Secret::withoutGlobalScope(ActiveScope::class)->find($secret->id);
-        $this->assertNull($secret->message);
-        $this->assertNotNull($secret->retrieved_at);
-    }
+test('notify recipient sends email', function () {
+    Mail::fake();
 
-    public function test_notify_recipient_sends_email(): void
-    {
-        Mail::fake();
+    $user = User::factory()->create();
 
-        $user = User::factory()->create();
+    $this->service->notifyRecipient($user, 'recipient@example.com', 'https://example.com/secret', 'abc123');
 
-        $this->service->notifyRecipient($user, 'recipient@example.com', 'https://example.com/secret', 'abc123');
-
-        Mail::assertQueued(NewSecretNotification::class, function ($mail) {
-            return $mail->hasTo('recipient@example.com');
-        });
-    }
-}
+    Mail::assertQueued(NewSecretNotification::class, function ($mail) {
+        return $mail->hasTo('recipient@example.com');
+    });
+});

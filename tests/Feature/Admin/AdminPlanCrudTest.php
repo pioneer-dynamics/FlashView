@@ -1,278 +1,218 @@
 <?php
 
-namespace Tests\Feature\Admin;
-
 use App\Models\Plan;
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Config;
 use Inertia\Testing\AssertableInertia;
-use Tests\TestCase;
 
-class AdminPlanCrudTest extends TestCase
-{
-    use RefreshDatabase;
+test('unauthenticated user is redirected from admin plans', function () {
+    $response = $this->get(route('admin.plans.index'));
 
-    private function adminUser(): User
-    {
-        $user = User::factory()->withPersonalTeam()->create();
-        Config::set('admin.emails', [$user->email]);
+    $response->assertRedirect('/login');
+});
 
-        return $user;
-    }
+test('non admin receives 403 on admin plans', function () {
+    $user = nonAdminUser();
 
-    private function nonAdminUser(): User
-    {
-        return User::factory()->withPersonalTeam()->create();
-    }
+    $response = $this->actingAs($user)->get(route('admin.plans.index'));
 
-    private function planPayload(array $overrides = []): array
-    {
-        return array_merge([
-            'name' => 'Test Plan',
-            'price_per_month' => 10.00,
-            'price_per_year' => 100.00,
-            'create_stripe_product' => false,
-            'stripe_product_id' => '',
-            'stripe_monthly_price_id' => '',
-            'stripe_yearly_price_id' => '',
-            'features' => [
-                'messages' => ['order' => 1, 'type' => 'limit',   'config' => ['message_length' => 5000]],
-                'expiry' => ['order' => 3, 'type' => 'limit',   'config' => ['expiry_minutes' => 20160]],
-                'throttling' => ['order' => 4, 'type' => 'feature', 'config' => []],
-                'support' => ['order' => 5, 'type' => 'feature', 'config' => []],
-                'api' => ['order' => 6, 'type' => 'feature', 'config' => []],
-            ],
-        ], $overrides);
-    }
+    $response->assertStatus(403);
+});
 
-    public function test_unauthenticated_user_is_redirected_from_admin_plans(): void
-    {
-        $response = $this->get(route('admin.plans.index'));
+test('admin can view plans index', function () {
+    $admin = adminUser();
+    Plan::factory()->create(['name' => 'Starter']);
 
-        $response->assertRedirect('/login');
-    }
+    $response = $this->actingAs($admin)->get(route('admin.plans.index'));
 
-    public function test_non_admin_receives_403_on_admin_plans(): void
-    {
-        $user = $this->nonAdminUser();
+    $response->assertStatus(200);
+    $response->assertInertia(fn (AssertableInertia $page) => $page
+        ->component('Admin/Plans/Index')
+        ->has('plans', 1)
+    );
+});
 
-        $response = $this->actingAs($user)->get(route('admin.plans.index'));
+test('admin can create plan with mapped stripe ids', function () {
+    $admin = adminUser();
 
-        $response->assertStatus(403);
-    }
+    $response = $this->actingAs($admin)->postJson(route('admin.plans.store'), planPayload([
+        'name' => 'Growth',
+        'price_per_month' => 25.00,
+    ]));
 
-    public function test_admin_can_view_plans_index(): void
-    {
-        $admin = $this->adminUser();
-        Plan::factory()->create(['name' => 'Starter']);
+    $response->assertRedirect(route('admin.plans.index'));
+    $this->assertDatabaseHas('plans', ['name' => 'Growth', 'price_per_month' => 25.00]);
+});
 
-        $response = $this->actingAs($admin)->get(route('admin.plans.index'));
+test('admin can edit plan features', function () {
+    $admin = adminUser();
+    $plan = Plan::factory()->create();
 
-        $response->assertStatus(200);
-        $response->assertInertia(fn (AssertableInertia $page) => $page
-            ->component('Admin/Plans/Index')
-            ->has('plans', 1)
-        );
-    }
+    $updatedFeatures = planPayload()['features'];
+    $updatedFeatures['messages'] = ['order' => 2, 'type' => 'limit', 'config' => ['message_length' => 99999]];
 
-    public function test_admin_can_create_plan_with_mapped_stripe_ids(): void
-    {
-        $admin = $this->adminUser();
+    $response = $this->actingAs($admin)->putJson(route('admin.plans.update', $plan), planPayload([
+        'name' => $plan->name,
+        'price_per_month' => $plan->price_per_month,
+        'price_per_year' => $plan->price_per_year,
+        'features' => $updatedFeatures,
+    ]));
 
-        $response = $this->actingAs($admin)->postJson(route('admin.plans.store'), $this->planPayload([
-            'name' => 'Growth',
-            'price_per_month' => 25.00,
-        ]));
+    $response->assertRedirect(route('admin.plans.index'));
+    $plan->refresh();
+    expect($plan->features['messages']['config']['message_length'])->toEqual(99999);
+    expect($plan->features['messages']['order'])->toEqual(2);
+    expect($plan->features['messages']['type'])->toEqual('limit');
+});
 
-        $response->assertRedirect(route('admin.plans.index'));
-        $this->assertDatabaseHas('plans', ['name' => 'Growth', 'price_per_month' => 25.00]);
-    }
+test('admin cannot save plan with empty features', function () {
+    $admin = adminUser();
 
-    public function test_admin_can_edit_plan_features(): void
-    {
-        $admin = $this->adminUser();
-        $plan = Plan::factory()->create();
+    $response = $this->actingAs($admin)->postJson(route('admin.plans.store'), planPayload([
+        'features' => [],
+    ]));
 
-        $updatedFeatures = $this->planPayload()['features'];
-        $updatedFeatures['messages'] = ['order' => 2, 'type' => 'limit', 'config' => ['message_length' => 99999]];
+    $response->assertStatus(422);
+    $response->assertJsonValidationErrors(['features']);
+});
 
-        $response = $this->actingAs($admin)->putJson(route('admin.plans.update', $plan), $this->planPayload([
-            'name' => $plan->name,
-            'price_per_month' => $plan->price_per_month,
-            'price_per_year' => $plan->price_per_year,
-            'features' => $updatedFeatures,
-        ]));
+test('admin cannot save plan with missing type feature', function () {
+    $admin = adminUser();
 
-        $response->assertRedirect(route('admin.plans.index'));
-        $plan->refresh();
-        $this->assertEquals(99999, $plan->features['messages']['config']['message_length']);
-        $this->assertEquals(2, $plan->features['messages']['order']);
-        $this->assertEquals('limit', $plan->features['messages']['type']);
-    }
+    $response = $this->actingAs($admin)->postJson(route('admin.plans.store'), planPayload([
+        'features' => [
+            'api' => ['order' => 1, 'type' => 'missing', 'config' => []],
+        ],
+    ]));
 
-    public function test_admin_cannot_save_plan_with_empty_features(): void
-    {
-        $admin = $this->adminUser();
+    $response->assertStatus(422);
+    $response->assertJsonValidationErrors(['features.api.type']);
+});
 
-        $response = $this->actingAs($admin)->postJson(route('admin.plans.store'), $this->planPayload([
-            'features' => [],
-        ]));
+test('admin can delete plan with no subscribers', function () {
+    $admin = adminUser();
+    $plan = Plan::factory()->create();
 
-        $response->assertStatus(422);
-        $response->assertJsonValidationErrors(['features']);
-    }
+    $response = $this->actingAs($admin)->delete(route('admin.plans.destroy', $plan));
 
-    public function test_admin_cannot_save_plan_with_missing_type_feature(): void
-    {
-        $admin = $this->adminUser();
+    $response->assertRedirect(route('admin.plans.index'));
+    $this->assertDatabaseMissing('plans', ['id' => $plan->id]);
+});
 
-        $response = $this->actingAs($admin)->postJson(route('admin.plans.store'), $this->planPayload([
-            'features' => [
-                'api' => ['order' => 1, 'type' => 'missing', 'config' => []],
-            ],
-        ]));
+test('admin cannot delete plan with active subscribers', function () {
+    $admin = adminUser();
+    $plan = Plan::factory()->create([
+        'stripe_monthly_price_id' => 'price_monthly_abc',
+        'stripe_yearly_price_id' => 'price_yearly_abc',
+    ]);
 
-        $response->assertStatus(422);
-        $response->assertJsonValidationErrors(['features.api.type']);
-    }
+    $subscriber = User::factory()->withPersonalTeam()->create();
+    $subscription = $subscriber->subscriptions()->create([
+        'type' => 'default',
+        'stripe_id' => 'sub_test_'.uniqid(),
+        'stripe_status' => 'active',
+        'stripe_price' => $plan->stripe_monthly_price_id,
+        'quantity' => 1,
+    ]);
+    $subscription->items()->create([
+        'stripe_id' => 'si_test_'.uniqid(),
+        'stripe_product' => 'prod_abc',
+        'stripe_price' => $plan->stripe_monthly_price_id,
+        'quantity' => 1,
+    ]);
 
-    public function test_admin_can_delete_plan_with_no_subscribers(): void
-    {
-        $admin = $this->adminUser();
-        $plan = Plan::factory()->create();
+    $response = $this->actingAs($admin)->delete(route('admin.plans.destroy', $plan));
 
-        $response = $this->actingAs($admin)->delete(route('admin.plans.destroy', $plan));
+    $response->assertStatus(422);
+    $this->assertDatabaseHas('plans', ['id' => $plan->id]);
+});
 
-        $response->assertRedirect(route('admin.plans.index'));
-        $this->assertDatabaseMissing('plans', ['id' => $plan->id]);
-    }
+test('is admin is true in inertia props for admin user', function () {
+    $admin = adminUser();
 
-    public function test_admin_cannot_delete_plan_with_active_subscribers(): void
-    {
-        $admin = $this->adminUser();
-        $plan = Plan::factory()->create([
-            'stripe_monthly_price_id' => 'price_monthly_abc',
-            'stripe_yearly_price_id' => 'price_yearly_abc',
-        ]);
+    $response = $this->actingAs($admin)->get(route('dashboard'));
 
-        $subscriber = User::factory()->withPersonalTeam()->create();
-        $subscription = $subscriber->subscriptions()->create([
-            'type' => 'default',
-            'stripe_id' => 'sub_test_'.uniqid(),
-            'stripe_status' => 'active',
-            'stripe_price' => $plan->stripe_monthly_price_id,
-            'quantity' => 1,
-        ]);
-        $subscription->items()->create([
-            'stripe_id' => 'si_test_'.uniqid(),
-            'stripe_product' => 'prod_abc',
-            'stripe_price' => $plan->stripe_monthly_price_id,
-            'quantity' => 1,
-        ]);
+    $response->assertInertia(fn (AssertableInertia $page) => $page
+        ->where('auth.user.is_admin', true)
+    );
+});
 
-        $response = $this->actingAs($admin)->delete(route('admin.plans.destroy', $plan));
+test('is admin is false in inertia props for non admin', function () {
+    $user = nonAdminUser();
 
-        $response->assertStatus(422);
-        $this->assertDatabaseHas('plans', ['id' => $plan->id]);
-    }
+    $response = $this->actingAs($user)->get(route('dashboard'));
 
-    public function test_is_admin_is_true_in_inertia_props_for_admin_user(): void
-    {
-        $admin = $this->adminUser();
+    $response->assertInertia(fn (AssertableInertia $page) => $page
+        ->where('auth.user.is_admin', false)
+    );
+});
 
-        $response = $this->actingAs($admin)->get(route('dashboard'));
+test('admin store validates required fields', function () {
+    $admin = adminUser();
 
-        $response->assertInertia(fn (AssertableInertia $page) => $page
-            ->where('auth.user.is_admin', true)
-        );
-    }
+    $response = $this->actingAs($admin)->post(route('admin.plans.store'), []);
 
-    public function test_is_admin_is_false_in_inertia_props_for_non_admin(): void
-    {
-        $user = $this->nonAdminUser();
+    $response->assertSessionHasErrors(['name', 'price_per_month', 'price_per_year', 'create_stripe_product', 'features']);
+});
 
-        $response = $this->actingAs($user)->get(route('dashboard'));
+test('non admin cannot create plan', function () {
+    $user = nonAdminUser();
 
-        $response->assertInertia(fn (AssertableInertia $page) => $page
-            ->where('auth.user.is_admin', false)
-        );
-    }
+    $response = $this->actingAs($user)->postJson(route('admin.plans.store'), planPayload());
 
-    public function test_admin_store_validates_required_fields(): void
-    {
-        $admin = $this->adminUser();
+    $response->assertStatus(403);
+});
 
-        $response = $this->actingAs($admin)->post(route('admin.plans.store'), []);
+test('non admin cannot update plan', function () {
+    $user = nonAdminUser();
+    $plan = Plan::factory()->create();
 
-        $response->assertSessionHasErrors(['name', 'price_per_month', 'price_per_year', 'create_stripe_product', 'features']);
-    }
+    $response = $this->actingAs($user)->putJson(route('admin.plans.update', $plan), planPayload());
 
-    public function test_non_admin_cannot_create_plan(): void
-    {
-        $user = $this->nonAdminUser();
+    $response->assertStatus(403);
+});
 
-        $response = $this->actingAs($user)->postJson(route('admin.plans.store'), $this->planPayload());
+test('admin can save plan with start and end date', function () {
+    $admin = adminUser();
 
-        $response->assertStatus(403);
-    }
+    $response = $this->actingAs($admin)->postJson(route('admin.plans.store'), planPayload([
+        'name' => 'Limited Plan',
+        'start_date' => '2026-06-01',
+        'end_date' => '2026-12-31',
+    ]));
 
-    public function test_non_admin_cannot_update_plan(): void
-    {
-        $user = $this->nonAdminUser();
-        $plan = Plan::factory()->create();
+    $response->assertRedirect(route('admin.plans.index'));
 
-        $response = $this->actingAs($user)->putJson(route('admin.plans.update', $plan), $this->planPayload());
+    $plan = Plan::where('name', 'Limited Plan')->firstOrFail();
+    expect($plan->start_date->toDateString())->toEqual('2026-06-01');
+    expect($plan->end_date->toDateString())->toEqual('2026-12-31');
+});
 
-        $response->assertStatus(403);
-    }
+test('admin can clear dates on plan', function () {
+    $admin = adminUser();
+    $plan = Plan::factory()->activeWindow()->create();
 
-    public function test_admin_can_save_plan_with_start_and_end_date(): void
-    {
-        $admin = $this->adminUser();
+    $response = $this->actingAs($admin)->putJson(route('admin.plans.update', $plan), planPayload([
+        'name' => $plan->name,
+        'price_per_month' => $plan->price_per_month,
+        'price_per_year' => $plan->price_per_year,
+        'start_date' => null,
+        'end_date' => null,
+    ]));
 
-        $response = $this->actingAs($admin)->postJson(route('admin.plans.store'), $this->planPayload([
-            'name' => 'Limited Plan',
-            'start_date' => '2026-06-01',
-            'end_date' => '2026-12-31',
-        ]));
+    $response->assertRedirect(route('admin.plans.index'));
+    $plan->refresh();
+    expect($plan->start_date)->toBeNull();
+    expect($plan->end_date)->toBeNull();
+});
 
-        $response->assertRedirect(route('admin.plans.index'));
+test('end date before start date returns validation error', function () {
+    $admin = adminUser();
 
-        $plan = Plan::where('name', 'Limited Plan')->firstOrFail();
-        $this->assertEquals('2026-06-01', $plan->start_date->toDateString());
-        $this->assertEquals('2026-12-31', $plan->end_date->toDateString());
-    }
+    $response = $this->actingAs($admin)->postJson(route('admin.plans.store'), planPayload([
+        'start_date' => '2026-12-31',
+        'end_date' => '2026-06-01',
+    ]));
 
-    public function test_admin_can_clear_dates_on_plan(): void
-    {
-        $admin = $this->adminUser();
-        $plan = Plan::factory()->activeWindow()->create();
-
-        $response = $this->actingAs($admin)->putJson(route('admin.plans.update', $plan), $this->planPayload([
-            'name' => $plan->name,
-            'price_per_month' => $plan->price_per_month,
-            'price_per_year' => $plan->price_per_year,
-            'start_date' => null,
-            'end_date' => null,
-        ]));
-
-        $response->assertRedirect(route('admin.plans.index'));
-        $plan->refresh();
-        $this->assertNull($plan->start_date);
-        $this->assertNull($plan->end_date);
-    }
-
-    public function test_end_date_before_start_date_returns_validation_error(): void
-    {
-        $admin = $this->adminUser();
-
-        $response = $this->actingAs($admin)->postJson(route('admin.plans.store'), $this->planPayload([
-            'start_date' => '2026-12-31',
-            'end_date' => '2026-06-01',
-        ]));
-
-        $response->assertStatus(422);
-        $response->assertJsonValidationErrors(['end_date']);
-    }
-}
+    $response->assertStatus(422);
+    $response->assertJsonValidationErrors(['end_date']);
+});

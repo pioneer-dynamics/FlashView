@@ -1,94 +1,80 @@
 <?php
 
-namespace Tests\Unit\Locker;
-
 use App\Models\Locker;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
-use Tests\TestCase;
 
-class LockerModelTest extends TestCase
-{
-    use RefreshDatabase;
+uses(RefreshDatabase::class);
 
-    public function test_verify_update_token_matches_hash(): void
-    {
-        $token = 'mytoken';
-        $locker = Locker::factory()->create([
-            'update_token_hash' => hash('sha256', $token),
-        ]);
+test('verify update token matches hash', function () {
+    $token = 'mytoken';
+    $locker = Locker::factory()->create([
+        'update_token_hash' => hash('sha256', $token),
+    ]);
 
-        $this->assertTrue($locker->verifyUpdateToken($token));
-    }
+    expect($locker->verifyUpdateToken($token))->toBeTrue();
+});
 
-    public function test_verify_update_token_rejects_wrong_token(): void
-    {
-        $locker = Locker::factory()->create([
-            'update_token_hash' => hash('sha256', 'correcttoken'),
-        ]);
+test('verify update token rejects wrong token', function () {
+    $locker = Locker::factory()->create([
+        'update_token_hash' => hash('sha256', 'correcttoken'),
+    ]);
 
-        $this->assertFalse($locker->verifyUpdateToken('wrongtoken'));
-    }
+    expect($locker->verifyUpdateToken('wrongtoken'))->toBeFalse();
+});
 
-    public function test_verify_auth_verifier_matches(): void
-    {
-        $verifier = str_repeat('a', 64);
-        $locker = Locker::factory()->create([
-            'auth_verifier' => $verifier,
-        ]);
+test('verify auth verifier matches', function () {
+    $verifier = str_repeat('a', 64);
+    $locker = Locker::factory()->create([
+        'auth_verifier' => $verifier,
+    ]);
 
-        $this->assertTrue($locker->verifyAuthVerifier($verifier));
-    }
+    expect($locker->verifyAuthVerifier($verifier))->toBeTrue();
+});
 
-    public function test_is_file_locker_returns_true_when_storage_path_set(): void
-    {
-        $locker = Locker::factory()->fileLocker()->create();
+test('is file locker returns true when storage path set', function () {
+    $locker = Locker::factory()->fileLocker()->create();
 
-        $this->assertTrue($locker->isFileLocker());
-    }
+    expect($locker->isFileLocker())->toBeTrue();
+});
 
-    public function test_is_file_locker_returns_false_when_no_storage_path(): void
-    {
-        $locker = Locker::factory()->create(['storage_path' => null]);
+test('is file locker returns false when no storage path', function () {
+    $locker = Locker::factory()->create(['storage_path' => null]);
 
-        $this->assertFalse($locker->isFileLocker());
-    }
+    expect($locker->isFileLocker())->toBeFalse();
+});
 
-    public function test_active_scope_excludes_expired(): void
-    {
-        Locker::factory()->create(['account_id' => '1111111111']);
-        Locker::factory()->expired()->create(['account_id' => '2222222222']);
+test('active scope excludes expired', function () {
+    Locker::factory()->create(['account_id' => '1111111111']);
+    Locker::factory()->expired()->create(['account_id' => '2222222222']);
 
-        $active = Locker::active()->get();
+    $active = Locker::active()->get();
 
-        $this->assertCount(1, $active);
-        $this->assertEquals('1111111111', $active->first()->account_id);
-    }
+    expect($active)->toHaveCount(1);
+    expect($active->first()->account_id)->toEqual('1111111111');
+});
 
-    public function test_expired_scope_returns_only_expired(): void
-    {
-        Locker::factory()->create(['account_id' => '1111111111']);
-        Locker::factory()->expired()->create(['account_id' => '2222222222']);
+test('expired scope returns only expired', function () {
+    Locker::factory()->create(['account_id' => '1111111111']);
+    Locker::factory()->expired()->create(['account_id' => '2222222222']);
 
-        $expired = Locker::expired()->get();
+    $expired = Locker::expired()->get();
 
-        $this->assertCount(1, $expired);
-        $this->assertEquals('2222222222', $expired->first()->account_id);
-    }
+    expect($expired)->toHaveCount(1);
+    expect($expired->first()->account_id)->toEqual('2222222222');
+});
 
-    public function test_wrapped_file_key_is_encrypted_at_rest(): void
-    {
-        $plaintext = 'my-base64-wrapped-dek-value';
-        $locker = Locker::factory()->create([
-            'wrapped_file_key' => $plaintext,
-        ]);
+test('wrapped file key is encrypted at rest', function () {
+    $plaintext = 'my-base64-wrapped-dek-value';
+    $locker = Locker::factory()->create([
+        'wrapped_file_key' => $plaintext,
+    ]);
 
-        // Raw DB value must differ from plaintext (it is wrapped by APP_KEY via encrypted cast)
-        $rawValue = DB::table('lockers')
-            ->where('id', $locker->id)
-            ->value('wrapped_file_key');
+    // Raw DB value must differ from plaintext (it is wrapped by APP_KEY via encrypted cast)
+    $rawValue = DB::table('lockers')
+        ->where('id', $locker->id)
+        ->value('wrapped_file_key');
 
-        $this->assertNotEquals($plaintext, $rawValue, 'wrapped_file_key must be encrypted in the database');
-        $this->assertEquals($plaintext, $locker->fresh()->wrapped_file_key, 'Model accessor must decrypt to original value');
-    }
-}
+    $this->assertNotEquals($plaintext, $rawValue, 'wrapped_file_key must be encrypted in the database');
+    expect($locker->fresh()->wrapped_file_key)->toEqual($plaintext, 'Model accessor must decrypt to original value');
+});

@@ -1,100 +1,85 @@
 <?php
 
-namespace Tests\Unit\Models;
-
 use App\Models\Scopes\ActiveScope;
 use App\Models\Secret;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Tests\TestCase;
 
-class SecretScopeTest extends TestCase
-{
-    use RefreshDatabase;
+uses(RefreshDatabase::class);
 
-    public function test_active_scope_returns_non_expired_secrets_with_message(): void
-    {
-        $active = Secret::factory()->create();
-        Secret::factory()->expired()->create();
-        Secret::factory()->retrieved()->create();
+test('active scope returns non expired secrets with message', function () {
+    $active = Secret::factory()->create();
+    Secret::factory()->expired()->create();
+    Secret::factory()->retrieved()->create();
 
-        $results = Secret::withoutGlobalScope(ActiveScope::class)->active()->get();
+    $results = Secret::withoutGlobalScope(ActiveScope::class)->active()->get();
 
-        $this->assertCount(1, $results);
-        $this->assertTrue($results->first()->is($active));
-    }
+    expect($results)->toHaveCount(1);
+    expect($results->first()->is($active))->toBeTrue();
+});
 
-    public function test_active_scope_excludes_expired_secrets(): void
-    {
-        Secret::factory()->expired()->create();
+test('active scope excludes expired secrets', function () {
+    Secret::factory()->expired()->create();
 
-        $results = Secret::withoutGlobalScope(ActiveScope::class)->active()->get();
+    $results = Secret::withoutGlobalScope(ActiveScope::class)->active()->get();
 
-        $this->assertCount(0, $results);
-    }
+    expect($results)->toHaveCount(0);
+});
 
-    public function test_active_scope_excludes_secrets_with_null_message(): void
-    {
-        Secret::factory()->retrieved()->create();
+test('active scope excludes secrets with null message', function () {
+    Secret::factory()->retrieved()->create();
 
-        $results = Secret::withoutGlobalScope(ActiveScope::class)->active()->get();
+    $results = Secret::withoutGlobalScope(ActiveScope::class)->active()->get();
 
-        $this->assertCount(0, $results);
-    }
+    expect($results)->toHaveCount(0);
+});
 
-    public function test_expired_scope_returns_past_expiry_secrets(): void
-    {
-        Secret::factory()->expired()->create();
-        Secret::factory()->create();
+test('expired scope returns past expiry secrets', function () {
+    Secret::factory()->expired()->create();
+    Secret::factory()->create();
 
-        $results = Secret::withoutGlobalScope(ActiveScope::class)->expired()->get();
+    $results = Secret::withoutGlobalScope(ActiveScope::class)->expired()->get();
 
-        $this->assertCount(1, $results);
-    }
+    expect($results)->toHaveCount(1);
+});
 
-    public function test_expired_scope_excludes_future_expiry_secrets(): void
-    {
-        Secret::factory()->create();
+test('expired scope excludes future expiry secrets', function () {
+    Secret::factory()->create();
 
-        $results = Secret::withoutGlobalScope(ActiveScope::class)->expired()->get();
+    $results = Secret::withoutGlobalScope(ActiveScope::class)->expired()->get();
 
-        $this->assertCount(0, $results);
-    }
+    expect($results)->toHaveCount(0);
+});
 
-    public function test_ready_to_prune_returns_old_expired_secrets_without_message(): void
-    {
-        Secret::factory()->readyToPrune()->create();
-        Secret::factory()->expired()->create();
+test('ready to prune returns old expired secrets without message', function () {
+    Secret::factory()->readyToPrune()->create();
+    Secret::factory()->expired()->create();
 
-        $results = Secret::withoutGlobalScope(ActiveScope::class)->readyToPrune()->get();
+    $results = Secret::withoutGlobalScope(ActiveScope::class)->readyToPrune()->get();
 
-        $this->assertCount(1, $results);
-    }
+    expect($results)->toHaveCount(1);
+});
 
-    public function test_ready_to_prune_excludes_recent_expired_secrets(): void
-    {
-        Secret::factory()->create([
-            'expires_at' => now()->subDays(5),
-            'message' => null,
-        ]);
+test('ready to prune excludes recent expired secrets', function () {
+    Secret::factory()->create([
+        'expires_at' => now()->subDays(5),
+        'message' => null,
+    ]);
 
-        $results = Secret::withoutGlobalScope(ActiveScope::class)->readyToPrune()->get();
+    $results = Secret::withoutGlobalScope(ActiveScope::class)->readyToPrune()->get();
 
-        $this->assertCount(0, $results);
-    }
+    expect($results)->toHaveCount(0);
+});
 
-    public function test_global_active_scope_applied_by_default(): void
-    {
-        Secret::factory()->create();
-        Secret::factory()->expired()->create();
+test('global active scope applied by default', function () {
+    Secret::factory()->create();
+    Secret::factory()->expired()->create();
 
-        $this->assertCount(1, Secret::all());
-    }
+    expect(Secret::all())->toHaveCount(1);
+});
 
-    public function test_without_global_scope_bypasses_active_scope(): void
-    {
-        Secret::factory()->create();
-        Secret::factory()->expired()->create();
+test('without global scope bypasses active scope', function () {
+    Secret::factory()->create();
+    Secret::factory()->expired()->create();
 
-        $this->assertCount(2, Secret::withoutGlobalScope(ActiveScope::class)->get());
-    }
-}
+    expect(Secret::withoutGlobalScope(ActiveScope::class)->get())->toHaveCount(2);
+});

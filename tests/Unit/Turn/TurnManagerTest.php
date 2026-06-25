@@ -1,63 +1,52 @@
 <?php
 
-namespace Tests\Unit\Turn;
-
 use App\Contracts\TurnProvider;
 use App\Turn\FlashviewTurnProvider;
 use App\Turn\MeteredTurnProvider;
 use App\Turn\TurnManager;
 use App\Turn\XirsysTurnProvider;
-use Tests\TestCase;
 
-class TurnManagerTest extends TestCase
-{
-    public function test_default_driver_comes_from_config(): void
-    {
-        config(['turn.default' => 'metered']);
+test('default driver comes from config', function () {
+    config(['turn.default' => 'metered']);
 
-        $manager = new TurnManager($this->app);
+    $manager = new TurnManager($this->app);
 
-        $this->assertEquals('metered', $manager->getDefaultDriver());
-    }
+    expect($manager->getDefaultDriver())->toEqual('metered');
+});
 
-    public function test_can_resolve_flashview_driver(): void
-    {
-        config(['turn.drivers.flashview' => ['host' => 'turn.flashview.io', 'auth_secret' => 's', 'ttl' => 3600]]);
+test('can resolve flashview driver', function () {
+    config(['turn.drivers.flashview' => ['host' => 'turn.flashview.io', 'auth_secret' => 's', 'ttl' => 3600]]);
 
-        $manager = new TurnManager($this->app);
+    $manager = new TurnManager($this->app);
 
-        $this->assertInstanceOf(FlashviewTurnProvider::class, $manager->driver('flashview'));
-    }
+    expect($manager->driver('flashview'))->toBeInstanceOf(FlashviewTurnProvider::class);
+});
 
-    public function test_can_resolve_metered_driver(): void
-    {
-        config(['turn.drivers.metered' => ['api_key' => 'k', 'domain' => 'd']]);
+test('can resolve metered driver', function () {
+    config(['turn.drivers.metered' => ['api_key' => 'k', 'domain' => 'd']]);
 
-        $manager = new TurnManager($this->app);
+    $manager = new TurnManager($this->app);
 
-        $this->assertInstanceOf(MeteredTurnProvider::class, $manager->driver('metered'));
-    }
+    expect($manager->driver('metered'))->toBeInstanceOf(MeteredTurnProvider::class);
+});
 
-    public function test_can_resolve_xirsys_driver(): void
-    {
-        config(['turn.drivers.xirsys' => ['api_key' => 'k', 'secret' => 's', 'channel' => 'c']]);
+test('can resolve xirsys driver', function () {
+    config(['turn.drivers.xirsys' => ['api_key' => 'k', 'secret' => 's', 'channel' => 'c']]);
 
-        $manager = new TurnManager($this->app);
+    $manager = new TurnManager($this->app);
 
-        $this->assertInstanceOf(XirsysTurnProvider::class, $manager->driver('xirsys'));
-    }
+    expect($manager->driver('xirsys'))->toBeInstanceOf(XirsysTurnProvider::class);
+});
 
-    public function test_can_switch_driver_at_runtime(): void
-    {
-        config([
-            'turn.default' => 'metered',
-            'turn.drivers.metered' => ['api_key' => 'k', 'domain' => 'd'],
-            'turn.drivers.xirsys' => ['api_key' => 'k', 'secret' => 's', 'channel' => 'c'],
-        ]);
+test('can switch driver at runtime', function () {
+    config([
+        'turn.default' => 'metered',
+        'turn.drivers.metered' => ['api_key' => 'k', 'domain' => 'd'],
+        'turn.drivers.xirsys' => ['api_key' => 'k', 'secret' => 's', 'channel' => 'c'],
+    ]);
 
-        $manager = new TurnManager($this->app);
+    $manager = new TurnManager($this->app);
 
-        $this->assertInstanceOf(TurnProvider::class, $manager->driver('xirsys'));
-        $this->assertInstanceOf(XirsysTurnProvider::class, $manager->driver('xirsys'));
-    }
-}
+    expect($manager->driver('xirsys'))->toBeInstanceOf(TurnProvider::class);
+    expect($manager->driver('xirsys'))->toBeInstanceOf(XirsysTurnProvider::class);
+});
