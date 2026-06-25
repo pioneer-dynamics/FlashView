@@ -183,6 +183,7 @@
         "mockery/mockery": "^1.6",
         "nunomaduro/collision": "^8.6",
         "pestphp/pest": "^4.0",
+        "pestphp/pest-plugin-browser": "^4.0",
         "pestphp/pest-plugin-laravel": "^4.0"
     },
     "autoload": {
@@ -198,7 +199,11 @@
         },
         "files": [
             "tests/Feature/Helpers.php",
-            "tests/Feature/Admin/Helpers.php"
+            "tests/Feature/Admin/Helpers.php",
+            "tests/Browser/Helpers/AuthHelper.php",
+            "tests/Browser/Helpers/DatabaseHelper.php",
+            "tests/Browser/Helpers/LockerHelper.php",
+            "tests/Browser/Helpers/CallHelper.php"
         ]
     },
     "scripts": {

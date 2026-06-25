@@ -1,4 +1,6 @@
 /.phpunit.cache
+/tests/Browser/Screenshots
+/tests/Browser/Videos
 /node_modules
 /tools/*/node_modules
 /public/build
@@ -31,9 +33,6 @@ yarn-error.log
 /resources/js/routes
 /resources/js/wayfinder
 
-/playwright-report
-/test-results
-/.playwright
 
 **/caddy
 frankenphp

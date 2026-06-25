@@ -232,20 +232,27 @@ Route::get('/users', function () {
 - Do not run `vendor/bin/pint --test`, simply run `vendor/bin/pint` to fix any formatting issues.
 
 
-=== phpunit/core rules ===
+=== pest/core rules ===
 
-## PHPUnit Core
+## Pest Core
 
-- This application uses PHPUnit for testing. All tests must be written as PHPUnit classes. Use `php artisan make:test --phpunit <name>` to create a new test.
-- If you see a test using "Pest", convert it to PHPUnit.
+- This application uses Pest 4 for testing. All tests must be written as Pest function-syntax tests. Use `php artisan make:test <name>` to create a new test.
+- If you see a test using PHPUnit class syntax (`class FooTest extends TestCase`), convert it to Pest function syntax.
 - Every time a test has been updated, run that singular test.
 - When the tests relating to your feature are passing, ask the user if they would like to also run the entire test suite to make sure everything is still passing.
 - Tests should test all of the happy paths, failure paths, and weird paths.
 - You must not remove any tests or test files from the tests directory without approval. These are not temporary or helper files, these are core to the application.
 
+### Test Configuration
+- `tests/Pest.php` is the global configuration file. `uses()` calls there apply traits to entire directories.
+- Feature and Unit tests use `TestCase::class, RefreshDatabase::class` applied via `uses()->in('Feature', 'Unit')`.
+- Browser tests use `BrowserTestCase::class, RefreshDatabase::class` applied via `uses()->in('Browser')`.
+
 ### Running Tests
-- Run the minimal number of tests, using an appropriate filter, before finalizing.
+- Run the minimal number of tests, using an appropriate filter, before finalising.
 - To run all tests: `php artisan test`.
+- To run all Feature/Unit tests: `php artisan test --testsuite Feature` or `--testsuite Unit`.
+- To run all browser tests: `php artisan test --testsuite Browser`.
 - To run all tests in a file: `php artisan test tests/Feature/ExampleTest.php`.
 - To filter on a particular test name: `php artisan test --filter=testName` (recommended after making a change to a related file).
 
@@ -364,6 +371,7 @@ npm run build            # Production build
 php artisan test                              # All tests
 php artisan test --testsuite Unit             # Unit only
 php artisan test --testsuite Feature          # Feature only
+php artisan test --testsuite Browser          # Browser tests only
 php artisan test tests/Feature/SomeTest.php   # Single file
 
 # Linting
@@ -378,31 +386,39 @@ cp .env.example .env && php artisan key:generate
 php artisan migrate
 ```
 
-## E2E Tests (Playwright)
+## Browser Tests (Pest)
 
-E2E tests live in `tests/e2e/`. Tests run on the **host machine** (not inside Sail) and hit the Sail nginx server at `http://localhost`. Sail must be running before executing tests.
+Browser tests live in `tests/Browser/`. They use `pestphp/pest-plugin-browser` which starts an in-process AmpHTTP server alongside a Playwright-controlled Chromium browser. Because the server runs in-process, `RefreshDatabase`, `Http::fake()`, `Storage::fake()`, and in-process `$this->get()` calls all work from browser test closures.
 
 ```bash
-# First-time setup: install the Playwright browser on the host
+# First-time setup: install the Playwright Chromium browser
 npx playwright install chromium
 
-# Run all E2E tests (host machine, Sail must be running)
-npx playwright test
+# Run all browser tests
+php artisan test --testsuite Browser
 
-# Run a specific spec file
-npx playwright test tests/e2e/secret-creation.spec.ts
+# Run a specific browser test file
+php artisan test tests/Browser/SecretCreationTest.php
 
-# Open Playwright UI for interactive debugging
-npx playwright test --ui
-
-# View last HTML report
-npx playwright show-report
+# Run a specific browser test by name
+php artisan test --filter="guest can create a secret"
 ```
 
 **Important notes:**
-- Each spec resets the database before every test (`vendor/bin/sail artisan migrate:fresh` locally, `php artisan migrate:fresh` in CI). **Do not run E2E tests while you have local data you want to keep.**
-- File upload E2E tests are tracked separately in PIO-94 (require S3 or file storage backend in test env).
-- Registration E2E is deferred (PIO-45 two-step email verification requires a real mailbox or email stub to automate).
+- Browser tests use `RefreshDatabase` — each test gets a clean database automatically.
+- Browser tests require the `sockets` PHP extension (for `amphp/http-server`). This is included in the `browser-tests` CI job.
+- Build frontend assets before running browser tests: `npm run build` (or `composer dev` for development).
+- File upload browser tests are deferred — those tests use `todo()` as they require `page.waitForEvent('download')` which is unavailable in pest-plugin-browser v4.
+- Tests needing `page.route()` network interception or `page.clock` are also deferred as `todo()`.
+- Registration browser testing is deferred (PIO-45: two-step email verification requires a real mailbox or email stub).
+
+### Shared browser helper functions
+
+Autoloaded helper files in `tests/Browser/Helpers/`:
+- `AuthHelper.php` — `createTestUser()`, `createAdminUser()`, `browserLogin()`
+- `DatabaseHelper.php` — `seedPlans()`, `createSecureLineProduct()`, `expireAllSecrets()`
+- `LockerHelper.php` — `createLockerCredit()`, `createLegacyLockerViaDB()`, `keyFileAlpha()`, `keyFileBeta()`, `keyFileWrong()`
+- `CallHelper.php` — `createActiveCallSession()`, `createFutureCallSession()`, `createSecureLineCredit()`
 
 ## Architecture
 
